@@ -1,0 +1,34 @@
+#Phase IV:   Basic Knowledge and Transmission
+
+##General Idea
+
+Characters have a list of knowledge they can add to, as they gain experience.
+That knowledge can impact their preferences and seeking behavior.
+We will introduce the basic structure of character knowledge, and mechanisms for acting on that knowledge.
+Future vision is for characters to be able to transmit pieces of their knowledge through
+talking, training, or items they create.
+    - Char Learns what is healing and poisonous by experience
+    - User can toggle one of the panels in select mode to show knowledge for that char with a keypress
+    - Char Acts based on knowledge
+    - Knowledge of poison item causes preference for exact combination to decrease
+    - Char Seeks healing when health is poor or more (intent selection based on need hierarchy)
+    - Healing considered a partial match when health is poor or lower
+
+##Requirements
+
+A. Character gains knowledge by experience
+    1. When a character eats a poisonous item, they gain the knowledge "[items] are poisonous"
+    2. When a character eats a healing item, they gain the knowledge "[items] are healing"
+B. User can see Character's knowledge
+    1. When in select mode, the user sees a hint that a key press will toggle the action log to a "Knowledge" panel
+        a. Question:  Given that the game will expand to have both more details, and more select mode specific keystrokes
+            Does it make sense to show these hints in the status bar or in the details panel?
+    2. In the Knowledge panel, the user sees a scrollable list of things the character has learned
+C. Poison knowledge creates dislike
+    1. When the character learns that something is poisonous, it is affected by an opinion for a specifc combo (up to 3 units, eg 'Spotted Slimy Mushroom' or 'Spotted Blue Mushroom' )
+E. Healing Knowledge creates new intent and seeking
+F. Healing Knowledge creates conditional matching logic for food
+G. Action Log [Char] Learned something!
+H. New Action: Talking
+I. Talking has chance to transmit knowledge
+

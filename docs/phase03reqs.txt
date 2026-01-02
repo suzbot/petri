@@ -1,0 +1,114 @@
+Phase 3 - Mood and Preference Formation
+
+#General Idea:
+
+- Characters will have a stat called mood.
+    - Mood will be affected by interactions with entities that they have preferences about, when they interact with those entities.
+    - Mood will also be affected by the severity of their needs.
+    - In future iterations, Mood will also be affected by external circumstances like interactions with characters and experiencing weather.
+- In turn, Mood will drive how preferences are adjusted
+    - If mood is high, then a character has a chance of forming a positive preference about that entity or an attribute of that entity
+    - If mood is low, then likewise the character has a chance of forming a negative preference
+    - If the character already has a preference related to an attribute of the entitiy they are interacting with, then the chance is that preference may be modified or removed.
+
+For reference, see the conversation with the poisoned mushroom example as documented in the last architecture conversation.
+
+#A. Requirements: Mood
+
+1. Characters have a new stat called mood:
+    a. worst is 0, best is 100
+    b. 0-10 is Miserable (Crisis), 11-34 is Unhappy (Severe), 35-64 is Neutral, 65-89 is Happy, 90-100 is Joyful
+    c. This is displayed in the Details Panel stat block, following existing state display, test mode, and color conventions
+2. Mood is affected by the other statuses
+    a. At the time when a need is fufilled, mood receives a boost
+    b. As long as all needs are met, mood increases slowly
+    c. If the highest need is moderate, then mood decreases slowly
+    d. If the highest need is severe, then mood decreases at a medium rate
+    e. If the highest need is crisis, mood decreases quickly
+    f. mood is not affected by itself
+3. Mood tier changes are reflected in the Activity Log
+    a. Displayed in an approprite color based on severity
+    b. Introduce a new color where the best tier is dark green (for all stats)
+    Question: how easy would it be to show the mood reason? what if more than one thing contributed to a mood change in a tick?
+
+#B. Requirements: Preferences driven by Mood
+
+1. Characters have the ability to have preferences about any descriptive attribute, and item type, or any combination of description and item
+2. Characters start with only the preferences given to them at creation
+3. If a character has an Unhappy/Severe mood while interacting with an item, they have a small chance of developing a negative opinion
+    a. the opinion can be about the itemType of the item, the color of the item, or the combination of item type and color, determined randomly
+    b. if the Character had an existing positive preference matching the new opinion, then the positive preference is removed
+    c. if the Character had no preference matching the new opinion, then a negative preference is formed (dislikes [x])
+    d. if the Character had an existing negative preference matching the new opinion, then there is no change
+4. If the character has a Miserable mood while interacting with an item, they have a higher chance of developing a negative opinion, following the same logic as above
+5. If the character has a Happy mood while interacting with an item, then they have a small chance of developing a positive opinion
+    a. positive opinions follow inverted logic from negative opinions, where it can either remove a matching negative preference, or form a new positive preference (likes [x])
+6. If the character has a Joyful mood while interacting with an item, they have a higher chance of developing a positive opinion, following the logic above
+7. Preference changes are shown in the activity log
+
+#C. Requirements: Mood driven by Preferences
+
+1. If a character is interacting with something they have a positive preference for, then they get a small mood boost
+2. If a character is interacting with something they have a negative preference for, they get a small mood decrement
+3. If a character is interacting with something they have multiple preferences for (likes red, likes mushrooms) they can be additive or cancelling (likes red, dislikes muchrooms)
+
+#D. World Balancing Requirements - ensuring interesting emergent opinion formation:
+
+1. Mushrooms or Berries have a chance to be healing
+    a. Why: Currently, the game is an inevitable spiral towards death, as there is only ways to lose health, not gain it.
+        This would compound with the new mood logic to cause a downward mood spiral, meaning we wouldn't be able to easily test positive mood formation.
+    b. Using similar logic to 'Poisonous', a given Mushroom or Berry color combination has a chance to be set as healing during world creation.
+    c. In debug mode only, In action log, show message of '[verb][item] impacted health (x->y)', similar to what we already do for mood impacts.
+    d. A given item cannot be both poisonous and healing
+2. Mushrooms and Berries spawn
+    a. Why: Similar to the above point, the current game spirals toward death when food is exhausted.
+        We want there to be a chance that the characters can continue to have a food source, to prevent a mood spiral.
+    b. If a given Mushroom Color or Berry Color exists on the map, then there is a small chance that a matching Mushroom or Berry will spawn on an adjacent coordinate.
+    c. Items cannot spawn over other entities (eg items, features, characters)
+3. New Item: Flower
+    a. Why: Having a map rich with items gives Characters more opportunity to form a variety of opinions
+    b. A random number and variety of Flowers spawn at creation
+    c. Flowers can have Color: Red, Orange, Yellow, Blue, Purple, or White
+    d. Flowers are not edible
+4. New Activity: Looking
+    a. Why: Introduces non-food item. Gives characters another way to interact with and form opinions about items.
+    b. If a character would qualify to be idle, there is a chance that they will decide to 'Look At' the nearest item.
+    c. When a character forms an intent to look at an item, they will begin to travel to an available point adjacent to that item.
+    d. Once the character is at a tile adjacent to the target item, they will then be 'Looking at' the item.
+    e. This activity will show in the details panel and Action log.
+    f. This will have a duration, like other non-immediate activities.
+    g. This can be interrupted by an arising need.
+    h. Looking at an item provides an opportunity for opinion/preference formation, following the outlined logic.
+5. New Attributes: Pattern and Texture
+    a. Why: to work through behavior and questions that may arise as we naturally expand the complexity of item attributes.
+    b. Mushrooms can have a Pattern
+        i. Possible Pattern values are: Spotted, Striped, Plain
+        ii. Mushrooms can be Spotted or Plain
+        iii. Pattern is a 'descriptive' attribute that a character can have an opinion about
+        iv.  Singluar adjective 'Spotted' as in "Likes Spotted Mushrooms", Plural noun 'Spots' as in 'Likes Spots'
+    c. Mushrooms can have a Texture
+        i. Possible Texture values are: Slimy (more to be added later)
+        ii. Mushrooms can either be Slimy, or have no texture.
+        iii. Texture is a 'descriptive' attribute that a character can form an opinion about
+        iv.  "Likes Slimy Mushrooms", "Likes Slime"
+    d. Update initial mushroom creation logic to handle any possible combinations (not every possible combination has to end up in the world)
+        i. Poisonous/Healing logic should apply to a specific combination (eg 'Spotted Red Mushrooms' are poisonous, 'Slimy Plain Blue Mushrooms' are healing)
+6. Preference formation and matching, with more than two attributes
+    a. A combo preference must always include ItemType plus one or two other attributes. (eg 'Likes Slimy Blue Mushrooms', 'Dislikes Spotted Mushrooms')
+    b. Can still have 'solo' preferences (eg Dislikes Purple)
+    c. May need to relook at likelyhood of kinds of preference formations
+    d. Otherwise, preference formation should follow the same logic, making these new attributes elligible to be part of preference formation
+7. Seeking and Avoidance Behavior
+    a. Are we able to make our seeking logic a little more advance than 'perfect match' and 'partial match' now that you can end up with a net preference higher or lower than 2/-2 as we continue to extend attributes?
+    b. Question: do we need to add logic for characters to avoid consuming things they dislike, or is that implicit in the current design?
+8. Status and Mood
+    a. A status of Poisoned should have a negative effect on mood
+
+
+Implementation Considerations:
+- Preference system refactor: Current `FavoriteFood string` and `FavoriteColor types.Color` on Character will likely be replaced by a dynamic preference system (list of likes/dislikes about item types, colors, or combinations). Don't invest in further typing of FavoriteFood/FavoriteColor - they will be superseded.
+- Tier/level consolidation: Before adding Mood, consolidate the existing 4 tier calculation methods and 4 level description methods into reusable logic. This prevents adding a 5th copy for Mood.
+- Testing strategy: Test observable outcomes, not internal state. Preferences and mood will evolve, so tests should verify behavior ("character avoids food that poisoned them", "mood affects food selection") rather than implementation details. This keeps tests stable as the system grows.
+
+For Future Consideration:
+- Mental Breakdown when reaching zero, which can result in either depression (slow, avoids job) or tantrum destroying things

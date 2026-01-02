@@ -1,0 +1,84 @@
+I. Character moves towards items based on preference
+
+1. Design a game that is just a character represented by a unicode symbol on a blank map
+2. Place berries represented by the appropriate unicode symbol on the map
+3. Place mushrooms represented by the appropriate unicode symbol on the map
+4. Allow the user to choose whether the character has a preference for mushrooms or berries
+5. When the user makes a selection, then the character will move towards the nearest item of the preferred type and consume it
+6. If there are no items of the preferred type on the map, then the character will remain stationary
+
+II. User can pause action and view entity attributes
+
+1. Allow user to pause and unpause action using the spacebar
+2. Allow the user to move a cursor around the map using the arrow keys
+3. When the cursor is over an entity, display the entity's attributes in a sidebar
+4. When the selected entity is a character, provide an option to use 'f' to follow the character, so that the details sidebar stays with it as it moves.
+
+III. Entities have attributes and characters can have attribute preferences
+
+1. berries can either be red or blue
+2. mushrooms can be brown, white, or red
+3. On the starting screen, the user can choose a favorite food and a favorite color
+4. Characters will prefer to move towards items that match both their favorite food and favorite color first
+5. If no items match both preferences, characters will move towards items that match either their favorite
+6. If no items match either preference, characters will remain stationary
+
+IV. Characters can experience hunger, poisoning, and death
+
+1. Characters have a hunger attribute that increases over time, shown in details sidebar
+2. When hunger reaches a midpoint threshold, characters will seek out food items to consume
+3. Characters have a health attribute that decreases over time when hunger is at maximum, shown in details sideba
+4. Consuming food items reduces hunger
+5. Some food items have a chance to be poisonous based on their type and color
+    a. If an item is poisonous, that attribute is displayed in the details sidebar when selected
+6. If a character consumes a poisonous item, they will experience negative effects such as reduced movement and reduced health over time during the duration of the poisoned status
+    a. Poisoned status lasts for a set duration before wearing off
+    b. Poisoned characters change to green color while poisoned and the status is displayed in the details sidebar
+7. If a character's health reaches zero, they will die and be removed from the map
+
+V. Current Activity and Action Log
+
+1. Characters have a current activity attribute that indicates what they are doing (e.g., "Idle", "Moving to [item]", "Consuming [item]")
+2. The current activity is displayed in the details sidebar when the character is selected
+3. An action log is maintained that records significant events for each character (e.g., "Started moving to [item]", "Consumed [item]", "Became poisoned", "Died)
+4. The action log is visible as another sidebar panel when a character is selected, allowing the user to see live updates when following, and scroll through past events
+
+VI Thirst and Sleep
+
+A. Thirst
+
+1. Characters have a stat called Thirst that starts at 50 and increases over time
+2. When thirst reaches 50, the character will become thirsty and seek out the nearest source of preferred drink. If they do not have a drink preference, then they will move towards the nearest drink. Preferences that impact drink choice will be added in future.
+3. When thirst reaches 75, the character will become very thirsty, and seek out the nearest drinks ource, regardless of preferences. Preferences that affect drink choice to be added in future.
+4. When thirst reaches 90, the character will become parched, and speed will decrease (this stacks with other effects)
+5. When thirst reached 100, the character will become dehydrated and will begin to lose health over time, and speed will decrease (this stacks with poison effect)
+6. There is a landscape feature called a 'spring' that is represented on the map by a light blue symbol, one per map
+7. The character can use the spring to drink water, decreasing its thirst
+:8. The spring feature continues to exist and be available for drinking water after being used by the character
+
+B. Sleep
+
+1. Characters have a stat called Energy that starts at 100 and decreases over time
+2. Energy decreases faster with movement
+3. When energy reaches 50, the character will become tired and will move towards anything they can use as a bed
+4. When energy reaches 25, the character will become very tired and speed will decrease (this stacks with other effects)
+5. When energy reaches 10, the character will become exhausted and speed will decrease
+6. When energy reaches 0, the character will fall asleep on the spot
+7. If the character is targetting a bed, and they reach it, they will sleep, restoring energy quickly over time. They will wake up when they reach 100.
+8. If the character is not at a bed when they fall asleep, they will restore energy at a a slower rate, waking then they reach 75 energy.
+9. There is a landscape feature called a 'leaf pile' that can be used as a bed, represented by an orange symbol; There are two leaf piles on the map
+10. While using the bed, a sleeping character occupies the same spot on the map
+11. The 'leaf pile' feature continues to exist and be available for sleeping after the character moves on
+
+C. Stat interactions
+
+1. The character intent will be determined by whichever stat is closest to the most urgent state
+2. If one stat becomes more urgent, then the character will change intent, interrupting current movement
+3. If the character is asleep, and another stat reaches a more urgent tier than energy is at, then the character will wake up
+4. Show speed as a number statistic in details section
+
+VII - new control - step forward by one move
+1. Add a new keypress command to step forward by one 'move' while paused
+2. Define a 'move' as the number of ticks it takes for a character to move by one coordinate while operating at 50 speed
+3.
+

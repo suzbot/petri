@@ -1,0 +1,34 @@
+Phase II - Multi-character
+
+A. Increase play area
+    1. Double the vertical height of the map
+    2. Double the amount of each item and feature spawned
+    3. Details panel will be on the right of the map, taking up half the vertical space next to the map, slightly wider than current width
+    4. Activity Log panel will be to the right of the map, below detail panel, matching the width of the details panel
+    5. This assumes large screen and/or user will use their terminal to zoom out appropriately
+B. Create 4 random characters on world creation
+    1. New option at start to play with 1 character or multiple characters.
+    2. If user selects 1 character, then continue with food/color questions, and then create world as in current behavior
+        a. New field on character called Name. Default name is 'Len'
+    3. If user selects multiple characters option, then skip questions and create world with 4 characters
+        a. Randomly determine favorite color and food for each character
+        b. Default the Name values to (Len, Macca, Hari, Starr) for each character respectively
+        c. Starting position is non-overlapping, clustered near each other
+        d. Randomly select one of the characters to have the cursor and be Followed at start
+        e. When two characters target the same object, and one character gets there first, then the first arriving character should occupy or consume the object and the other character will reevaluate their intent and target
+        f. When two characters target the same object, if both characters arrive at the same time, then randomly choose which one occupies or consumes the object. When the object is occupied/consumed, then the other character reevaluates target and intent.
+        g. An occupied bed cannot be targeted.
+C. There is a character creation screen before world generation, where the user can set character names and food/color preferences
+    1. 1 character option should only be available under debug flag
+    2. If the user selects the 'mutiple characters' option at game start then
+        a. There is a screen that allows the user to set the following values for each of the four characters
+            i. Name
+            ii. Favorite Food
+            iii. Favorite Color
+        b. The user can bypass this and allow the values to be set based on the logic in feature B
+D. Combined Activity Log
+    1. The user can change between select mode (ability to examine locations/entities/characters with cursor) and an all activity mode.
+    2. In the details panel there is a hint that keystroke n will move cursor and follow status to next character
+    3. In the all activity mode, the details panel disappears and the activity log panel extends to match the full height of the map.
+    4. In all activity mode, all the character logs are displayed in a combined list.
+    5. world starts paused

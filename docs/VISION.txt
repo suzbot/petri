@@ -1,0 +1,69 @@
+PETRI PROJECT - VISION STATEMENT
+
+The Petri Project is a simulation game inspired by Dwarf Fortress exploring the emergent development of culture
+within a community.
+
+CORE CONCEPT
+At its heart, Petri simulates how culture arises from the ground up - not as a
+predetermined set of traits, but as an emergent property of individual personalities,
+preferences, and environmental constraints. Each civilization begins with founding
+individuals whose unique attributes and values shape the initial cultural seeds.
+
+THE SIMULATION
+Culture evolves through the interaction of:
+- Individual attributes, moods, preferences, and memories of community members
+- Available environmental resources and constraints
+- Material properties and technological possibilities
+- Social interactions and shared experiences over generations
+- Creation of cultural artifacts and transfer of knowledge
+
+AUDIENCE
+Petri is built for players who appreciate deep simulation systems - those who find joy
+in watching complex behaviors emerge from simple rules, and seeing how their interventions shape what grows.
+
+BUILD CONCEPT
+Instead of an omniscient log of everything that has ever happened in the world,
+the history of the world is kept in the memories events within individuals, and the
+writings and cultural artifacts that they create. As characters die, their knowledge of
+technology and events also dies, except in what they have created or communicated. In this
+way, the structure of the game data itself will be isomorphic with the cultural history of
+the simulated community.
+
+DEVELOPMENT PHASES
+
+X   Phase I:    Character is driven by basic needs and simple preferences
+X   Phase II:   Multi-Character support
+->  Phase III:  Mood tracking and Preference formation
+    Phase IV:   Basic Knowledge
+    Phase V:    Resources, Inventory, and simple job assignment
+                 - Ability to forage for a mushroom, berry, or flower based on preference
+                 - Ability to view character inventory
+                 - Ability to view jobs panel
+                 - Ability for user to order forage job
+                 - Job Acceptance by any idle char (no preference/critically queue yet)
+                 - Job reflected in current activity, and activity log
+                 - Need Interruption and return
+                 - mood impacted by carrying
+                 - can eat carried object when hungry
+
+
+OTHER INTENDED FEATURES (Not yet prioritized)
+
+- Basic Discovery, Technology Tree (see: [https://excalidraw.com/#room=af752eff85705227aadc,Rp231_kxGiowAr7Oh8g2Aw] )
+- Basic Recipes and Crafting
+- Job Preference, Urgency, and assigned areas
+- Work Stations
+- Time and Memory
+- Environmental interactions
+    - Weather
+    - Predators
+    - Other Animals
+- Shelter
+- Social interactions and relationships
+- Events and Character Memory
+- Writing and Character created documents
+- Training and knowledge transmission
+- Observation and imitation
+- Personality Attribute (Lazy, Industrious, etc)
+- UI Panel Enhancements
+- Configurable Key bindings
