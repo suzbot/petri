@@ -331,52 +331,82 @@ type Preference struct {
 
 🎮 **Human Testing**: Verify healing items restore health, debug bar shows healing combos
 
-### D2. Item spawning
+### D2. Item spawning ✅ DECISIONS MADE
 
-**Discuss**: Confirm spawn rate, adjacency rules
+**Goal**: Average ~1 spawn per 15 seconds globally, with organic staggered timing.
 
-**File**: `internal/game/world.go` or new `internal/system/spawning.go`
+**Decisions made:**
+- Per-item spawn timer approach (each item "reproduces" on its own schedule)
+- 8-directional adjacency (including diagonals)
+- 50% map coordinate cap to prevent overflow
+- Staggered initial timers to avoid synchronized spawning
 
-- Implement adjacent spawning logic
-- Check no entity at spawn location
+**Config constants** (`internal/config/config.go`):
+```go
+ItemSpawnChance          = 0.50  // 50% chance per spawn opportunity
+ItemSpawnIntervalBase    = 8.0   // seconds, multiplied by initial item count
+ItemSpawnIntervalVariance = 0.20 // ±20% randomization
+ItemSpawnMaxDensity      = 0.50  // max 50% of map coordinates
+```
 
-**File**: `internal/config/config.go`
+**Implementation** (`internal/system/spawning.go`):
 
-Proposed config:
-ItemSpawnChance = 0.50 // 50% chance per opportunity
-ItemSpawnIntervalBase = 8.0 // seconds, multiplied by initial item count
-ItemSpawnIntervalVariance = 0.20 // ±20%
+1. Add `SpawnTimer float64` field to Item struct
+2. On world gen: `item.SpawnTimer = rand(0, intervalBase × initialItemCount)` (stagger across one cycle)
+3. Each tick: decrement all item timers by delta
+4. When timer ≤ 0:
+   - Check map not at 50% capacity
+   - Find random empty 8-adjacent tile
+   - Roll 50% chance
+   - If success: spawn matching item (same type, color, poison/healing status)
+   - Reset timer to `intervalBase × initialItemCount × (1 ± variance)`
 
-Implementation:
+**Math verification**: 40 items × 50% ÷ 320s = 1 spawn per 16 seconds ✓
 
-1. On world gen: item.SpawnTimer = rand(0, intervalBase × itemCount)
-2. Each tick: decrement timer by delta
-3. When ≤ 0: roll 50%, if success → spawn adjacent (if room + under cap)
-4. Reset timer to intervalBase × initialCount × (1 ± variance)
+**File**: `internal/entity/item.go`
+- Add `SpawnTimer float64` field
 
-**Tests**: Integration tests for spawn behavior
+**File**: `internal/system/spawning.go` (new)
+- `UpdateSpawnTimers(items, delta, gameMap, poisonCfg, healingCfg, initialItemCount)`
+- `findEmptyAdjacent(x, y, gameMap)` - 8-directional
 
-🎮 **Human Testing**: Watch items spawn over time (may need to speed up for testing)
+**File**: `internal/game/map.go`
+- Add `TotalCoordinates()` and `EntityCount()` helpers for cap check
 
-### D3. Flower item type
+**Tests**: Unit tests for spawn timer logic, cap enforcement
 
-**Discuss**: Confirm flower symbol, colors, spawn count
+🎮 **Human Testing**: Watch items spawn over time, verify ~15s average spacing
+
+### D3. Flower item type ✅ DECISIONS MADE
+
+**Decisions**:
+- Symbol: `❀` (unicode flower)
+- Colors: Red, Orange, Yellow, Blue, Purple, White (per requirements)
+- Spawn count: 20 (same as berries/mushrooms)
+- Not edible (purely decorative)
+- Reproduces like other items (same spawn behavior)
+- Note: Future enhancement - different item types may have different reproduction rates
 
 **File**: `internal/types/types.go`
 
 - Add colors: Orange, Yellow, Purple
+- Add `FlowerColors` slice
 
 **File**: `internal/entity/item.go`
 
-- Add `NewFlower()` constructor
+- Add `NewFlower()` constructor (Edible: false)
 
 **File**: `internal/config/config.go`
 
-- Add `CharFlower`, `FlowerSpawnCount`
+- Add `CharFlower = '❀'`, `FlowerSpawnCount = 20`
 
 **File**: `internal/game/world.go`
 
-- Add flower spawning to `GenerateWorld()`
+- Add flower spawning to `SpawnItems()`
+
+**File**: `internal/ui/view.go`
+
+- Add orange, yellow, purple color rendering
 
 🎮 **Human Testing**: Verify flowers appear on map with correct symbols/colors
 

@@ -144,6 +144,8 @@ Items analyzed and consciously deferred until trigger conditions are met.
 - Health tier thresholds
 - Preference formation chances (inflated for testing)
 - Mood adjustment rates and modifiers
+- Spawn rate vs consumption rate: 4 characters eating shouldn't outpace plant respawning (adjust spawn interval/chance or hunger rate)
+- Flower overpopulation: Flowers reproduce but aren't consumed, may outpace edible items over time. Consider: slower flower reproduction rate, OR allowing flower consumption in severe hunger situations
 
 **Performance optimizations:**
 - Skip wake checks for sleeping characters unless tier changed

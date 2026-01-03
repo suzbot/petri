@@ -436,6 +436,12 @@ func (m Model) styledSymbol(e entity.Entity) string {
 			return brownStyle.Render(sym)
 		case types.ColorWhite:
 			return whiteStyle.Render(sym)
+		case types.ColorOrange:
+			return orangeStyle.Render(sym)
+		case types.ColorYellow:
+			return yellowStyle.Render(sym)
+		case types.ColorPurple:
+			return purpleStyle.Render(sym)
 		}
 
 	case *entity.Feature:
@@ -566,6 +572,10 @@ func (m Model) renderDetails() string {
 		if item.Poisonous {
 			poison = redStyle.Render("Yes")
 		}
+		healing := "No"
+		if item.Healing {
+			healing = optimalStyle.Render("Yes")
+		}
 		lines = append(lines, " Type: Item")
 		if m.testCfg.Debug {
 			lines = append(lines, fmt.Sprintf(" Pos: (%d, %d)", m.cursorX, m.cursorY))
@@ -574,6 +584,7 @@ func (m Model) renderDetails() string {
 			fmt.Sprintf(" Kind: %s", item.ItemType),
 			fmt.Sprintf(" Color: %s", item.Color),
 			fmt.Sprintf(" Poisonous: %s", poison),
+			fmt.Sprintf(" Healing: %s", healing),
 		)
 	} else if feature != nil {
 		lines = append(lines, " Type: Feature")

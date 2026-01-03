@@ -25,10 +25,13 @@ var (
 	woreOffStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("117")) // light blue
 
 	// Item colors
-	redStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	blueStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("27"))
-	brownStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("136"))
-	whiteStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
+	redStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+	blueStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("27"))
+	brownStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("136"))
+	whiteStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
+	orangeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
+	yellowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("226"))
+	purpleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("135"))
 
 	// Feature colors
 	waterStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))  // bright blue

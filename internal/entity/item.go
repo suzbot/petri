@@ -17,6 +17,9 @@ type Item struct {
 	Edible    bool
 	Poisonous bool
 	Healing   bool
+
+	// Spawning
+	SpawnTimer float64 // countdown until next spawn opportunity
 }
 
 // NewBerry creates a new berry item
@@ -50,6 +53,23 @@ func NewMushroom(x, y int, color types.Color, poisonous, healing bool) *Item {
 		Edible:    true,
 		Poisonous: poisonous,
 		Healing:   healing,
+	}
+}
+
+// NewFlower creates a new flower item (decorative, not edible)
+func NewFlower(x, y int, color types.Color) *Item {
+	return &Item{
+		BaseEntity: BaseEntity{
+			X:     x,
+			Y:     y,
+			Sym:   config.CharFlower,
+			EType: TypeItem,
+		},
+		ItemType:  "flower",
+		Color:     color,
+		Edible:    false,
+		Poisonous: false,
+		Healing:   false,
 	}
 }
 

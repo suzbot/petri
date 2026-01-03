@@ -1,4 +1,5 @@
-This is a document where I'm dumping my random ideas as I have them, that don't cleanly fit into one of my prioritized buckets.
+This is a document where I'm dumping my random ideas as I have them, that don't cleanly fit into
+one of my prioritized buckets.
 
 Goal of this document is that it can be automatically reviewed when roadmap planning to see if any
 of these smaller items make sense to incorporate into the plan as we go along.
@@ -7,5 +8,5 @@ When items are completed OR documented as part of a roadmap, requirement, or pla
 then they can be removed from this list.
 
 1. Reorder the fields in the Details panel
-2. Figure out git and get this on my github account
-3. Use cobra cli to manage flags, and to polish conventions (eg --help instead of -help)
+2. Use cobra cli to manage flags, and to polish conventions (eg --help instead of -help)
+3. Assess possible unicode symbols for entities

@@ -439,6 +439,11 @@ func findFoodTarget(char *entity.Character, items []*entity.Item) *entity.Item {
 	distPerfect, distPartial, distAny := maxDist, maxDist, maxDist
 
 	for _, item := range items {
+		// Skip non-edible items (e.g., flowers)
+		if !item.Edible {
+			continue
+		}
+
 		ix, iy := item.Position()
 		dist := abs(cx-ix) + abs(cy-iy)
 

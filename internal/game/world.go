@@ -79,13 +79,19 @@ func GenerateHealingConfig(poisonCfg PoisonConfig) HealingConfig {
 
 // SpawnItems populates the map with random items
 func SpawnItems(m *Map, poisonCfg PoisonConfig, healingCfg HealingConfig) {
+	// Calculate initial spawn cycle for staggered timers
+	initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers
+	maxInitialTimer := config.ItemSpawnIntervalBase * float64(initialItemCount)
+
 	// Spawn berries
 	for i := 0; i < config.ItemSpawnCount; i++ {
 		x, y := findEmptySpot(m)
 		color := types.BerryColors[rand.Intn(len(types.BerryColors))]
 		poisonous := poisonCfg.IsPoisonous("berry", color)
 		healing := healingCfg.IsHealing("berry", color)
-		m.AddItem(entity.NewBerry(x, y, color, poisonous, healing))
+		item := entity.NewBerry(x, y, color, poisonous, healing)
+		item.SpawnTimer = rand.Float64() * maxInitialTimer // stagger across first cycle
+		m.AddItem(item)
 	}
 
 	// Spawn mushrooms
@@ -94,7 +100,18 @@ func SpawnItems(m *Map, poisonCfg PoisonConfig, healingCfg HealingConfig) {
 		color := types.MushroomColors[rand.Intn(len(types.MushroomColors))]
 		poisonous := poisonCfg.IsPoisonous("mushroom", color)
 		healing := healingCfg.IsHealing("mushroom", color)
-		m.AddItem(entity.NewMushroom(x, y, color, poisonous, healing))
+		item := entity.NewMushroom(x, y, color, poisonous, healing)
+		item.SpawnTimer = rand.Float64() * maxInitialTimer // stagger across first cycle
+		m.AddItem(item)
+	}
+
+	// Spawn flowers (decorative, not edible)
+	for i := 0; i < config.FlowerSpawnCount; i++ {
+		x, y := findEmptySpot(m)
+		color := types.FlowerColors[rand.Intn(len(types.FlowerColors))]
+		item := entity.NewFlower(x, y, color)
+		item.SpawnTimer = rand.Float64() * maxInitialTimer // stagger across first cycle
+		m.AddItem(item)
 	}
 }
 

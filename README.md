@@ -4,6 +4,8 @@ A simulation game inspired by Dwarf Fortress, exploring the emergent development
 
 Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea) for flicker-free terminal rendering.
 
+![Petri Screenshot](docs/Screenshot%202026-01-02%20at%204.09.15%20PM.png)
+
 ## Current Features
 
 - **Multi-character mode**: Run simulation with multiple customizable characters
@@ -13,6 +15,9 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea) for f
 - Multi-stat survival system: hunger, thirst, energy, health, mood
 - Urgency-based priority system with stat fallback
 - Tier-based stat coloring: dark green (optimal), yellow (severe), red (crisis)
+- **Item variety**: Berries, mushrooms, and flowers with multiple colors
+- **Healing items**: Some food restores health when consumed
+- **Item spawning**: Items reproduce over time, spreading to adjacent tiles
 - Landscape features: springs (water), leaf piles (beds)
 - Sleep mechanics with early wake on urgent needs
 - Action duration system (eating, drinking, falling asleep take time)
@@ -93,36 +98,41 @@ Command-line flags for testing and debugging:
 - Action progress timers (e.g., "Drinking (0.8s)")
 - Stat change numbers in action log (e.g., "hunger 50→30")
 - Duration values in action log
-- Poison combo information
+- Poison and healing combo information
 
 ## How It Works
 
 1. Press M to enter character creation - customize names, food preferences, and colors
 2. Press Enter to start the game - world begins paused, press Space to begin
-3. Each character manages three needs: hunger, thirst, and energy
+3. The world contains:
+   - Edible items: berries and mushrooms (some poisonous, some healing)
+   - Decorative items: flowers (not edible)
+   - Features: springs for drinking, leaf piles for sleeping
+   - Items reproduce over time, spreading to adjacent empty tiles
+4. Each character manages three needs: hunger, thirst, and energy
    - Thirst increases faster than hunger
    - After reaching optimal levels, stats briefly pause before changing again
-4. Needs are prioritized by urgency tier, with tie-breaker order: Thirst > Hunger > Energy
-5. If a need can't be fulfilled, character falls back to next most urgent need
-6. Actions take time to complete:
+5. Needs are prioritized by urgency tier, with tie-breaker order: Thirst > Hunger > Energy
+6. If a need can't be fulfilled, character falls back to next most urgent need
+7. Actions take time to complete:
    - Eating, drinking, and falling asleep all have duration
    - At springs, character drinks continuously until fully satisfied
-7. Preferences affect food selection:
+8. Preferences affect food selection:
    - Characters prefer items matching their likes
    - When moderately hungry: prefers best matches, settles for partial
    - When very hungry: accepts any liked item
    - When ravenous: eats anything
-8. Sleep mechanics:
+9. Sleep mechanics:
    - Character sleeps in leaf pile (wakes fully rested) or on ground (wakes partially rested)
    - Wakes early if hunger/thirst becomes more urgent than current energy tier
-9. In multi-character mode, characters compete for resources:
-   - Springs and beds become occupied when in use
-   - Characters find alternative targets when blocked
-10. Use view modes to observe:
+10. In multi-character mode, characters compete for resources:
+    - Springs and beds become occupied when in use
+    - Characters find alternative targets when blocked
+11. Use view modes to observe:
     - Select mode (S): Examine individual entities, view per-character logs
     - All Activity mode (A): See combined activity from all characters
-11. Character dies if health reaches 0 (from starvation, dehydration, or poison)
-12. Mood reflects emotional state based on needs:
+12. Character dies if health reaches 0 (from starvation, dehydration, or poison)
+13. Mood reflects emotional state based on needs:
     - Increases slowly when all needs are met
     - Decreases when needs become urgent (faster at higher urgency)
     - Receives a boost when a need is fully satisfied (hunger/thirst→0, energy→100)

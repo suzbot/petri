@@ -10,18 +10,20 @@ const (
 	MapWidth  = 60
 	MapHeight = 60
 
-	ItemSpawnCount = 20
-	SpringCount    = 2
-	LeafPileCount  = 4
+	ItemSpawnCount   = 20
+	FlowerSpawnCount = 20
+	SpringCount      = 2
+	LeafPileCount    = 4
 	UpdateInterval = 150 * time.Millisecond
 
 	// Symbols
-	CharRobot     = '@'
-	CharBerry     = '*'
-	CharMushroom  = '^'
-	CharSpring    = '~'
-	CharLeafPile  = '&'
-	CharSleeping  = 'z'
+	CharRobot    = '@'
+	CharBerry    = '*'
+	CharMushroom = '^'
+	CharFlower   = '❀'
+	CharSpring   = '~'
+	CharLeafPile = '&'
+	CharSleeping = 'z'
 
 	// Speed system
 	BaseSpeed          = 50  // baseline speed (0-100 scale)
@@ -64,6 +66,12 @@ const (
 
 	// Healing
 	HealAmount = 20.0 // health restored by healing items (instant)
+
+	// Item spawning
+	ItemSpawnChance           = 0.50 // 50% chance per spawn opportunity
+	ItemSpawnIntervalBase     = 8.0  // seconds, multiplied by initial item count
+	ItemSpawnIntervalVariance = 0.20 // ±20% randomization
+	ItemSpawnMaxDensity       = 0.50 // max 50% of map coordinates occupied by items
 
 	// Preference formation (values inflated for testing - see CLAUDE.md balance tuning)
 	PrefFormationChanceMiserable = 0.20 // 20% chance when Miserable

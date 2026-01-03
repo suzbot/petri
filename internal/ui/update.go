@@ -232,6 +232,12 @@ func (m Model) updateGame(now time.Time) (Model, tea.Cmd) {
 		system.UpdateSurvival(char, delta, m.actionLog)
 	}
 
+	// Update item spawning (unless no food mode)
+	if !m.testCfg.NoFood {
+		initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers
+		system.UpdateSpawnTimers(m.gameMap, m.poisonCfg, m.healingCfg, initialItemCount, delta)
+	}
+
 	// Calculate intents (Phase II ready: can parallelize this)
 	items := m.gameMap.Items()
 	for _, char := range m.gameMap.Characters() {
@@ -451,6 +457,12 @@ func (m *Model) stepForward() {
 	// Update survival mechanics
 	for _, char := range m.gameMap.Characters() {
 		system.UpdateSurvival(char, delta, m.actionLog)
+	}
+
+	// Update item spawning (unless no food mode)
+	if !m.testCfg.NoFood {
+		initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers
+		system.UpdateSpawnTimers(m.gameMap, m.poisonCfg, m.healingCfg, initialItemCount, delta)
 	}
 
 	// Calculate and apply intents

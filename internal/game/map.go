@@ -123,6 +123,20 @@ func (m *Map) IsOccupied(x, y int) bool {
 	return m.characterByPos[Pos{x, y}] != nil
 }
 
+// IsEmpty returns true if no entity (character, item, or feature) is at the position
+func (m *Map) IsEmpty(x, y int) bool {
+	if m.characterByPos[Pos{x, y}] != nil {
+		return false
+	}
+	if m.ItemAt(x, y) != nil {
+		return false
+	}
+	if m.FeatureAt(x, y) != nil {
+		return false
+	}
+	return true
+}
+
 // Characters returns all characters on the map
 func (m *Map) Characters() []*entity.Character {
 	return m.characters
