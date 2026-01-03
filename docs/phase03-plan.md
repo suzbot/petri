@@ -7,6 +7,7 @@ Implement mood stat, dynamic preference formation, and world balancing features 
 ## Collaboration Approach
 
 Following our working patterns from CLAUDE.md:
+
 - **Discuss before implementing**: Each step begins with a brief discussion/confirmation
 - **Human testing touchpoints**: Marked with 🎮 - pause for manual testing with rebuilt binary
 - **Small iterations**: Steps are sized for quick feedback loops
@@ -29,39 +30,48 @@ Following our working patterns from CLAUDE.md:
 ## Sub-Phase A: Mood Stat Foundation
 
 ### A1. Add Mood field and tier methods
+
 **Discuss**: Confirm threshold values match requirements (0-10 Miserable, 11-34 Unhappy, etc.)
 
 **File**: `internal/entity/character.go`
+
 - Add `Mood float64` field (starts at 50)
 - Add `moodThresholds` and `moodLevels` using existing pattern
 - Add `MoodTier()` and `MoodLevel()` methods
 
 **File**: `internal/types/types.go`
+
 - Add `StatMood StatType = "mood"`
 
 **Tests**: Unit tests for mood tier boundaries
 
 ### A2. Display Mood in UI + optimal styling
+
 **Discuss**: Confirm dark green color choice, placement in details panel
 
 **File**: `internal/ui/styles.go`
+
 - Add `optimalStyle` (dark green)
 
 **File**: `internal/ui/view.go`
+
 - Add Mood to Details Panel
 - Update `colorByTier()` to handle optimal tier for all stats
 
 🎮 **Human Testing**: Rebuild and verify Mood displays in details panel with correct coloring
 
 ### A3. Mood updates from needs + tier logging
+
 **Discuss**: Confirm rate values feel right (may need tuning later)
 
 **Decisions made:**
+
 - TierMild = no mood change (neutral)
 - Include Health in highest-need calculation (will drive behavior in future)
 - Tier transition logging happens here (in UpdateMood)
 
 **File**: `internal/config/config.go`
+
 - Add mood rate constants:
   - `MoodIncreaseRate = 0.5` (when all needs at TierNone)
   - `MoodDecreaseRateSlow = 0.3` (at Moderate)
@@ -69,11 +79,13 @@ Following our working patterns from CLAUDE.md:
   - `MoodDecreaseRateFast = 1.5` (at Crisis)
 
 **File**: `internal/system/survival.go`
+
 - Add `UpdateMood()` function
 - Call from end of `UpdateSurvival()`
 - Log tier transitions: "Feeling [MoodLevel]"
 
 **File**: `internal/ui/view.go`
+
 - Add mood keywords to `colorLogMessage()`
 
 **Tests**: Unit tests for mood changes under various need states
@@ -81,9 +93,11 @@ Following our working patterns from CLAUDE.md:
 🎮 **Human Testing**: Watch mood change over time based on character needs
 
 ### A4. Mood boost on consumption
+
 **Discuss**: Confirm boost amount
 
 **File**: `internal/system/consumption.go`
+
 - Add mood boost in `Consume()` and `Drink()`
 
 **Tests**: Integration test for mood evolution
@@ -102,17 +116,19 @@ Following our working patterns from CLAUDE.md:
 
 Per `docs/architecture-review-typed-constants.md`, item attributes are classified as:
 
-| Attribute Type | Examples | Can form opinions? |
-|----------------|----------|-------------------|
-| Descriptive | ItemType, Color, (future: Material, Pattern, Origin) | Yes |
-| Functional | Edible, Poisonous, (future: Craftable, Wearable) | No |
+| Attribute Type | Examples                                             | Can form opinions? |
+| -------------- | ---------------------------------------------------- | ------------------ |
+| Descriptive    | ItemType, Color, (future: Material, Pattern, Origin) | Yes                |
+| Functional     | Edible, Poisonous, (future: Craftable, Wearable)     | No                 |
 
 Preferences target **descriptive attributes only**. The Preference struct uses implicit typing (which attributes are set) rather than an explicit enum, allowing easy extension for future attributes without combinatorial explosion.
 
 ### B1. Create Preference type
+
 **Decided**: Use implicit type from set attributes (Option B)
 
 **File**: `internal/entity/preference.go` (new)
+
 ```go
 type Preference struct {
     Valence  int           // +1 (likes) or -1 (dislikes)
@@ -121,21 +137,25 @@ type Preference struct {
     // Future: Material, Pattern, Origin
 }
 ```
+
 - `Matches(item *Item) bool` - true if item matches all set attributes
 - `Description() string` - e.g., "red", "berries", "red berries"
 
 **Tests**: Unit tests for preference matching
 
 ### B2. Add Preferences to Character
+
 **Decided**: Remove FavoriteFood/FavoriteColor entirely
 
 **File**: `internal/entity/character.go`
+
 - Remove `FavoriteFood string` and `FavoriteColor types.Color` fields
 - Add `Preferences []Preference` field
 - Update `NewCharacter()` to create two positive preferences from params
 - Add `NetPreference(item *Item) int` helper (sum of matching preference valences)
 
 **File**: Update all references to FavoriteFood/FavoriteColor
+
 - `internal/system/movement.go` - food selection logic (updated in B3)
 - `internal/ui/view.go` - details panel (updated in B4)
 - Test files as needed
@@ -145,9 +165,11 @@ type Preference struct {
 🎮 **Human Testing**: Verify character creation still works
 
 ### B3. Update food selection logic
+
 **Discuss**: Confirm new matching behavior maintains existing feel
 
 **File**: `internal/system/movement.go`
+
 - Replace FavoriteFood/FavoriteColor checks with `NetPreference()`
 - Maintain tiered matching (positive > neutral > negative based on hunger)
 
@@ -156,9 +178,11 @@ type Preference struct {
 🎮 **Human Testing**: Observe character food choices match preferences
 
 ### B4. Update Details Panel for dynamic preferences
+
 **Discuss**: Confirm display format for multiple preferences
 
 **File**: `internal/ui/view.go`
+
 - Replace static preference display with dynamic list
 - Handle 0, 1, or many preferences
 
@@ -175,13 +199,13 @@ type Preference struct {
 ### Decisions Made
 
 - **Formation probabilities**: Miserable 20%, Unhappy 10%, Neutral 0%, Happy 10%, Joyful 20%
-  - ⚠️ *Balance note*: Values inflated for testing; will need tuning later
+  - ⚠️ _Balance note_: Values inflated for testing; will need tuning later
 - **Mood adjustment from preferences**: ±5 per point of NetPreference
-  - ⚠️ *Balance note*: Inflated for testing; will need tuning later
+  - ⚠️ _Balance note_: Inflated for testing; will need tuning later
 - **NetPreference scales mood**: Yes, mood boost/decrement scales with NetPreference score
 - **Preference coexistence**: Different-specificity preferences can coexist (e.g., "likes berries" + "dislikes red berries")
 - **Applies to**: Food consumption only (not springs)
-  - ⚠️ *Future*: Extend to other beverages when added
+  - ⚠️ _Future_: Extend to other beverages when added
 
 ### Order of Operations (Consumption)
 
@@ -193,15 +217,18 @@ type Preference struct {
 ### C1. Create preference formation logic ✅
 
 **File**: `internal/system/preference.go` (new)
+
 - `TryFormPreference(char, item, log)` function
 - Formation chances from config constants
 - Type weights: 20% ItemType, 20% Color, 60% Combo
 - Existing preference handling: only exact matches count (same specificity)
 
 **File**: `internal/config/config.go`
+
 - Add preference chance constants (easily tunable)
 
 **File**: `internal/entity/preference.go`
+
 - Added `ExactMatch(other)` helper method
 
 **Tests**: Unit tests for formation probability and existing preference handling
@@ -209,14 +236,17 @@ type Preference struct {
 ### C2. Integrate formation with consumption ✅
 
 **File**: `internal/system/consumption.go`
+
 - Call `TryFormPreference()` at end of `Consume()`
 
 ### C3. Mood adjustments from preferences ✅
 
 **File**: `internal/system/consumption.go`
+
 - Add preference-based mood adjustment: `MoodPreferenceModifier × NetPreference`
 
 **File**: `internal/config/config.go`
+
 - Add `MoodPreferenceModifier = 5.0` constant
 
 **Tests**: Unit tests for mood adjustments (4 new tests in consumption_test.go)
@@ -230,9 +260,11 @@ type Preference struct {
 ### C4. Log preference changes with colors ✅
 
 **File**: `internal/system/preference.go`
+
 - Log "Likes [x]", "Dislikes [x]", "No longer likes/dislikes [x]"
 
 **File**: `internal/ui/view.go`
+
 - Added preference keywords to `colorLogMessage()`:
   - "New Opinion: Likes" → dark green (optimalStyle)
   - "New Opinion: Dislikes" → yellow (severeStyle)
@@ -241,6 +273,7 @@ type Preference struct {
   - "Worsened Mood" → yellow (severeStyle)
 
 **File**: `internal/system/consumption.go`
+
 - Added mood change log: "Eating [item] Improved/Worsened Mood (mood X→Y)"
 
 🎮 **Human Testing**: Verify preference changes appear in action log with correct colors
@@ -254,13 +287,16 @@ type Preference struct {
 ## Sub-Phase D: World Balancing
 
 ### D8. Status effects on mood
+
 **Discuss**: Confirm mood penalty rates for Poisoned and Frustrated states
 
 **File**: `internal/system/survival.go`
+
 - In `UpdateMood()`, apply mood penalty when `char.Poisoned` is true
 - Apply mood penalty when `char.IsFrustrated` is true
 
 **File**: `internal/config/config.go`
+
 - Add `MoodPenaltyPoisoned` constant
 - Add `MoodPenaltyFrustrated` constant
 
@@ -271,19 +307,24 @@ type Preference struct {
 ---
 
 ### D1. Healing items
+
 **Discuss**: Confirm healing config approach (similar to poison), heal amount
 
 **File**: `internal/entity/item.go`
+
 - Add `Healing bool` field
 
 **File**: `internal/game/world.go`
+
 - Create `HealingConfig` similar to `PoisonConfig`
 - Generate 1-2 healing combos (must not overlap with poison)
 
 **File**: `internal/system/consumption.go`
+
 - Apply healing effect when consuming healing item
 
 **File**: `internal/config/config.go`
+
 - Add `HealAmount` constant
 
 **Tests**: Unit tests for healing mechanics
@@ -291,52 +332,76 @@ type Preference struct {
 🎮 **Human Testing**: Verify healing items restore health, debug bar shows healing combos
 
 ### D2. Item spawning
+
 **Discuss**: Confirm spawn rate, adjacency rules
 
 **File**: `internal/game/world.go` or new `internal/system/spawning.go`
+
 - Implement adjacent spawning logic
 - Check no entity at spawn location
 
 **File**: `internal/config/config.go`
-- Add `ItemSpawnChance` constant
+
+Proposed config:
+ItemSpawnChance = 0.50 // 50% chance per opportunity
+ItemSpawnIntervalBase = 8.0 // seconds, multiplied by initial item count
+ItemSpawnIntervalVariance = 0.20 // ±20%
+
+Implementation:
+
+1. On world gen: item.SpawnTimer = rand(0, intervalBase × itemCount)
+2. Each tick: decrement timer by delta
+3. When ≤ 0: roll 50%, if success → spawn adjacent (if room + under cap)
+4. Reset timer to intervalBase × initialCount × (1 ± variance)
 
 **Tests**: Integration tests for spawn behavior
 
 🎮 **Human Testing**: Watch items spawn over time (may need to speed up for testing)
 
 ### D3. Flower item type
+
 **Discuss**: Confirm flower symbol, colors, spawn count
 
 **File**: `internal/types/types.go`
+
 - Add colors: Orange, Yellow, Purple
 
 **File**: `internal/entity/item.go`
+
 - Add `NewFlower()` constructor
 
 **File**: `internal/config/config.go`
+
 - Add `CharFlower`, `FlowerSpawnCount`
 
 **File**: `internal/game/world.go`
+
 - Add flower spawning to `GenerateWorld()`
 
 🎮 **Human Testing**: Verify flowers appear on map with correct symbols/colors
 
 ### D4. Looking activity
+
 **Discuss**: Confirm looking mechanics (adjacent positioning, duration, interruption)
 
 **File**: `internal/entity/character.go`
+
 - Add `ActionLook` to ActionType enum
 
 **File**: `internal/system/movement.go`
+
 - Add `findLookIntent()` for idle characters
 
 **File**: `internal/ui/update.go`
+
 - Handle `ActionLook` with duration
 
 **File**: `internal/system/consumption.go` (or new file)
+
 - Add `CompleteLook()` function
 
 **File**: `internal/config/config.go`
+
 - Add `LookChance`, `LookDuration`
 
 **Tests**: Integration tests for looking activity and interruption
@@ -346,22 +411,27 @@ type Preference struct {
 ---
 
 ### D5. Pattern and Texture attributes
+
 **Discuss**: Confirm attribute values, how they affect poison/healing combos
 
 **File**: `internal/types/types.go`
+
 - Add `Pattern` type (Spotted, Plain)
 - Add `Texture` type (Slimy, None)
 
 **File**: `internal/entity/item.go`
+
 - Add `Pattern` and `Texture` fields to Item
 - Update `NewMushroom()` to accept pattern/texture params
 - Update `Description()` to include pattern/texture
 
 **File**: `internal/game/world.go`
+
 - Update mushroom spawning to generate random pattern/texture combinations
 - Update poison/healing config to include pattern/texture in combo matching
 
 **File**: `internal/entity/preference.go`
+
 - Add `Pattern` and `Texture` fields to Preference struct
 - Update `Matches()` and `Description()` methods
 
@@ -372,13 +442,16 @@ type Preference struct {
 ---
 
 ### D6. Preference formation with expanded attributes
+
 **Discuss**: Confirm combo constraints (ItemType + 1-2 other attributes), formation weights
 
 **File**: `internal/system/preference.go`
+
 - Update `rollPreferenceType()` to handle Pattern/Texture
 - Ensure combo preferences include ItemType + other attributes
 
 **File**: `internal/config/config.go`
+
 - Adjust formation weights if needed
 
 **Tests**: Unit tests for expanded preference formation
@@ -388,9 +461,11 @@ type Preference struct {
 ---
 
 ### D7. Seeking and avoidance refinements
+
 **Discuss**: Confirm threshold adjustments for expanded NetPreference range, avoidance behavior
 
 **File**: `internal/system/movement.go`
+
 - Update `findFoodTarget()` thresholds for higher NetPreference values
 - Consider avoidance logic for strongly disliked items (if desired)
 
@@ -401,9 +476,11 @@ type Preference struct {
 ---
 
 ### Balance Tuning Pass
+
 **Discuss**: Review overall game feel after D1-D7 complete
 
 Areas to evaluate:
+
 - Activity durations (eating feels too quick?)
 - Stat change rates
 - Preference formation chances
@@ -422,27 +499,28 @@ This is an iterative tuning session based on gameplay feel, not a fixed implemen
 
 ## Critical Files Summary
 
-| File | Changes |
-|------|---------|
-| `internal/entity/character.go` | Mood field, Preferences slice, ActionLook |
-| `internal/entity/preference.go` | NEW - Preference type and methods, Pattern/Texture fields |
-| `internal/entity/item.go` | Healing field, Pattern/Texture fields |
-| `internal/system/survival.go` | UpdateMood() integration, status effect mood penalties |
-| `internal/system/consumption.go` | Mood boosts, preference formation, healing, looking |
-| `internal/system/preference.go` | NEW - TryFormPreference(), expanded attribute formation |
-| `internal/system/movement.go` | findLookIntent(), update findFoodTarget() with expanded thresholds |
-| `internal/ui/view.go` | Mood display, optimal styling, preference list |
-| `internal/ui/styles.go` | optimalStyle (dark green) |
-| `internal/ui/update.go` | ActionLook handling |
-| `internal/game/world.go` | HealingConfig, flower spawning, item spawning, pattern/texture combos |
-| `internal/config/config.go` | All new constants |
-| `internal/types/types.go` | StatMood, new colors, Pattern, Texture |
+| File                             | Changes                                                               |
+| -------------------------------- | --------------------------------------------------------------------- |
+| `internal/entity/character.go`   | Mood field, Preferences slice, ActionLook                             |
+| `internal/entity/preference.go`  | NEW - Preference type and methods, Pattern/Texture fields             |
+| `internal/entity/item.go`        | Healing field, Pattern/Texture fields                                 |
+| `internal/system/survival.go`    | UpdateMood() integration, status effect mood penalties                |
+| `internal/system/consumption.go` | Mood boosts, preference formation, healing, looking                   |
+| `internal/system/preference.go`  | NEW - TryFormPreference(), expanded attribute formation               |
+| `internal/system/movement.go`    | findLookIntent(), update findFoodTarget() with expanded thresholds    |
+| `internal/ui/view.go`            | Mood display, optimal styling, preference list                        |
+| `internal/ui/styles.go`          | optimalStyle (dark green)                                             |
+| `internal/ui/update.go`          | ActionLook handling                                                   |
+| `internal/game/world.go`         | HealingConfig, flower spawning, item spawning, pattern/texture combos |
+| `internal/config/config.go`      | All new constants                                                     |
+| `internal/types/types.go`        | StatMood, new colors, Pattern, Texture                                |
 
 ---
 
 ## Workflow Summary
 
 Each step follows this pattern:
+
 1. **Discuss** - Brief confirmation before implementing
 2. **Implement** - Code changes with tests
 3. **🎮 Test** - Human testing touchpoint (rebuild binary first!)

@@ -23,10 +23,6 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea) for f
 - Cursor navigation and character following
 - World starts paused for observation
 
-## Requirements
-
-- Go 1.21+
-
 ## Running the Game
 
 ```bash

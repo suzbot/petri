@@ -8,3 +8,4 @@ then they can be removed from this list.
 
 1. Reorder the fields in the Details panel
 2. Figure out git and get this on my github account
+3. Use cobra cli to manage flags, and to polish conventions (eg --help instead of -help)
