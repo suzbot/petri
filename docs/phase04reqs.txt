@@ -25,10 +25,12 @@ B. User can see Character's knowledge
             Does it make sense to show these hints in the status bar or in the details panel?
     2. In the Knowledge panel, the user sees a scrollable list of things the character has learned
 C. Poison knowledge creates dislike
-    1. When the character learns that something is poisonous, it is affected by an opinion for a specifc combo (up to 3 units, eg 'Spotted Slimy Mushroom' or 'Spotted Blue Mushroom' )
-E. Healing Knowledge creates new intent and seeking
-F. Healing Knowledge creates conditional matching logic for food
-G. Action Log [Char] Learned something!
-H. New Action: Talking
-I. Talking has chance to transmit knowledge
+    1. When the character learns that something is poisonous, it is affected by an opinion for a specific combo
+    (up to 3 units, eg 'Spotted Slimy Mushroom' or 'Spotted Blue Mushroom' )
+    2. Confirm how dislike effects intent, update logic if needed
+D. Healing Knowledge creates new intent and seeking when not at full health
+E. Healing Knowledge creates conditional matching logic for food
+F. Action Log [Char] Learned something!
+G. New Action: Talking
+H. Talking has chance to transmit knowledge
 

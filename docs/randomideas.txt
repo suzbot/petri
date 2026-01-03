@@ -1,5 +1,5 @@
-This is a document where I'm dumping my random ideas as I have them, that don't cleanly fit into
-one of my prioritized buckets.
+This is a document where I'm dumping my random ideas as I have them, that haven't been added to
+the roadmap or other docs yet.
 
 Goal of this document is that it can be automatically reviewed when roadmap planning to see if any
 of these smaller items make sense to incorporate into the plan as we go along.
@@ -7,6 +7,20 @@ of these smaller items make sense to incorporate into the plan as we go along.
 When items are completed OR documented as part of a roadmap, requirement, or plan elsewhere,
 then they can be removed from this list.
 
-1. Reorder the fields in the Details panel
+1. Reorder the fields in the Details panel (low)
 2. Use cobra cli to manage flags, and to polish conventions (eg --help instead of -help)
 3. Assess possible unicode symbols for entities
+4. Make sure all actions log fills up available vertical space
+5. When implementing character memory, revisit now much we keep in the action log. May need to consider world time vs real time.
+6. Improve README (high)
+    - fix image issue
+    - follow better readme conventions
+    - latest update feature section
+    - more summarized current features section
+    - less mechanics details, point readers to game mechanics file and config file
+7. ESC should go back to start screen instead of fully quitting
+8. Different key to start game from start screen
+9. Fake hello world loading screen (low)
+10. Remove the word project from start screen
+11. update game mechanics (high)
+12. Ability to save the game

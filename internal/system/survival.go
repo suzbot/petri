@@ -46,6 +46,14 @@ func UpdateSurvival(char *entity.Character, deltaTime float64, log *ActionLog) {
 		}
 	}
 
+	// Decrement look cooldown
+	if char.LookCooldown > 0 {
+		char.LookCooldown -= deltaTime
+		if char.LookCooldown < 0 {
+			char.LookCooldown = 0
+		}
+	}
+
 	prevHunger := char.Hunger
 	prevThirst := char.Thirst
 	prevEnergy := char.Energy

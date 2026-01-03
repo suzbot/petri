@@ -379,6 +379,14 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			char.ActionProgress = 0
 			system.StartSleep(char, atBed, m.actionLog)
 		}
+
+	case entity.ActionLook:
+		// Looking requires duration to complete
+		char.ActionProgress += delta
+		if char.ActionProgress >= config.LookDuration {
+			char.ActionProgress = 0
+			system.CompleteLook(char, char.Intent.TargetItem, m.actionLog)
+		}
 	}
 }
 

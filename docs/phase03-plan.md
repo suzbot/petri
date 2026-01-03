@@ -410,9 +410,15 @@ ItemSpawnMaxDensity      = 0.50  // max 50% of map coordinates
 
 🎮 **Human Testing**: Verify flowers appear on map with correct symbols/colors
 
-### D4. Looking activity
+### D4. Looking activity ✅ DECISIONS MADE
 
-**Discuss**: Confirm looking mechanics (adjacent positioning, duration, interruption)
+**Decisions**:
+- LookChance: 50% when idle
+- LookDuration: 3.0 seconds (eating changed to 1.5s)
+- Target: Closest item of any type (berries, mushrooms, flowers)
+- Position: Closest available adjacent tile to target item
+- If already adjacent: Skip travel, start looking immediately
+- Preference formation: Call TryFormPreference when looking completes (same logic as eating)
 
 **File**: `internal/entity/character.go`
 
@@ -420,23 +426,26 @@ ItemSpawnMaxDensity      = 0.50  // max 50% of map coordinates
 
 **File**: `internal/system/movement.go`
 
-- Add `findLookIntent()` for idle characters
+- Add `findLookIntent()` for idle characters (50% chance, nearest item, adjacent tile)
 
 **File**: `internal/ui/update.go`
 
-- Handle `ActionLook` with duration
+- Handle `ActionLook` with duration (3.0s)
+- Call CompleteLook on completion
 
-**File**: `internal/system/consumption.go` (or new file)
+**File**: `internal/system/looking.go` (new)
 
-- Add `CompleteLook()` function
+- Add `CompleteLook()` function - calls TryFormPreference
 
 **File**: `internal/config/config.go`
 
-- Add `LookChance`, `LookDuration`
+- Add `LookChance = 0.50`
+- Add `LookDuration = 3.0`
+- Change `ActionDuration` to 1.5 (was 1.0)
 
-**Tests**: Integration tests for looking activity and interruption
+**Tests**: Integration tests for looking activity, interruption, and preference formation
 
-🎮 **Human Testing**: Observe characters looking at items when idle, verify interruption by needs
+🎮 **Human Testing**: Observe characters looking at items when idle, verify interruption by needs, check preference formation
 
 ---
 

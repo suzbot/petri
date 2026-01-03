@@ -29,6 +29,12 @@ type Character struct {
 	FrustrationTimer  float64
 	FailedIntentCount int
 
+	// Looking activity tracking
+	LookCooldown   float64 // Time until can look again
+	LastLookedX    int     // Position of last item looked at (to avoid repetition)
+	LastLookedY    int
+	HasLastLooked  bool    // Whether LastLookedX/Y are valid
+
 	// Satisfaction cooldowns (delay before stat starts changing after reaching optimal)
 	HungerCooldown float64
 	ThirstCooldown float64
@@ -66,6 +72,7 @@ const (
 	ActionConsume
 	ActionDrink
 	ActionSleep
+	ActionLook
 )
 
 // NewCharacter creates a new character with the given preferences

@@ -1,6 +1,8 @@
 package system
 
 import (
+	"math/rand"
+
 	"petri/internal/config"
 	"petri/internal/entity"
 	"petri/internal/game"
@@ -31,6 +33,26 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 	hungerTier := char.HungerTier()
 	thirstTier := char.ThirstTier()
 	energyTier := char.EnergyTier()
+
+	// Check if we should continue a looking intent (no DrivingStat)
+	// Looking can be interrupted by: urgent needs (tier >= Moderate), or cooldown started (look completed)
+	if char.Intent != nil && char.Intent.DrivingStat == "" && char.Intent.TargetItem != nil {
+		// If cooldown is active, look just completed - fall through to re-evaluate
+		if char.LookCooldown <= 0 {
+			maxTier := hungerTier
+			if thirstTier > maxTier {
+				maxTier = thirstTier
+			}
+			if energyTier > maxTier {
+				maxTier = energyTier
+			}
+			// Keep looking if no urgent needs (Moderate or higher)
+			if maxTier < entity.TierModerate {
+				return continueIntent(char, cx, cy, gameMap, log)
+			}
+		}
+		// Otherwise fall through to re-evaluate (need interrupts looking, or look completed)
+	}
 
 	// Check if current intent should be kept (tier-based evaluation)
 	if char.Intent != nil {
@@ -105,8 +127,11 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 		maxTier = energyTier
 	}
 
-	// No urgent needs
+	// No urgent needs - try looking at something
 	if maxTier == entity.TierNone {
+		if intent := findLookIntent(char, cx, cy, items, gameMap, log); intent != nil {
+			return intent
+		}
 		if char.CurrentActivity != "Idle" {
 			char.CurrentActivity = "Idle"
 			if log != nil {
@@ -175,6 +200,11 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 			}
 			return nil
 		}
+	}
+
+	// No needs could be fulfilled - try looking at something
+	if intent := findLookIntent(char, cx, cy, items, gameMap, log); intent != nil {
+		return intent
 	}
 
 	if char.CurrentActivity != "Idle" {
@@ -250,6 +280,20 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 				DrivingStat:   intent.DrivingStat,
 				DrivingTier:   intent.DrivingTier,
 			}
+		}
+	}
+
+	// Check if we've arrived adjacent to an item for looking (no DrivingStat means looking intent)
+	if intent.TargetItem != nil && intent.DrivingStat == "" && isAdjacent(cx, cy, tx, ty) {
+		newActivity := "Looking at " + intent.TargetItem.Description()
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+		}
+		return &entity.Intent{
+			TargetX:    cx, // Stay in place
+			TargetY:    cy,
+			Action:     entity.ActionLook,
+			TargetItem: intent.TargetItem,
 		}
 	}
 
@@ -539,4 +583,137 @@ func canFulfillEnergy(char *entity.Character, gameMap *game.Map, cx, cy int) boo
 	}
 	// Otherwise need a bed
 	return gameMap.FindNearestBed(cx, cy) != nil
+}
+
+// findLookIntent creates an intent to look at the nearest item (50% chance when idle)
+func findLookIntent(char *entity.Character, cx, cy int, items []*entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
+	// Check cooldown
+	if char.LookCooldown > 0 {
+		return nil
+	}
+
+	// 50% chance to look - set cooldown regardless of outcome so check only happens periodically
+	if rand.Float64() >= config.LookChance {
+		char.LookCooldown = config.LookCooldown
+		return nil
+	}
+
+	// Find nearest item, excluding last looked item
+	target := findNearestItemExcluding(cx, cy, items, char.LastLookedX, char.LastLookedY, char.HasLastLooked)
+	if target == nil {
+		return nil
+	}
+
+	tx, ty := target.Position()
+
+	// Check if already adjacent to target
+	if isAdjacent(cx, cy, tx, ty) {
+		// Start looking immediately
+		newActivity := "Looking at " + target.Description()
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+			if log != nil {
+				log.Add(char.ID, char.Name, "activity", "Looking at "+target.Description())
+			}
+		}
+		return &entity.Intent{
+			TargetX:    cx, // Stay in place
+			TargetY:    cy,
+			Action:     entity.ActionLook,
+			TargetItem: target,
+		}
+	}
+
+	// Find closest adjacent tile to target
+	adjX, adjY := findClosestAdjacentTile(cx, cy, tx, ty, gameMap)
+	if adjX == -1 {
+		return nil // No accessible adjacent tile
+	}
+
+	// Move toward adjacent tile
+	nx, ny := nextStep(cx, cy, adjX, adjY)
+
+	newActivity := "Moving to look at " + target.Description()
+	if char.CurrentActivity != newActivity {
+		char.CurrentActivity = newActivity
+		if log != nil {
+			log.Add(char.ID, char.Name, "movement", "Moving to look at "+target.Description())
+		}
+	}
+
+	return &entity.Intent{
+		TargetX:    nx,
+		TargetY:    ny,
+		Action:     entity.ActionMove,
+		TargetItem: target,
+	}
+}
+
+// findNearestItem finds the closest item of any type to the given position
+func findNearestItem(cx, cy int, items []*entity.Item) *entity.Item {
+	return findNearestItemExcluding(cx, cy, items, 0, 0, false)
+}
+
+// findNearestItemExcluding finds the closest item, optionally excluding a specific position
+func findNearestItemExcluding(cx, cy int, items []*entity.Item, excludeX, excludeY int, hasExclude bool) *entity.Item {
+	if len(items) == 0 {
+		return nil
+	}
+
+	var nearest *entity.Item
+	nearestDist := int(^uint(0) >> 1)
+
+	for _, item := range items {
+		ix, iy := item.Position()
+
+		// Skip excluded position
+		if hasExclude && ix == excludeX && iy == excludeY {
+			continue
+		}
+
+		dist := abs(cx-ix) + abs(cy-iy)
+		if dist < nearestDist {
+			nearestDist = dist
+			nearest = item
+		}
+	}
+
+	return nearest
+}
+
+// isAdjacent checks if two positions are adjacent (including diagonals)
+func isAdjacent(x1, y1, x2, y2 int) bool {
+	dx := abs(x1 - x2)
+	dy := abs(y1 - y2)
+	return dx <= 1 && dy <= 1 && !(dx == 0 && dy == 0)
+}
+
+// findClosestAdjacentTile finds the closest unoccupied tile adjacent to (tx, ty) from position (cx, cy)
+func findClosestAdjacentTile(cx, cy, tx, ty int, gameMap *game.Map) (int, int) {
+	// 8 directions
+	directions := [][2]int{
+		{0, -1}, {1, -1}, {1, 0}, {1, 1},
+		{0, 1}, {-1, 1}, {-1, 0}, {-1, -1},
+	}
+
+	bestX, bestY := -1, -1
+	bestDist := int(^uint(0) >> 1)
+
+	for _, dir := range directions {
+		ax, ay := tx+dir[0], ty+dir[1]
+		if !gameMap.IsValid(ax, ay) {
+			continue
+		}
+		if gameMap.IsOccupied(ax, ay) {
+			continue
+		}
+
+		dist := abs(cx-ax) + abs(cy-ay)
+		if dist < bestDist {
+			bestDist = dist
+			bestX, bestY = ax, ay
+		}
+	}
+
+	return bestX, bestY
 }

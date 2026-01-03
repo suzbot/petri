@@ -4,7 +4,7 @@ A simulation game inspired by Dwarf Fortress, exploring the emergent development
 
 Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea) for flicker-free terminal rendering.
 
-![Petri Screenshot](docs/Screenshot%202026-01-02%20at%204.09.15%20PM.png)
+![Petri Screenshot](docs/Screenshot%202026-01-02%20at%209.59.16%20PM.png)
 
 ## Current Features
 

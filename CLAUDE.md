@@ -131,6 +131,7 @@ Items analyzed and consciously deferred until trigger conditions are met.
 | **Preference formation for beverages** | Other beverages (non-spring) introduced |
 | **Depression and Rage mechanics** | Job acceptance logic implemented |
 | **Testify test package** | Test complexity warrants it; Current assertion patterns become unwieldy |
+| **Wandering activity** | More idle activities needed; Looking feels repetitive; Want more organic movement |
 
 **Implementation details:** See docs/architecture-review-typed-constants.md
 
@@ -218,17 +219,26 @@ go test -cover ./...       # Coverage report
 
 ### Working Patterns
 
+**Before Implementation:**
 - **Verify against requirements**: Before implementing a feature, re-read the relevant requirements to ensure correct interpretation. Don't rely on memory or plan summaries alone.
+- **Record decisions in plan docs**: Update plan documents with decisions BEFORE starting implementation. This preserves context across sessions and compactions.
 - **Confirm rather than guess**: Ask clarifying questions instead of making assumptions about intent.
 - **Compare options before committing**: Present alternatives with trade-offs; confirm approach before implementing.
 - **Number discussion points**: When presenting multiple thoughts/options for discussion, number them so the user can easily reference specific points in their reply.
-- **Pause for architecture review**: When implementing reveals broader design questions, pause to review architecture before proceeding. Document decisions in docs/ to maintain context.
-- **Test-driven development**: See Testing section for process. Clarify intent verbally when needed; formal Gherkin docs not required.
+
+**During Implementation:**
 - **Iterative development**: Small features with frequent human testing checkpoints.
-- **Discuss questions in context**: When starting a new feature area, ask clarifying questions as each sub-feature is approached rather than presenting a large batch of questions upfront. Easier to answer in context.
+- **Discuss questions in context**: When starting a new feature area, ask clarifying questions as each sub-feature is approached rather than presenting a large batch of questions upfront.
+- **Pause for architecture review**: When implementing reveals broader design questions, pause to review architecture before proceeding.
+- **Test-driven development**: See Testing section for process.
+
+**During Testing:**
 - **Rebuild before testing**: Always remind to rebuild binary (see Human Testing Protocol).
+- **Track balance tuning discoveries**: When testing reveals balance issues (rates too fast/slow, etc.), add notes to the "Balance tuning candidates" section for future tuning pass.
+
+**Documentation:**
 - **Keep docs current**: Include README and reference doc updates as todo items when implementing features. Don't defer documentation to end of session.
-- **Maintain context documents**: Reference CLAUDE.md and docs/ regularly at the start of work sessions. Update documents and keep them clean and organized as we go. Move detailed content to separate docs/ files when CLAUDE.md becomes cluttered. This maintains project knowledge across sessions.
+- **Maintain context documents**: Reference CLAUDE.md and docs/ regularly at the start of work sessions. Update documents and keep them clean and organized as we go. Move detailed content to separate docs/ files when CLAUDE.md becomes cluttered.
 
 ### Reference Documents
 
