@@ -48,7 +48,7 @@ func TestNewBerry_Poisonous(t *testing.T) {
 func TestNewMushroom_Properties(t *testing.T) {
 	t.Parallel()
 
-	item := NewMushroom(8, 12, types.ColorBrown, false, false)
+	item := NewMushroom(8, 12, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
 
 	x, y := item.Position()
 	if x != 8 || y != 12 {
@@ -75,7 +75,7 @@ func TestNewMushroom_Properties(t *testing.T) {
 func TestNewMushroom_Poisonous(t *testing.T) {
 	t.Parallel()
 
-	item := NewMushroom(0, 0, types.ColorBlue, true, false)
+	item := NewMushroom(0, 0, types.ColorBlue, types.PatternNone, types.TextureNone, true, false)
 	if !item.Poisonous {
 		t.Error("NewMushroom with poisonous=true: got Poisonous=false")
 	}
@@ -96,9 +96,9 @@ func TestItem_Description_Berry(t *testing.T) {
 func TestItem_Description_Mushroom(t *testing.T) {
 	t.Parallel()
 
-	item := NewMushroom(0, 0, types.ColorBrown, false, false)
+	item := NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
 	got := item.Description()
-	if got != "brown mushroom" {
-		t.Errorf("Mushroom Description(): got %q, want %q", got, "brown mushroom")
+	if got != "plain brown mushroom" {
+		t.Errorf("Mushroom Description(): got %q, want %q", got, "plain brown mushroom")
 	}
 }

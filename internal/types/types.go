@@ -38,3 +38,27 @@ const (
 	StatHealth StatType = "health"
 	StatMood   StatType = "mood"
 )
+
+// Pattern represents item surface patterns (descriptive attribute, opinion-formable)
+// Currently only applies to mushrooms
+type Pattern string
+
+const (
+	PatternNone    Pattern = ""
+	PatternSpotted Pattern = "spotted"
+)
+
+// MushroomPatterns returns valid patterns for mushrooms (includes None for no pattern)
+var MushroomPatterns = []Pattern{PatternNone, PatternSpotted}
+
+// Texture represents item surface textures (descriptive attribute, opinion-formable)
+// Currently only applies to mushrooms
+type Texture string
+
+const (
+	TextureNone  Texture = ""
+	TextureSlimy Texture = "slimy"
+)
+
+// MushroomTextures returns valid textures for mushrooms (includes None for no texture)
+var MushroomTextures = []Texture{TextureNone, TextureSlimy}

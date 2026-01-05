@@ -74,7 +74,7 @@ func TestRollPreferenceType_ReturnsValidPreference(t *testing.T) {
 		pref := rollPreferenceType(item, 1)
 
 		// Must have at least one attribute set
-		if pref.ItemType == "" && pref.Color == "" {
+		if pref.ItemType == "" && pref.Color == "" && pref.Pattern == "" && pref.Texture == "" {
 			t.Error("Preference must have at least one attribute set")
 		}
 
@@ -98,11 +98,49 @@ func TestRollPreferenceType_ReturnsValidPreference(t *testing.T) {
 func TestRollPreferenceType_NegativeValence(t *testing.T) {
 	t.Parallel()
 
-	item := entity.NewMushroom(0, 0, types.ColorBrown, false, false)
+	item := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
 	pref := rollPreferenceType(item, -1)
 
 	if pref.Valence != -1 {
 		t.Errorf("Expected negative valence, got %d", pref.Valence)
+	}
+}
+
+func TestRollPreferenceType_MushroomIncludesPatternTexture(t *testing.T) {
+	t.Parallel()
+
+	// Mushroom with pattern and texture
+	item := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternSpotted, types.TextureSlimy, false, false)
+
+	// Run multiple times to see pattern/texture being used
+	hasPattern := false
+	hasTexture := false
+	for i := 0; i < 200; i++ {
+		pref := rollPreferenceType(item, 1)
+
+		// If Pattern is set, it must match item
+		if pref.Pattern != "" {
+			hasPattern = true
+			if pref.Pattern != item.Pattern {
+				t.Errorf("Pattern mismatch: got %s, want %s", pref.Pattern, item.Pattern)
+			}
+		}
+
+		// If Texture is set, it must match item
+		if pref.Texture != "" {
+			hasTexture = true
+			if pref.Texture != item.Texture {
+				t.Errorf("Texture mismatch: got %s, want %s", pref.Texture, item.Texture)
+			}
+		}
+	}
+
+	// With 4 attributes and 200 iterations, we should see pattern and texture
+	if !hasPattern {
+		t.Error("Expected at least one preference with Pattern set")
+	}
+	if !hasTexture {
+		t.Error("Expected at least one preference with Texture set")
 	}
 }
 

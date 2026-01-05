@@ -9,7 +9,7 @@ import (
 )
 
 // UpdateSpawnTimers decrements spawn timers for all items and spawns new items when timers expire
-func UpdateSpawnTimers(gameMap *game.Map, poisonCfg game.PoisonConfig, healingCfg game.HealingConfig, initialItemCount int, delta float64) {
+func UpdateSpawnTimers(gameMap *game.Map, initialItemCount int, delta float64) {
 	items := gameMap.Items()
 
 	// Check if map is at capacity (50% of coordinates)
@@ -45,8 +45,8 @@ func UpdateSpawnTimers(gameMap *game.Map, poisonCfg game.PoisonConfig, healingCf
 				continue
 			}
 
-			// Spawn new item matching parent's type, color, poison/healing
-			spawnItem(gameMap, item, adjX, adjY, poisonCfg, healingCfg, initialItemCount)
+			// Spawn new item matching parent's properties (type, color, pattern, texture, etc.)
+			spawnItem(gameMap, item, adjX, adjY, initialItemCount)
 		}
 	}
 }
@@ -84,14 +84,14 @@ func findEmptyAdjacent(x, y int, gameMap *game.Map) (int, int, bool) {
 }
 
 // spawnItem creates a new item matching the parent's properties
-func spawnItem(gameMap *game.Map, parent *entity.Item, x, y int, poisonCfg game.PoisonConfig, healingCfg game.HealingConfig, initialItemCount int) {
+func spawnItem(gameMap *game.Map, parent *entity.Item, x, y int, initialItemCount int) {
 	var newItem *entity.Item
 
 	switch parent.ItemType {
 	case "berry":
 		newItem = entity.NewBerry(x, y, parent.Color, parent.Poisonous, parent.Healing)
 	case "mushroom":
-		newItem = entity.NewMushroom(x, y, parent.Color, parent.Poisonous, parent.Healing)
+		newItem = entity.NewMushroom(x, y, parent.Color, parent.Pattern, parent.Texture, parent.Poisonous, parent.Healing)
 	case "flower":
 		newItem = entity.NewFlower(x, y, parent.Color)
 	default:

@@ -152,8 +152,6 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // startGame initializes the game world
 func (m Model) startGame() Model {
 	m.gameMap = game.NewMap(config.MapWidth, config.MapHeight)
-	m.poisonCfg = game.GeneratePoisonConfig()
-	m.healingCfg = game.GenerateHealingConfig(m.poisonCfg)
 	m.phase = phasePlaying
 	m.lastUpdate = time.Now()
 
@@ -166,7 +164,7 @@ func (m Model) startGame() Model {
 
 	// Spawn items and features (respecting test config)
 	if !m.testCfg.NoFood {
-		game.SpawnItems(m.gameMap, m.poisonCfg, m.healingCfg)
+		game.SpawnItems(m.gameMap)
 	}
 	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 
@@ -176,8 +174,6 @@ func (m Model) startGame() Model {
 // startGameMulti initializes the game world with 4 characters
 func (m Model) startGameMulti() Model {
 	m.gameMap = game.NewMap(config.MapWidth, config.MapHeight)
-	m.poisonCfg = game.GeneratePoisonConfig()
-	m.healingCfg = game.GenerateHealingConfig(m.poisonCfg)
 	m.phase = phasePlaying
 	m.lastUpdate = time.Now()
 
@@ -208,7 +204,7 @@ func (m Model) startGameMulti() Model {
 
 	// Spawn items and features (respecting test config)
 	if !m.testCfg.NoFood {
-		game.SpawnItems(m.gameMap, m.poisonCfg, m.healingCfg)
+		game.SpawnItems(m.gameMap)
 	}
 	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 
@@ -235,7 +231,7 @@ func (m Model) updateGame(now time.Time) (Model, tea.Cmd) {
 	// Update item spawning (unless no food mode)
 	if !m.testCfg.NoFood {
 		initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers
-		system.UpdateSpawnTimers(m.gameMap, m.poisonCfg, m.healingCfg, initialItemCount, delta)
+		system.UpdateSpawnTimers(m.gameMap, initialItemCount, delta)
 	}
 
 	// Calculate intents (Phase II ready: can parallelize this)
@@ -470,7 +466,7 @@ func (m *Model) stepForward() {
 	// Update item spawning (unless no food mode)
 	if !m.testCfg.NoFood {
 		initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers
-		system.UpdateSpawnTimers(m.gameMap, m.poisonCfg, m.healingCfg, initialItemCount, delta)
+		system.UpdateSpawnTimers(m.gameMap, initialItemCount, delta)
 	}
 
 	// Calculate and apply intents
@@ -642,8 +638,6 @@ func (m Model) handleCharacterCreationKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // startGameFromCreation initializes the game from character creation settings
 func (m Model) startGameFromCreation() Model {
 	m.gameMap = game.NewMap(config.MapWidth, config.MapHeight)
-	m.poisonCfg = game.GeneratePoisonConfig()
-	m.healingCfg = game.GenerateHealingConfig(m.poisonCfg)
 	m.phase = phasePlaying
 	m.lastUpdate = time.Now()
 
@@ -688,7 +682,7 @@ func (m Model) startGameFromCreation() Model {
 
 	// Spawn items and features (respecting test config)
 	if !m.testCfg.NoFood {
-		game.SpawnItems(m.gameMap, m.poisonCfg, m.healingCfg)
+		game.SpawnItems(m.gameMap)
 	}
 	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 

@@ -415,6 +415,201 @@ func TestPreference_MatchScore_ComboAttribute(t *testing.T) {
 }
 
 // =============================================================================
+// Pattern and Texture Matching
+// =============================================================================
+
+func TestPreference_Matches_PatternOnly(t *testing.T) {
+	t.Parallel()
+
+	pref := Preference{Valence: 1, Pattern: types.PatternSpotted}
+
+	spottedMushroom := &Item{ItemType: "mushroom", Color: types.ColorBrown, Pattern: types.PatternSpotted}
+	plainMushroom := &Item{ItemType: "mushroom", Color: types.ColorBrown, Pattern: types.PatternNone}
+	redBerry := &Item{ItemType: "berry", Color: types.ColorRed} // No pattern
+
+	if !pref.Matches(spottedMushroom) {
+		t.Error("Pattern preference should match spotted mushroom")
+	}
+	if pref.Matches(plainMushroom) {
+		t.Error("Pattern preference should not match plain mushroom")
+	}
+	if pref.Matches(redBerry) {
+		t.Error("Pattern preference should not match berry (no pattern)")
+	}
+}
+
+func TestPreference_Matches_TextureOnly(t *testing.T) {
+	t.Parallel()
+
+	pref := Preference{Valence: 1, Texture: types.TextureSlimy}
+
+	slimyMushroom := &Item{ItemType: "mushroom", Color: types.ColorBrown, Texture: types.TextureSlimy}
+	normalMushroom := &Item{ItemType: "mushroom", Color: types.ColorBrown, Texture: types.TextureNone}
+	redBerry := &Item{ItemType: "berry", Color: types.ColorRed} // No texture
+
+	if !pref.Matches(slimyMushroom) {
+		t.Error("Texture preference should match slimy mushroom")
+	}
+	if pref.Matches(normalMushroom) {
+		t.Error("Texture preference should not match non-slimy mushroom")
+	}
+	if pref.Matches(redBerry) {
+		t.Error("Texture preference should not match berry (no texture)")
+	}
+}
+
+func TestPreference_Matches_MushroomCombo(t *testing.T) {
+	t.Parallel()
+
+	// Preference for spotted brown mushrooms
+	pref := Preference{
+		Valence:  1,
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+		Pattern:  types.PatternSpotted,
+	}
+
+	spottedBrown := &Item{ItemType: "mushroom", Color: types.ColorBrown, Pattern: types.PatternSpotted}
+	plainBrown := &Item{ItemType: "mushroom", Color: types.ColorBrown, Pattern: types.PatternNone}
+	spottedWhite := &Item{ItemType: "mushroom", Color: types.ColorWhite, Pattern: types.PatternSpotted}
+
+	if !pref.Matches(spottedBrown) {
+		t.Error("Should match spotted brown mushroom")
+	}
+	if pref.Matches(plainBrown) {
+		t.Error("Should not match plain brown mushroom (wrong pattern)")
+	}
+	if pref.Matches(spottedWhite) {
+		t.Error("Should not match spotted white mushroom (wrong color)")
+	}
+}
+
+func TestPreference_Description_WithPattern(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		pref     Preference
+		expected string
+	}{
+		{
+			name:     "pattern only",
+			pref:     Preference{Valence: 1, Pattern: types.PatternSpotted},
+			expected: "spotted",
+		},
+		{
+			name:     "pattern + type",
+			pref:     Preference{Valence: 1, ItemType: "mushroom", Pattern: types.PatternSpotted},
+			expected: "spotted mushrooms",
+		},
+		{
+			name:     "pattern + color + type",
+			pref:     Preference{Valence: 1, ItemType: "mushroom", Color: types.ColorBrown, Pattern: types.PatternSpotted},
+			expected: "spotted brown mushrooms",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.pref.Description()
+			if got != tt.expected {
+				t.Errorf("Description(): got %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPreference_Description_WithTexture(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		pref     Preference
+		expected string
+	}{
+		{
+			name:     "texture only",
+			pref:     Preference{Valence: 1, Texture: types.TextureSlimy},
+			expected: "slimy",
+		},
+		{
+			name:     "texture + type",
+			pref:     Preference{Valence: 1, ItemType: "mushroom", Texture: types.TextureSlimy},
+			expected: "slimy mushrooms",
+		},
+		{
+			name:     "texture + pattern + color + type",
+			pref:     Preference{Valence: 1, ItemType: "mushroom", Color: types.ColorBrown, Pattern: types.PatternSpotted, Texture: types.TextureSlimy},
+			expected: "slimy spotted brown mushrooms",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.pref.Description()
+			if got != tt.expected {
+				t.Errorf("Description(): got %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPreference_AttributeCount_WithPatternTexture(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		pref     Preference
+		expected int
+	}{
+		{
+			name:     "pattern only",
+			pref:     Preference{Valence: 1, Pattern: types.PatternSpotted},
+			expected: 1,
+		},
+		{
+			name:     "texture only",
+			pref:     Preference{Valence: 1, Texture: types.TextureSlimy},
+			expected: 1,
+		},
+		{
+			name:     "pattern + texture",
+			pref:     Preference{Valence: 1, Pattern: types.PatternSpotted, Texture: types.TextureSlimy},
+			expected: 2,
+		},
+		{
+			name:     "all four attributes",
+			pref:     Preference{Valence: 1, ItemType: "mushroom", Color: types.ColorBrown, Pattern: types.PatternSpotted, Texture: types.TextureSlimy},
+			expected: 4,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.pref.AttributeCount()
+			if got != tt.expected {
+				t.Errorf("AttributeCount(): got %d, want %d", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPreference_ExactMatch_WithPatternTexture(t *testing.T) {
+	t.Parallel()
+
+	pref1 := Preference{Valence: 1, ItemType: "mushroom", Pattern: types.PatternSpotted}
+	pref2 := Preference{Valence: -1, ItemType: "mushroom", Pattern: types.PatternSpotted}
+	pref3 := Preference{Valence: 1, ItemType: "mushroom", Pattern: types.PatternNone}
+
+	if !pref1.ExactMatch(pref2) {
+		t.Error("Same attributes with different valence should be exact match")
+	}
+	if pref1.ExactMatch(pref3) {
+		t.Error("Different pattern should not be exact match")
+	}
+}
+
+// =============================================================================
 // Pluralization
 // =============================================================================
 

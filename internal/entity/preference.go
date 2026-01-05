@@ -9,17 +9,20 @@ import (
 // - Only ItemType set: preference about item type (e.g., "berries")
 // - Only Color set: preference about color (e.g., "red")
 // - Both set: preference about combination (e.g., "red berries")
+// - Pattern/Texture: only relevant for mushrooms
 type Preference struct {
-	Valence  int         // +1 (likes) or -1 (dislikes)
-	ItemType string      // empty if not part of preference
-	Color    types.Color // zero value if not part of preference
-	// Future: Material, Pattern, Origin
+	Valence  int           // +1 (likes) or -1 (dislikes)
+	ItemType string        // empty if not part of preference
+	Color    types.Color   // zero value if not part of preference
+	Pattern  types.Pattern // mushrooms only: spotted, plain
+	Texture  types.Texture // mushrooms only: slimy, none
+	// Future: Material, Origin
 }
 
 // Matches returns true if the item matches all set attributes of this preference.
 // An empty preference (no attributes set) matches nothing.
 func (p Preference) Matches(item *Item) bool {
-	if p.ItemType == "" && p.Color == "" {
+	if p.ItemType == "" && p.Color == "" && p.Pattern == "" && p.Texture == "" {
 		return false // Empty preference matches nothing
 	}
 
@@ -28,6 +31,14 @@ func (p Preference) Matches(item *Item) bool {
 	}
 
 	if p.Color != "" && p.Color != item.Color {
+		return false
+	}
+
+	if p.Pattern != "" && p.Pattern != item.Pattern {
+		return false
+	}
+
+	if p.Texture != "" && p.Texture != item.Texture {
 		return false
 	}
 
@@ -43,7 +54,12 @@ func (p Preference) AttributeCount() int {
 	if p.Color != "" {
 		count++
 	}
-	// Future: if p.Material != "" { count++ }
+	if p.Pattern != "" {
+		count++
+	}
+	if p.Texture != "" {
+		count++
+	}
 	return count
 }
 
@@ -59,21 +75,34 @@ func (p Preference) MatchScore(item *Item) int {
 }
 
 // Description returns a human-readable description of what this preference targets.
-// Examples: "berries", "red", "red berries"
+// Examples: "berries", "red", "red berries", "spotted mushrooms", "slimy red mushrooms"
 func (p Preference) Description() string {
-	hasType := p.ItemType != ""
-	hasColor := p.Color != ""
+	// Build parts in order: texture, pattern, color, type
+	parts := []string{}
 
-	if hasType && hasColor {
-		return string(p.Color) + " " + pluralize(p.ItemType)
+	if p.Texture != "" {
+		parts = append(parts, string(p.Texture))
 	}
-	if hasType {
-		return pluralize(p.ItemType)
+	if p.Pattern != "" {
+		parts = append(parts, string(p.Pattern))
 	}
-	if hasColor {
-		return string(p.Color)
+	if p.Color != "" {
+		parts = append(parts, string(p.Color))
 	}
-	return ""
+	if p.ItemType != "" {
+		parts = append(parts, pluralize(p.ItemType))
+	}
+
+	if len(parts) == 0 {
+		return ""
+	}
+
+	// Join with spaces
+	result := parts[0]
+	for i := 1; i < len(parts); i++ {
+		result += " " + parts[i]
+	}
+	return result
 }
 
 // IsPositive returns true if this is a "likes" preference.
@@ -84,7 +113,10 @@ func (p Preference) IsPositive() bool {
 // ExactMatch returns true if both preferences target the same attributes
 // (regardless of valence). Used for preference formation logic.
 func (p Preference) ExactMatch(other Preference) bool {
-	return p.ItemType == other.ItemType && p.Color == other.Color
+	return p.ItemType == other.ItemType &&
+		p.Color == other.Color &&
+		p.Pattern == other.Pattern &&
+		p.Texture == other.Texture
 }
 
 // pluralize returns the plural form of an item type.

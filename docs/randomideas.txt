@@ -7,20 +7,15 @@ of these smaller items make sense to incorporate into the plan as we go along.
 When items are completed OR documented as part of a roadmap, requirement, or plan elsewhere,
 then they can be removed from this list.
 
-1. Reorder the fields in the Details panel (low)
-2. Use cobra cli to manage flags, and to polish conventions (eg --help instead of -help)
-3. Assess possible unicode symbols for entities
-4. Make sure all actions log fills up available vertical space
-5. When implementing character memory, revisit now much we keep in the action log. May need to consider world time vs real time.
-6. Improve README (high)
-    - fix image issue
-    - follow better readme conventions
-    - latest update feature section
-    - more summarized current features section
-    - less mechanics details, point readers to game mechanics file and config file
-7. ESC should go back to start screen instead of fully quitting
-8. Different key to start game from start screen
-9. Fake hello world loading screen (low)
-10. Remove the word project from start screen
-11. update game mechanics (high)
-12. Ability to save the game
+1. Reorder the fields in the Details panel (low - still needs product decision)
+2. Assess other possible unicode symbols for entities
+3. Make sure all actions log fills up available vertical space, make sure we're not losing actions, make sure 'all action' limit isn't cutting off short term memories.
+4. When implementing character memory, revisit now much we keep in the action log. May need to consider world time vs real time.
+5. ESC should go back to start screen instead of fully quitting? or q?
+6. Fake hello world loading screen (very low)
+7. Adjust start screen title and start keys (low)
+    - === Petri ===
+    - R to start with Random Characters
+    - C to create Characters
+8. Ability to save the game (important, where should this be on roadmap relative to items in docs/vision.txt?)
+9. Update character creation so that all colors are always available (even as more are added to list)

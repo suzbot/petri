@@ -286,131 +286,25 @@ type Preference struct {
 
 ## Sub-Phase D: World Balancing
 
-### D8. Status effects on mood
+### D8. Status effects on mood ✅ COMPLETE
 
-**Discuss**: Confirm mood penalty rates for Poisoned and Frustrated states
-
-**File**: `internal/system/survival.go`
-
-- In `UpdateMood()`, apply mood penalty when `char.Poisoned` is true
-- Apply mood penalty when `char.IsFrustrated` is true
-
-**File**: `internal/config/config.go`
-
-- Add `MoodPenaltyPoisoned` constant
-- Add `MoodPenaltyFrustrated` constant
-
-**Tests**: Unit tests for mood penalties from status effects
-
-🎮 **Human Testing**: Verify poisoned/frustrated characters have mood decrease
+Mood penalties applied for Poisoned and Frustrated states in `UpdateMood()`.
 
 ---
 
-### D1. Healing items
+### D1. Healing items ✅ COMPLETE
 
-**Discuss**: Confirm healing config approach (similar to poison), heal amount
+Healing items implemented with HealingConfig mirroring PoisonConfig pattern.
 
-**File**: `internal/entity/item.go`
+### D2. Item spawning ✅ COMPLETE
 
-- Add `Healing bool` field
+Per-item spawn timers with 8-directional adjacency and 50% map cap implemented.
 
-**File**: `internal/game/world.go`
+### D3. Flower item type ✅ COMPLETE
 
-- Create `HealingConfig` similar to `PoisonConfig`
-- Generate 1-2 healing combos (must not overlap with poison)
+Flowers added with 6 colors (Red, Orange, Yellow, Blue, Purple, White), non-edible.
 
-**File**: `internal/system/consumption.go`
-
-- Apply healing effect when consuming healing item
-
-**File**: `internal/config/config.go`
-
-- Add `HealAmount` constant
-
-**Tests**: Unit tests for healing mechanics
-
-🎮 **Human Testing**: Verify healing items restore health, debug bar shows healing combos
-
-### D2. Item spawning ✅ DECISIONS MADE
-
-**Goal**: Average ~1 spawn per 15 seconds globally, with organic staggered timing.
-
-**Decisions made:**
-- Per-item spawn timer approach (each item "reproduces" on its own schedule)
-- 8-directional adjacency (including diagonals)
-- 50% map coordinate cap to prevent overflow
-- Staggered initial timers to avoid synchronized spawning
-
-**Config constants** (`internal/config/config.go`):
-```go
-ItemSpawnChance          = 0.50  // 50% chance per spawn opportunity
-ItemSpawnIntervalBase    = 8.0   // seconds, multiplied by initial item count
-ItemSpawnIntervalVariance = 0.20 // ±20% randomization
-ItemSpawnMaxDensity      = 0.50  // max 50% of map coordinates
-```
-
-**Implementation** (`internal/system/spawning.go`):
-
-1. Add `SpawnTimer float64` field to Item struct
-2. On world gen: `item.SpawnTimer = rand(0, intervalBase × initialItemCount)` (stagger across one cycle)
-3. Each tick: decrement all item timers by delta
-4. When timer ≤ 0:
-   - Check map not at 50% capacity
-   - Find random empty 8-adjacent tile
-   - Roll 50% chance
-   - If success: spawn matching item (same type, color, poison/healing status)
-   - Reset timer to `intervalBase × initialItemCount × (1 ± variance)`
-
-**Math verification**: 40 items × 50% ÷ 320s = 1 spawn per 16 seconds ✓
-
-**File**: `internal/entity/item.go`
-- Add `SpawnTimer float64` field
-
-**File**: `internal/system/spawning.go` (new)
-- `UpdateSpawnTimers(items, delta, gameMap, poisonCfg, healingCfg, initialItemCount)`
-- `findEmptyAdjacent(x, y, gameMap)` - 8-directional
-
-**File**: `internal/game/map.go`
-- Add `TotalCoordinates()` and `EntityCount()` helpers for cap check
-
-**Tests**: Unit tests for spawn timer logic, cap enforcement
-
-🎮 **Human Testing**: Watch items spawn over time, verify ~15s average spacing
-
-### D3. Flower item type ✅ DECISIONS MADE
-
-**Decisions**:
-- Symbol: `❀` (unicode flower)
-- Colors: Red, Orange, Yellow, Blue, Purple, White (per requirements)
-- Spawn count: 20 (same as berries/mushrooms)
-- Not edible (purely decorative)
-- Reproduces like other items (same spawn behavior)
-- Note: Future enhancement - different item types may have different reproduction rates
-
-**File**: `internal/types/types.go`
-
-- Add colors: Orange, Yellow, Purple
-- Add `FlowerColors` slice
-
-**File**: `internal/entity/item.go`
-
-- Add `NewFlower()` constructor (Edible: false)
-
-**File**: `internal/config/config.go`
-
-- Add `CharFlower = '❀'`, `FlowerSpawnCount = 20`
-
-**File**: `internal/game/world.go`
-
-- Add flower spawning to `SpawnItems()`
-
-**File**: `internal/ui/view.go`
-
-- Add orange, yellow, purple color rendering
-
-🎮 **Human Testing**: Verify flowers appear on map with correct symbols/colors
-
-### D4. Looking activity ✅ DECISIONS MADE
+### D4. Looking activity ✅ COMPLETE
 
 **Decisions**:
 - LookChance: 50% when idle
@@ -418,65 +312,59 @@ ItemSpawnMaxDensity      = 0.50  // max 50% of map coordinates
 - Target: Closest item of any type (berries, mushrooms, flowers)
 - Position: Closest available adjacent tile to target item
 - If already adjacent: Skip travel, start looking immediately
-- Preference formation: Call TryFormPreference when looking completes (same logic as eating)
+- Preference formation: Call TryFormPreference when looking completes
+- Mood impact: Looking at liked/disliked items affects mood (same as eating)
+- Cooldown: 10 seconds between look checks (applies whether roll succeeds or fails)
+- Different target: After looking at an item, next look must target a different item
+- Interruption: Moderate+ needs interrupt looking (stickier than idle, which responds to Mild+)
 
-**File**: `internal/entity/character.go`
+**Files changed**:
 
-- Add `ActionLook` to ActionType enum
+- `internal/entity/character.go` - ActionLook enum, LookCooldown/LastLookedX/Y tracking fields
+- `internal/system/movement.go` - findLookIntent(), helper functions for adjacency/distance
+- `internal/ui/update.go` - Handle ActionLook with 3.0s duration
+- `internal/system/looking.go` (new) - CompleteLook() with preference mood impact
+- `internal/system/survival.go` - Decrement LookCooldown timer
+- `internal/config/config.go` - LookChance, LookDuration, LookCooldown constants
 
-**File**: `internal/system/movement.go`
+**Tests**: looking_test.go with tests for CompleteLook, adjacency, targeting, intent creation
 
-- Add `findLookIntent()` for idle characters (50% chance, nearest item, adjacent tile)
-
-**File**: `internal/ui/update.go`
-
-- Handle `ActionLook` with duration (3.0s)
-- Call CompleteLook on completion
-
-**File**: `internal/system/looking.go` (new)
-
-- Add `CompleteLook()` function - calls TryFormPreference
-
-**File**: `internal/config/config.go`
-
-- Add `LookChance = 0.50`
-- Add `LookDuration = 3.0`
-- Change `ActionDuration` to 1.5 (was 1.0)
-
-**Tests**: Integration tests for looking activity, interruption, and preference formation
-
-🎮 **Human Testing**: Observe characters looking at items when idle, verify interruption by needs, check preference formation
+🎮 **Human Testing**: Complete - looking works with cooldown, mood impact, and preference formation
 
 ---
 
-### D5. Pattern and Texture attributes
+### D5. Pattern and Texture attributes ✅ COMPLETE
 
-**Discuss**: Confirm attribute values, how they affect poison/healing combos
+**Status**: ✅ COMPLETE
 
-**File**: `internal/types/types.go`
+#### Approach: Variety for Generation Only
 
-- Add `Pattern` type (Spotted, Plain)
-- Add `Texture` type (Slimy, None)
+After evaluating the full refactor scope (15+ files, 100+ call sites), we pivoted to a simpler approach:
 
-**File**: `internal/entity/item.go`
+- **Variety system used for world generation only** - decides what combos exist, assigns poison/healing
+- **Items keep embedded fields** - no registry lookups at runtime, items remain self-contained
+- **Much smaller refactor** - ~70% less code churn than variety-by-reference approach
 
-- Add `Pattern` and `Texture` fields to Item
-- Update `NewMushroom()` to accept pattern/texture params
-- Update `Description()` to include pattern/texture
+#### Decisions Made
 
-**File**: `internal/game/world.go`
+- **Pattern values**: Spotted, Plain (mushrooms only)
+- **Texture values**: Slimy, None (mushrooms only)
+- **Variety count**: `max(2, spawnCount / 4)` (configurable via VarietyDivisor)
+- **Poison/Healing**: 20% of edible varieties each (configurable), mutually exclusive
 
-- Update mushroom spawning to generate random pattern/texture combinations
-- Update poison/healing config to include pattern/texture in combo matching
+#### Completed Steps
 
-**File**: `internal/entity/preference.go`
+- ✅ D5.1: Pattern/Texture types added to `types/types.go`
+- ✅ D5.2: ItemVariety and VarietyRegistry created (for generation)
+- ✅ D5.3: Variety generation logic with poison/healing assignment
+- ✅ D5.4: Added Pattern/Texture fields to Item, updated NewMushroom signature
+- ✅ D5.5: Updated world generation to use varieties, removed poisonCfg/healingCfg from Model
+- ✅ D5.6: Updated spawning system to inherit Pattern/Texture from parent
+- ✅ D5.7: Updated preference system (30% single / 70% combo weights, Pattern/Texture support)
+- ✅ D5.8: Updated UI to display Pattern/Texture for mushrooms
+- ✅ D5.9: Cleaned up old PoisonConfig/HealingConfig code
 
-- Add `Pattern` and `Texture` fields to Preference struct
-- Update `Matches()` and `Description()` methods
-
-**Tests**: Unit tests for pattern/texture matching
-
-🎮 **Human Testing**: Verify mushrooms display with patterns/textures, poison/healing combos work
+🎮 **Human Testing**: Ready for testing
 
 ---
 

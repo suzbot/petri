@@ -108,11 +108,9 @@ func TestUpdateSpawnTimers_DecrementsTimers(t *testing.T) {
 	item.SpawnTimer = 100.0
 	gameMap.AddItem(item)
 
-	poisonCfg := game.PoisonConfig{}
-	healingCfg := game.HealingConfig{}
 	delta := 10.0
 
-	UpdateSpawnTimers(gameMap, poisonCfg, healingCfg, 40, delta)
+	UpdateSpawnTimers(gameMap, 40, delta)
 
 	if item.SpawnTimer != 90.0 {
 		t.Errorf("SpawnTimer: got %.2f, want 90.0", item.SpawnTimer)
@@ -127,11 +125,9 @@ func TestUpdateSpawnTimers_ResetsTimerWhenExpired(t *testing.T) {
 	item.SpawnTimer = 0.5 // Will expire with delta of 1.0
 	gameMap.AddItem(item)
 
-	poisonCfg := game.PoisonConfig{}
-	healingCfg := game.HealingConfig{}
 	initialItemCount := 40
 
-	UpdateSpawnTimers(gameMap, poisonCfg, healingCfg, initialItemCount, 1.0)
+	UpdateSpawnTimers(gameMap, initialItemCount, 1.0)
 
 	// Timer should have been reset to a new interval
 	base := config.ItemSpawnIntervalBase * float64(initialItemCount)
@@ -154,11 +150,8 @@ func TestUpdateSpawnTimers_RespectsMapCap(t *testing.T) {
 		gameMap.AddItem(item)
 	}
 
-	poisonCfg := game.PoisonConfig{}
-	healingCfg := game.HealingConfig{}
-
 	// Run spawn with delta that would trigger all timers
-	UpdateSpawnTimers(gameMap, poisonCfg, healingCfg, 40, 1.0)
+	UpdateSpawnTimers(gameMap, 40, 1.0)
 
 	// Should still have 8 items (cap enforced)
 	if len(gameMap.Items()) != 8 {
@@ -176,13 +169,10 @@ func TestUpdateSpawnTimers_SpawnsAdjacentToParent(t *testing.T) {
 	parent.SpawnTimer = 0.0 // Expired
 	gameMap.AddItem(parent)
 
-	poisonCfg := game.PoisonConfig{}
-	healingCfg := game.HealingConfig{}
-
 	// Run multiple times to increase chance of spawn (50% chance)
 	for i := 0; i < 20; i++ {
 		parent.SpawnTimer = 0.0 // Reset to expired each iteration
-		UpdateSpawnTimers(gameMap, poisonCfg, healingCfg, 40, 1.0)
+		UpdateSpawnTimers(gameMap, 40, 1.0)
 	}
 
 	// Check if any spawn occurred
@@ -213,14 +203,12 @@ func TestSpawnItem_InheritsParentProperties(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(10, 10)
-	poisonCfg := game.PoisonConfig{}
-	healingCfg := game.HealingConfig{}
 
 	// Create poisonous, healing blue berry parent
 	parent := entity.NewBerry(5, 5, types.ColorBlue, true, true)
 	gameMap.AddItem(parent)
 
-	spawnItem(gameMap, parent, 6, 5, poisonCfg, healingCfg, 40)
+	spawnItem(gameMap, parent, 6, 5, 40)
 
 	items := gameMap.Items()
 	if len(items) != 2 {
@@ -265,14 +253,12 @@ func TestSpawnItem_MushroomInheritsProperties(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(10, 10)
-	poisonCfg := game.PoisonConfig{}
-	healingCfg := game.HealingConfig{}
 
 	// Create brown mushroom parent
-	parent := entity.NewMushroom(5, 5, types.ColorBrown, false, true)
+	parent := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, true)
 	gameMap.AddItem(parent)
 
-	spawnItem(gameMap, parent, 4, 5, poisonCfg, healingCfg, 40)
+	spawnItem(gameMap, parent, 4, 5, 40)
 
 	items := gameMap.Items()
 	if len(items) != 2 {
@@ -299,14 +285,12 @@ func TestSpawnItem_SetsSpawnTimer(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(10, 10)
-	poisonCfg := game.PoisonConfig{}
-	healingCfg := game.HealingConfig{}
 	initialItemCount := 40
 
 	parent := entity.NewBerry(5, 5, types.ColorRed, false, false)
 	gameMap.AddItem(parent)
 
-	spawnItem(gameMap, parent, 6, 5, poisonCfg, healingCfg, initialItemCount)
+	spawnItem(gameMap, parent, 6, 5, initialItemCount)
 
 	var spawned *entity.Item
 	for _, item := range gameMap.Items() {

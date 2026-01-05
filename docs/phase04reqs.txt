@@ -13,6 +13,7 @@ talking, training, or items they create.
     - Knowledge of poison item causes preference for exact combination to decrease
     - Char Seeks healing when health is poor or more (intent selection based on need hierarchy)
     - Healing considered a partial match when health is poor or lower
+    - Knowledge can be transferred by talking
 
 ##Requirements
 
@@ -24,13 +25,36 @@ B. User can see Character's knowledge
         a. Question:  Given that the game will expand to have both more details, and more select mode specific keystrokes
             Does it make sense to show these hints in the status bar or in the details panel?
     2. In the Knowledge panel, the user sees a scrollable list of things the character has learned
-C. Poison knowledge creates dislike
-    1. When the character learns that something is poisonous, it is affected by an opinion for a specific combo
-    (up to 3 units, eg 'Spotted Slimy Mushroom' or 'Spotted Blue Mushroom' )
-    2. Confirm how dislike effects intent, update logic if needed
-D. Healing Knowledge creates new intent and seeking when not at full health
-E. Healing Knowledge creates conditional matching logic for food
-F. Action Log [Char] Learned something!
+C. Action Log: [Char] learned something! (blue)
+D. Poison knowledge creates dislike
+    1. When the character learns that something is poisonous, it is affected by an negative opinion for the full variety description of that item
+    (eg 'Spotted Slimy Red Mushroom' or 'Spotted Blue Mushroom' )
+        i. As with the existing preference formation logic, if a fully matching 'like' preference exists,
+        then this negative opinion will remove the positive preference
+        ii. if no fully matching preference exists, a dislike is created
+        iii. if a fully matching dislike exists, then nothing happens
+    2. Confirm how dislike effects intent, update logic if needed so that characters will avoid disliked items at less urgent tiers
+    (similar to how they seek liked items at less urgent tiers). Assuming this is covered by valence logic already?
+E. Healing Knowledge creates new intent and seeking when not at full health
+    1. Health should now be a need that can trigger a 'seek healing' action
+    2. If a character has knowledge of one or more healing items,
+    when health is the most urgent need based on existing health tiers,
+    then the character should move to the closest healing item and consume it.
+F. Healing Knowledge creates conditional matching logic for food
+    1. If a character has knowledge of one or more healing items,
+    when the character is forming an intent based on hunger
+    then the 'healing attribute' of possible foods should be considered a part of the matching logic
+    resulting in a higher valence if an item is healing
+    2. May need to revisit the existing valence logic here, to see how its doing with
+    the previous addition of texture and pattern.
 G. New Action: Talking
-H. Talking has chance to transmit knowledge
+    1. Talking is a new character activity, considered an idle activity (existing activities that should be considered 'idle' activities are 'Idle' and 'Looking')
+    2. A character with talking intent will target another character that is doing an idle activity (talking, idle, or looking)
+    3. When the intending and target character are next to each other (including diagonals), then both the intender and the target begin the talking action.
+    4. Talking will have a duration of 5 seconds, and can only be interrupted by a moderate need.
+    5. Refactor the idle/looking selection and cooldown logic to apply to all idle activities in general.
+ H. Finishing the talking activity creates an opportunity to learn something:
+    1. If one of the adjacent talking characters has at least one piece of knowledge, it will offer one of its pieces of knowledge to the other character.
+    2. If the receiving character doesn't already have that piece of information, they can learn it, adding it to their knowledge base.
+    3. If the receiving character already has it, then no change occurs.
 

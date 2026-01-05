@@ -5,113 +5,53 @@ import (
 
 	"petri/internal/config"
 	"petri/internal/entity"
-	"petri/internal/types"
 )
 
-// PoisonConfig tracks which food type/color combos are poisonous
-type PoisonConfig map[string]bool
+// SpawnItems populates the map with random items using the variety system
+func SpawnItems(m *Map) {
+	// Generate varieties for this world (defines what combos exist, assigns poison/healing)
+	registry := GenerateVarieties()
 
-// HealingConfig tracks which food type/color combos are healing
-type HealingConfig map[string]bool
-
-// GeneratePoisonConfig creates a random poison configuration for a world
-func GeneratePoisonConfig() PoisonConfig {
-	cfg := make(PoisonConfig)
-	allCombos := config.AllPoisonCombos()
-
-	// Pick 1-3 random combinations to be poisonous
-	numPoisonous := rand.Intn(3) + 1
-	perm := rand.Perm(len(allCombos))
-
-	for i := 0; i < numPoisonous && i < len(perm); i++ {
-		combo := allCombos[perm[i]]
-		key := combo.ItemType + ":" + string(combo.Color)
-		cfg[key] = true
-	}
-
-	return cfg
-}
-
-// IsPoisonous checks if a given item type/color combo is poisonous
-func (pc PoisonConfig) IsPoisonous(itemType string, color types.Color) bool {
-	return pc[itemType+":"+string(color)]
-}
-
-// IsHealing checks if a given item type/color combo is healing
-func (hc HealingConfig) IsHealing(itemType string, color types.Color) bool {
-	return hc[itemType+":"+string(color)]
-}
-
-// GenerateHealingConfig creates a random healing configuration for a world
-// Healing combos must not overlap with poison combos
-func GenerateHealingConfig(poisonCfg PoisonConfig) HealingConfig {
-	cfg := make(HealingConfig)
-	allCombos := config.AllHealingCombos()
-
-	// Filter out combos that are already poisonous
-	var available []config.HealingCombo
-	for _, combo := range allCombos {
-		key := combo.ItemType + ":" + string(combo.Color)
-		if !poisonCfg[key] {
-			available = append(available, combo)
-		}
-	}
-
-	// Pick 1-2 random non-poisonous combinations to be healing
-	if len(available) == 0 {
-		return cfg
-	}
-
-	numHealing := rand.Intn(2) + 1 // 1-2 healing combos
-	if numHealing > len(available) {
-		numHealing = len(available)
-	}
-
-	perm := rand.Perm(len(available))
-	for i := 0; i < numHealing; i++ {
-		combo := available[perm[i]]
-		key := combo.ItemType + ":" + string(combo.Color)
-		cfg[key] = true
-	}
-
-	return cfg
-}
-
-// SpawnItems populates the map with random items
-func SpawnItems(m *Map, poisonCfg PoisonConfig, healingCfg HealingConfig) {
 	// Calculate initial spawn cycle for staggered timers
 	initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers
 	maxInitialTimer := config.ItemSpawnIntervalBase * float64(initialItemCount)
 
-	// Spawn berries
-	for i := 0; i < config.ItemSpawnCount; i++ {
+	// Spawn items for each item type
+	spawnItemsOfType(m, registry, "berry", config.ItemSpawnCount, maxInitialTimer)
+	spawnItemsOfType(m, registry, "mushroom", config.ItemSpawnCount, maxInitialTimer)
+	spawnItemsOfType(m, registry, "flower", config.FlowerSpawnCount, maxInitialTimer)
+}
+
+// spawnItemsOfType spawns count items of the given type, distributed across varieties
+func spawnItemsOfType(m *Map, registry *VarietyRegistry, itemType string, count int, maxInitialTimer float64) {
+	varieties := registry.VarietiesOfType(itemType)
+	if len(varieties) == 0 {
+		return
+	}
+
+	for i := 0; i < count; i++ {
+		// Pick a random variety of this type
+		v := varieties[rand.Intn(len(varieties))]
+
 		x, y := findEmptySpot(m)
-		color := types.BerryColors[rand.Intn(len(types.BerryColors))]
-		poisonous := poisonCfg.IsPoisonous("berry", color)
-		healing := healingCfg.IsHealing("berry", color)
-		item := entity.NewBerry(x, y, color, poisonous, healing)
+		item := createItemFromVariety(v, x, y)
 		item.SpawnTimer = rand.Float64() * maxInitialTimer // stagger across first cycle
 		m.AddItem(item)
 	}
+}
 
-	// Spawn mushrooms
-	for i := 0; i < config.ItemSpawnCount; i++ {
-		x, y := findEmptySpot(m)
-		color := types.MushroomColors[rand.Intn(len(types.MushroomColors))]
-		poisonous := poisonCfg.IsPoisonous("mushroom", color)
-		healing := healingCfg.IsHealing("mushroom", color)
-		item := entity.NewMushroom(x, y, color, poisonous, healing)
-		item.SpawnTimer = rand.Float64() * maxInitialTimer // stagger across first cycle
-		m.AddItem(item)
-	}
-
-	// Spawn flowers (decorative, not edible)
-	for i := 0; i < config.FlowerSpawnCount; i++ {
-		x, y := findEmptySpot(m)
-		color := types.FlowerColors[rand.Intn(len(types.FlowerColors))]
-		item := entity.NewFlower(x, y, color)
-		item.SpawnTimer = rand.Float64() * maxInitialTimer // stagger across first cycle
-		m.AddItem(item)
+// createItemFromVariety creates an Item by copying attributes from a variety
+func createItemFromVariety(v *entity.ItemVariety, x, y int) *entity.Item {
+	switch v.ItemType {
+	case "berry":
+		return entity.NewBerry(x, y, v.Color, v.Poisonous, v.Healing)
+	case "mushroom":
+		return entity.NewMushroom(x, y, v.Color, v.Pattern, v.Texture, v.Poisonous, v.Healing)
+	case "flower":
+		return entity.NewFlower(x, y, v.Color)
+	default:
+		// Fallback for unknown types
+		return entity.NewFlower(x, y, v.Color)
 	}
 }
 

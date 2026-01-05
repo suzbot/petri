@@ -150,7 +150,7 @@ func TestConsume_BoostsMoodWhenFullySatisfied(t *testing.T) {
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	// Use brown mushroom - doesn't match berry or red preferences (NetPreference = 0)
-	item := entity.NewMushroom(5, 5, types.ColorBrown, false, false)
+	item := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
 	gameMap.AddItem(item)
 
 	Consume(char, item, gameMap, nil)
@@ -170,7 +170,7 @@ func TestConsume_NoMoodBoostWhenNotFullySatisfied(t *testing.T) {
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	// Use brown mushroom - doesn't match berry or red preferences (NetPreference = 0)
-	item := entity.NewMushroom(5, 5, types.ColorBrown, false, false)
+	item := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
 	gameMap.AddItem(item)
 
 	Consume(char, item, gameMap, nil)
@@ -259,7 +259,7 @@ func TestConsume_MoodPenaltyFromNegativePreference(t *testing.T) {
 	}
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
-	item := entity.NewMushroom(5, 5, types.ColorBrown, false, false)
+	item := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
 	gameMap.AddItem(item)
 
 	Consume(char, item, gameMap, nil)
@@ -288,7 +288,7 @@ func TestConsume_MoodFloorsAtZero(t *testing.T) {
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	// Brown mushroom matches both negative preferences: NetPreference = -2
-	item := entity.NewMushroom(5, 5, types.ColorBrown, false, false)
+	item := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
 	gameMap.AddItem(item)
 
 	Consume(char, item, gameMap, nil)
@@ -347,7 +347,7 @@ func TestConsume_HealingBoostsMoodWhenFullyHealed(t *testing.T) {
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	// Use brown mushroom to avoid preference mood effects
-	item := entity.NewMushroom(5, 5, types.ColorBrown, false, true) // Healing item
+	item := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, true) // Healing item
 	gameMap.AddItem(item)
 
 	Consume(char, item, gameMap, nil)
@@ -367,7 +367,7 @@ func TestConsume_HealingNoMoodBoostIfNotFullyHealed(t *testing.T) {
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	// Use brown mushroom to avoid preference mood effects
-	item := entity.NewMushroom(5, 5, types.ColorBrown, false, true) // Healing item
+	item := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, true) // Healing item
 	gameMap.AddItem(item)
 
 	Consume(char, item, gameMap, nil)

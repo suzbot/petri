@@ -264,7 +264,7 @@ func TestFindFoodTarget_RavenousTakesAnyFood(t *testing.T) {
 	char.Hunger = 90           // Ravenous
 
 	// Only non-matching food available
-	items := []*entity.Item{entity.NewMushroom(5, 5, types.ColorBrown, false, false)}
+	items := []*entity.Item{entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)}
 
 	target := findFoodTarget(char, items)
 
@@ -282,7 +282,7 @@ func TestFindFoodTarget_VeryHungryTakesPartialMatch(t *testing.T) {
 	// Partial match (food matches, color doesn't)
 	blueBerry := entity.NewBerry(5, 5, types.ColorBlue, false, false)
 	// No match
-	brownMushroom := entity.NewMushroom(3, 3, types.ColorBrown, false, false)
+	brownMushroom := entity.NewMushroom(3, 3, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
 
 	items := []*entity.Item{brownMushroom, blueBerry}
 
@@ -300,7 +300,7 @@ func TestFindFoodTarget_VeryHungryTakesAnyIfNoPartial(t *testing.T) {
 	char.Hunger = 80
 
 	// Only non-matching food
-	items := []*entity.Item{entity.NewMushroom(5, 5, types.ColorBrown, false, false)}
+	items := []*entity.Item{entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)}
 
 	target := findFoodTarget(char, items)
 
@@ -354,7 +354,7 @@ func TestFindFoodTarget_ModeratelyHungryReturnsNilForNonMatching(t *testing.T) {
 	char.Hunger = 60
 
 	// Only non-matching food
-	items := []*entity.Item{entity.NewMushroom(5, 5, types.ColorBrown, false, false)}
+	items := []*entity.Item{entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)}
 
 	target := findFoodTarget(char, items)
 

@@ -20,17 +20,13 @@ type WorldOptions struct {
 
 // TestWorld holds all components needed to run a simulation
 type TestWorld struct {
-	GameMap    *game.Map
-	PoisonCfg  game.PoisonConfig
-	HealingCfg game.HealingConfig
-	ActionLog  *system.ActionLog
+	GameMap   *game.Map
+	ActionLog *system.ActionLog
 }
 
 // CreateTestWorld creates a world configured for testing
 func CreateTestWorld(opts WorldOptions) *TestWorld {
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
-	poisonCfg := game.GeneratePoisonConfig()
-	healingCfg := game.GenerateHealingConfig(poisonCfg)
 	actionLog := system.NewActionLog(200)
 
 	numChars := opts.NumCharacters
@@ -57,15 +53,13 @@ func CreateTestWorld(opts WorldOptions) *TestWorld {
 
 	// Spawn resources based on options
 	if !opts.NoFood {
-		game.SpawnItems(gameMap, poisonCfg, healingCfg)
+		game.SpawnItems(gameMap)
 	}
 	game.SpawnFeatures(gameMap, opts.NoWater, opts.NoBeds)
 
 	return &TestWorld{
-		GameMap:    gameMap,
-		PoisonCfg:  poisonCfg,
-		HealingCfg: healingCfg,
-		ActionLog:  actionLog,
+		GameMap:   gameMap,
+		ActionLog: actionLog,
 	}
 }
 

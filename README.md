@@ -20,7 +20,8 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea) for f
 - **Item spawning**: Items reproduce over time, spreading to adjacent tiles
 - Landscape features: springs (water), leaf piles (beds)
 - Sleep mechanics with early wake on urgent needs
-- Action duration system (eating, drinking, falling asleep take time)
+- **Looking activity**: Idle characters observe nearby items, affecting mood and forming preferences
+- Action duration system (eating, drinking, falling asleep, looking take time)
 - Satisfaction cooldown (stats pause briefly after reaching optimal)
 - Poison effects with speed penalties
 - **View modes**: Select mode (examine entities) and All Activity mode (combined log)
@@ -125,14 +126,19 @@ Command-line flags for testing and debugging:
 9. Sleep mechanics:
    - Character sleeps in leaf pile (wakes fully rested) or on ground (wakes partially rested)
    - Wakes early if hunger/thirst becomes more urgent than current energy tier
-10. In multi-character mode, characters compete for resources:
+10. Looking activity:
+    - When idle (no urgent needs), characters may look at nearby items
+    - Looking affects mood based on preferences (liked items boost mood, disliked items lower it)
+    - Looking can trigger preference formation based on current mood
+    - Interrupted by Moderate+ needs (higher priority than idle, lower than active looking)
+11. In multi-character mode, characters compete for resources:
     - Springs and beds become occupied when in use
     - Characters find alternative targets when blocked
-11. Use view modes to observe:
+12. Use view modes to observe:
     - Select mode (S): Examine individual entities, view per-character logs
     - All Activity mode (A): See combined activity from all characters
-12. Character dies if health reaches 0 (from starvation, dehydration, or poison)
-13. Mood reflects emotional state based on needs:
+13. Character dies if health reaches 0 (from starvation, dehydration, or poison)
+14. Mood reflects emotional state based on needs:
     - Increases slowly when all needs are met
     - Decreases when needs become urgent (faster at higher urgency)
     - Receives a boost when a need is fully satisfied (hunger/thirst→0, energy→100)

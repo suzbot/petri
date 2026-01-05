@@ -583,6 +583,17 @@ func (m Model) renderDetails() string {
 		lines = append(lines,
 			fmt.Sprintf(" Kind: %s", item.ItemType),
 			fmt.Sprintf(" Color: %s", item.Color),
+		)
+		// Show Pattern/Texture for mushrooms
+		if item.ItemType == "mushroom" {
+			if item.Pattern != "" {
+				lines = append(lines, fmt.Sprintf(" Pattern: %s", item.Pattern))
+			}
+			if item.Texture != "" {
+				lines = append(lines, fmt.Sprintf(" Texture: %s", item.Texture))
+			}
+		}
+		lines = append(lines,
 			fmt.Sprintf(" Poisonous: %s", poison),
 			fmt.Sprintf(" Healing: %s", healing),
 		)

@@ -779,7 +779,7 @@ func TestNetPreference_SingleMatch(t *testing.T) {
 		{
 			name:     "positive color match",
 			pref:     NewPositivePreference("", types.ColorRed),
-			item:     NewMushroom(0, 0, types.ColorRed, false, false),
+			item:     NewMushroom(0, 0, types.ColorRed, types.PatternNone, types.TextureNone, false, false),
 			expected: 1,
 		},
 		{
@@ -791,7 +791,7 @@ func TestNetPreference_SingleMatch(t *testing.T) {
 		{
 			name:     "negative color match",
 			pref:     NewNegativePreference("", types.ColorRed),
-			item:     NewMushroom(0, 0, types.ColorRed, false, false),
+			item:     NewMushroom(0, 0, types.ColorRed, types.PatternNone, types.TextureNone, false, false),
 			expected: -1,
 		},
 	}
@@ -818,7 +818,7 @@ func TestNetPreference_NoMatch(t *testing.T) {
 		},
 	}
 	// Item is white mushroom - matches neither preference
-	item := NewMushroom(0, 0, types.ColorWhite, false, false)
+	item := NewMushroom(0, 0, types.ColorWhite, types.PatternNone, types.TextureNone, false, false)
 	got := c.NetPreference(item)
 	if got != 0 {
 		t.Errorf("NetPreference() with no matching preferences: got %d, want 0", got)
@@ -913,7 +913,7 @@ func TestNetPreference_ComboPreference(t *testing.T) {
 		},
 		{
 			name:     "wrong type for combo",
-			item:     NewMushroom(0, 0, types.ColorRed, false, false),
+			item:     NewMushroom(0, 0, types.ColorRed, types.PatternNone, types.TextureNone, false, false),
 			expected: 0,
 		},
 	}

@@ -72,29 +72,70 @@ func getFormationParams(moodTier int) (chance float64, valence int) {
 }
 
 // rollPreferenceType randomly selects which type of preference to form
-// based on configured weights: ItemType only, Color only, or Combo.
+// based on configured weights: single attribute or combo (2+ attributes).
+// For mushrooms, Pattern and Texture are available attributes.
 func rollPreferenceType(item *entity.Item, valence int) entity.Preference {
 	roll := rand.Float64()
 
-	if roll < config.PrefFormationWeightItemType {
-		// ItemType only
-		return entity.Preference{
-			Valence:  valence,
-			ItemType: item.ItemType,
+	// Build list of available attributes for this item
+	attrs := collectItemAttributes(item)
+
+	if roll < config.PrefFormationWeightSingle {
+		// Single attribute - pick one randomly
+		attr := attrs[rand.Intn(len(attrs))]
+		return buildPreference(valence, []string{attr}, item)
+	}
+
+	// Combo - pick 2 random attributes
+	if len(attrs) < 2 {
+		// Fallback: use all available
+		return buildPreference(valence, attrs, item)
+	}
+
+	// Shuffle and pick first 2
+	shuffled := make([]string, len(attrs))
+	copy(shuffled, attrs)
+	rand.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
+	return buildPreference(valence, shuffled[:2], item)
+}
+
+// collectItemAttributes returns the list of available descriptive attributes for an item.
+func collectItemAttributes(item *entity.Item) []string {
+	attrs := []string{"itemType", "color"}
+
+	// Mushrooms have additional attributes
+	if item.ItemType == "mushroom" {
+		if item.Pattern != "" {
+			attrs = append(attrs, "pattern")
 		}
-	} else if roll < config.PrefFormationWeightItemType+config.PrefFormationWeightColor {
-		// Color only
-		return entity.Preference{
-			Valence: valence,
-			Color:   item.Color,
+		if item.Texture != "" {
+			attrs = append(attrs, "texture")
 		}
 	}
-	// Combo (both)
-	return entity.Preference{
-		Valence:  valence,
-		ItemType: item.ItemType,
-		Color:    item.Color,
+
+	return attrs
+}
+
+// buildPreference creates a preference using the specified attributes from the item.
+func buildPreference(valence int, attrs []string, item *entity.Item) entity.Preference {
+	pref := entity.Preference{Valence: valence}
+
+	for _, attr := range attrs {
+		switch attr {
+		case "itemType":
+			pref.ItemType = item.ItemType
+		case "color":
+			pref.Color = item.Color
+		case "pattern":
+			pref.Pattern = item.Pattern
+		case "texture":
+			pref.Texture = item.Texture
+		}
 	}
+
+	return pref
 }
 
 // logPreferenceFormed logs a new preference formation

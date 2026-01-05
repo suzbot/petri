@@ -2,8 +2,6 @@ package config
 
 import (
 	"time"
-
-	"petri/internal/types"
 )
 
 const (
@@ -83,42 +81,12 @@ const (
 	PrefFormationChanceUnhappy   = 0.10 // 10% chance when Unhappy
 	PrefFormationChanceHappy     = 0.10 // 10% chance when Happy
 	PrefFormationChanceJoyful    = 0.20 // 20% chance when Joyful
-	PrefFormationWeightItemType  = 0.20 // 20% chance to form ItemType-only preference
-	PrefFormationWeightColor     = 0.20 // 20% chance to form Color-only preference
-	PrefFormationWeightCombo     = 0.60 // 60% chance to form Combo preference
+	PrefFormationWeightSingle    = 0.30 // 30% chance to form single-attribute preference
+	PrefFormationWeightCombo     = 0.70 // 70% chance to form Combo preference (2+ attributes)
+
+	// Variety generation
+	VarietyDivisor        = 4    // varietyCount = max(2, spawnCount / divisor)
+	VarietyMinCount       = 2    // minimum varieties per item type
+	VarietyPoisonPercent  = 0.20 // 20% of edible varieties are poisonous
+	VarietyHealingPercent = 0.20 // 20% of edible varieties are healing
 )
-
-// PoisonCombo represents a food type + color combination
-type PoisonCombo struct {
-	ItemType string
-	Color    types.Color
-}
-
-// AllPoisonCombos returns all possible poisonable combinations
-func AllPoisonCombos() []PoisonCombo {
-	return []PoisonCombo{
-		{"berry", types.ColorRed},
-		{"berry", types.ColorBlue},
-		{"mushroom", types.ColorBrown},
-		{"mushroom", types.ColorWhite},
-		{"mushroom", types.ColorRed},
-	}
-}
-
-// HealingCombo represents a food type + color combination that can heal
-type HealingCombo struct {
-	ItemType string
-	Color    types.Color
-}
-
-// AllHealingCombos returns all possible healing combinations
-// Uses same pool as poison - actual healing combos chosen at world gen (no overlap)
-func AllHealingCombos() []HealingCombo {
-	return []HealingCombo{
-		{"berry", types.ColorRed},
-		{"berry", types.ColorBlue},
-		{"mushroom", types.ColorBrown},
-		{"mushroom", types.ColorWhite},
-		{"mushroom", types.ColorRed},
-	}
-}

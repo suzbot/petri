@@ -46,9 +46,7 @@ type Model struct {
 	selectedFood  string
 	selectedColor types.Color
 
-	gameMap    *game.Map
-	poisonCfg  game.PoisonConfig
-	healingCfg game.HealingConfig
+	gameMap *game.Map
 
 	cursorX, cursorY int
 	following        *entity.Character

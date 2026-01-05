@@ -10,8 +10,10 @@ type Item struct {
 	BaseEntity
 
 	// Descriptive attributes (opinion-formable)
-	ItemType string      // "berry", "mushroom", etc.
-	Color    types.Color
+	ItemType string        // "berry", "mushroom", etc.
+	Color    types.Color   // all items have color
+	Pattern  types.Pattern // mushrooms only (spotted, plain)
+	Texture  types.Texture // mushrooms only (slimy, none)
 
 	// Functional attributes (not opinion-formable)
 	Edible    bool
@@ -40,7 +42,7 @@ func NewBerry(x, y int, color types.Color, poisonous, healing bool) *Item {
 }
 
 // NewMushroom creates a new mushroom item
-func NewMushroom(x, y int, color types.Color, poisonous, healing bool) *Item {
+func NewMushroom(x, y int, color types.Color, pattern types.Pattern, texture types.Texture, poisonous, healing bool) *Item {
 	return &Item{
 		BaseEntity: BaseEntity{
 			X:     x,
@@ -50,6 +52,8 @@ func NewMushroom(x, y int, color types.Color, poisonous, healing bool) *Item {
 		},
 		ItemType:  "mushroom",
 		Color:     color,
+		Pattern:   pattern,
+		Texture:   texture,
 		Edible:    true,
 		Poisonous: poisonous,
 		Healing:   healing,
@@ -74,6 +78,28 @@ func NewFlower(x, y int, color types.Color) *Item {
 }
 
 // Description returns a human-readable item description
+// Format: [texture] [pattern] [color] [itemType]
+// e.g., "slimy spotted red mushroom", "red berry", "purple flower"
 func (i *Item) Description() string {
-	return string(i.Color) + " " + i.ItemType
+	var parts []string
+
+	if i.Texture != types.TextureNone {
+		parts = append(parts, string(i.Texture))
+	}
+	if i.Pattern != types.PatternNone {
+		parts = append(parts, string(i.Pattern))
+	}
+	if i.Color != "" {
+		parts = append(parts, string(i.Color))
+	}
+	parts = append(parts, i.ItemType)
+
+	result := ""
+	for i, part := range parts {
+		if i > 0 {
+			result += " "
+		}
+		result += part
+	}
+	return result
 }

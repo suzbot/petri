@@ -1,0 +1,29 @@
+## Testing
+
+### Process
+
+1. **Clarify functional intent** - For complex features, discuss expected behavior before coding. Use Gherkin-style scenarios when helpful, but not required as formal documents.
+2. **Write tests first** - Use TDD process, Define expected behavior in test form.
+3. **Implement feature** - Write minimum code to pass tests.
+4. **Refactor** - Clean up while keeping tests green.
+5. **Regression tests for bugs** - When fixing bugs, add a regression test to prevent recurrence.
+6. Run all tests
+
+**During Testing:**
+
+- Allow the user to save tokens by prompting them to run the build instead of running it yourself. Human will return any tests that need to be fixed.
+- **Track balance tuning discoveries**: When testing reveals balance issues (rates too fast/slow, etc.), add notes to docs/futureEnhancements.md for future tuning pass.
+
+### What to Test
+
+- **Core logic**: Tier calculations, intent priority, survival mechanics, stat changes
+- **Behavior correctness**: System interactions, state transitions
+- **Invariants**: Multi-tick simulation tests (no position conflicts, consistent state)
+- **Regression**: Specific bugs that were fixed
+
+### What NOT to Test
+
+- **UI rendering** (view.go) - Visual verification done manually
+- **Bubble Tea integration** - Framework responsibility
+- **Exact log message wording** - Brittle; test that events ARE logged, not exact text
+- **Configuration constants** - Just values, no logic
