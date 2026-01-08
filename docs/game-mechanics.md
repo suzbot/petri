@@ -102,6 +102,34 @@ When a need is **fully satisfied**, mood receives a boost:
 - Log colors: Joyful (dark green), Unhappy (yellow), Miserable (red)
 - Details Panel shows mood with tier-based coloring
 
+## Item Varieties
+
+Items are generated from varieties at world creation. Each variety defines a unique combination of attributes.
+
+### Item Types
+
+- **Berries**: Color only (red, blue)
+- **Mushrooms**: Color + optional Pattern + optional Texture
+  - Colors: brown, white, red
+  - Pattern: spotted or none
+  - Texture: slimy or none
+- **Flowers**: Color only (red, orange, yellow, blue, purple, white) - non-edible
+
+### Variety Generation
+
+At world creation:
+1. Generate varieties for each item type
+2. Variety count = max(2, spawnCount / VarietyDivisor)
+3. 20% of edible varieties marked poisonous
+4. 20% of edible varieties marked healing (mutually exclusive with poison)
+
+### Item Spawning
+
+Items spawn from existing items on the map:
+- Each item has a spawn timer
+- When timer expires, may spawn adjacent copy with same attributes
+- Children inherit all parent attributes (color, pattern, texture, poison, healing)
+
 ## Preference System
 
 Characters have dynamic preferences that affect food selection and mood.
@@ -111,7 +139,9 @@ Characters have dynamic preferences that affect food selection and mood.
 Each preference targets item attributes:
 - **ItemType only**: e.g., "likes berries" (matches any berry)
 - **Color only**: e.g., "likes red" (matches any red item)
-- **Combo**: e.g., "likes red berries" (matches only red berries)
+- **Pattern only**: e.g., "likes spotted" (matches any spotted mushroom)
+- **Texture only**: e.g., "likes slimy" (matches any slimy mushroom)
+- **Combo (2+ attributes)**: e.g., "likes spotted brown mushrooms"
 
 Each preference has a **valence**: +1 (likes) or -1 (dislikes).
 
@@ -145,12 +175,14 @@ Characters start with two positive preferences based on character creation:
 
 ### Preference Formation
 
-Preferences form dynamically when consuming food, based on current mood:
+Preferences form dynamically when consuming or looking at items, based on current mood:
 - Joyful/Happy: chance to form positive preference (likes)
 - Neutral: no formation
 - Unhappy/Miserable: chance to form negative preference (dislikes)
 
-Formation chances and type weights configured in config.go.
+Formation type weights (configured in config.go):
+- 30% single attribute (random: ItemType, Color, or Pattern/Texture for mushrooms)
+- 70% combo (2 random attributes from available)
 
 If character already has exact same preference:
 - Same valence: No change

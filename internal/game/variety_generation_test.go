@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"petri/internal/config"
+	"petri/internal/types"
 )
 
 func TestGenerateVarieties_CreatesExpectedCounts(t *testing.T) {
@@ -27,7 +28,7 @@ func TestGenerateVarieties_CreatesExpectedCounts(t *testing.T) {
 	}
 }
 
-func TestGenerateVarieties_MushroomsHavePatternAndTexture(t *testing.T) {
+func TestGenerateVarieties_MushroomsCanHavePatternOrTexture(t *testing.T) {
 	registry := GenerateVarieties()
 	mushrooms := registry.VarietiesOfType("mushroom")
 
@@ -35,11 +36,25 @@ func TestGenerateVarieties_MushroomsHavePatternAndTexture(t *testing.T) {
 		t.Fatal("Expected at least one mushroom variety")
 	}
 
-	// All mushrooms should have a pattern (either Spotted or Plain, not None)
+	// Mushrooms may have pattern (spotted) and/or texture (slimy)
+	// PatternNone and TextureNone are valid - not all mushrooms have distinguishing features
+	hasSpotted := false
+	hasSlimy := false
 	for _, m := range mushrooms {
-		if m.Pattern == "" {
-			t.Errorf("Mushroom variety %q has no pattern", m.ID)
+		if m.Pattern == types.PatternSpotted {
+			hasSpotted = true
 		}
+		if m.Texture == types.TextureSlimy {
+			hasSlimy = true
+		}
+	}
+
+	// With enough varieties, we should see both pattern and texture options used
+	if len(mushrooms) >= 4 && !hasSpotted {
+		t.Error("Expected at least one spotted mushroom variety")
+	}
+	if len(mushrooms) >= 4 && !hasSlimy {
+		t.Error("Expected at least one slimy mushroom variety")
 	}
 }
 

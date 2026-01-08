@@ -98,7 +98,7 @@ func TestItem_Description_Mushroom(t *testing.T) {
 
 	item := NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
 	got := item.Description()
-	if got != "plain brown mushroom" {
-		t.Errorf("Mushroom Description(): got %q, want %q", got, "plain brown mushroom")
+	if got != "brown mushroom" {
+		t.Errorf("Mushroom Description(): got %q, want %q", got, "brown mushroom")
 	}
 }
