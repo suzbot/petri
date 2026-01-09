@@ -20,8 +20,9 @@ type Item struct {
 	Poisonous bool
 	Healing   bool
 
-	// Spawning
+	// Lifecycle
 	SpawnTimer float64 // countdown until next spawn opportunity
+	DeathTimer float64 // countdown until death (0 = immortal)
 }
 
 // NewBerry creates a new berry item

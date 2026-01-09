@@ -70,11 +70,10 @@ const (
 	// Healing
 	HealAmount = 20.0 // health restored by healing items (instant)
 
-	// Item spawning
-	ItemSpawnChance           = 0.50 // 50% chance per spawn opportunity
-	ItemSpawnIntervalBase     = 3.0  // seconds, multiplied by initial item count
-	ItemSpawnIntervalVariance = 0.20 // ±20% randomization
-	ItemSpawnMaxDensity       = 0.50 // max 50% of map coordinates occupied by items
+	// Item lifecycle
+	ItemSpawnChance       = 0.50 // 50% chance per spawn opportunity
+	ItemSpawnMaxDensity   = 0.50 // max 50% of map coordinates occupied by items
+	LifecycleIntervalVariance = 0.20 // ±20% randomization for spawn/death timers
 
 	// Preference formation (values inflated for testing - see CLAUDE.md balance tuning)
 	PrefFormationChanceMiserable = 0.20 // 20% chance when Miserable
@@ -99,3 +98,16 @@ const (
 	FoodSeekPrefWeightCrisis   = 0.0  // No preference influence, just distance
 	FoodSeekDistWeight         = 1.0  // Distance penalty per tile
 )
+
+// LifecycleConfig defines spawn and death intervals for an item type
+type LifecycleConfig struct {
+	SpawnInterval float64 // base seconds between spawn attempts (multiplied by initial item count)
+	DeathInterval float64 // base seconds until death (0 = immortal, multiplied by initial item count)
+}
+
+// ItemLifecycle maps item types to their lifecycle configuration
+var ItemLifecycle = map[string]LifecycleConfig{
+	"berry":    {SpawnInterval: 3.0, DeathInterval: 0},    // immortal until eaten
+	"mushroom": {SpawnInterval: 3.0, DeathInterval: 0},    // immortal until eaten
+	"flower":   {SpawnInterval: 3.0, DeathInterval: 8.0}, // dies after ~6-10 min
+}

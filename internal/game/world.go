@@ -14,7 +14,8 @@ func SpawnItems(m *Map, mushroomsOnly bool) {
 
 	// Calculate initial spawn cycle for staggered timers
 	initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers
-	maxInitialTimer := config.ItemSpawnIntervalBase * float64(initialItemCount)
+	// Use berry spawn interval as reference (all types currently have same interval)
+	maxInitialTimer := config.ItemLifecycle["berry"].SpawnInterval * float64(initialItemCount)
 
 	if mushroomsOnly {
 		// Replace all items with mushroom varieties for testing preference formation
@@ -35,6 +36,11 @@ func spawnItemsOfType(m *Map, registry *VarietyRegistry, itemType string, count 
 		return
 	}
 
+	// Calculate max death timer for staggering (if this type has death)
+	initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount
+	lifecycleCfg := config.ItemLifecycle[itemType]
+	maxDeathTimer := lifecycleCfg.DeathInterval * float64(initialItemCount)
+
 	for i := 0; i < count; i++ {
 		// Pick a random variety of this type
 		v := varieties[rand.Intn(len(varieties))]
@@ -42,6 +48,12 @@ func spawnItemsOfType(m *Map, registry *VarietyRegistry, itemType string, count 
 		x, y := findEmptySpot(m)
 		item := createItemFromVariety(v, x, y)
 		item.SpawnTimer = rand.Float64() * maxInitialTimer // stagger across first cycle
+
+		// Set death timer if this item type is mortal (stagger to avoid synchronized die-off)
+		if maxDeathTimer > 0 {
+			item.DeathTimer = rand.Float64() * maxDeathTimer
+		}
+
 		m.AddItem(item)
 	}
 }

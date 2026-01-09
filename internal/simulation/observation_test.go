@@ -113,7 +113,7 @@ func TestObserveFoodScarcity(t *testing.T) {
 	fmt.Printf("Initial edible items: %d\n", initialEdible)
 	fmt.Printf("Characters: %d\n", len(world.GameMap.Characters()))
 	fmt.Printf("Spawn chance: %.0f%%, Interval base: %.1fs\n",
-		config.ItemSpawnChance*100, config.ItemSpawnIntervalBase)
+		config.ItemSpawnChance*100, config.ItemLifecycle["berry"].SpawnInterval)
 
 	// Run simulation tracking consumption
 	checkpoints := []int{500, 1000, 1500, 2000, 2500, 3000}

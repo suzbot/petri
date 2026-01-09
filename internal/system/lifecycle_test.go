@@ -20,10 +20,10 @@ func TestCalculateSpawnInterval_ReturnsValueInExpectedRange(t *testing.T) {
 
 	// Run multiple times to check range
 	for i := 0; i < 100; i++ {
-		interval := calculateSpawnInterval(initialItemCount)
+		interval := CalculateSpawnInterval("berry", initialItemCount)
 
-		base := config.ItemSpawnIntervalBase * float64(initialItemCount)
-		variance := base * config.ItemSpawnIntervalVariance
+		base := config.ItemLifecycle["berry"].SpawnInterval * float64(initialItemCount)
+		variance := base * config.LifecycleIntervalVariance
 		minExpected := base - variance
 		maxExpected := base + variance
 
@@ -130,8 +130,8 @@ func TestUpdateSpawnTimers_ResetsTimerWhenExpired(t *testing.T) {
 	UpdateSpawnTimers(gameMap, initialItemCount, 1.0)
 
 	// Timer should have been reset to a new interval
-	base := config.ItemSpawnIntervalBase * float64(initialItemCount)
-	variance := base * config.ItemSpawnIntervalVariance
+	base := config.ItemLifecycle["berry"].SpawnInterval * float64(initialItemCount)
+	variance := base * config.LifecycleIntervalVariance
 
 	if item.SpawnTimer < base-variance || item.SpawnTimer > base+variance {
 		t.Errorf("SpawnTimer %.2f should be in range [%.2f, %.2f]", item.SpawnTimer, base-variance, base+variance)
@@ -300,8 +300,8 @@ func TestSpawnItem_SetsSpawnTimer(t *testing.T) {
 		}
 	}
 
-	base := config.ItemSpawnIntervalBase * float64(initialItemCount)
-	variance := base * config.ItemSpawnIntervalVariance
+	base := config.ItemLifecycle["berry"].SpawnInterval * float64(initialItemCount)
+	variance := base * config.LifecycleIntervalVariance
 
 	if spawned.SpawnTimer < base-variance || spawned.SpawnTimer > base+variance {
 		t.Errorf("SpawnTimer %.2f should be in range [%.2f, %.2f]", spawned.SpawnTimer, base-variance, base+variance)

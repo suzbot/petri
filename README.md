@@ -8,10 +8,10 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Latest Updates
 
-- **Item varieties**: Mushrooms now have pattern (spotted) and texture (slimy) attributes
+- **Item lifecycle system**: Flowers now have natural lifespans, creating balanced ecosystems
+- **Balance tuning**: Adjusted spawn rates and hunger for longer survival (~20+ min before starvation)
+- **Observation tests**: Headless simulation tests for measuring game balance
 - **Dynamic preference formation**: Characters form likes/dislikes based on mood when eating or looking at items
-- **Mood system**: Emotional state affected by need urgency, status effects, and preferences
-- **Healing items**: Some food restores health when consumed
 
 ## Features
 

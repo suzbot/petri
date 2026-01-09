@@ -19,7 +19,7 @@ func UpdateSpawnTimers(gameMap *game.Map, initialItemCount int, delta float64) {
 		for _, item := range items {
 			item.SpawnTimer -= delta
 			if item.SpawnTimer <= 0 {
-				item.SpawnTimer = calculateSpawnInterval(initialItemCount)
+				item.SpawnTimer = CalculateSpawnInterval(item.ItemType, initialItemCount)
 			}
 		}
 		return
@@ -31,7 +31,7 @@ func UpdateSpawnTimers(gameMap *game.Map, initialItemCount int, delta float64) {
 
 		if item.SpawnTimer <= 0 {
 			// Reset timer regardless of spawn success
-			item.SpawnTimer = calculateSpawnInterval(initialItemCount)
+			item.SpawnTimer = CalculateSpawnInterval(item.ItemType, initialItemCount)
 
 			// Roll for spawn chance
 			if rand.Float64() >= config.ItemSpawnChance {
@@ -51,10 +51,62 @@ func UpdateSpawnTimers(gameMap *game.Map, initialItemCount int, delta float64) {
 	}
 }
 
-// calculateSpawnInterval returns a randomized spawn interval
-func calculateSpawnInterval(initialItemCount int) float64 {
-	base := config.ItemSpawnIntervalBase * float64(initialItemCount)
-	variance := base * config.ItemSpawnIntervalVariance
+// UpdateDeathTimers decrements death timers for mortal items and removes them when expired
+func UpdateDeathTimers(gameMap *game.Map, delta float64) {
+	items := gameMap.Items()
+
+	// Collect items to remove (can't modify slice while iterating)
+	var toRemove []*entity.Item
+
+	for _, item := range items {
+		// Check if this item type has a death interval
+		cfg, ok := config.ItemLifecycle[item.ItemType]
+		if !ok || cfg.DeathInterval <= 0 {
+			continue // immortal
+		}
+
+		// Skip items without death timer set (shouldn't happen, but defensive)
+		if item.DeathTimer <= 0 {
+			continue
+		}
+
+		item.DeathTimer -= delta
+
+		if item.DeathTimer <= 0 {
+			toRemove = append(toRemove, item)
+		}
+	}
+
+	// Remove dead items
+	for _, item := range toRemove {
+		gameMap.RemoveItem(item)
+	}
+}
+
+// CalculateSpawnInterval returns a randomized spawn interval for an item type
+func CalculateSpawnInterval(itemType string, initialItemCount int) float64 {
+	cfg, ok := config.ItemLifecycle[itemType]
+	if !ok {
+		// Fallback for unknown types
+		cfg = config.LifecycleConfig{SpawnInterval: 3.0}
+	}
+
+	base := cfg.SpawnInterval * float64(initialItemCount)
+	variance := base * config.LifecycleIntervalVariance
+	// Random value in range [base - variance, base + variance]
+	return base + (rand.Float64()*2-1)*variance
+}
+
+// CalculateDeathInterval returns a randomized death interval for an item type
+// Returns 0 if the item type is immortal
+func CalculateDeathInterval(itemType string, initialItemCount int) float64 {
+	cfg, ok := config.ItemLifecycle[itemType]
+	if !ok || cfg.DeathInterval <= 0 {
+		return 0 // immortal
+	}
+
+	base := cfg.DeathInterval * float64(initialItemCount)
+	variance := base * config.LifecycleIntervalVariance
 	// Random value in range [base - variance, base + variance]
 	return base + (rand.Float64()*2-1)*variance
 }
@@ -98,7 +150,9 @@ func spawnItem(gameMap *game.Map, parent *entity.Item, x, y int, initialItemCoun
 		return
 	}
 
-	// Set spawn timer for the new item (full interval, not staggered)
-	newItem.SpawnTimer = calculateSpawnInterval(initialItemCount)
+	// Set lifecycle timers for the new item
+	newItem.SpawnTimer = CalculateSpawnInterval(newItem.ItemType, initialItemCount)
+	newItem.DeathTimer = CalculateDeathInterval(newItem.ItemType, initialItemCount)
+
 	gameMap.AddItem(newItem)
 }

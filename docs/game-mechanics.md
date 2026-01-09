@@ -123,12 +123,23 @@ At world creation:
 3. 20% of edible varieties marked poisonous
 4. 20% of edible varieties marked healing (mutually exclusive with poison)
 
-### Item Spawning
+### Item Lifecycle
 
-Items spawn from existing items on the map:
+Items have spawn and death timers managed by the lifecycle system (`internal/system/lifecycle.go`).
+
+**Spawning:**
 - Each item has a spawn timer
-- When timer expires, may spawn adjacent copy with same attributes
+- When timer expires, chance to spawn adjacent copy with same attributes
 - Children inherit all parent attributes (color, pattern, texture, poison, healing)
+- Spawn interval configured per item type in `config.ItemLifecycle`
+
+**Death:**
+- Items with a death interval have a death timer; when it expires, the item is removed
+- Items with death interval of 0 are immortal (removed only when consumed)
+- Currently only flowers have death timers; edibles are immortal until eaten
+- Death creates natural population equilibrium for decorative items
+
+See `config.ItemLifecycle` for per-item-type spawn and death intervals.
 
 ## Preference System
 

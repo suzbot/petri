@@ -250,6 +250,9 @@ func (m Model) updateGame(now time.Time) (Model, tea.Cmd) {
 		system.UpdateSpawnTimers(m.gameMap, initialItemCount, delta)
 	}
 
+	// Update item death timers (flowers die regardless of no-food mode)
+	system.UpdateDeathTimers(m.gameMap, delta)
+
 	// Calculate intents (Phase II ready: can parallelize this)
 	items := m.gameMap.Items()
 	for _, char := range m.gameMap.Characters() {
@@ -484,6 +487,9 @@ func (m *Model) stepForward() {
 		initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers
 		system.UpdateSpawnTimers(m.gameMap, initialItemCount, delta)
 	}
+
+	// Update item death timers (flowers die regardless of no-food mode)
+	system.UpdateDeathTimers(m.gameMap, delta)
 
 	// Calculate and apply intents
 	items := m.gameMap.Items()

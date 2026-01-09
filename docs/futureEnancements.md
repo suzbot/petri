@@ -36,36 +36,40 @@ See `internal/simulation/observation_test.go` for test code.
 
 **Original issue**: Consumption outpaced spawning 2.3:1, causing total party wipe at ~10 min.
 
-**Applied fix** (2026-01-09):
-| Parameter | Before | After |
-|-----------|--------|-------|
-| `ItemSpawnIntervalBase` | 8.0 | **3.0** |
-| `HungerIncreaseRate` | 0.7 | **0.5** |
+**Applied fix** (2026-01-09): Reduced spawn interval and hunger rate.
+See `config.ItemLifecycle` and `config.HungerIncreaseRate` for current values.
 
 **Results after tuning**:
 | Metric | Before | After |
 |--------|--------|-------|
-| First death (avg) | ~8 min | ~19 min |
-| Total wipe | ~10 min | >37 min (1 survivor) |
-| Edible items | Depletes to 0 | Stable at 33-43 |
+| First death (avg) | ~8 min | ~16-19 min |
+| Total wipe | ~10 min | ~22+ min |
+| Edible items | Depletes to 0 | Stable when population balanced |
 | Death causes | 100% starvation | Mixed (starvation + poison) |
 
-Target was ~30 min to wipe. Slightly overshoots but provides good gameplay breathing room.
+Target was ~30 min to wipe. Provides gameplay breathing room for future agriculture features.
 
-#### Flower Overpopulation - CONFIRMED
+#### Flower Overpopulation - RESOLVED
 
-| Tick | Edible | Flowers | Flower % |
-|------|--------|---------|----------|
-| 0 | 40 | 20 | 33% |
-| 1000 | 22-26 | 24-26 | ~50% |
-| 2500+ | 0 | 24-34 | 100% |
+**Original issue**: Flowers grew unchecked (20 → 874) since they spawn but aren't consumed.
 
-Flowers grow 20-70% while edibles deplete. No consumers = unchecked growth.
+**Applied fix** (2026-01-09): Flower death timer system
 
-**Tuning options** (pick one):
-1. Make flowers non-reproducing (simplest)
-2. Separate slower flower spawn interval
-3. Allow desperate flower eating at Crisis hunger (adds gameplay depth)
+Implementation:
+- Added `DeathTimer` field to Item struct
+- Added `ItemLifecycle` config map with spawn/death intervals per item type
+- Simple timer + variance (no chance roll): timer expires → flower dies
+- Renamed `spawning.go` → `lifecycle.go` to contain both spawn and death logic
+- Initial flowers: staggered death timers to avoid synchronized die-off
+
+**Results after tuning**:
+| Metric | Before | After |
+|--------|--------|-------|
+| Flower population | 20 → 874 (exploding) | 20 → 35-50 (stable) |
+| Edible crowding | Flowers dominated map | Balanced ecosystem |
+
+Scalability path: Config map by ItemType now; migrate to per-variety rates when needed.
+See `config.ItemLifecycle` for current values.
 
 #### Survival & Mood
 

@@ -110,8 +110,9 @@ Sub-phases:
 
 - ✅ A-C. Mood and Preference interactions
 - ✅ D. World Balancing (D1-D9 complete)
+- ✅ Balance tuning pass (food scarcity, flower overpopulation resolved)
 
-**Next**: Balance tuning pass (final Phase 3 step)
+**Next**: Tune preference formation chances (final Phase 3 item)
 
 Key D6 decisions (Preference formation):
 
@@ -121,9 +122,11 @@ Key D6 decisions (Preference formation):
 
 ### Next Priorities
 
-1. Balance tuning pass (final Phase III step, see docs/futureEnancements.md)
+1. Tune preference formation chances (currently inflated for testing, reduce ~50% for release)
 2. Post-Phase III: Review audit doc and architecture doc for archival/consolidation. Create appropriate documents for tracking session progress and bigger picture architecture decisions/planning.
 3. Feature flags cleanup as per docs/audit (not blocking, can happen anytime), use cobra cli to manage flags going forward. Polish conventions (eg. use --help or -h instead of -help)
+
+**Completed balance tuning** (2026-01-09): Food scarcity and flower overpopulation resolved. See docs/futureEnancements.md for details.
 
 ### Deferred Enhancements & Trigger Points
 

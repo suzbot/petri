@@ -89,9 +89,10 @@ func RunTick(world *TestWorld, delta float64) {
 		applyIntent(char, world.GameMap, delta, world.ActionLog)
 	}
 
-	// Phase 4: Update item spawning
+	// Phase 4: Update item lifecycle
 	initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers
 	system.UpdateSpawnTimers(world.GameMap, initialItemCount, delta)
+	system.UpdateDeathTimers(world.GameMap, delta)
 }
 
 // RunTicks runs n simulation ticks
