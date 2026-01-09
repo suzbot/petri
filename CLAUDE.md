@@ -105,28 +105,48 @@ Results are documented in `docs/futureEnancements.md` under "Balance Observation
 
 ### Current Work
 
-**Phase 3** See: [Plan](docs/Phase%203/phase03-plan.md), [Reqs](docs/Phase%203/phase03reqs.txt)
-Sub-phases:
+**Phase 3 - WRAPPING UP**
+See: [Plan](docs/Phase%203/phase03-plan.md), [Reqs](docs/Phase%203/phase03reqs.txt)
 
 - ✅ A-C. Mood and Preference interactions
 - ✅ D. World Balancing (D1-D9 complete)
 - ✅ Balance tuning pass (food scarcity, flower overpopulation resolved)
+- ✅ Tune preference formation chances (reduced to 10%/5%/5%/10%)
 
-**Next**: Tune preference formation chances (final Phase 3 item)
+### Near-Term Roadmap
 
-Key D6 decisions (Preference formation):
+**Phase 3 Closeout**
+1. ~~Tune preference formation chances~~ ✅
+2. Review audit doc and architecture doc for archival/consolidation
+3. Create session progress tracking document for Phase 4+
 
-- **Solo (30%)**: Any single attribute; Pattern/Texture use noun forms ("Likes Spots", "Likes Slime")
-- **Combo (70%)**: Must include ItemType + 1-2 other attributes (max 3 total)
-- **Generative approach**: Not hardcoded permutations, scales with future attributes
+**Phase 4 Prep**
+- Feature flags cleanup / migrate to Cobra CLI (cleaner `--help`, new phase may need flags like `--no-talking`, `--debug-knowledge`)
 
-### Next Priorities
+**Phase 4: Basic Knowledge & Transmission**
+See: [Reqs](docs/Phase%204/phase04reqs.txt)
 
-1. Tune preference formation chances (currently inflated for testing, reduce ~50% for release)
-2. Post-Phase III: Review audit doc and architecture doc for archival/consolidation. Create appropriate documents for tracking session progress and bigger picture architecture decisions/planning.
-3. Feature flags cleanup as per docs/audit (not blocking, can happen anytime), use cobra cli to manage flags going forward. Polish conventions (eg. use --help or -h instead of -help)
+| Sub-phase | Description | Opportunistic Items |
+|-----------|-------------|---------------------|
+| A | Knowledge by experience (learn poison/healing from eating) | |
+| B | Knowledge panel UI (toggle in select mode) | ESC key: return to start screen vs quit |
+| C | Action log: "[Char] learned something!" | Action log audit: vertical space, limits; L log alignment with action log |
+| D | Poison knowledge → dislike preference | |
+| E-F | Healing knowledge → seek healing intent + conditional food matching | |
+| G | Talking as idle activity (5s duration, targets idle chars) | |
+| H | Knowledge transmission via talking | |
 
-**Completed balance tuning** (2026-01-09): Food scarcity and flower overpopulation resolved. See docs/futureEnancements.md for details.
+**Post-Phase 4: UI Polish Pass**
+Low-priority items to address after core Phase 4 features:
+- Reorder fields in Details panel
+- Assess unicode symbols for entities
+- Start screen improvements (title, key hints)
+- Loading screen
+- ASCII art mushrooms on title screen
+
+**Pre-Phase 5 Decision Point**
+- Save game feature: assess placement before or during Phase 5 (Resources/Inventory)
+- Rationale: Save becomes more valuable as game state complexity increases
 
 ### Deferred Enhancements & Trigger Points
 

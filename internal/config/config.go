@@ -75,11 +75,11 @@ const (
 	ItemSpawnMaxDensity   = 0.50 // max 50% of map coordinates occupied by items
 	LifecycleIntervalVariance = 0.20 // ±20% randomization for spawn/death timers
 
-	// Preference formation (values inflated for testing - see CLAUDE.md balance tuning)
-	PrefFormationChanceMiserable = 0.20 // 20% chance when Miserable
-	PrefFormationChanceUnhappy   = 0.10 // 10% chance when Unhappy
-	PrefFormationChanceHappy     = 0.10 // 10% chance when Happy
-	PrefFormationChanceJoyful    = 0.20 // 20% chance when Joyful
+	// Preference formation
+	PrefFormationChanceMiserable = 0.10 // 10% chance when Miserable
+	PrefFormationChanceUnhappy   = 0.05 // 5% chance when Unhappy
+	PrefFormationChanceHappy     = 0.05 // 5% chance when Happy
+	PrefFormationChanceJoyful    = 0.10 // 10% chance when Joyful
 	PrefFormationWeightSingle    = 0.30 // 30% chance to form single-attribute preference
 	PrefFormationWeightCombo     = 0.70 // 70% chance to form combo preference (2+ attributes)
 
