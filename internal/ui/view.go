@@ -277,6 +277,11 @@ func (m Model) viewCharacterCreate() string {
 
 // viewGame renders the main game view
 func (m Model) viewGame() string {
+	// Full-screen log view
+	if m.viewMode == viewModeFullLog {
+		return m.viewFullLog()
+	}
+
 	// Build map view
 	var mapBuilder strings.Builder
 	for y := 0; y < m.gameMap.Height; y++ {
@@ -292,7 +297,7 @@ func (m Model) viewGame() string {
 	mapView := borderStyle.Render(mapBuilder.String())
 
 	// Right panel layout depends on view mode
-	panelWidth := 44
+	panelWidth := 52
 	totalContentHeight := m.gameMap.Height - 2 // Account for extra borders on right panel
 
 	var rightPanel string
@@ -326,9 +331,9 @@ func (m Model) viewGame() string {
 
 	modeHint := ""
 	if m.viewMode == viewModeAllActivity {
-		modeHint = " | s=select"
+		modeHint = " | s=select | l=full log"
 	} else {
-		modeHint = " | a=all activity | n=next char"
+		modeHint = " | a=all activity | l=full log | n=next char"
 	}
 
 	statusBar := fmt.Sprintf("\n[%s] SPACE=pause%s%s | ARROWS=cursor | ESC=quit", status, stepHint, modeHint)
@@ -350,6 +355,59 @@ func (m Model) viewGame() string {
 	}
 
 	return gameArea + statusBar + debugLine
+}
+
+// viewFullLog renders a full-screen log view with complete (non-truncated) messages
+func (m Model) viewFullLog() string {
+	now := time.Now()
+	var lines []string
+
+	// Header
+	lines = append(lines, titleStyle.Render("=== FULL LOG VIEW ==="))
+	lines = append(lines, "")
+
+	// Get all events across all characters, sorted by time (0 = no limit)
+	allEvents := m.actionLog.AllEvents(0)
+
+	// Calculate how many lines we can show (leave room for header, footer, borders)
+	availableLines := m.height - 6
+
+	// Apply scroll offset
+	startIdx := len(allEvents) - availableLines - m.logScrollOffset
+	if startIdx < 0 {
+		startIdx = 0
+	}
+	endIdx := startIdx + availableLines
+	if endIdx > len(allEvents) {
+		endIdx = len(allEvents)
+	}
+
+	// Render events (no truncation)
+	for i := startIdx; i < endIdx; i++ {
+		event := allEvents[i]
+		elapsed := now.Sub(event.Timestamp)
+
+		// Full message with character name prefix
+		line := fmt.Sprintf(" %s %s: %s",
+			system.FormatElapsed(elapsed),
+			event.CharName,
+			event.Message)
+
+		line = colorLogMessage(line, event.Message)
+		lines = append(lines, line)
+	}
+
+	// Footer with controls
+	lines = append(lines, "")
+	scrollInfo := ""
+	if m.logScrollOffset > 0 {
+		scrollInfo = fmt.Sprintf(" (scroll: %d)", m.logScrollOffset)
+	}
+	lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(
+		fmt.Sprintf("PgUp/PgDn: Scroll | L or Esc: Exit%s", scrollInfo)))
+
+	content := strings.Join(lines, "\n")
+	return lipgloss.Place(m.width, m.height, lipgloss.Left, lipgloss.Top, content)
 }
 
 // renderCell renders a single map cell
@@ -683,8 +741,8 @@ func (m Model) renderActionLog() string {
 
 		// Truncate if too long (use runes for proper Unicode handling)
 		runes := []rune(line)
-		if len(runes) > 42 {
-			line = string(runes[:41]) + "…"
+		if len(runes) > 50 {
+			line = string(runes[:49]) + "…"
 		}
 
 		// Color based on message content
@@ -769,8 +827,8 @@ func (m Model) renderCombinedLog() string {
 
 		// Truncate if too long (use runes for proper Unicode handling)
 		runes := []rune(line)
-		if len(runes) > 42 {
-			line = string(runes[:41]) + "…"
+		if len(runes) > 50 {
+			line = string(runes[:49]) + "…"
 		}
 
 		// Color based on message content

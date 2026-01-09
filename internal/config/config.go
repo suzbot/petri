@@ -89,4 +89,13 @@ const (
 	VarietyMinCount       = 2    // minimum varieties per item type
 	VarietyPoisonPercent  = 0.20 // 20% of edible varieties are poisonous
 	VarietyHealingPercent = 0.20 // 20% of edible varieties are healing
+
+	// Food seeking - gradient scoring
+	// Score = (NetPreference × PrefWeight) - (Distance × DistWeight)
+	// At Moderate: only consider items with NetPreference >= 0
+	// At Severe+: consider all items
+	FoodSeekPrefWeightModerate = 20.0 // Strong preference influence at moderate hunger
+	FoodSeekPrefWeightSevere   = 5.0  // Moderate preference influence at severe hunger
+	FoodSeekPrefWeightCrisis   = 0.0  // No preference influence, just distance
+	FoodSeekDistWeight         = 1.0  // Distance penalty per tile
 )

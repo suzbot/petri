@@ -89,8 +89,16 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case phasePlaying:
 		switch msg.String() {
-		case "q", "esc", "ctrl+c":
+		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "esc":
+			// Exit full-screen log view, or quit
+			if m.viewMode == viewModeFullLog {
+				m.viewMode = viewModeSelect
+				m.logScrollOffset = 0
+			} else {
+				return m, tea.Quit
+			}
 		case " ":
 			m.paused = !m.paused
 			if !m.paused {
@@ -106,6 +114,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "s":
 			// Switch to Select mode
 			m.viewMode = viewModeSelect
+			m.logScrollOffset = 0
+		case "l":
+			// Toggle full-screen log view
+			if m.viewMode == viewModeFullLog {
+				m.viewMode = viewModeSelect
+			} else {
+				m.viewMode = viewModeFullLog
+			}
 			m.logScrollOffset = 0
 		case "n":
 			// Cycle to next alive character

@@ -254,132 +254,216 @@ func TestCalculateIntent_SuccessfulIntentResetsFailureCounter(t *testing.T) {
 }
 
 // =============================================================================
-// Food Target Selection
+// Food Target Selection - Gradient Scoring
 // =============================================================================
 
-func TestFindFoodTarget_RavenousTakesAnyFood(t *testing.T) {
-	t.Parallel()
-
-	char := newTestCharacter() // Likes berries and red (via NewCharacter)
-	char.Hunger = 90           // Ravenous
-
-	// Only non-matching food available
-	items := []*entity.Item{entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)}
-
-	target := findFoodTarget(char, items)
-
-	if target == nil {
-		t.Error("Ravenous character should take any food")
-	}
-}
-
-func TestFindFoodTarget_VeryHungryTakesPartialMatch(t *testing.T) {
+// Crisis tier (90+): Pick nearest edible item regardless of preference
+func TestFindFoodTarget_CrisisPicksNearest(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter() // Likes berries and red
-	char.Hunger = 80           // Very hungry (75-89)
+	char.Hunger = 95           // Crisis
+	char.SetPosition(0, 0)
 
-	// Partial match (food matches, color doesn't)
-	blueBerry := entity.NewBerry(5, 5, types.ColorBlue, false, false)
-	// No match
+	// Disliked but close vs liked but far
+	// Add a dislike preference for mushrooms
+	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
+
+	nearMushroom := entity.NewMushroom(2, 2, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+	farRedBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
+
+	items := []*entity.Item{farRedBerry, nearMushroom}
+
+	result := findFoodTarget(char, items)
+
+	if result.Item != nearMushroom {
+		t.Error("Crisis should pick nearest regardless of preference")
+	}
+}
+
+// Severe tier (75-89): Uses gradient scoring, considers all items including disliked
+func TestFindFoodTarget_SevereUsesGradientScoring(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berries and red
+	char.Hunger = 80           // Severe
+	char.SetPosition(0, 0)
+
+	// Liked item far away vs neutral item close
+	// Score(redBerry) = 5*2 - 20 = -10
+	// Score(brownMushroom) = 5*0 - 6 = -6
+	// brownMushroom wins (less negative score)
+	redBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
 	brownMushroom := entity.NewMushroom(3, 3, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+
+	items := []*entity.Item{redBerry, brownMushroom}
+
+	result := findFoodTarget(char, items)
+
+	if result.Item != brownMushroom {
+		t.Errorf("Severe should use gradient - expected closer neutral item, got %v", result.Item)
+	}
+}
+
+func TestFindFoodTarget_SevereConsidersDislikedItems(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berries and red
+	char.Hunger = 80           // Severe
+	// Add dislike for mushrooms
+	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
+
+	// Only disliked food available
+	items := []*entity.Item{entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)}
+
+	result := findFoodTarget(char, items)
+
+	if result.Item == nil {
+		t.Error("Severe should consider disliked items when nothing else available")
+	}
+}
+
+func TestFindFoodTarget_SeverePrefersLikedOverDisliked(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berries and red
+	char.Hunger = 80           // Severe
+	char.SetPosition(0, 0)
+	// Add dislike for mushrooms
+	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
+
+	// Liked item same distance as disliked
+	// Score(blueBerry at 5,5) = 5*1 - 10 = -5 (likes berries)
+	// Score(brownMushroom at 5,5) = 5*(-1) - 10 = -15 (dislikes mushrooms)
+	blueBerry := entity.NewBerry(5, 5, types.ColorBlue, false, false)
+	brownMushroom := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
 
 	items := []*entity.Item{brownMushroom, blueBerry}
 
-	target := findFoodTarget(char, items)
+	result := findFoodTarget(char, items)
 
-	if target != blueBerry {
-		t.Errorf("Very hungry should prefer partial match, got %v", target)
+	if result.Item != blueBerry {
+		t.Error("Severe should prefer liked over disliked at same distance")
 	}
 }
 
-func TestFindFoodTarget_VeryHungryTakesAnyIfNoPartial(t *testing.T) {
+// Moderate tier (50-74): Uses gradient scoring, filters out disliked items (NetPref < 0)
+func TestFindFoodTarget_ModerateUsesGradientScoring(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter() // Likes berries and red
-	char.Hunger = 80
+	char.Hunger = 60           // Moderate
+	char.SetPosition(0, 0)
 
-	// Only non-matching food
-	items := []*entity.Item{entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)}
-
-	target := findFoodTarget(char, items)
-
-	if target == nil {
-		t.Error("Very hungry should take any food if no partial match")
-	}
-}
-
-func TestFindFoodTarget_ModeratelyHungryPrefersPerfectMatch(t *testing.T) {
-	t.Parallel()
-
-	char := newTestCharacter() // Likes berries and red
-	char.Hunger = 60           // Moderately hungry (50-74)
-
-	// Perfect match
+	// Perfect match far vs partial match close
+	// Score(redBerry at 10,10) = 20*2 - 20 = 20
+	// Score(blueBerry at 3,3) = 20*1 - 6 = 14
+	// redBerry wins despite distance
 	redBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
-	// Partial match (closer)
 	blueBerry := entity.NewBerry(3, 3, types.ColorBlue, false, false)
 
 	items := []*entity.Item{blueBerry, redBerry}
 
-	target := findFoodTarget(char, items)
+	result := findFoodTarget(char, items)
 
-	if target != redBerry {
-		t.Errorf("Moderately hungry should prefer perfect match, got %v", target)
+	if result.Item != redBerry {
+		t.Errorf("Moderate should use gradient - expected higher preference item, got %v", result.Item)
 	}
 }
 
-func TestFindFoodTarget_ModeratelyHungryTakesPartialIfNoPerfect(t *testing.T) {
+func TestFindFoodTarget_ModerateFiltersDislikedItems(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter() // Likes berries and red
-	char.Hunger = 60
+	char.Hunger = 60           // Moderate
+	// Add dislike for mushrooms
+	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
 
-	// Only partial match
-	blueBerry := entity.NewBerry(5, 5, types.ColorBlue, false, false)
-
-	items := []*entity.Item{blueBerry}
-
-	target := findFoodTarget(char, items)
-
-	if target != blueBerry {
-		t.Error("Moderately hungry should take partial match if no perfect")
-	}
-}
-
-func TestFindFoodTarget_ModeratelyHungryReturnsNilForNonMatching(t *testing.T) {
-	t.Parallel()
-
-	char := newTestCharacter() // Likes berries and red
-	char.Hunger = 60
-
-	// Only non-matching food
+	// Only disliked food available
 	items := []*entity.Item{entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)}
 
-	target := findFoodTarget(char, items)
+	result := findFoodTarget(char, items)
 
-	if target != nil {
-		t.Error("Moderately hungry should return nil for non-matching food")
+	if result.Item != nil {
+		t.Error("Moderate should filter out disliked items (return nil)")
 	}
 }
 
-func TestFindFoodTarget_SelectsNearestWithinPreferenceTier(t *testing.T) {
+func TestFindFoodTarget_ModerateTakesNeutralItems(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter() // Likes berries and red
-	char.Hunger = 60
+	char.Hunger = 60           // Moderate
+
+	// Neutral food (no preference match, but not disliked either)
+	brownMushroom := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+
+	items := []*entity.Item{brownMushroom}
+
+	result := findFoodTarget(char, items)
+
+	if result.Item != brownMushroom {
+		t.Error("Moderate should accept neutral items (NetPref >= 0)")
+	}
+}
+
+func TestFindFoodTarget_ModeratePrefersLikedOverNeutral(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berries and red
+	char.Hunger = 60           // Moderate
 	char.SetPosition(0, 0)
 
-	// Two perfect matches at different distances
+	// Liked item same distance as neutral
+	// Score(blueBerry at 5,5) = 20*1 - 10 = 10
+	// Score(brownMushroom at 5,5) = 20*0 - 10 = -10
+	blueBerry := entity.NewBerry(5, 5, types.ColorBlue, false, false)
+	brownMushroom := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+
+	items := []*entity.Item{brownMushroom, blueBerry}
+
+	result := findFoodTarget(char, items)
+
+	if result.Item != blueBerry {
+		t.Error("Moderate should prefer liked over neutral at same distance")
+	}
+}
+
+// Distance tiebreaker: when gradient scores are equal, prefer closer item
+func TestFindFoodTarget_DistanceTiebreaker(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berries and red
+	char.Hunger = 60           // Moderate
+	char.SetPosition(0, 0)
+
+	// Two items with same NetPreference at different distances
 	nearRedBerry := entity.NewBerry(2, 2, types.ColorRed, false, false)
 	farRedBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
 
 	items := []*entity.Item{farRedBerry, nearRedBerry}
 
-	target := findFoodTarget(char, items)
+	result := findFoodTarget(char, items)
 
-	if target != nearRedBerry {
-		t.Error("Should select nearest food within preference tier")
+	if result.Item != nearRedBerry {
+		t.Error("Should prefer closer item when preference is equal")
+	}
+}
+
+// Edge case: no edible items
+func TestFindFoodTarget_ReturnsNilForNoEdibleItems(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 90
+
+	// Only non-edible items (flowers)
+	items := []*entity.Item{entity.NewFlower(5, 5, types.ColorRed)}
+
+	result := findFoodTarget(char, items)
+
+	if result.Item != nil {
+		t.Error("Should return nil when no edible items exist")
 	}
 }
 

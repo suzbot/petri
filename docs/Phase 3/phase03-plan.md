@@ -423,18 +423,38 @@ if len(extras) >= 2 && rand.Float64() < 0.5 {
 
 ---
 
-### D7. Seeking and avoidance refinements
+### D7. Seeking and avoidance refinements ✅ COMPLETE
 
-**Discuss**: Confirm threshold adjustments for expanded NetPreference range, avoidance behavior
+**Status**: ✅ COMPLETE
 
-**File**: `internal/system/movement.go`
+#### Approach: Gradient Scoring with Filtered Candidates
 
-- Update `findFoodTarget()` thresholds for higher NetPreference values
-- Consider avoidance logic for strongly disliked items (if desired)
+Replaced category-based food selection (perfect/partial/any) with gradient scoring that naturally handles the expanded NetPreference range.
 
-**Tests**: Integration tests for food selection with expanded preferences
+**Formula**: `Score = (NetPreference × PrefWeight) - (Distance × DistWeight)`
 
-🎮 **Human Testing**: Verify food selection behavior with new attribute preferences
+**Behavior by hunger tier**:
+- **Moderate (50-74)**: High prefWeight (20), only considers NetPreference >= 0 items
+- **Severe (75-89)**: Medium prefWeight (5), considers all items including disliked
+- **Crisis (90+)**: No prefWeight (0), picks nearest edible
+
+**Config values added** (`internal/config/config.go`):
+- `FoodSeekPrefWeightModerate = 20.0`
+- `FoodSeekPrefWeightSevere = 5.0`
+- `FoodSeekPrefWeightCrisis = 0.0`
+- `FoodSeekDistWeight = 1.0`
+
+**Files changed**:
+- `internal/config/config.go` - Added gradient scoring weights
+- `internal/system/movement.go` - Refactored `findFoodTarget()` with `FoodTargetResult` struct
+- `internal/system/movement_test.go` - New tests for gradient behavior
+
+**Debug enhancements**:
+- Movement logs show `(pref:X score:Y)` in debug mode
+- Panel widened from 44 to 52 chars for longer messages
+- New **Full Log View** (`L` key): full-screen log with non-truncated messages
+
+🎮 **Human Testing**: Complete
 
 ---
 

@@ -90,11 +90,9 @@ TTD, Iterative Approach. Frequent discussion. Present options with trade-offs. F
 Sub-phases:
 
 - ✅ A-C. Mood and Preference interactions
-- 🔄 **D. World Balancing** ← In progress
+- ✅ D. World Balancing (D1-D9 complete)
 
-**Completed**: D1-D6, D8-D9
-
-**Next**: D7 (Seeking/avoidance refinements)
+**Next**: Balance tuning pass (final Phase 3 step)
 
 Key D6 decisions (Preference formation):
 
@@ -104,10 +102,9 @@ Key D6 decisions (Preference formation):
 
 ### Next Priorities
 
-1. Complete Phase III sub-phases (A → D)
-2. Balance tuning pass (end of Phase III, see docs/futureEnhancements.md)
-3. Post-Phase III: Review audit doc and architecture doc for archival/consolidation. Create appropriate documents for tracking session progress and bigger picture architecture decisions/planning.
-4. Feature flags cleanup as per docs/audit (not blocking, can happen anytime), use cobra cli to manage flags going forward. Polish conventions (eg. use --help or -h instead of -help)
+1. Balance tuning pass (final Phase III step, see docs/futureEnhancements.md)
+2. Post-Phase III: Review audit doc and architecture doc for archival/consolidation. Create appropriate documents for tracking session progress and bigger picture architecture decisions/planning.
+3. Feature flags cleanup as per docs/audit (not blocking, can happen anytime), use cobra cli to manage flags going forward. Polish conventions (eg. use --help or -h instead of -help)
 
 ### Deferred Enhancements & Trigger Points
 

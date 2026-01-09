@@ -161,11 +161,14 @@ Examples:
 
 ### Food Selection by Hunger Tier
 
-Higher hunger = less picky about preferences:
-- Mild: Perfect match only
-- Moderate: Perfect, then Partial
-- Severe: Partial, then any
-- Crisis: Any food
+Uses gradient scoring: `Score = (NetPreference × PrefWeight) - (Distance × DistWeight)`
+
+Higher hunger = lower preference weight + willingness to eat disliked items:
+- **Moderate (50-74)**: High PrefWeight, only considers NetPreference >= 0 items (filters disliked)
+- **Severe (75-89)**: Medium PrefWeight, considers all items including disliked
+- **Crisis (90+)**: No PrefWeight (nearest wins), considers all items
+
+Weights configured in config.go. When scores are equal, closer item wins (distance tiebreaker).
 
 ### Initial Preferences
 
@@ -205,3 +208,23 @@ When consuming food, mood adjusts based on NetPreference (scaled by config modif
 **Mood impact (debug mode only):**
 - "Eating [item] Improved Mood (mood X→Y)"
 - "Eating [item] Worsened Mood (mood X→Y)"
+
+## View Modes
+
+Three view modes available during gameplay:
+
+### Select Mode (default)
+- Details panel shows selected entity info
+- Action log shows events for selected character
+- Press `S` to enter
+
+### All Activity Mode
+- Combined log showing all character events
+- No details panel
+- Press `A` to enter
+
+### Full Log View
+- Full-screen log with complete (non-truncated) messages
+- Shows all events with character name prefix
+- Useful for reading long debug messages (e.g., gradient scores)
+- Press `L` to enter, `L` or `Esc` to exit

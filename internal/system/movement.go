@@ -1,6 +1,7 @@
 package system
 
 import (
+	"fmt"
 	"math/rand"
 
 	"petri/internal/config"
@@ -366,8 +367,8 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 
 // findFoodIntent finds food based on hunger priority
 func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, tier int, log *ActionLog) *entity.Intent {
-	target := findFoodTarget(char, items)
-	if target == nil {
+	result := findFoodTarget(char, items)
+	if result.Item == nil {
 		if char.CurrentActivity != "Idle" {
 			char.CurrentActivity = "Idle"
 			if log != nil {
@@ -377,14 +378,17 @@ func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, ti
 		return nil
 	}
 
-	tx, ty := target.Position()
+	tx, ty := result.Item.Position()
 	nx, ny := nextStep(cx, cy, tx, ty)
 
-	newActivity := "Moving to " + target.Description()
+	newActivity := "Moving to " + result.Item.Description()
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
 		if log != nil {
-			log.Add(char.ID, char.Name, "movement", "Started moving to "+target.Description())
+			// Include scores in parentheses (stripped in non-debug mode)
+			log.Add(char.ID, char.Name, "movement",
+				fmt.Sprintf("Started moving to %s (pref:%d score:%.0f)",
+					result.Item.Description(), result.NetPreference, result.GradientScore))
 		}
 	}
 
@@ -392,7 +396,7 @@ func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, ti
 		TargetX:     nx,
 		TargetY:     ny,
 		Action:      entity.ActionMove,
-		TargetItem:  target,
+		TargetItem:  result.Item,
 		DrivingStat: types.StatHunger,
 		DrivingTier: tier,
 	}
@@ -465,22 +469,48 @@ func findSleepIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 	}
 }
 
-// findFoodTarget finds the best item for a character based on hunger priority
-// Uses single-pass algorithm for O(n) instead of O(n*5) performance
-func findFoodTarget(char *entity.Character, items []*entity.Item) *entity.Item {
+// FoodTargetResult contains the selected food target and scoring info
+type FoodTargetResult struct {
+	Item          *entity.Item
+	NetPreference int
+	GradientScore float64
+}
+
+// findFoodTarget finds the best item for a character based on hunger level
+// Uses gradient scoring: Score = (NetPreference × PrefWeight) - (Distance × DistWeight)
+// Hunger tier affects both the preference weight and which items are considered:
+// - Moderate (50-74): High pref weight, only NetPreference >= 0 items considered
+// - Severe (75-89): Medium pref weight, all items considered
+// - Crisis (90+): No pref weight (just distance), all items considered
+func findFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResult {
 	if len(items) == 0 {
-		return nil
+		return FoodTargetResult{}
 	}
 
 	cx, cy := char.Position()
-	maxDist := int(^uint(0) >> 1)
 
-	// Track best match in each category (single pass)
-	// Perfect = both preferences match (NetPreference >= 2)
-	// Partial = one preference matches (NetPreference >= 1)
-	// Any = any edible item
-	var bestPerfect, bestPartial, bestAny *entity.Item
-	distPerfect, distPartial, distAny := maxDist, maxDist, maxDist
+	// Determine hunger tier and corresponding weights/filters
+	var prefWeight float64
+	var filterDisliked bool
+
+	if char.Hunger >= 90 {
+		// Crisis: just pick nearest
+		prefWeight = config.FoodSeekPrefWeightCrisis
+		filterDisliked = false
+	} else if char.Hunger >= 75 {
+		// Severe: gradient with medium pref weight, consider all items
+		prefWeight = config.FoodSeekPrefWeightSevere
+		filterDisliked = false
+	} else {
+		// Moderate: gradient with high pref weight, filter disliked
+		prefWeight = config.FoodSeekPrefWeightModerate
+		filterDisliked = true
+	}
+
+	var bestItem *entity.Item
+	var bestNetPref int
+	bestScore := float64(int(^uint(0)>>1)) * -1 // Negative max float
+	bestDist := int(^uint(0) >> 1)              // Max int for distance tiebreaker
 
 	for _, item := range items {
 		// Skip non-edible items (e.g., flowers)
@@ -488,48 +518,33 @@ func findFoodTarget(char *entity.Character, items []*entity.Item) *entity.Item {
 			continue
 		}
 
+		netPref := char.NetPreference(item)
+
+		// At Moderate hunger, filter out disliked items (NetPreference < 0)
+		if filterDisliked && netPref < 0 {
+			continue
+		}
+
 		ix, iy := item.Position()
 		dist := abs(cx-ix) + abs(cy-iy)
 
-		// Check match types using NetPreference
-		pref := char.NetPreference(item)
-		isPerfect := pref >= 2
-		isPartial := pref >= 1
+		// Calculate gradient score
+		score := float64(netPref)*prefWeight - float64(dist)*config.FoodSeekDistWeight
 
-		// Update best in each category if closer
-		if isPerfect && dist < distPerfect {
-			bestPerfect = item
-			distPerfect = dist
-		}
-		if isPartial && dist < distPartial {
-			bestPartial = item
-			distPartial = dist
-		}
-		if dist < distAny {
-			bestAny = item
-			distAny = dist
+		// Update best if better score, or same score but closer (distance tiebreaker)
+		if score > bestScore || (score == bestScore && dist < bestDist) {
+			bestItem = item
+			bestNetPref = netPref
+			bestScore = score
+			bestDist = dist
 		}
 	}
 
-	// Return based on hunger tier
-	// 90+: Ravenous - eat anything
-	if char.Hunger >= 90 {
-		return bestAny
+	return FoodTargetResult{
+		Item:          bestItem,
+		NetPreference: bestNetPref,
+		GradientScore: bestScore,
 	}
-
-	// 75-89: Very hungry - partial match, then any
-	if char.Hunger >= 75 {
-		if bestPartial != nil {
-			return bestPartial
-		}
-		return bestAny
-	}
-
-	// 50-74: Moderately hungry - perfect match, then partial match
-	if bestPerfect != nil {
-		return bestPerfect
-	}
-	return bestPartial
 }
 
 // nextStep calculates the next position moving toward target
@@ -572,7 +587,7 @@ func canFulfillThirst(gameMap *game.Map, cx, cy int) bool {
 
 // canFulfillHunger checks if hunger can be addressed (suitable food exists)
 func canFulfillHunger(char *entity.Character, items []*entity.Item) bool {
-	return findFoodTarget(char, items) != nil
+	return findFoodTarget(char, items).Item != nil
 }
 
 // canFulfillEnergy checks if energy can be addressed (bed exists or exhausted enough for ground sleep)

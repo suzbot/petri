@@ -29,6 +29,7 @@ type viewMode int
 const (
 	viewModeSelect      viewMode = iota // Cursor/examine mode with details panel
 	viewModeAllActivity                 // Combined activity log, no details panel
+	viewModeFullLog                     // Full-screen log view (complete messages)
 )
 
 // TestConfig holds test mode settings

@@ -57,6 +57,7 @@ go run ./cmd/petri
 - `F` - Follow/unfollow character
 - `N` - Cycle to next character
 - `A` / `S` - All Activity / Select mode
+- `L` - Full log view (complete messages, no truncation)
 - `PgUp` / `PgDn` - Scroll action log
 - `ESC` or `Q` - Quit
 
