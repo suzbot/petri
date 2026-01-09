@@ -8,15 +8,16 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Latest Updates
 
-- **Item lifecycle system**: Flowers now have natural lifespans, creating balanced ecosystems
-- **Balance tuning**: Adjusted spawn rates and hunger for longer survival (~20+ min before starvation)
-- **Observation tests**: Headless simulation tests for measuring game balance
+- **Knowledge system**: Characters learn about poison/healing items through experience
+- **Knowledge panel**: Press K to view what a character has learned
+- **ESC returns to menu**: ESC now returns to start screen instead of quitting
 - **Dynamic preference formation**: Characters form likes/dislikes based on mood when eating or looking at items
 
 ## Features
 
 - **Multi-character simulation** with character creation (names, food/color preferences)
 - **Multi-stat survival**: hunger, thirst, energy, health, mood with urgency-based AI
+- **Knowledge system**: Characters learn about poison/healing through experience
 - **Dynamic preferences**: Characters form opinions about items based on attributes
 - **Item variety**: Berries, mushrooms (with pattern/texture), and flowers
 - **World dynamics**: Item spawning, springs, leaf piles, poison and healing effects
@@ -56,10 +57,12 @@ go run ./cmd/petri
 - Arrow keys - Move cursor
 - `F` - Follow/unfollow character
 - `N` - Cycle to next character
+- `K` - Toggle knowledge panel (select mode)
 - `A` / `S` - All Activity / Select mode
 - `L` - Full log view (complete messages, no truncation)
 - `PgUp` / `PgDn` - Scroll action log
-- `ESC` or `Q` - Quit
+- `ESC` - Return to start screen (closes panels first)
+- `Q` - Quit
 
 ## How It Works
 

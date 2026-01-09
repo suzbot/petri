@@ -78,6 +78,10 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 			log.Add(char.ID, char.Name, "poison",
 				fmt.Sprintf("Became poisoned! (duration: %ds)", int(config.PoisonDuration)))
 		}
+
+		// Learn that this item type is poisonous
+		knowledge := entity.NewKnowledgeFromItem(item, entity.KnowledgePoisonous)
+		char.LearnKnowledge(knowledge)
 	}
 
 	// Apply healing effect
@@ -107,6 +111,10 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 		if log != nil && char.HealthTier() != prevTier {
 			log.Add(char.ID, char.Name, "health", fmt.Sprintf("%s", char.HealthLevel()))
 		}
+
+		// Learn that this item type is healing
+		knowledge := entity.NewKnowledgeFromItem(item, entity.KnowledgeHealing)
+		char.LearnKnowledge(knowledge)
 	}
 
 	// Try to form preference based on mood (C2)

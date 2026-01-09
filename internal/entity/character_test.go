@@ -927,3 +927,113 @@ func TestNetPreference_ComboPreference(t *testing.T) {
 		})
 	}
 }
+
+// TestHasKnowledge verifies HasKnowledge detects existing knowledge
+func TestHasKnowledge(t *testing.T) {
+	t.Parallel()
+
+	k1 := Knowledge{
+		Category: KnowledgePoisonous,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternSpotted,
+	}
+
+	k2 := Knowledge{
+		Category: KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+
+	c := &Character{
+		Knowledge: []Knowledge{k1},
+	}
+
+	if !c.HasKnowledge(k1) {
+		t.Error("HasKnowledge() should return true for existing knowledge")
+	}
+
+	if c.HasKnowledge(k2) {
+		t.Error("HasKnowledge() should return false for unknown knowledge")
+	}
+}
+
+// TestLearnKnowledge_NewKnowledge verifies learning new knowledge
+func TestLearnKnowledge_NewKnowledge(t *testing.T) {
+	t.Parallel()
+
+	c := &Character{Knowledge: []Knowledge{}}
+
+	k := Knowledge{
+		Category: KnowledgePoisonous,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+	}
+
+	learned := c.LearnKnowledge(k)
+
+	if !learned {
+		t.Error("LearnKnowledge() should return true when learning new knowledge")
+	}
+
+	if len(c.Knowledge) != 1 {
+		t.Errorf("LearnKnowledge() should add knowledge: got %d items, want 1", len(c.Knowledge))
+	}
+
+	if !c.HasKnowledge(k) {
+		t.Error("LearnKnowledge() should add knowledge that can be found with HasKnowledge")
+	}
+}
+
+// TestLearnKnowledge_AlreadyKnown verifies duplicate knowledge is not added
+func TestLearnKnowledge_AlreadyKnown(t *testing.T) {
+	t.Parallel()
+
+	k := Knowledge{
+		Category: KnowledgePoisonous,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+	}
+
+	c := &Character{Knowledge: []Knowledge{k}}
+
+	learned := c.LearnKnowledge(k)
+
+	if learned {
+		t.Error("LearnKnowledge() should return false when knowledge already exists")
+	}
+
+	if len(c.Knowledge) != 1 {
+		t.Errorf("LearnKnowledge() should not duplicate: got %d items, want 1", len(c.Knowledge))
+	}
+}
+
+// TestLearnKnowledge_MultipleKnowledge verifies learning multiple pieces of knowledge
+func TestLearnKnowledge_MultipleKnowledge(t *testing.T) {
+	t.Parallel()
+
+	c := &Character{Knowledge: []Knowledge{}}
+
+	k1 := Knowledge{
+		Category: KnowledgePoisonous,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+	}
+
+	k2 := Knowledge{
+		Category: KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+
+	c.LearnKnowledge(k1)
+	c.LearnKnowledge(k2)
+
+	if len(c.Knowledge) != 2 {
+		t.Errorf("Character should have 2 knowledge items, got %d", len(c.Knowledge))
+	}
+
+	if !c.HasKnowledge(k1) || !c.HasKnowledge(k2) {
+		t.Error("Character should have both knowledge items")
+	}
+}

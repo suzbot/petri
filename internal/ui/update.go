@@ -92,12 +92,19 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		case "esc":
-			// Exit full-screen log view, or quit
-			if m.viewMode == viewModeFullLog {
+			// Close panels/views progressively, then return to start screen
+			if m.showKnowledgePanel {
+				m.showKnowledgePanel = false
+			} else if m.viewMode == viewModeFullLog {
 				m.viewMode = viewModeSelect
 				m.logScrollOffset = 0
 			} else {
-				return m, tea.Quit
+				// Return to start screen
+				m.phase = phaseSelectMode
+				m.gameMap = nil
+				m.following = nil
+				m.paused = true
+				m.showKnowledgePanel = false
 			}
 		case " ":
 			m.paused = !m.paused
@@ -123,6 +130,11 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.viewMode = viewModeFullLog
 			}
 			m.logScrollOffset = 0
+		case "k", "K":
+			// Toggle knowledge panel (only in select mode)
+			if m.viewMode == viewModeSelect {
+				m.showKnowledgePanel = !m.showKnowledgePanel
+			}
 		case "n":
 			// Cycle to next alive character
 			m.cycleToNextCharacter()

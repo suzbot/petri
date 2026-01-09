@@ -8,3 +8,10 @@ When the user is ready to plan the next phase:
 4. Save the high-level phase plan in the corresponding phase[#]plan document. Detailed plans for each feature within the phase will go in corresponding sub documents.
 5. For clarifications on features that don't impact the high-level approach, save those questions in feature plan docs, to ask in context when approached for implementation.
 6. Features within a phase will be approached one at a time, with fresh discussion, todos, and testing for each.
+
+### Planning Best Practices
+
+- **Ground in requirements**: Each sub-phase should clearly state the original requirement and the user-facing outcome. Avoid abstracting into pure implementation details.
+- **Limit upfront questions**: Only ask questions that affect high-level decisions. Feature-specific questions can wait until that feature is being implemented.
+- **Include opportunistic items**: Check CLAUDE.md roadmap for opportunistic enhancements to bundle with related sub-phases.
+- **Testable deliverables**: Each sub-phase should have a clear [TEST] checkpoint where the user can verify the behavior works.

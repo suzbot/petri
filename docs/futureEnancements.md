@@ -12,6 +12,11 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Depression and Rage mechanics**      | Job acceptance logic implemented                                                  |
 | **Testify test package**               | Test complexity warrants it; Current assertion patterns become unwieldy           |
 | **Wandering activity**                 | More idle activities needed; Looking feels repetitive; Want more organic movement |
+| **ItemType constants**                 | Adding new item types; Want compile-time safety for item type checks              |
+| **Activity enum**                      | Need to enumerate/filter activities; Activity-based game logic beyond display     |
+| **Feature capability derivation**      | Adding new feature types; DrinkSource/Bed bools become redundant                  |
+| **UI color style map**                 | Adding new colors frequently; Switch statement maintenance becomes tedious        |
+| **Cobra CLI migration**                | Next time we want to add a flag; Current flag parsing becomes unwieldy            |
 
 ### Future Enhancement Details
 
@@ -22,7 +27,6 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 - Sleep wake thresholds
 - Movement energy drain
 - Health tier thresholds
-- Preference formation chances (inflated for testing)
 - Mood adjustment rates and modifiers
 
 ---

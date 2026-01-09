@@ -310,12 +310,17 @@ func (m Model) viewGame() string {
 		logView := borderStyle.Width(panelWidth).Height(allActivityHeight).Render(m.renderCombinedLog())
 		rightPanel = logView
 	} else {
-		// Select mode: Details on top, Action Log below
+		// Select mode: Details on top, Action Log or Knowledge Panel below
 		detailsHeight := totalContentHeight / 2
 		logHeight := totalContentHeight - detailsHeight
 		detailsView := borderStyle.Width(panelWidth).Height(detailsHeight).Render(m.renderDetails())
-		logView := borderStyle.Width(panelWidth).Height(logHeight).Render(m.renderActionLog())
-		rightPanel = lipgloss.JoinVertical(lipgloss.Left, detailsView, logView)
+		var bottomPanel string
+		if m.showKnowledgePanel {
+			bottomPanel = borderStyle.Width(panelWidth).Height(logHeight).Render(m.renderKnowledgePanel())
+		} else {
+			bottomPanel = borderStyle.Width(panelWidth).Height(logHeight).Render(m.renderActionLog())
+		}
+		rightPanel = lipgloss.JoinVertical(lipgloss.Left, detailsView, bottomPanel)
 	}
 
 	// Horizontal layout: Map | Right Panel
@@ -336,7 +341,7 @@ func (m Model) viewGame() string {
 		modeHint = " | a=all activity | l=full log | n=next char"
 	}
 
-	statusBar := fmt.Sprintf("\n[%s] SPACE=pause%s%s | ARROWS=cursor | ESC=quit", status, stepHint, modeHint)
+	statusBar := fmt.Sprintf("\n[%s] SPACE=pause%s%s | ARROWS=cursor | ESC=menu", status, stepHint, modeHint)
 
 	// Debug line (only shown with -debug flag)
 	debugLine := ""
@@ -624,6 +629,7 @@ func (m Model) renderDetails() string {
 		} else {
 			lines = append(lines, "", " Press F to follow")
 		}
+		lines = append(lines, " Press K for Knowledge")
 
 	} else if item != nil {
 		poison := "No"
@@ -844,6 +850,36 @@ func (m Model) renderCombinedLog() string {
 			lines = append(lines, line)
 		}
 	}
+
+	return strings.Join(lines, "\n")
+}
+
+// renderKnowledgePanel renders the knowledge panel for the selected character
+func (m Model) renderKnowledgePanel() string {
+	var lines []string
+	lines = append(lines, titleStyle.Render("       KNOWLEDGE"), "")
+
+	// Get character at cursor
+	if e := m.gameMap.EntityAt(m.cursorX, m.cursorY); e != nil {
+		if char, ok := e.(*entity.Character); ok {
+			if len(char.Knowledge) == 0 {
+				// Empty state - just show title, panel appears empty
+				return strings.Join(lines, "\n")
+			}
+
+			// Show knowledge entries
+			for _, k := range char.Knowledge {
+				line := " " + k.Description()
+				lines = append(lines, line)
+			}
+		} else {
+			lines = append(lines, " Select a character")
+		}
+	} else {
+		lines = append(lines, " Select a character")
+	}
+
+	lines = append(lines, "", " Press K to return")
 
 	return strings.Join(lines, "\n")
 }

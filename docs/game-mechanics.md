@@ -222,6 +222,29 @@ When consuming food, mood adjusts based on NetPreference (scaled by config modif
 - "Eating [item] Improved Mood (mood X→Y)"
 - "Eating [item] Worsened Mood (mood X→Y)"
 
+## Knowledge System
+
+Characters learn about items through experience. Knowledge persists and affects future behavior.
+
+### Learning by Experience
+
+When a character eats a poisonous or healing item, they gain knowledge about that specific variety:
+- **Poisonous item**: Learns "[Variety] are poisonous" (e.g., "Spotted red mushrooms are poisonous")
+- **Healing item**: Learns "[Variety] are healing" (e.g., "Blue berries are healing")
+
+Knowledge is only gained once per variety - eating the same type again does not create duplicate entries.
+
+### Knowledge Panel
+
+Press `K` in select mode to toggle the Knowledge panel (replaces action log). Shows all knowledge the selected character has learned. Press `K` again to return to action log.
+
+### Future Behaviors (Planned)
+
+Knowledge will affect character behavior in future updates:
+- Poison knowledge will create dislike preferences
+- Healing knowledge will influence food selection when injured
+- Knowledge can be shared between characters through conversation
+
 ## View Modes
 
 Three view modes available during gameplay:

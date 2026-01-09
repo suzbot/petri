@@ -532,3 +532,160 @@ func TestStartSleep_SetsStateOnGround(t *testing.T) {
 		t.Error("AtBed should be false when sleeping on ground")
 	}
 }
+
+// =============================================================================
+// Knowledge Learning
+// =============================================================================
+
+func TestConsume_PoisonousItemTeachesKnowledge(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Knowledge = []entity.Knowledge{} // Start with no knowledge
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	item := entity.NewMushroom(5, 5, types.ColorRed, types.PatternSpotted, types.TextureSlimy, true, false) // Poisonous
+	gameMap.AddItem(item)
+
+	Consume(char, item, gameMap, nil)
+
+	// Character should have learned that this mushroom type is poisonous
+	if len(char.Knowledge) != 1 {
+		t.Fatalf("Expected 1 knowledge entry, got %d", len(char.Knowledge))
+	}
+
+	k := char.Knowledge[0]
+	if k.Category != entity.KnowledgePoisonous {
+		t.Errorf("Expected category %s, got %s", entity.KnowledgePoisonous, k.Category)
+	}
+	if k.ItemType != "mushroom" {
+		t.Errorf("Expected itemType mushroom, got %s", k.ItemType)
+	}
+	if k.Color != types.ColorRed {
+		t.Errorf("Expected color red, got %s", k.Color)
+	}
+	if k.Pattern != types.PatternSpotted {
+		t.Errorf("Expected pattern spotted, got %s", k.Pattern)
+	}
+	if k.Texture != types.TextureSlimy {
+		t.Errorf("Expected texture slimy, got %s", k.Texture)
+	}
+}
+
+func TestConsume_PoisonousItemDoesNotDuplicateKnowledge(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	// Character already knows this mushroom is poisonous
+	existingKnowledge := entity.Knowledge{
+		Category: entity.KnowledgePoisonous,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureSlimy,
+	}
+	char.Knowledge = []entity.Knowledge{existingKnowledge}
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	item := entity.NewMushroom(5, 5, types.ColorRed, types.PatternSpotted, types.TextureSlimy, true, false) // Same type
+	gameMap.AddItem(item)
+
+	Consume(char, item, gameMap, nil)
+
+	// Should still have only 1 knowledge entry
+	if len(char.Knowledge) != 1 {
+		t.Errorf("Expected 1 knowledge entry (no duplicate), got %d", len(char.Knowledge))
+	}
+}
+
+func TestConsume_NonPoisonousItemDoesNotTeachPoisonKnowledge(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Knowledge = []entity.Knowledge{}
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	item := entity.NewBerry(5, 5, types.ColorRed, false, false) // Not poisonous
+	gameMap.AddItem(item)
+
+	Consume(char, item, gameMap, nil)
+
+	// Should have no poison knowledge
+	for _, k := range char.Knowledge {
+		if k.Category == entity.KnowledgePoisonous {
+			t.Error("Should not learn poison knowledge from non-poisonous item")
+		}
+	}
+}
+
+func TestConsume_HealingItemTeachesKnowledge(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Knowledge = []entity.Knowledge{}
+	char.Health = 80 // Damaged so healing applies
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	item := entity.NewBerry(5, 5, types.ColorBlue, false, true) // Healing
+	gameMap.AddItem(item)
+
+	Consume(char, item, gameMap, nil)
+
+	// Character should have learned that this berry type is healing
+	if len(char.Knowledge) != 1 {
+		t.Fatalf("Expected 1 knowledge entry, got %d", len(char.Knowledge))
+	}
+
+	k := char.Knowledge[0]
+	if k.Category != entity.KnowledgeHealing {
+		t.Errorf("Expected category %s, got %s", entity.KnowledgeHealing, k.Category)
+	}
+	if k.ItemType != "berry" {
+		t.Errorf("Expected itemType berry, got %s", k.ItemType)
+	}
+	if k.Color != types.ColorBlue {
+		t.Errorf("Expected color blue, got %s", k.Color)
+	}
+}
+
+func TestConsume_HealingItemDoesNotDuplicateKnowledge(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	existingKnowledge := entity.Knowledge{
+		Category: entity.KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+	char.Knowledge = []entity.Knowledge{existingKnowledge}
+	char.Health = 80
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	item := entity.NewBerry(5, 5, types.ColorBlue, false, true) // Same type
+	gameMap.AddItem(item)
+
+	Consume(char, item, gameMap, nil)
+
+	if len(char.Knowledge) != 1 {
+		t.Errorf("Expected 1 knowledge entry (no duplicate), got %d", len(char.Knowledge))
+	}
+}
+
+func TestConsume_NonHealingItemDoesNotTeachHealingKnowledge(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Knowledge = []entity.Knowledge{}
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	item := entity.NewBerry(5, 5, types.ColorRed, false, false) // Not healing
+	gameMap.AddItem(item)
+
+	Consume(char, item, gameMap, nil)
+
+	for _, k := range char.Knowledge {
+		if k.Category == entity.KnowledgeHealing {
+			t.Error("Should not learn healing knowledge from non-healing item")
+		}
+	}
+}

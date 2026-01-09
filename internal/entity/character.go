@@ -11,6 +11,7 @@ type Character struct {
 	ID          int
 	Name        string
 	Preferences []Preference // Dynamic likes/dislikes for item attributes
+	Knowledge   []Knowledge  // Things learned through experience
 
 	// Survival attributes
 	Health      float64
@@ -112,6 +113,26 @@ func (c *Character) NetPreference(item *Item) int {
 		sum += pref.MatchScore(item)
 	}
 	return sum
+}
+
+// HasKnowledge returns true if the character already has this knowledge
+func (c *Character) HasKnowledge(k Knowledge) bool {
+	for _, existing := range c.Knowledge {
+		if existing.Equals(k) {
+			return true
+		}
+	}
+	return false
+}
+
+// LearnKnowledge adds knowledge if not already known.
+// Returns true if new knowledge was learned, false if already known.
+func (c *Character) LearnKnowledge(k Knowledge) bool {
+	if c.HasKnowledge(k) {
+		return false
+	}
+	c.Knowledge = append(c.Knowledge, k)
+	return true
 }
 
 // HungerLevel returns a human-readable hunger description
