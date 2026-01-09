@@ -158,6 +158,8 @@ Examples:
 | Likes berries, Likes red | Blue berry | +1 (partial) |
 | Likes red berries (combo) | Red berry | +2 (perfect) |
 | Likes red berries (combo) | Blue berry | 0 (no match) |
+| Likes red, Likes berries, Likes red berries | Red berry | +4 (all stack) |
+| Dislikes slimy, Dislikes mushrooms, Dislikes slimy mushrooms | Slimy mushroom | -4 (all stack) |
 
 ### Food Selection by Hunger Tier
 

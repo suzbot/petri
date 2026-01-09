@@ -40,7 +40,7 @@ internal/
   game/                     # Map, world generation
   system/                   # Movement, survival, consumption, action log
   ui/                       # Bubble Tea model, update, view, styles
-  simulation/               # Integration test utilities
+  simulation/               # Integration test utilities, balance observation tests
 ```
 
 ### Key Files for Context
@@ -82,6 +82,25 @@ TTD, Iterative Approach. Frequent discussion. Present options with trade-offs. F
 - Add regression tests when making bug fixes
 - No tests needed for UI rendering, Bubble Tea integration, brittle log wording, configuration constants
 
+### Balance Observation Tests
+
+Headless simulation tests for measuring game balance. Located in `internal/simulation/observation_test.go`.
+
+Run all observation tests:
+```bash
+go test -v -run TestObserve ./internal/simulation/
+```
+
+| Test | Purpose |
+|------|---------|
+| `TestObserveBalanceMetrics` | 5 runs × 300s: survival rate, mood distribution, preferences |
+| `TestObserveFoodScarcity` | Tracks food availability vs consumption over time |
+| `TestObserveFlowerGrowth` | Monitors flower population growth |
+| `TestObserveTimeToFirstDeath` | 10 runs: measures time until first death |
+| `TestObserveDeathProgression` | Single extended run tracking all deaths |
+
+Results are documented in `docs/futureEnancements.md` under "Balance Observation Results".
+
 ## Development
 
 ### Current Work
@@ -102,13 +121,13 @@ Key D6 decisions (Preference formation):
 
 ### Next Priorities
 
-1. Balance tuning pass (final Phase III step, see docs/futureEnhancements.md)
+1. Balance tuning pass (final Phase III step, see docs/futureEnancements.md)
 2. Post-Phase III: Review audit doc and architecture doc for archival/consolidation. Create appropriate documents for tracking session progress and bigger picture architecture decisions/planning.
 3. Feature flags cleanup as per docs/audit (not blocking, can happen anytime), use cobra cli to manage flags going forward. Polish conventions (eg. use --help or -h instead of -help)
 
 ### Deferred Enhancements & Trigger Points
 
-Technical items analyzed and consciously deferred until trigger conditions are met. see docs/futureEnhancements.md for more.
+Technical items analyzed and consciously deferred until trigger conditions are met. See docs/futureEnancements.md for more.
 
 | Enhancement                     | Triggers (implement when ANY is met)                                        |
 | ------------------------------- | --------------------------------------------------------------------------- |
