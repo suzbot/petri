@@ -103,7 +103,7 @@ For reference, see the conversation with the poisoned mushroom example as docume
     b. Question: do we need to add logic for characters to avoid consuming things they dislike, or is that implicit in the current design?
 8. Status and Mood
     a. A status of Poisoned should have a negative effect on mood
-
+9. Update Character creation to dynamically reference color list, so that as new colors are added, the favorite color options always reflect the full list.
 
 Implementation Considerations:
 - Preference system refactor: Current `FavoriteFood string` and `FavoriteColor types.Color` on Character will likely be replaced by a dynamic preference system (list of likes/dislikes about item types, colors, or combinations). Don't invest in further typing of FavoriteFood/FavoriteColor - they will be superseded.

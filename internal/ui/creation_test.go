@@ -40,6 +40,12 @@ func TestNewCharacterCreationState_DefaultValues(t *testing.T) {
 func TestNewCharacterCreationState_RandomFoodAndColor(t *testing.T) {
 	t.Parallel()
 
+	// Build valid colors map from colorOptions
+	validColors := make(map[string]bool)
+	for _, c := range colorOptions {
+		validColors[c] = true
+	}
+
 	// Run multiple times to check randomization produces valid values
 	for i := 0; i < 10; i++ {
 		state := NewCharacterCreationState()
@@ -50,10 +56,7 @@ func TestNewCharacterCreationState_RandomFoodAndColor(t *testing.T) {
 				t.Errorf("Character %d has invalid food: %q", j, char.Food)
 			}
 
-			// Color should be valid
-			validColors := map[string]bool{
-				ColorRed: true, ColorBlue: true, ColorWhite: true, ColorBrown: true,
-			}
+			// Color should be valid (from dynamically generated colorOptions)
 			if !validColors[char.Color] {
 				t.Errorf("Character %d has invalid color: %q", j, char.Color)
 			}
@@ -284,13 +287,14 @@ func TestCharacterCreationState_CycleColorOption(t *testing.T) {
 	state := NewCharacterCreationState()
 	state.SelectedChar = 0
 	state.SelectedField = FieldColor
-	state.Characters[0].Color = ColorRed
+	state.Characters[0].Color = colorOptions[0] // Start with first color
 
-	colors := []string{ColorBlue, ColorWhite, ColorBrown, ColorRed}
-	for _, expected := range colors {
+	// Cycle through all colors and verify it wraps back
+	for i := 1; i <= len(colorOptions); i++ {
 		state.CycleOption()
+		expected := colorOptions[i%len(colorOptions)]
 		if state.Characters[0].Color != expected {
-			t.Errorf("Expected color %q, got %q", expected, state.Characters[0].Color)
+			t.Errorf("After %d cycles: expected color %q, got %q", i, expected, state.Characters[0].Color)
 		}
 	}
 }
@@ -334,13 +338,16 @@ func TestCharacterCreationState_RandomizeAll(t *testing.T) {
 		}
 	}
 
+	// Build valid colors map from colorOptions
+	validColors := make(map[string]bool)
+	for _, c := range colorOptions {
+		validColors[c] = true
+	}
+
 	// Food and color should still be valid (randomized)
 	for i, char := range state.Characters {
 		if char.Food != FoodBerry && char.Food != FoodMushroom {
 			t.Errorf("Character %d has invalid food after randomize: %q", i, char.Food)
-		}
-		validColors := map[string]bool{
-			ColorRed: true, ColorBlue: true, ColorWhite: true, ColorBrown: true,
 		}
 		if !validColors[char.Color] {
 			t.Errorf("Character %d has invalid color after randomize: %q", i, char.Color)

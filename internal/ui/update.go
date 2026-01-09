@@ -656,17 +656,7 @@ func (m Model) startGameFromCreation() Model {
 		} else {
 			food = "mushroom"
 		}
-		var color types.Color
-		switch charData.Color {
-		case ColorRed:
-			color = types.ColorRed
-		case ColorBlue:
-			color = types.ColorBlue
-		case ColorWhite:
-			color = types.ColorWhite
-		case ColorBrown:
-			color = types.ColorBrown
-		}
+		color := DisplayToColor(charData.Color)
 		char := entity.NewCharacter(i+1, x, y, charData.Name, food, color)
 		m.gameMap.AddCharacter(char)
 		chars = append(chars, char)

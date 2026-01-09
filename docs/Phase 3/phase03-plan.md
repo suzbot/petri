@@ -438,6 +438,19 @@ if len(extras) >= 2 && rand.Float64() < 0.5 {
 
 ---
 
+### D9. Dynamic color options in character creation ✅ COMPLETE
+
+**Status**: ✅ COMPLETE
+
+Character creation now dynamically builds color options from `types.AllColors`. When new colors are added to the types package, they automatically appear in character creation.
+
+**Files changed**:
+- `internal/ui/creation.go` - Removed hardcoded color constants, added `buildColorOptions()`, `capitalizeColor()`, `DisplayToColor()`
+- `internal/ui/update.go` - Use `DisplayToColor()` instead of switch statement
+- `internal/ui/creation_test.go` - Updated tests to use dynamic `colorOptions`
+
+---
+
 ### Balance Tuning Pass
 
 **Discuss**: Review overall game feel after D1-D7 complete

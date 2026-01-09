@@ -1,8 +1,8 @@
 # Petri Project
 
-A simulation game inspired by Dwarf Fortress, exploring the emergent development of culture within a community.
+A simulation game inspired by Dwarf Fortress, to explore the emergent development of culture within a community.
 
-Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea) for flicker-free terminal rendering.
+Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ![Petri Screenshot](docs/Screenshot.png)
 
@@ -38,9 +38,11 @@ go run ./cmd/petri
 ## Controls
 
 **Start Screen:**
+
 - `M` - Start game (opens character creation)
 
 **Character Creation:**
+
 - `← →` - Navigate between characters
 - `↑ ↓` / `Tab` - Navigate fields
 - `Space` - Cycle option
@@ -48,6 +50,7 @@ go run ./cmd/petri
 - `Enter` - Start game
 
 **During Game:**
+
 - `Space` - Pause/unpause (world starts paused)
 - `.` - Step forward one tick (while paused)
 - Arrow keys - Move cursor
@@ -79,8 +82,6 @@ For detailed mechanics, see [docs/game-mechanics.md](docs/game-mechanics.md). Fo
 ```
 
 Debug mode reveals exact stat values, action progress timers, and poison/healing information.
-
-The `-mushrooms-only` flag is useful for testing preference formation with expanded attributes (Pattern, Texture).
 
 ## Project Vision
 

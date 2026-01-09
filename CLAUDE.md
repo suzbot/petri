@@ -92,7 +92,7 @@ Sub-phases:
 - ✅ A-C. Mood and Preference interactions
 - 🔄 **D. World Balancing** ← In progress
 
-**Completed**: D1-D6, D8
+**Completed**: D1-D6, D8-D9
 
 **Next**: D7 (Seeking/avoidance refinements)
 

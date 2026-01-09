@@ -2,6 +2,9 @@ package ui
 
 import (
 	"math/rand"
+	"strings"
+
+	"petri/internal/types"
 )
 
 // Field indices for character creation
@@ -18,14 +21,6 @@ const (
 	FoodMushroom = "Mushroom"
 )
 
-// Color options
-const (
-	ColorRed   = "Red"
-	ColorBlue  = "Blue"
-	ColorWhite = "White"
-	ColorBrown = "Brown"
-)
-
 // Maximum name length
 const MaxNameLength = 16
 
@@ -35,8 +30,31 @@ var defaultNames = []string{"Len", "Macca", "Hari", "Starr"}
 // Food options list for cycling
 var foodOptions = []string{FoodBerry, FoodMushroom}
 
-// Color options list for cycling
-var colorOptions = []string{ColorRed, ColorBlue, ColorWhite, ColorBrown}
+// colorOptions built dynamically from types.AllColors
+var colorOptions = buildColorOptions()
+
+// buildColorOptions generates display strings from types.AllColors
+func buildColorOptions() []string {
+	options := make([]string, len(types.AllColors))
+	for i, c := range types.AllColors {
+		options[i] = capitalizeColor(c)
+	}
+	return options
+}
+
+// capitalizeColor converts a types.Color to a display string (e.g., "red" -> "Red")
+func capitalizeColor(c types.Color) string {
+	s := string(c)
+	if len(s) == 0 {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// DisplayToColor converts a display string back to types.Color (e.g., "Red" -> "red")
+func DisplayToColor(display string) types.Color {
+	return types.Color(strings.ToLower(display))
+}
 
 // CharacterCreationData holds the editable data for one character
 type CharacterCreationData struct {
