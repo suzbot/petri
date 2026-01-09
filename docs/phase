@@ -19,7 +19,7 @@ go build -o petri ./cmd/petri
 ./petri
 
 Test flags
-./petri -no-food -no-water -no-beds -debug -mushrooms-only -help
+./petri -no-food -no-water -no-beds -debug -help
 
 Testing
 go test ./...
@@ -46,26 +46,31 @@ internal/
 ### Key Files for Context
 
 **Configuration & Types**
+
 - `internal/config/config.go` - All game constants, rates, thresholds, spawn counts
 - `internal/types/types.go` - Core enums: Color, Pattern, Texture, StatType
 
 **Entity Definitions**
+
 - `internal/entity/character.go` - Character struct, stat tiers, status effects
 - `internal/entity/item.go` - Item struct, spawning, descriptions
 - `internal/entity/variety.go` - ItemVariety for world generation
 - `internal/entity/preference.go` - Preference struct, matching logic
 
 **Core Systems**
+
 - `internal/system/intent.go` - Intent calculation, urgency tiers, stat fallback
 - `internal/system/survival.go` - Stat decay, damage, sleep/wake mechanics
 - `internal/system/consumption.go` - Eating, drinking, poison/healing effects
 - `internal/system/preference.go` - Preference formation on eat/look
 
 **World & Generation**
+
 - `internal/game/world.go` - World struct, entity management
 - `internal/game/variety_generation.go` - Variety creation, poison/healing assignment
 
 **Game Loop**
+
 - `internal/ui/model.go` - Game state, Bubble Tea model
 - `internal/ui/update.go` - Tick processing, intent application
 
@@ -86,21 +91,23 @@ TTD, Iterative Approach. Frequent discussion. Present options with trade-offs. F
 
 ### Current Work
 
-**Phase 3** See: [Plan](docs/Phase%203/phase03-plan.md), [Reqs](docs/Phase%203/phase03reqs.txt)
+**Phase 3** See: [Plan](docs/phase03-plan.md), [Reqs](docs/phase03reqs.txt)
 Sub-phases:
 
 - ✅ A-C. Mood and Preference interactions
 - 🔄 **D. World Balancing** ← In progress
 
-**Completed**: D1-D6, D8
+**Completed**: D1-D5, D8
 
-**Next**: D7 (Seeking/avoidance refinements)
+**Next**: D6 (Preference formation with expanded attributes), D7 (Seeking/avoidance refinements)
 
-Key D6 decisions (Preference formation):
+Key D5 decisions (Pattern/Texture system):
 
-- **Solo (30%)**: Any single attribute; Pattern/Texture use noun forms ("Likes Spots", "Likes Slime")
-- **Combo (70%)**: Must include ItemType + 1-2 other attributes (max 3 total)
-- **Generative approach**: Not hardcoded permutations, scales with future attributes
+- **Variety for generation only**: Varieties define what combos exist and assign poison/healing at world gen
+- **Items keep embedded fields**: No registry lookups at runtime, simpler architecture
+- Variety count = max(2, spawnCount / 4), 20% poisonous, 20% healing
+- Mushroom attributes: Pattern (spotted or none), Texture (slimy or none)
+- Preference formation: 30% single attribute, 70% combo (2 attributes)
 
 ### Next Priorities
 

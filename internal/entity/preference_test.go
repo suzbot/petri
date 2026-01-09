@@ -493,12 +493,12 @@ func TestPreference_Description_WithPattern(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "pattern only",
+			name:     "pattern only uses noun form",
 			pref:     Preference{Valence: 1, Pattern: types.PatternSpotted},
-			expected: "spotted",
+			expected: "Spots",
 		},
 		{
-			name:     "pattern + type",
+			name:     "pattern + type uses adjective form",
 			pref:     Preference{Valence: 1, ItemType: "mushroom", Pattern: types.PatternSpotted},
 			expected: "spotted mushrooms",
 		},
@@ -528,12 +528,12 @@ func TestPreference_Description_WithTexture(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "texture only",
+			name:     "texture only uses noun form",
 			pref:     Preference{Valence: 1, Texture: types.TextureSlimy},
-			expected: "slimy",
+			expected: "Slime",
 		},
 		{
-			name:     "texture + type",
+			name:     "texture + type uses adjective form",
 			pref:     Preference{Valence: 1, ItemType: "mushroom", Texture: types.TextureSlimy},
 			expected: "slimy mushrooms",
 		},

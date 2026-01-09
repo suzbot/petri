@@ -76,8 +76,19 @@ func (p Preference) MatchScore(item *Item) int {
 
 // Description returns a human-readable description of what this preference targets.
 // Examples: "berries", "red", "red berries", "spotted mushrooms", "slimy red mushrooms"
+// Solo Pattern/Texture use noun forms: "Spots", "Slime"
 func (p Preference) Description() string {
-	// Build parts in order: texture, pattern, color, type
+	// Check for solo Pattern or Texture (noun forms)
+	if p.AttributeCount() == 1 {
+		if p.Pattern != "" {
+			return patternNoun(p.Pattern)
+		}
+		if p.Texture != "" {
+			return textureNoun(p.Texture)
+		}
+	}
+
+	// Build parts in order: texture, pattern, color, type (adjective forms)
 	parts := []string{}
 
 	if p.Texture != "" {
@@ -103,6 +114,26 @@ func (p Preference) Description() string {
 		result += " " + parts[i]
 	}
 	return result
+}
+
+// patternNoun returns the noun form of a pattern (for solo preferences).
+func patternNoun(pattern types.Pattern) string {
+	switch pattern {
+	case types.PatternSpotted:
+		return "Spots"
+	default:
+		return string(pattern)
+	}
+}
+
+// textureNoun returns the noun form of a texture (for solo preferences).
+func textureNoun(texture types.Texture) string {
+	switch texture {
+	case types.TextureSlimy:
+		return "Slime"
+	default:
+		return string(texture)
+	}
 }
 
 // IsPositive returns true if this is a "likes" preference.

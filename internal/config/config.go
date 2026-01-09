@@ -82,7 +82,7 @@ const (
 	PrefFormationChanceHappy     = 0.10 // 10% chance when Happy
 	PrefFormationChanceJoyful    = 0.20 // 20% chance when Joyful
 	PrefFormationWeightSingle    = 0.30 // 30% chance to form single-attribute preference
-	PrefFormationWeightCombo     = 0.70 // 70% chance to form Combo preference (2+ attributes)
+	PrefFormationWeightCombo     = 0.70 // 70% chance to form combo preference (2+ attributes)
 
 	// Variety generation
 	VarietyDivisor        = 4    // varietyCount = max(2, spawnCount / divisor)

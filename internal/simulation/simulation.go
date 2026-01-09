@@ -53,7 +53,7 @@ func CreateTestWorld(opts WorldOptions) *TestWorld {
 
 	// Spawn resources based on options
 	if !opts.NoFood {
-		game.SpawnItems(gameMap)
+		game.SpawnItems(gameMap, false) // mushroomsOnly=false for tests
 	}
 	game.SpawnFeatures(gameMap, opts.NoWater, opts.NoBeds)
 

@@ -164,7 +164,7 @@ func (m Model) startGame() Model {
 
 	// Spawn items and features (respecting test config)
 	if !m.testCfg.NoFood {
-		game.SpawnItems(m.gameMap)
+		game.SpawnItems(m.gameMap, m.testCfg.MushroomsOnly)
 	}
 	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 
@@ -204,7 +204,7 @@ func (m Model) startGameMulti() Model {
 
 	// Spawn items and features (respecting test config)
 	if !m.testCfg.NoFood {
-		game.SpawnItems(m.gameMap)
+		game.SpawnItems(m.gameMap, m.testCfg.MushroomsOnly)
 	}
 	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 
@@ -682,7 +682,7 @@ func (m Model) startGameFromCreation() Model {
 
 	// Spawn items and features (respecting test config)
 	if !m.testCfg.NoFood {
-		game.SpawnItems(m.gameMap)
+		game.SpawnItems(m.gameMap, m.testCfg.MushroomsOnly)
 	}
 	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 

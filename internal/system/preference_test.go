@@ -335,3 +335,120 @@ func TestTryFormPreference_NeutralMood_NoFormation(t *testing.T) {
 		t.Errorf("Expected no preferences formed, got %d", len(char.Preferences))
 	}
 }
+
+// =============================================================================
+// D6: Combo Preferences Must Include ItemType
+// =============================================================================
+
+func TestRollPreferenceType_ComboAlwaysIncludesItemType(t *testing.T) {
+	t.Parallel()
+
+	// Mushroom with all attributes available
+	item := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternSpotted, types.TextureSlimy, false, false)
+
+	// Run many iterations to ensure combos always include ItemType
+	for i := 0; i < 500; i++ {
+		pref := rollPreferenceType(item, 1)
+
+		// If this is a combo (2+ attributes), it must include ItemType
+		if pref.AttributeCount() >= 2 {
+			if pref.ItemType == "" {
+				t.Errorf("Combo preference (count=%d) must include ItemType, got: %+v",
+					pref.AttributeCount(), pref)
+			}
+		}
+	}
+}
+
+func TestRollPreferenceType_ComboLimitedToThreeAttributes(t *testing.T) {
+	t.Parallel()
+
+	// Mushroom with all 4 possible attributes
+	item := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternSpotted, types.TextureSlimy, false, false)
+
+	// Run many iterations to check max attribute count
+	for i := 0; i < 500; i++ {
+		pref := rollPreferenceType(item, 1)
+
+		if pref.AttributeCount() > 3 {
+			t.Errorf("Preference should have max 3 attributes for interaction-formed preferences, got %d: %+v",
+				pref.AttributeCount(), pref)
+		}
+	}
+}
+
+func TestRollPreferenceType_ComboCanHaveTwoOrThreeAttributes(t *testing.T) {
+	t.Parallel()
+
+	// Mushroom with all attributes
+	item := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternSpotted, types.TextureSlimy, false, false)
+
+	hasTwoAttr := false
+	hasThreeAttr := false
+
+	// Run enough iterations to see both 2 and 3 attribute combos
+	for i := 0; i < 500; i++ {
+		pref := rollPreferenceType(item, 1)
+		count := pref.AttributeCount()
+
+		if count == 2 {
+			hasTwoAttr = true
+		}
+		if count == 3 {
+			hasThreeAttr = true
+		}
+	}
+
+	if !hasTwoAttr {
+		t.Error("Expected to see some 2-attribute combo preferences")
+	}
+	if !hasThreeAttr {
+		t.Error("Expected to see some 3-attribute combo preferences")
+	}
+}
+
+func TestRollPreferenceType_SoloCanBeAnyAttribute(t *testing.T) {
+	t.Parallel()
+
+	// Mushroom with all attributes
+	item := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternSpotted, types.TextureSlimy, false, false)
+
+	hasItemType := false
+	hasColor := false
+	hasPattern := false
+	hasTexture := false
+
+	// Run enough iterations to see all solo types
+	for i := 0; i < 1000; i++ {
+		pref := rollPreferenceType(item, 1)
+
+		// Check solo preferences (exactly 1 attribute)
+		if pref.AttributeCount() == 1 {
+			if pref.ItemType != "" {
+				hasItemType = true
+			}
+			if pref.Color != "" {
+				hasColor = true
+			}
+			if pref.Pattern != "" {
+				hasPattern = true
+			}
+			if pref.Texture != "" {
+				hasTexture = true
+			}
+		}
+	}
+
+	if !hasItemType {
+		t.Error("Expected to see solo ItemType preferences")
+	}
+	if !hasColor {
+		t.Error("Expected to see solo Color preferences")
+	}
+	if !hasPattern {
+		t.Error("Expected to see solo Pattern preferences")
+	}
+	if !hasTexture {
+		t.Error("Expected to see solo Texture preferences")
+	}
+}

@@ -137,11 +137,11 @@ Characters have dynamic preferences that affect food selection and mood.
 ### Preference Structure
 
 Each preference targets item attributes:
-- **ItemType only**: e.g., "likes berries" (matches any berry)
-- **Color only**: e.g., "likes red" (matches any red item)
-- **Pattern only**: e.g., "likes spotted" (matches any spotted mushroom)
-- **Texture only**: e.g., "likes slimy" (matches any slimy mushroom)
-- **Combo (2+ attributes)**: e.g., "likes spotted brown mushrooms"
+- **ItemType only**: e.g., "Likes berries" (matches any berry)
+- **Color only**: e.g., "Likes red" (matches any red item)
+- **Pattern only**: e.g., "Likes Spots" (matches any spotted mushroom) - uses noun form
+- **Texture only**: e.g., "Likes Slime" (matches any slimy mushroom) - uses noun form
+- **Combo (2-3 attributes)**: e.g., "Likes spotted brown mushrooms" - always includes ItemType
 
 Each preference has a **valence**: +1 (likes) or -1 (dislikes).
 
@@ -180,9 +180,12 @@ Preferences form dynamically when consuming or looking at items, based on curren
 - Neutral: no formation
 - Unhappy/Miserable: chance to form negative preference (dislikes)
 
-Formation type weights (configured in config.go):
-- 30% single attribute (random: ItemType, Color, or Pattern/Texture for mushrooms)
-- 70% combo (2 random attributes from available)
+Formation types (weights configured in config.go):
+- **Solo**: Single attribute (ItemType, Color, Pattern, or Texture)
+  - Pattern/Texture solo use noun forms: "Likes Spots", "Likes Slime"
+- **Combo**: ItemType + 1-2 other attributes (max 3 total)
+  - Combos always include ItemType: "spotted mushrooms", "slimy red mushrooms"
+  - Uses adjective forms in combos: "spotted", "slimy"
 
 If character already has exact same preference:
 - Same valence: No change

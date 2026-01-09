@@ -8,7 +8,7 @@ import (
 )
 
 // SpawnItems populates the map with random items using the variety system
-func SpawnItems(m *Map) {
+func SpawnItems(m *Map, mushroomsOnly bool) {
 	// Generate varieties for this world (defines what combos exist, assigns poison/healing)
 	registry := GenerateVarieties()
 
@@ -16,10 +16,16 @@ func SpawnItems(m *Map) {
 	initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers
 	maxInitialTimer := config.ItemSpawnIntervalBase * float64(initialItemCount)
 
-	// Spawn items for each item type
-	spawnItemsOfType(m, registry, "berry", config.ItemSpawnCount, maxInitialTimer)
-	spawnItemsOfType(m, registry, "mushroom", config.ItemSpawnCount, maxInitialTimer)
-	spawnItemsOfType(m, registry, "flower", config.FlowerSpawnCount, maxInitialTimer)
+	if mushroomsOnly {
+		// Replace all items with mushroom varieties for testing preference formation
+		totalCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount
+		spawnItemsOfType(m, registry, "mushroom", totalCount, maxInitialTimer)
+	} else {
+		// Spawn items for each item type
+		spawnItemsOfType(m, registry, "berry", config.ItemSpawnCount, maxInitialTimer)
+		spawnItemsOfType(m, registry, "mushroom", config.ItemSpawnCount, maxInitialTimer)
+		spawnItemsOfType(m, registry, "flower", config.FlowerSpawnCount, maxInitialTimer)
+	}
 }
 
 // spawnItemsOfType spawns count items of the given type, distributed across varieties

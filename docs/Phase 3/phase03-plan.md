@@ -368,22 +368,58 @@ After evaluating the full refactor scope (15+ files, 100+ call sites), we pivote
 
 ---
 
-### D6. Preference formation with expanded attributes
+### D6. Preference formation with expanded attributes ✅ COMPLETE
 
-**Discuss**: Confirm combo constraints (ItemType + 1-2 other attributes), formation weights
+**Status**: ✅ COMPLETE
+
+#### Decisions Made
+
+- **Solo preferences (30%)**: Can be any single attribute (ItemType, Color, Pattern, or Texture)
+  - Pattern/Texture solos use noun forms: "Likes Spots", "Likes Slime"
+- **Combo preferences (70%)**: Must include ItemType + 1-2 other attributes
+  - Max 3 attributes total (4-attribute combos deferred to Phase 4)
+  - Distribution within combo: generative, not hardcoded permutations
+- **Weights**: Keep simple - 30% solo, 70% combo (no sub-weights needed)
+
+#### Implementation
+
+**D6.1: Update rollPreferenceType() for combo logic**
 
 **File**: `internal/system/preference.go`
 
-- Update `rollPreferenceType()` to handle Pattern/Texture
-- Ensure combo preferences include ItemType + other attributes
+- Combos always include ItemType
+- Pick 1-2 additional attributes from available [Color, Pattern, Texture]
+- Use generative approach: collect extras, shuffle, take 1 or 2
 
-**File**: `internal/config/config.go`
+```go
+// Combo: Always include ItemType, plus 1-2 other attributes
+attrs := []string{"itemType"}
+extras := collectExtraAttributes(item) // excludes itemType
+numExtras := 1
+if len(extras) >= 2 && rand.Float64() < 0.5 {
+    numExtras = 2
+}
+// shuffle extras, append first numExtras to attrs
+```
 
-- Adjust formation weights if needed
+**D6.2: Update Description() for solo noun forms**
 
-**Tests**: Unit tests for expanded preference formation
+**File**: `internal/entity/preference.go`
 
-🎮 **Human Testing**: Observe preference formation includes new attributes
+- When Pattern is solo (no other attrs): use "Spots" instead of "spotted"
+- When Texture is solo (no other attrs): use "Slime" instead of "slimy"
+- Combo descriptions unchanged: "spotted mushrooms", "slimy red mushrooms"
+
+**D6.3: Tests**
+
+**File**: `internal/system/preference_test.go`
+
+- Test solo preferences include all attribute types
+- Test combos always include ItemType
+- Test combos limited to 2-3 attributes
+- Test Description() noun forms for solo Pattern/Texture
+
+🎮 **Human Testing**: Observe preference formation includes new attributes with correct descriptions
 
 ---
 

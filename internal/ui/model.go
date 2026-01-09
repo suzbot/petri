@@ -33,10 +33,11 @@ const (
 
 // TestConfig holds test mode settings
 type TestConfig struct {
-	NoFood  bool // Skip spawning food items
-	NoWater bool // Skip spawning water sources
-	NoBeds  bool // Skip spawning beds
-	Debug   bool // Show debug info (action progress, etc.)
+	NoFood        bool // Skip spawning food items
+	NoWater       bool // Skip spawning water sources
+	NoBeds        bool // Skip spawning beds
+	Debug         bool // Show debug info (action progress, etc.)
+	MushroomsOnly bool // Replace all items with mushroom varieties
 }
 
 // Model is the main Bubble Tea model

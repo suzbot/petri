@@ -70,14 +70,17 @@ For detailed mechanics, see [docs/game-mechanics.md](docs/game-mechanics.md). Fo
 ## Debug Mode
 
 ```bash
-./petri -debug        # Show detailed numeric info
-./petri -no-food      # No food items spawned
-./petri -no-water     # No springs spawned
-./petri -no-beds      # No leaf piles spawned
-./petri -help         # Show all available flags
+./petri -debug           # Show detailed numeric info
+./petri -no-food         # No food items spawned
+./petri -no-water        # No springs spawned
+./petri -no-beds         # No leaf piles spawned
+./petri -mushrooms-only  # Replace all items with mushroom varieties
+./petri -help            # Show all available flags
 ```
 
 Debug mode reveals exact stat values, action progress timers, and poison/healing information.
+
+The `-mushrooms-only` flag is useful for testing preference formation with expanded attributes (Pattern, Texture).
 
 ## Project Vision
 

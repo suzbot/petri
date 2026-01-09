@@ -73,7 +73,7 @@ func getFormationParams(moodTier int) (chance float64, valence int) {
 
 // rollPreferenceType randomly selects which type of preference to form
 // based on configured weights: single attribute or combo (2+ attributes).
-// For mushrooms, Pattern and Texture are available attributes.
+// Solo: any single attribute. Combo: ItemType + 1-2 other attributes (max 3 total).
 func rollPreferenceType(item *entity.Item, valence int) entity.Preference {
 	roll := rand.Float64()
 
@@ -81,29 +81,57 @@ func rollPreferenceType(item *entity.Item, valence int) entity.Preference {
 	attrs := collectItemAttributes(item)
 
 	if roll < config.PrefFormationWeightSingle {
-		// Single attribute - pick one randomly
+		// Single attribute - pick one randomly from all available
 		attr := attrs[rand.Intn(len(attrs))]
 		return buildPreference(valence, []string{attr}, item)
 	}
 
-	// Combo - pick 2 random attributes
-	if len(attrs) < 2 {
-		// Fallback: use all available
-		return buildPreference(valence, attrs, item)
+	// Combo - always include ItemType + 1-2 extra attributes
+	extras := collectExtraAttributes(item) // excludes itemType
+
+	if len(extras) == 0 {
+		// Fallback: only itemType available, return solo itemType
+		return buildPreference(valence, []string{"itemType"}, item)
 	}
 
-	// Shuffle and pick first 2
-	shuffled := make([]string, len(attrs))
-	copy(shuffled, attrs)
-	rand.Shuffle(len(shuffled), func(i, j int) {
-		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	// Determine how many extra attributes to include (1 or 2)
+	numExtras := 1
+	if len(extras) >= 2 && rand.Float64() < 0.5 {
+		numExtras = 2
+	}
+
+	// Shuffle extras and pick first numExtras
+	rand.Shuffle(len(extras), func(i, j int) {
+		extras[i], extras[j] = extras[j], extras[i]
 	})
-	return buildPreference(valence, shuffled[:2], item)
+
+	// Build combo: itemType + selected extras
+	selected := []string{"itemType"}
+	selected = append(selected, extras[:numExtras]...)
+
+	return buildPreference(valence, selected, item)
 }
 
 // collectItemAttributes returns the list of available descriptive attributes for an item.
 func collectItemAttributes(item *entity.Item) []string {
 	attrs := []string{"itemType", "color"}
+
+	// Mushrooms have additional attributes
+	if item.ItemType == "mushroom" {
+		if item.Pattern != "" {
+			attrs = append(attrs, "pattern")
+		}
+		if item.Texture != "" {
+			attrs = append(attrs, "texture")
+		}
+	}
+
+	return attrs
+}
+
+// collectExtraAttributes returns attributes excluding itemType (for combo formation).
+func collectExtraAttributes(item *entity.Item) []string {
+	attrs := []string{"color"}
 
 	// Mushrooms have additional attributes
 	if item.ItemType == "mushroom" {
