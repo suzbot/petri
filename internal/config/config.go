@@ -34,7 +34,7 @@ const (
 
 	// Survival mechanics
 	PoisonDuration          = 20.0 // seconds
-	HungerIncreaseRate      = 0.7  // per second (slower than thirst)
+	HungerIncreaseRate      = 0.5  // per second (slower than thirst)
 	ThirstIncreaseRate      = 0.85 // per second (slightly faster than hunger)
 	EnergyDecreaseRate      = 0.5  // per second (base rate)
 	EnergyMovementDrain     = 0.2  // additional per movement tick
@@ -72,7 +72,7 @@ const (
 
 	// Item spawning
 	ItemSpawnChance           = 0.50 // 50% chance per spawn opportunity
-	ItemSpawnIntervalBase     = 8.0  // seconds, multiplied by initial item count
+	ItemSpawnIntervalBase     = 3.0  // seconds, multiplied by initial item count
 	ItemSpawnIntervalVariance = 0.20 // ±20% randomization
 	ItemSpawnMaxDensity       = 0.50 // max 50% of map coordinates occupied by items
 

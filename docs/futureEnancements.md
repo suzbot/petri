@@ -32,24 +32,25 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 Ran simulation observations: 5 runs × 2000 ticks (300 game-seconds each).
 See `internal/simulation/observation_test.go` for test code.
 
-#### Food Scarcity - CONFIRMED
+#### Food Scarcity - RESOLVED
 
-| Metric | Value |
-|--------|-------|
-| Eat events | 46 |
-| Spawn events | 20 |
-| Consumption:Spawn ratio | **2.3:1** |
-| Edible item trend | 40 → 0-15 |
-| Starvation deaths | 1/20 (5%) |
+**Original issue**: Consumption outpaced spawning 2.3:1, causing total party wipe at ~10 min.
 
-**Root cause**: Spawn interval too slow.
-- `ItemSpawnIntervalBase` (8.0s) × `initialItemCount` (60) = 480s base interval per item
-- With 50% spawn chance → ~16 minutes average per successful spawn
+**Applied fix** (2026-01-09):
+| Parameter | Before | After |
+|-----------|--------|-------|
+| `ItemSpawnIntervalBase` | 8.0 | **3.0** |
+| `HungerIncreaseRate` | 0.7 | **0.5** |
 
-**Tuning options** (pick one or combine):
-1. Reduce `ItemSpawnIntervalBase` from 8.0 → 2.0-4.0
-2. Increase `ItemSpawnChance` from 0.50 → 0.70
-3. Reduce `HungerIncreaseRate` from 0.7 → 0.5
+**Results after tuning**:
+| Metric | Before | After |
+|--------|--------|-------|
+| First death (avg) | ~8 min | ~19 min |
+| Total wipe | ~10 min | >37 min (1 survivor) |
+| Edible items | Depletes to 0 | Stable at 33-43 |
+| Death causes | 100% starvation | Mixed (starvation + poison) |
+
+Target was ~30 min to wipe. Slightly overshoots but provides good gameplay breathing room.
 
 #### Flower Overpopulation - CONFIRMED
 
