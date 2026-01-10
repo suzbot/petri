@@ -48,10 +48,10 @@ const (
 	SatisfactionCooldown = 5.0 // seconds before stat starts changing after reaching optimal
 	ActionDuration       = 1.5 // seconds for consume/drink/sleep actions to complete
 
-	// Looking activity
-	LookChance   = 0.50  // 50% chance to look when idle
+	// Idle activities (looking, talking)
+	IdleCooldown = 10.0  // seconds between idle activity attempts
 	LookDuration = 3.0   // seconds to complete looking at an item
-	LookCooldown = 10.0  // seconds before can look again after completing a look
+	TalkDuration = 5.0   // seconds to complete a conversation
 
 	// Frustration mechanics
 	FrustrationThreshold = 3   // consecutive failed intents before frustrated

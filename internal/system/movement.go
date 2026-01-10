@@ -2,7 +2,6 @@ package system
 
 import (
 	"fmt"
-	"math/rand"
 
 	"petri/internal/config"
 	"petri/internal/entity"
@@ -36,28 +35,50 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 	energyTier := char.EnergyTier()
 	healthTier := char.HealthTier()
 
-	// Check if we should continue a looking intent (no DrivingStat)
-	// Looking can be interrupted by: urgent needs (tier >= Moderate), or cooldown started (look completed)
-	if char.Intent != nil && char.Intent.DrivingStat == "" && char.Intent.TargetItem != nil {
-		// If cooldown is active, look just completed - fall through to re-evaluate
-		if char.LookCooldown <= 0 {
-			maxTier := hungerTier
-			if thirstTier > maxTier {
-				maxTier = thirstTier
+	// Check if we should continue an idle activity (looking or talking)
+	// Idle activities can be interrupted by urgent needs (tier >= Moderate)
+	if char.Intent != nil && char.Intent.DrivingStat == "" {
+		maxTier := hungerTier
+		if thirstTier > maxTier {
+			maxTier = thirstTier
+		}
+		if energyTier > maxTier {
+			maxTier = energyTier
+		}
+		// Health only counts if we can fulfill it (have healing knowledge)
+		if healthTier > maxTier && canFulfillHealth(char, items) {
+			maxTier = healthTier
+		}
+
+		// Continue looking if no urgent needs
+		if char.Intent.TargetItem != nil && maxTier < entity.TierModerate {
+			return continueIntent(char, cx, cy, gameMap, log)
+		}
+
+		// Continue talking/approaching if no urgent needs
+		if char.Intent.TargetCharacter != nil && maxTier < entity.TierModerate {
+			target := char.Intent.TargetCharacter
+			// If already talking, continue
+			if char.TalkingWith != nil {
+				return &entity.Intent{
+					TargetX:         cx,
+					TargetY:         cy,
+					Action:          entity.ActionTalk,
+					TargetCharacter: char.TalkingWith,
+				}
 			}
-			if energyTier > maxTier {
-				maxTier = energyTier
-			}
-			// Health only counts if we can fulfill it (have healing knowledge)
-			if healthTier > maxTier && canFulfillHealth(char, items) {
-				maxTier = healthTier
-			}
-			// Keep looking if no urgent needs (Moderate or higher)
-			if maxTier < entity.TierModerate {
+			// If approaching to talk, check target is still valid (idle activity, not dead/sleeping)
+			if !target.IsDead && !target.IsSleeping && isIdleActivity(target.CurrentActivity) {
 				return continueIntent(char, cx, cy, gameMap, log)
 			}
+			// Target no longer valid, fall through to re-evaluate
 		}
-		// Otherwise fall through to re-evaluate (need interrupts looking, or look completed)
+
+		// If talking but interrupted by Moderate+ need, stop partner too
+		if char.TalkingWith != nil && maxTier >= entity.TierModerate {
+			StopTalking(char, char.TalkingWith, log)
+		}
+		// Fall through to re-evaluate
 	}
 
 	// Check if current intent should be kept (tier-based evaluation)
@@ -152,9 +173,9 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 		maxTier = healthTier
 	}
 
-	// No urgent needs - try looking at something
+	// No urgent needs - try an idle activity (looking, talking, or staying idle)
 	if maxTier == entity.TierNone {
-		if intent := findLookIntent(char, cx, cy, items, gameMap, log); intent != nil {
+		if intent := selectIdleActivity(char, cx, cy, items, gameMap, log); intent != nil {
 			return intent
 		}
 		if char.CurrentActivity != "Idle" {
@@ -233,8 +254,8 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 		}
 	}
 
-	// No needs could be fulfilled - try looking at something
-	if intent := findLookIntent(char, cx, cy, items, gameMap, log); intent != nil {
+	// No needs could be fulfilled - try an idle activity
+	if intent := selectIdleActivity(char, cx, cy, items, gameMap, log); intent != nil {
 		return intent
 	}
 
@@ -274,6 +295,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		tx, ty = intent.TargetItem.Position()
 	} else if intent.TargetFeature != nil {
 		tx, ty = intent.TargetFeature.Position()
+	} else if intent.TargetCharacter != nil {
+		tx, ty = intent.TargetCharacter.Position()
 	} else {
 		tx, ty = intent.TargetX, intent.TargetY
 	}
@@ -328,16 +351,27 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		}
 	}
 
+	// Check if we've arrived adjacent to a character for talking
+	if intent.TargetCharacter != nil && isAdjacent(cx, cy, tx, ty) {
+		return &entity.Intent{
+			TargetX:         cx, // Stay in place
+			TargetY:         cy,
+			Action:          entity.ActionTalk,
+			TargetCharacter: intent.TargetCharacter,
+		}
+	}
+
 	nx, ny := nextStep(cx, cy, tx, ty)
 
 	return &entity.Intent{
-		TargetX:       nx,
-		TargetY:       ny,
-		Action:        intent.Action,
-		TargetItem:    intent.TargetItem,
-		TargetFeature: intent.TargetFeature,
-		DrivingStat:   intent.DrivingStat,
-		DrivingTier:   intent.DrivingTier,
+		TargetX:         nx,
+		TargetY:         ny,
+		Action:          intent.Action,
+		TargetItem:      intent.TargetItem,
+		TargetFeature:   intent.TargetFeature,
+		TargetCharacter: intent.TargetCharacter,
+		DrivingStat:     intent.DrivingStat,
+		DrivingTier:     intent.DrivingTier,
 	}
 }
 
@@ -713,19 +747,9 @@ func canFulfillHealth(char *entity.Character, items []*entity.Item) bool {
 	return len(char.KnownHealingItems(items)) > 0
 }
 
-// findLookIntent creates an intent to look at the nearest item (50% chance when idle)
+// findLookIntent creates an intent to look at the nearest item.
+// Called by selectIdleActivity when looking is selected.
 func findLookIntent(char *entity.Character, cx, cy int, items []*entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
-	// Check cooldown
-	if char.LookCooldown > 0 {
-		return nil
-	}
-
-	// 50% chance to look - set cooldown regardless of outcome so check only happens periodically
-	if rand.Float64() >= config.LookChance {
-		char.LookCooldown = config.LookCooldown
-		return nil
-	}
-
 	// Find nearest item, excluding last looked item
 	target := findNearestItemExcluding(cx, cy, items, char.LastLookedX, char.LastLookedY, char.HasLastLooked)
 	if target == nil {

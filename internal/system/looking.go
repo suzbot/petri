@@ -21,8 +21,7 @@ func CompleteLook(char *entity.Character, item *entity.Item, log *ActionLog) {
 		log.Add(char.ID, char.Name, "activity", "Looked at "+itemName)
 	}
 
-	// Set cooldown and remember last looked item
-	char.LookCooldown = config.LookCooldown
+	// Remember last looked item (to avoid looking at same item twice in a row)
 	ix, iy := item.Position()
 	char.LastLookedX = ix
 	char.LastLookedY = iy

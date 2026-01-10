@@ -305,6 +305,44 @@ Review `findFoodTarget()` - disliked items should be filtered at Moderate hunger
 
 ## Sub-Phase G: Talking Activity
 
+### User Decisions
+- **Probability distribution**: Even weighting between Idle, Looking, Talking (future: character preferences for activities)
+- **Target selection**: Pick closest idle character (future: relationship-based preferences)
+- **Interrupting idle activities**: Can interrupt another idle activity (e.g., Looking with active timer)
+- **Mutual initiation**: If two characters try to talk to each other simultaneously, they successfully talk
+- **Partner interruption**: When one talker is interrupted by Moderate+ need, partner also stops talking (can't talk alone)
+
+### Implementation Approach
+
+**Current idle system (for reference):**
+- `CalculateIntent()`: when `maxTier == TierNone`, calls `findLookIntent()`
+- If looking returns nil (cooldown or 50% chance failed), sets character to "Idle"
+- Looking identified by `DrivingStat == ""` (empty string)
+- `LookCooldown` field throttles look attempts
+
+**New fields needed:**
+- `ActionTalk` added to ActionType enum
+- `TalkingWith *Character` - conversation partner pointer
+- `TalkTimer float64` - tracks 5s duration
+- `IdleCooldown float64` - generalized cooldown for all idle activities (replaces LookCooldown usage for gating)
+
+**Refactored idle selection flow:**
+```
+if IdleCooldown > 0: return nil (stay idle)
+roll 1-3:
+  1: try looking (findLookIntent)
+  2: try talking (findTalkIntent)
+  3: stay idle
+set IdleCooldown regardless of outcome
+```
+
+**Talking state management:**
+- When initiator arrives adjacent to target, set BOTH to talking state
+- Start 5-second timer for both
+- Set `TalkingWith` pointers on both characters
+- Talking interruptible by Moderate+ needs (like looking)
+- When one partner interrupted, other also stops (clear TalkingWith, reset timer)
+
 ### G1. Add ActionTalk enum and talking state fields
 
 **File**: `internal/entity/character.go`
@@ -396,7 +434,7 @@ Review `findFoodTarget()` - disliked items should be filtered at Moderate hunger
 | C: Action Log ("learned something!") | Complete | + Action log vertical space fix, Full log (L) patterns |
 | D: Poison Knowledge → Dislike | Complete | Existing avoidance logic handles filtering |
 | E-F: Healing Knowledge → Seeking + Food Selection | Complete | Health in priority system, healing bonus in food selection |
-| G: Talking Activity | Not Started | |
+| G: Talking Activity | Testing | Impl complete, removed LookCooldown in favor of IdleCooldown, partner interruption, regression tests for approach continuation |
 | H: Knowledge Transmission | Not Started | |
 
 ---

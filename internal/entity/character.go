@@ -30,11 +30,15 @@ type Character struct {
 	FrustrationTimer  float64
 	FailedIntentCount int
 
-	// Looking activity tracking
-	LookCooldown   float64 // Time until can look again
-	LastLookedX    int     // Position of last item looked at (to avoid repetition)
-	LastLookedY    int
-	HasLastLooked  bool    // Whether LastLookedX/Y are valid
+	// Idle activity tracking
+	IdleCooldown  float64 // Time until next idle activity attempt
+	LastLookedX   int     // Position of last item looked at (to avoid repetition)
+	LastLookedY   int
+	HasLastLooked bool // Whether LastLookedX/Y are valid
+
+	// Talking activity tracking
+	TalkingWith *Character // Current conversation partner (nil if not talking)
+	TalkTimer   float64    // Time remaining in conversation
 
 	// Satisfaction cooldowns (delay before stat starts changing after reaching optimal)
 	HungerCooldown float64
@@ -58,10 +62,11 @@ type Character struct {
 type Intent struct {
 	TargetX, TargetY int
 	Action           ActionType
-	TargetItem       *Item    // The specific item being pursued (nil if none)
-	TargetFeature    *Feature // The specific feature being pursued (nil if none)
+	TargetItem       *Item      // The specific item being pursued (nil if none)
+	TargetFeature    *Feature   // The specific feature being pursued (nil if none)
+	TargetCharacter  *Character // The character being pursued for talking (nil if none)
 	DrivingStat      types.StatType // Which stat is driving this intent
-	DrivingTier      int      // The urgency tier when intent was set
+	DrivingTier      int        // The urgency tier when intent was set
 }
 
 // ActionType represents the type of action a character intends to take
@@ -74,6 +79,7 @@ const (
 	ActionDrink
 	ActionSleep
 	ActionLook
+	ActionTalk
 )
 
 // NewCharacter creates a new character with the given preferences

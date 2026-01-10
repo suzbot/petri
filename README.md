@@ -8,16 +8,18 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Latest Updates
 
+- **Talking activity**: Characters now talk with each other as an idle activity
+- **Idle activity system**: Characters choose between idle, looking, or talking when no needs are urgent
 - **Healing knowledge drives behavior**: Injured characters seek known healing items and prefer them when hungry
 - **Poison creates dislike**: Characters automatically dislike items they learn are poisonous
 - **Knowledge system**: Characters learn about poison/healing items through experience
 - **Knowledge panel**: Press K to view what a character has learned
-- **ESC returns to menu**: ESC now returns to start screen instead of quitting
 
 ## Features
 
 - **Multi-character simulation** with character creation (names, food/color preferences)
 - **Multi-stat survival**: hunger, thirst, energy, health, mood with urgency-based AI
+- **Social behavior**: Characters talk with each other when idle
 - **Knowledge system**: Characters learn about poison/healing through experience, then act on that knowledge
 - **Dynamic preferences**: Characters form opinions about items based on attributes
 - **Item variety**: Berries, mushrooms (with pattern/texture), and flowers

@@ -413,6 +413,28 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		if char.ActionProgress >= config.LookDuration {
 			char.ActionProgress = 0
 			system.CompleteLook(char, char.Intent.TargetItem, m.actionLog)
+			// Clear intent so CalculateIntent will re-evaluate next tick
+			char.Intent = nil
+			// Set idle cooldown so we don't immediately try another idle activity
+			char.IdleCooldown = config.IdleCooldown
+		}
+
+	case entity.ActionTalk:
+		target := char.Intent.TargetCharacter
+		if target == nil {
+			return
+		}
+
+		// If not already talking, start the conversation
+		if char.TalkingWith == nil {
+			system.StartTalking(char, target, m.actionLog)
+		}
+
+		// Decrement talk timer
+		char.TalkTimer -= delta
+		if char.TalkTimer <= 0 {
+			// Talk complete - stop talking (knowledge transmission will be added in Phase H)
+			system.StopTalking(char, target, m.actionLog)
 		}
 	}
 }

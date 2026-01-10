@@ -46,11 +46,11 @@ func UpdateSurvival(char *entity.Character, deltaTime float64, log *ActionLog) {
 		}
 	}
 
-	// Decrement look cooldown
-	if char.LookCooldown > 0 {
-		char.LookCooldown -= deltaTime
-		if char.LookCooldown < 0 {
-			char.LookCooldown = 0
+	// Decrement idle activity cooldown
+	if char.IdleCooldown > 0 {
+		char.IdleCooldown -= deltaTime
+		if char.IdleCooldown < 0 {
+			char.IdleCooldown = 0
 		}
 	}
 

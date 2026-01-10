@@ -269,7 +269,39 @@ This makes injured characters prefer known healing food over equally-distant alt
 
 ### Future Behaviors (Planned)
 
-- Knowledge can be shared between characters through conversation
+- Knowledge can be shared between characters through conversation (Phase 4H)
+
+## Idle Activities
+
+When characters have no urgent needs (all stats below Moderate tier), they select from idle activities:
+
+### Activity Selection
+
+Every 10 seconds (IdleCooldown), characters roll for an idle activity:
+- **1/3 chance**: Look at nearest item
+- **1/3 chance**: Talk with nearby idle character
+- **1/3 chance**: Stay idle
+
+If the selected activity isn't possible (no items to look at, no idle characters nearby), the system falls back to the next option.
+
+### Looking
+
+Characters look at nearby items, which:
+- Provides opportunity for preference formation (based on mood)
+- Adjusts mood based on existing preferences
+- Takes 3 seconds to complete
+- Avoids looking at the same item twice in a row
+
+### Talking
+
+Characters seek out other characters doing idle activities (Idle, Looking, or already Talking):
+- Initiator moves to adjacent position of target
+- When adjacent, both characters enter "Talking with [Name]" state
+- Conversation lasts 5 seconds
+- Either character can be interrupted by Moderate+ needs
+- When one partner is interrupted, both stop talking
+
+Idle activities are interruptible by any Moderate or higher tier need that can be fulfilled.
 
 ## View Modes
 
