@@ -315,7 +315,7 @@ Methods:
 |-----------|--------|-------|
 | A: Knowledge by Experience | Complete | |
 | B: Knowledge Panel UI | Complete | + ESC key behavior |
-| C: Action Log ("learned something!") | Not Started | + Action log audit |
+| C: Action Log ("learned something!") | Complete | + Action log vertical space fix, Full log (L) patterns |
 | D: Poison Knowledge → Dislike | Not Started | |
 | E-F: Healing Knowledge → Seeking + Food Selection | Not Started | |
 | G: Talking Activity | Not Started | |

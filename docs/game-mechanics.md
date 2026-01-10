@@ -230,9 +230,11 @@ Characters learn about items through experience. Knowledge persists and affects 
 
 When a character eats a poisonous or healing item, they gain knowledge about that specific variety:
 - **Poisonous item**: Learns "[Variety] are poisonous" (e.g., "Spotted red mushrooms are poisonous")
-- **Healing item**: Learns "[Variety] are healing" (e.g., "Blue berries are healing")
+- **Healing item**: Learns "[Variety] are healing" (e.g., "Blue berries are healing") - only if health actually increased
 
 Knowledge is only gained once per variety - eating the same type again does not create duplicate entries.
+
+When knowledge is gained, "Learned something!" appears in the action log (darker blue color).
 
 ### Knowledge Panel
 

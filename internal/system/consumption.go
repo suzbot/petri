@@ -95,10 +95,19 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 			char.Health = 100
 		}
 
-		// Log health change (debug-only, filtered in view layer)
-		if log != nil {
-			log.Add(char.ID, char.Name, "health",
-				fmt.Sprintf("Eating %s impacted health (%d→%d)", itemName, int(oldHealth), int(char.Health)))
+		// Only log and learn if health actually increased
+		if char.Health > oldHealth {
+			// Log health change (debug-only, filtered in view layer)
+			if log != nil {
+				log.Add(char.ID, char.Name, "health",
+					fmt.Sprintf("Eating %s impacted health (%d→%d)", itemName, int(oldHealth), int(char.Health)))
+			}
+
+			// Learn that this item type is healing (only if we experienced healing)
+			knowledge := entity.NewKnowledgeFromItem(item, entity.KnowledgeHealing)
+			if char.LearnKnowledge(knowledge) && log != nil {
+				log.Add(char.ID, char.Name, "learning", "Learned something!")
+			}
 		}
 
 		// Boost mood when fully healed
@@ -112,12 +121,6 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 		// Log health tier transition
 		if log != nil && char.HealthTier() != prevTier {
 			log.Add(char.ID, char.Name, "health", fmt.Sprintf("%s", char.HealthLevel()))
-		}
-
-		// Learn that this item type is healing
-		knowledge := entity.NewKnowledgeFromItem(item, entity.KnowledgeHealing)
-		if char.LearnKnowledge(knowledge) && log != nil {
-			log.Add(char.ID, char.Name, "learning", "Learned something!")
 		}
 	}
 
