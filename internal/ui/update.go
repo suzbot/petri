@@ -296,6 +296,12 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		return
 	}
 
+	// Collapse is immediate and involuntary - check before any action
+	if char.Energy <= 0 {
+		system.StartSleep(char, false, m.actionLog)
+		return
+	}
+
 	switch char.Intent.Action {
 	case entity.ActionMove:
 		cx, cy := char.Position()
