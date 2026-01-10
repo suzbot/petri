@@ -8,17 +8,17 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Latest Updates
 
+- **Healing knowledge drives behavior**: Injured characters seek known healing items and prefer them when hungry
 - **Poison creates dislike**: Characters automatically dislike items they learn are poisonous
 - **Knowledge system**: Characters learn about poison/healing items through experience
 - **Knowledge panel**: Press K to view what a character has learned
 - **ESC returns to menu**: ESC now returns to start screen instead of quitting
-- **Dynamic preference formation**: Characters form likes/dislikes based on mood when eating or looking at items
 
 ## Features
 
 - **Multi-character simulation** with character creation (names, food/color preferences)
 - **Multi-stat survival**: hunger, thirst, energy, health, mood with urgency-based AI
-- **Knowledge system**: Characters learn about poison/healing through experience
+- **Knowledge system**: Characters learn about poison/healing through experience, then act on that knowledge
 - **Dynamic preferences**: Characters form opinions about items based on attributes
 - **Item variety**: Berries, mushrooms (with pattern/texture), and flowers
 - **World dynamics**: Item spawning, springs, leaf piles, poison and healing effects
@@ -68,10 +68,11 @@ go run ./cmd/petri
 ## How It Works
 
 1. Create characters with names and preferences, then start the simulation
-2. Characters manage needs (hunger, thirst, energy) prioritized by urgency
+2. Characters manage needs (hunger, thirst, energy, health) prioritized by urgency
 3. The world contains edible items (berries, mushrooms), decorative flowers, springs for water, and leaf piles for sleep
-4. Characters form preferences based on their mood when interacting with items
-5. Mood reflects emotional state, affected by need urgency and preferences
+4. Characters learn from experience: eating poison/healing items creates knowledge that affects future behavior
+5. Characters form preferences based on their mood when interacting with items
+6. Mood reflects emotional state, affected by need urgency and preferences
 
 For detailed mechanics, see [docs/game-mechanics.md](docs/game-mechanics.md). For configuration values, see `internal/config/config.go`.
 

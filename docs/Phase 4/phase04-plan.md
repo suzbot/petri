@@ -210,46 +210,96 @@ Review `findFoodTarget()` - disliked items should be filtered at Moderate hunger
 
 ## Sub-Phase E: Health as Seeking Trigger
 
-### E1. Add health to intent priority calculation
+### Requirement
+> E. Healing Knowledge creates new intent and seeking when not at full health
+>    1. Health should now be a need that can trigger a 'seek healing' action
+>    2. If a character has knowledge of one or more healing items, when health is the most urgent need, move to closest known healing item and consume it.
 
-**Discuss**: Where does health fit in the priority order? Same tier comparison as other stats?
+### User Decisions
+- Health uses **same tier comparison** as other stats (hunger, thirst, energy)
+- **Separate `findHealingIntent()`** function (not reusing food logic) because:
+  - Different candidate pool: only items character *knows* are healing
+  - If no known healing items → can't fulfill health need (returns nil)
+
+### User-Facing Outcome
+- Character gets hurt (poison damage, etc.)
+- Character knows "Blue berries are healing" from previous experience
+- When health becomes most urgent need, character seeks blue berries specifically
+
+### Implementation Steps
+
+**E1. Add helper to get known healing items**
+
+**File**: `internal/entity/character.go`
+
+- Add `KnownHealingItems(items []*Item) []*Item` method
+- Filters items to only those matching character's healing knowledge
+
+**Tests**: Unit tests for filtering known healing items
+
+**E2. Add findHealingIntent function**
 
 **File**: `internal/system/movement.go`
 
-- Modify `CalculateIntent()` to include health tier in priority evaluation
-- Health triggers seeking only when character has healing knowledge
-
-### E2. Create findHealingIntent function
-
-**File**: `internal/system/movement.go`
-
-- New function to find known healing items
-- Only considers items the character knows are healing
-- Uses similar pattern to `findFoodIntent()` but filtered by knowledge
+- New function `findHealingIntent()` that:
+  - Gets items character knows are healing via `KnownHealingItems()`
+  - If empty → return nil (can't fulfill health need)
+  - Otherwise finds nearest known healing item
+  - Creates intent to move to and consume it
 
 **Tests**: Unit tests for healing intent creation
+
+**E3. Add health to CalculateIntent priority system**
+
+**File**: `internal/system/movement.go`
+
+- Modify `CalculateIntent()` to include health in tier comparison
+- Health can only drive intent if character has healing knowledge
+- Same tier comparison logic as other stats
+
+**Tests**: Integration tests for health driving intent
 
 ---
 
 ## Sub-Phase F: Healing Knowledge in Food Selection
 
-### F1. Add healing valence bonus when health is low
+### Requirement
+> F. Healing Knowledge creates conditional matching logic for food
+>    1. When forming intent based on hunger, known healing items get higher valence
+>    2. Only applies if character has knowledge that specific item is healing
 
-**Discuss**: How much bonus? Only when health is driving stat, or always when health < 100?
+### User Decisions
+- Healing bonus **only when health is Moderate+ tier** (not always)
+- Bonus magnitude **scales with health urgency tier** (more hurt = bigger bonus)
 
-**File**: `internal/system/movement.go`
+### User-Facing Outcome
+- Character is hungry AND hurt (health at Moderate tier)
+- Character knows "Blue berries are healing"
+- When seeking food, blue berries score higher than other equally-distant food
 
-- Modify `findFoodTarget()` or healing-specific search
-- Add bonus to gradient score for items known to be healing
-- Only applies when character has knowledge of the item's healing property
+### Implementation Steps
+
+**F1. Add config constants for healing bonus per tier**
 
 **File**: `internal/config/config.go`
 
-- Add healing bonus config constant
+- Add `HealingBonusModerate`, `HealingBonusSevere`, `HealingBonusCrisis` constants
+- Higher tier = bigger bonus
 
-**Tests**: Integration tests for healing-aware food selection
+**F2. Modify findFoodTarget with healing bonus**
 
-[TEST] **Human Testing**: Verify injured characters seek known healing items
+**File**: `internal/system/movement.go`
+
+- When calculating gradient score for food items:
+  - Check if character knows item is healing
+  - If yes AND health tier >= Moderate: add bonus to score
+  - Bonus amount based on health tier
+
+**Tests**: Unit tests for healing bonus in food selection
+
+[TEST] **Human Testing**:
+- Verify injured character seeks known healing items when health drives intent
+- Verify injured character prefers known healing food when hunger drives intent
 
 ---
 
@@ -345,7 +395,7 @@ Review `findFoodTarget()` - disliked items should be filtered at Moderate hunger
 | B: Knowledge Panel UI | Complete | + ESC key behavior |
 | C: Action Log ("learned something!") | Complete | + Action log vertical space fix, Full log (L) patterns |
 | D: Poison Knowledge → Dislike | Complete | Existing avoidance logic handles filtering |
-| E-F: Healing Knowledge → Seeking + Food Selection | Not Started | |
+| E-F: Healing Knowledge → Seeking + Food Selection | Complete | Health in priority system, healing bonus in food selection |
 | G: Talking Activity | Not Started | |
 | H: Knowledge Transmission | Not Started | |
 

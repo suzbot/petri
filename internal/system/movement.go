@@ -34,6 +34,7 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 	hungerTier := char.HungerTier()
 	thirstTier := char.ThirstTier()
 	energyTier := char.EnergyTier()
+	healthTier := char.HealthTier()
 
 	// Check if we should continue a looking intent (no DrivingStat)
 	// Looking can be interrupted by: urgent needs (tier >= Moderate), or cooldown started (look completed)
@@ -46,6 +47,10 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 			}
 			if energyTier > maxTier {
 				maxTier = energyTier
+			}
+			// Health only counts if we can fulfill it (have healing knowledge)
+			if healthTier > maxTier && canFulfillHealth(char, items) {
+				maxTier = healthTier
 			}
 			// Keep looking if no urgent needs (Moderate or higher)
 			if maxTier < entity.TierModerate {
@@ -68,6 +73,8 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 			currentStatTier = thirstTier
 		case types.StatEnergy:
 			currentStatTier = energyTier
+		case types.StatHealth:
+			currentStatTier = healthTier
 		}
 
 		shouldReEval := false
@@ -93,17 +100,31 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 					shouldReEval = true
 				} else if energyTier > currentDrivingTier && canFulfillEnergy(char, gameMap, cx, cy) {
 					shouldReEval = true
+				} else if healthTier > currentDrivingTier && canFulfillHealth(char, items) {
+					shouldReEval = true
 				}
 			case types.StatThirst:
 				if hungerTier > currentDrivingTier && canFulfillHunger(char, items) {
 					shouldReEval = true
 				} else if energyTier > currentDrivingTier && canFulfillEnergy(char, gameMap, cx, cy) {
 					shouldReEval = true
+				} else if healthTier > currentDrivingTier && canFulfillHealth(char, items) {
+					shouldReEval = true
 				}
 			case types.StatEnergy:
 				if hungerTier > currentDrivingTier && canFulfillHunger(char, items) {
 					shouldReEval = true
 				} else if thirstTier > currentDrivingTier && canFulfillThirst(gameMap, cx, cy) {
+					shouldReEval = true
+				} else if healthTier > currentDrivingTier && canFulfillHealth(char, items) {
+					shouldReEval = true
+				}
+			case types.StatHealth:
+				if thirstTier > currentDrivingTier && canFulfillThirst(gameMap, cx, cy) {
+					shouldReEval = true
+				} else if hungerTier > currentDrivingTier && canFulfillHunger(char, items) {
+					shouldReEval = true
+				} else if energyTier > currentDrivingTier && canFulfillEnergy(char, gameMap, cx, cy) {
 					shouldReEval = true
 				}
 			default:
@@ -119,13 +140,16 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 
 	// Evaluate which stat to address based on tier and tie-breakers
 
-	// Find the highest tier
+	// Find the highest tier (health only counts if we can fulfill it)
 	maxTier := hungerTier
 	if thirstTier > maxTier {
 		maxTier = thirstTier
 	}
 	if energyTier > maxTier {
 		maxTier = energyTier
+	}
+	if healthTier > maxTier && canFulfillHealth(char, items) {
+		maxTier = healthTier
 	}
 
 	// No urgent needs - try looking at something
@@ -142,7 +166,7 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 		return nil
 	}
 
-	// Build priority list: stats with needs, sorted by tier (desc), then tie-breaker (Thirst > Hunger > Energy)
+	// Build priority list: stats with needs, sorted by tier (desc), then tie-breaker (Thirst > Hunger > Health > Energy)
 	type statPriority struct {
 		stat types.StatType
 		tier int
@@ -156,12 +180,16 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 	if hungerTier > 0 {
 		priorities = append(priorities, statPriority{types.StatHunger, hungerTier})
 	}
+	// Health only added if can be fulfilled (requires healing knowledge)
+	if healthTier > 0 && canFulfillHealth(char, items) {
+		priorities = append(priorities, statPriority{types.StatHealth, healthTier})
+	}
 	if energyTier > 0 {
 		priorities = append(priorities, statPriority{types.StatEnergy, energyTier})
 	}
 
 	// Sort by tier descending (higher tier = more urgent)
-	// Tie-breaker order is already correct since we added in Thirst > Hunger > Energy order
+	// Tie-breaker order is already correct since we added in Thirst > Hunger > Health > Energy order
 	for i := 0; i < len(priorities)-1; i++ {
 		for j := i + 1; j < len(priorities); j++ {
 			if priorities[j].tier > priorities[i].tier {
@@ -178,6 +206,8 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 			intent = findDrinkIntent(char, cx, cy, gameMap, p.tier, log)
 		case types.StatHunger:
 			intent = findFoodIntent(char, cx, cy, items, p.tier, log)
+		case types.StatHealth:
+			intent = findHealingIntent(char, cx, cy, items, p.tier, log)
 		case types.StatEnergy:
 			intent = findSleepIntent(char, cx, cy, gameMap, p.tier, log)
 		}
@@ -402,6 +432,61 @@ func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, ti
 	}
 }
 
+// findHealingIntent finds a known healing item to consume.
+// Only considers items the character knows are healing.
+// Returns nil if no known healing items are available.
+func findHealingIntent(char *entity.Character, cx, cy int, items []*entity.Item, tier int, log *ActionLog) *entity.Intent {
+	// Get only items the character knows are healing
+	knownHealing := char.KnownHealingItems(items)
+	if len(knownHealing) == 0 {
+		if char.CurrentActivity != "Idle" {
+			char.CurrentActivity = "Idle"
+			if log != nil {
+				log.Add(char.ID, char.Name, "activity", "Idle (no known healing items)")
+			}
+		}
+		return nil
+	}
+
+	// Find nearest known healing item
+	var nearest *entity.Item
+	nearestDist := int(^uint(0) >> 1) // Max int
+
+	for _, item := range knownHealing {
+		ix, iy := item.Position()
+		dist := abs(cx-ix) + abs(cy-iy)
+		if dist < nearestDist {
+			nearestDist = dist
+			nearest = item
+		}
+	}
+
+	if nearest == nil {
+		return nil
+	}
+
+	tx, ty := nearest.Position()
+	nx, ny := nextStep(cx, cy, tx, ty)
+
+	newActivity := "Moving to " + nearest.Description() + " (healing)"
+	if char.CurrentActivity != newActivity {
+		char.CurrentActivity = newActivity
+		if log != nil {
+			log.Add(char.ID, char.Name, "movement",
+				fmt.Sprintf("Seeking healing: %s", nearest.Description()))
+		}
+	}
+
+	return &entity.Intent{
+		TargetX:     nx,
+		TargetY:     ny,
+		Action:      entity.ActionMove,
+		TargetItem:  nearest,
+		DrivingStat: types.StatHealth,
+		DrivingTier: tier,
+	}
+}
+
 // findSleepIntent finds a bed to sleep in
 func findSleepIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier int, log *ActionLog) *entity.Intent {
 	bed := gameMap.FindNearestBed(cx, cy)
@@ -477,11 +562,13 @@ type FoodTargetResult struct {
 }
 
 // findFoodTarget finds the best item for a character based on hunger level
-// Uses gradient scoring: Score = (NetPreference × PrefWeight) - (Distance × DistWeight)
+// Uses gradient scoring: Score = (NetPreference × PrefWeight) - (Distance × DistWeight) + HealingBonus
 // Hunger tier affects both the preference weight and which items are considered:
 // - Moderate (50-74): High pref weight, only NetPreference >= 0 items considered
 // - Severe (75-89): Medium pref weight, all items considered
 // - Crisis (90+): No pref weight (just distance), all items considered
+// Healing bonus: When health tier >= Moderate and character knows item is healing,
+// adds bonus to score (larger bonus at worse health tiers)
 func findFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResult {
 	if len(items) == 0 {
 		return FoodTargetResult{}
@@ -507,6 +594,22 @@ func findFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 		filterDisliked = true
 	}
 
+	// Determine healing bonus based on health tier (only if hurt)
+	var healingBonus float64
+	healthTier := char.HealthTier()
+	switch healthTier {
+	case entity.TierCrisis:
+		healingBonus = config.HealingBonusCrisis
+	case entity.TierSevere:
+		healingBonus = config.HealingBonusSevere
+	case entity.TierModerate:
+		healingBonus = config.HealingBonusModerate
+	case entity.TierMild:
+		healingBonus = config.HealingBonusMild
+	default:
+		healingBonus = 0 // No bonus at TierNone (full health)
+	}
+
 	var bestItem *entity.Item
 	var bestNetPref int
 	bestScore := float64(int(^uint(0)>>1)) * -1 // Negative max float
@@ -530,6 +633,11 @@ func findFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 
 		// Calculate gradient score
 		score := float64(netPref)*prefWeight - float64(dist)*config.FoodSeekDistWeight
+
+		// Apply healing bonus if character knows this item is healing
+		if healingBonus > 0 && char.KnowsItemIsHealing(item) {
+			score += healingBonus
+		}
 
 		// Update best if better score, or same score but closer (distance tiebreaker)
 		if score > bestScore || (score == bestScore && dist < bestDist) {
@@ -598,6 +706,11 @@ func canFulfillEnergy(char *entity.Character, gameMap *game.Map, cx, cy int) boo
 	}
 	// Otherwise need a bed
 	return gameMap.FindNearestBed(cx, cy) != nil
+}
+
+// canFulfillHealth checks if health can be addressed (character knows healing items and they exist)
+func canFulfillHealth(char *entity.Character, items []*entity.Item) bool {
+	return len(char.KnownHealingItems(items)) > 0
 }
 
 // findLookIntent creates an intent to look at the nearest item (50% chance when idle)

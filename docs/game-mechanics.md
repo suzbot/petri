@@ -250,10 +250,25 @@ When a character learns an item is poisonous, they automatically form a dislike 
 
 If the character had an exact matching "like" preference, it is removed instead of creating a new dislike.
 
+### Healing Knowledge → Health Seeking
+
+When a character knows an item is healing AND their health is below full:
+- Health becomes a need that can drive intent (priority: Thirst > Hunger > Health > Energy)
+- Character seeks the nearest known healing item when health is the most urgent stat
+- If no known healing items exist, health cannot drive intent (character won't seek healing without knowledge)
+
+### Healing Knowledge → Food Selection Bonus
+
+When seeking food while hurt (health below full), known healing items receive a bonus to their gradient score:
+- **Mild (health ≤75)**: +5 bonus
+- **Moderate (health ≤50)**: +10 bonus
+- **Severe (health ≤25)**: +20 bonus
+- **Crisis (health ≤10)**: +40 bonus
+
+This makes injured characters prefer known healing food over equally-distant alternatives, with stronger preference at lower health.
+
 ### Future Behaviors (Planned)
 
-Knowledge will affect character behavior in future updates:
-- Healing knowledge will influence food selection when injured
 - Knowledge can be shared between characters through conversation
 
 ## View Modes

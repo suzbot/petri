@@ -468,6 +468,152 @@ func TestFindFoodTarget_ReturnsNilForNoEdibleItems(t *testing.T) {
 }
 
 // =============================================================================
+// Healing Bonus in Food Selection (Sub-phase F)
+// =============================================================================
+
+func TestFindFoodTarget_HealingBonus_OnlyWhenKnown(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 60        // Moderate hunger
+	char.Health = 50        // Moderate health (hurt)
+	char.SetPosition(0, 0)
+	// No healing knowledge
+
+	// Healing item vs regular item at same distance
+	healingBerry := entity.NewBerry(5, 5, types.ColorBlue, false, true) // is healing
+	regularBerry := entity.NewBerry(5, 0, types.ColorBlue, false, false)
+
+	items := []*entity.Item{healingBerry, regularBerry}
+
+	result := findFoodTarget(char, items)
+
+	// Without knowledge, healing item shouldn't get bonus
+	// regularBerry is at distance 5, healingBerry is at distance 10
+	// Both have same preference, so closer one wins
+	if result.Item != regularBerry {
+		t.Error("Without healing knowledge, should not apply healing bonus")
+	}
+}
+
+func TestFindFoodTarget_HealingBonus_OnlyWhenHurt(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 60    // Moderate hunger
+	char.Health = 100   // Full health (not hurt)
+	char.SetPosition(0, 0)
+
+	// Give character healing knowledge for blue berries
+	char.Knowledge = append(char.Knowledge, entity.Knowledge{
+		Category: entity.KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	})
+
+	// Healing item far vs regular item close
+	healingBerry := entity.NewBerry(10, 10, types.ColorBlue, false, true)
+	regularBerry := entity.NewBerry(3, 3, types.ColorBlue, false, false)
+
+	items := []*entity.Item{healingBerry, regularBerry}
+
+	result := findFoodTarget(char, items)
+
+	// At full health, no bonus - closer item wins
+	if result.Item != regularBerry {
+		t.Error("At full health, should not apply healing bonus")
+	}
+}
+
+func TestFindFoodTarget_HealingBonus_PrefersKnownHealingWhenHurt(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berries and red
+	char.Hunger = 60           // Moderate hunger
+	char.Health = 50           // Moderate health tier (hurt)
+	char.SetPosition(0, 0)
+
+	// Give character healing knowledge for blue berries
+	char.Knowledge = append(char.Knowledge, entity.Knowledge{
+		Category: entity.KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	})
+
+	// Known healing (blue berry) vs unknown (red berry) - only blue matches knowledge
+	// At Moderate hunger: prefWeight=20, distWeight=1
+	// At Moderate health: healingBonus=10
+	// Score(blueBerry at 5,5) = 20*1 + 10 - 10 = 20 (likes berries + healing bonus)
+	// Score(redBerry at 3,3) = 20*2 - 6 = 34 (likes berries AND red)
+	// Red berry would win without healing bonus, so we need to adjust distances
+	// Let's make red berry farther so healing bonus can tip the balance:
+	// Score(blueBerry at 3,3) = 20*1 + 10 - 6 = 24 (likes berries + healing bonus)
+	// Score(redBerry at 6,6) = 20*2 - 12 = 28 (likes berries AND red)
+	// Still loses... make red even farther:
+	// Score(blueBerry at 3,3) = 20*1 + 10 - 6 = 24
+	// Score(redBerry at 8,8) = 20*2 - 16 = 24 (tie, blue wins on distance tiebreaker? No, same score means distance tiebreaker, red at 16 vs blue at 6)
+	// Actually wait - we need healing bonus to OVERCOME the preference difference
+	// Red has +2 preference, blue has +1, so red is 20 points ahead
+	// Healing bonus at Moderate is 10, not enough to overcome
+	// At Severe health, bonus is 20, which would tie
+	// At Crisis health, bonus is 40, which would overcome
+
+	// For this test, let's use Severe health to make it clearly work:
+	char.Health = 25 // Severe health tier - healing bonus = 20
+
+	// Score(blueBerry at 5,5) = 20*1 + 20 - 10 = 30 (likes berries + healing bonus)
+	// Score(redBerry at 5,5) = 20*2 - 10 = 30 (tie)
+	// Let's make red slightly farther:
+	// Score(blueBerry at 5,5) = 20*1 + 20 - 10 = 30
+	// Score(redBerry at 6,6) = 20*2 - 12 = 28
+	blueBerry := entity.NewBerry(5, 5, types.ColorBlue, false, true)
+	redBerry := entity.NewBerry(6, 6, types.ColorRed, false, false)
+
+	items := []*entity.Item{redBerry, blueBerry}
+
+	result := findFoodTarget(char, items)
+
+	if result.Item != blueBerry {
+		t.Errorf("When hurt and has knowledge, should prefer known healing item, got %v", result.Item.Description())
+	}
+}
+
+func TestFindFoodTarget_HealingBonus_ScalesWithHealthTier(t *testing.T) {
+	t.Parallel()
+
+	// Test that at Crisis health, healing bonus is large enough to overcome preference difference
+	char := newTestCharacter() // Likes berries and red
+	char.Hunger = 60           // Moderate hunger
+	char.Health = 10           // Crisis health tier
+	char.SetPosition(0, 0)
+
+	// Give character healing knowledge for blue berries
+	char.Knowledge = append(char.Knowledge, entity.Knowledge{
+		Category: entity.KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	})
+
+	// At Crisis health, bonus=40 should overcome preference difference
+	// Red berry: +2 preference (likes berries AND red), Blue berry: +1 (likes berries only)
+	// At Moderate hunger: prefWeight=20, distWeight=1
+	// At Crisis health: healingBonus=40
+	// Score(blueBerry at 8,8) = 20*1 + 40 - 16 = 44 (likes berries + crisis healing bonus)
+	// Score(redBerry at 3,3) = 20*2 - 6 = 34 (likes berries AND red)
+	// Blue wins due to massive healing bonus!
+	blueBerry := entity.NewBerry(8, 8, types.ColorBlue, false, true)
+	redBerry := entity.NewBerry(3, 3, types.ColorRed, false, false)
+
+	items := []*entity.Item{redBerry, blueBerry}
+
+	result := findFoodTarget(char, items)
+
+	if result.Item != blueBerry {
+		t.Errorf("At Crisis health, larger healing bonus should win, got %v", result.Item.Description())
+	}
+}
+
+// =============================================================================
 // Continue Intent
 // =============================================================================
 
@@ -610,5 +756,234 @@ func TestContinueIntent_OwnPositionDoesNotAbandon(t *testing.T) {
 	}
 	if intent.Action != entity.ActionDrink {
 		t.Errorf("Action: got %d, want ActionDrink", intent.Action)
+	}
+}
+
+// =============================================================================
+// findHealingIntent (E2: Health-driven seeking)
+// =============================================================================
+
+func TestFindHealingIntent_NoKnowledge_ReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Knowledge = []entity.Knowledge{} // No healing knowledge
+	char.SetPosition(0, 0)
+
+	items := []*entity.Item{
+		entity.NewBerry(5, 5, types.ColorBlue, false, true), // Healing but unknown
+	}
+
+	intent := findHealingIntent(char, 0, 0, items, entity.TierModerate, nil)
+
+	if intent != nil {
+		t.Error("findHealingIntent() should return nil when character has no healing knowledge")
+	}
+}
+
+func TestFindHealingIntent_HasKnowledge_FindsNearestKnown(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	// Character knows blue berries are healing
+	healingKnowledge := entity.Knowledge{
+		Category: entity.KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+	char.Knowledge = []entity.Knowledge{healingKnowledge}
+	char.SetPosition(0, 0)
+
+	blueBerryNear := entity.NewBerry(2, 2, types.ColorBlue, false, true)
+	blueBerryFar := entity.NewBerry(10, 10, types.ColorBlue, false, true)
+	redBerry := entity.NewBerry(1, 1, types.ColorRed, false, false) // Unknown, closer
+	items := []*entity.Item{blueBerryFar, redBerry, blueBerryNear}
+
+	intent := findHealingIntent(char, 0, 0, items, entity.TierModerate, nil)
+
+	if intent == nil {
+		t.Fatal("findHealingIntent() should return intent when known healing item exists")
+	}
+	if intent.TargetItem != blueBerryNear {
+		t.Error("findHealingIntent() should target nearest KNOWN healing item")
+	}
+	if intent.DrivingStat != types.StatHealth {
+		t.Errorf("DrivingStat: got %q, want %q", intent.DrivingStat, types.StatHealth)
+	}
+}
+
+func TestFindHealingIntent_NoMatchingItems_ReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	// Character knows blue berries are healing
+	healingKnowledge := entity.Knowledge{
+		Category: entity.KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+	char.Knowledge = []entity.Knowledge{healingKnowledge}
+	char.SetPosition(0, 0)
+
+	// Only red berries available (not known healing)
+	items := []*entity.Item{
+		entity.NewBerry(5, 5, types.ColorRed, false, false),
+	}
+
+	intent := findHealingIntent(char, 0, 0, items, entity.TierModerate, nil)
+
+	if intent != nil {
+		t.Error("findHealingIntent() should return nil when no known healing items available")
+	}
+}
+
+func TestFindHealingIntent_EmptyItemList_ReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	healingKnowledge := entity.Knowledge{
+		Category: entity.KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+	char.Knowledge = []entity.Knowledge{healingKnowledge}
+	char.SetPosition(0, 0)
+
+	intent := findHealingIntent(char, 0, 0, []*entity.Item{}, entity.TierModerate, nil)
+
+	if intent != nil {
+		t.Error("findHealingIntent() should return nil with empty item list")
+	}
+}
+
+// =============================================================================
+// E3: Health in CalculateIntent Priority System
+// =============================================================================
+
+func TestCalculateIntent_HealthDrivesIntent_WhenHasHealingKnowledge(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Health = 25  // Severe tier
+	char.Hunger = 0   // No need
+	char.Thirst = 0   // No need
+	char.Energy = 100 // No need
+
+	// Character knows blue berries are healing
+	healingKnowledge := entity.Knowledge{
+		Category: entity.KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+	char.Knowledge = []entity.Knowledge{healingKnowledge}
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	items := []*entity.Item{
+		entity.NewBerry(5, 5, types.ColorBlue, false, true), // Known healing
+	}
+
+	intent := CalculateIntent(char, items, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent when health is urgent and healing knowledge exists")
+	}
+	if intent.DrivingStat != types.StatHealth {
+		t.Errorf("DrivingStat: got %q, want %q", intent.DrivingStat, types.StatHealth)
+	}
+}
+
+func TestCalculateIntent_HealthIgnored_WhenNoHealingKnowledge(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Health = 25  // Severe tier
+	char.Hunger = 75  // Moderate tier
+	char.Thirst = 0
+	char.Energy = 100
+	char.Knowledge = []entity.Knowledge{} // No healing knowledge
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	items := []*entity.Item{
+		entity.NewBerry(5, 5, types.ColorBlue, false, true), // Healing but unknown
+		entity.NewBerry(6, 6, types.ColorRed, false, false), // Regular food
+	}
+
+	intent := CalculateIntent(char, items, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent for hunger")
+	}
+	// Should fall back to hunger since health can't be fulfilled (no knowledge)
+	if intent.DrivingStat != types.StatHunger {
+		t.Errorf("DrivingStat: got %q, want %q (health unfulfillable)", intent.DrivingStat, types.StatHunger)
+	}
+}
+
+func TestCalculateIntent_HealthPriority_SameTierAsOtherStats(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Health = 25 // Severe
+	char.Hunger = 90 // Severe (same tier)
+	char.Thirst = 0
+	char.Energy = 100
+
+	// Character knows blue berries are healing
+	healingKnowledge := entity.Knowledge{
+		Category: entity.KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+	char.Knowledge = []entity.Knowledge{healingKnowledge}
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	items := []*entity.Item{
+		entity.NewBerry(5, 5, types.ColorBlue, false, true), // Known healing
+		entity.NewBerry(6, 6, types.ColorRed, false, false), // Regular food
+	}
+
+	intent := CalculateIntent(char, items, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent")
+	}
+	// At same tier, tie-breaker order should be: Thirst > Hunger > Energy > Health
+	// So hunger should win over health at same tier
+	if intent.DrivingStat != types.StatHunger {
+		t.Errorf("DrivingStat: got %q, want %q (tie-breaker)", intent.DrivingStat, types.StatHunger)
+	}
+}
+
+func TestCalculateIntent_HealthWins_WhenHigherTier(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Health = 10 // Crisis tier
+	char.Hunger = 75 // Moderate tier
+	char.Thirst = 0
+	char.Energy = 100
+
+	// Character knows blue berries are healing
+	healingKnowledge := entity.Knowledge{
+		Category: entity.KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+	char.Knowledge = []entity.Knowledge{healingKnowledge}
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	items := []*entity.Item{
+		entity.NewBerry(5, 5, types.ColorBlue, false, true), // Known healing
+		entity.NewBerry(6, 6, types.ColorRed, false, false), // Regular food
+	}
+
+	intent := CalculateIntent(char, items, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent")
+	}
+	// Health at Crisis should beat Hunger at Moderate
+	if intent.DrivingStat != types.StatHealth {
+		t.Errorf("DrivingStat: got %q, want %q (higher tier)", intent.DrivingStat, types.StatHealth)
 	}
 }

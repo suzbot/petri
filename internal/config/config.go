@@ -97,6 +97,13 @@ const (
 	FoodSeekPrefWeightSevere   = 5.0  // Moderate preference influence at severe hunger
 	FoodSeekPrefWeightCrisis   = 0.0  // No preference influence, just distance
 	FoodSeekDistWeight         = 1.0  // Distance penalty per tile
+
+	// Healing bonus in food selection - when hungry AND hurt, known healing items score higher
+	// Only applies when health tier >= Mild and character knows item is healing
+	HealingBonusMild     = 5.0  // Bonus when health at Mild tier
+	HealingBonusModerate = 10.0 // Bonus when health at Moderate tier
+	HealingBonusSevere   = 20.0 // Bonus when health at Severe tier
+	HealingBonusCrisis   = 40.0 // Bonus when health at Crisis tier
 )
 
 // LifecycleConfig defines spawn and death intervals for an item type

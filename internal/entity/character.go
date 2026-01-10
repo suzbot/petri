@@ -135,6 +135,31 @@ func (c *Character) LearnKnowledge(k Knowledge) bool {
 	return true
 }
 
+// KnownHealingItems returns items that the character knows are healing.
+// Only items matching the character's healing knowledge are returned.
+func (c *Character) KnownHealingItems(items []*Item) []*Item {
+	var result []*Item
+	for _, item := range items {
+		for _, k := range c.Knowledge {
+			if k.Category == KnowledgeHealing && k.Matches(item) {
+				result = append(result, item)
+				break // Don't add same item twice if multiple knowledge entries match
+			}
+		}
+	}
+	return result
+}
+
+// KnowsItemIsHealing returns true if the character has knowledge that this item is healing.
+func (c *Character) KnowsItemIsHealing(item *Item) bool {
+	for _, k := range c.Knowledge {
+		if k.Category == KnowledgeHealing && k.Matches(item) {
+			return true
+		}
+	}
+	return false
+}
+
 // HungerLevel returns a human-readable hunger description
 func (c *Character) HungerLevel() string {
 	return hungerLevels.forTier(c.HungerTier())

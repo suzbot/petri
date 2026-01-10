@@ -1037,3 +1037,143 @@ func TestLearnKnowledge_MultipleKnowledge(t *testing.T) {
 		t.Error("Character should have both knowledge items")
 	}
 }
+
+// =============================================================================
+// KnownHealingItems (E1: Filter items by healing knowledge)
+// =============================================================================
+
+func TestKnownHealingItems_NoKnowledge(t *testing.T) {
+	t.Parallel()
+
+	c := &Character{Knowledge: []Knowledge{}}
+
+	items := []*Item{
+		NewBerry(0, 0, types.ColorBlue, false, true),  // healing
+		NewBerry(1, 0, types.ColorRed, false, false),  // not healing
+	}
+
+	result := c.KnownHealingItems(items)
+
+	if len(result) != 0 {
+		t.Errorf("KnownHealingItems() with no knowledge: got %d items, want 0", len(result))
+	}
+}
+
+func TestKnownHealingItems_HasHealingKnowledge(t *testing.T) {
+	t.Parallel()
+
+	// Character knows blue berries are healing
+	healingKnowledge := Knowledge{
+		Category: KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+	c := &Character{Knowledge: []Knowledge{healingKnowledge}}
+
+	blueBerry := NewBerry(0, 0, types.ColorBlue, false, true)
+	redBerry := NewBerry(1, 0, types.ColorRed, false, false)
+	items := []*Item{blueBerry, redBerry}
+
+	result := c.KnownHealingItems(items)
+
+	if len(result) != 1 {
+		t.Fatalf("KnownHealingItems(): got %d items, want 1", len(result))
+	}
+	if result[0] != blueBerry {
+		t.Error("KnownHealingItems() should return the blue berry")
+	}
+}
+
+func TestKnownHealingItems_OnlyPoisonKnowledge(t *testing.T) {
+	t.Parallel()
+
+	// Character only knows about poison, not healing
+	poisonKnowledge := Knowledge{
+		Category: KnowledgePoisonous,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+	}
+	c := &Character{Knowledge: []Knowledge{poisonKnowledge}}
+
+	items := []*Item{
+		NewBerry(0, 0, types.ColorBlue, false, true),     // healing but unknown
+		NewMushroom(1, 0, types.ColorRed, types.PatternNone, types.TextureNone, true, false), // known poison
+	}
+
+	result := c.KnownHealingItems(items)
+
+	if len(result) != 0 {
+		t.Errorf("KnownHealingItems() with only poison knowledge: got %d items, want 0", len(result))
+	}
+}
+
+func TestKnownHealingItems_MultipleHealingKnowledge(t *testing.T) {
+	t.Parallel()
+
+	// Character knows two types of healing items
+	k1 := Knowledge{
+		Category: KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+	k2 := Knowledge{
+		Category: KnowledgeHealing,
+		ItemType: "mushroom",
+		Color:    types.ColorWhite,
+	}
+	c := &Character{Knowledge: []Knowledge{k1, k2}}
+
+	blueBerry := NewBerry(0, 0, types.ColorBlue, false, true)
+	whiteMushroom := NewMushroom(1, 0, types.ColorWhite, types.PatternNone, types.TextureNone, false, true)
+	redBerry := NewBerry(2, 0, types.ColorRed, false, false) // not known healing
+	items := []*Item{blueBerry, whiteMushroom, redBerry}
+
+	result := c.KnownHealingItems(items)
+
+	if len(result) != 2 {
+		t.Fatalf("KnownHealingItems(): got %d items, want 2", len(result))
+	}
+}
+
+func TestKnownHealingItems_EmptyItemList(t *testing.T) {
+	t.Parallel()
+
+	healingKnowledge := Knowledge{
+		Category: KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+	c := &Character{Knowledge: []Knowledge{healingKnowledge}}
+
+	result := c.KnownHealingItems([]*Item{})
+
+	if len(result) != 0 {
+		t.Errorf("KnownHealingItems() with empty item list: got %d items, want 0", len(result))
+	}
+}
+
+func TestKnownHealingItems_KnowledgeMustMatchExactly(t *testing.T) {
+	t.Parallel()
+
+	// Character knows spotted red mushrooms are healing
+	healingKnowledge := Knowledge{
+		Category: KnowledgeHealing,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternSpotted,
+	}
+	c := &Character{Knowledge: []Knowledge{healingKnowledge}}
+
+	spottedRed := NewMushroom(0, 0, types.ColorRed, types.PatternSpotted, types.TextureNone, false, true)
+	plainRed := NewMushroom(1, 0, types.ColorRed, types.PatternNone, types.TextureNone, false, true) // different pattern
+	items := []*Item{spottedRed, plainRed}
+
+	result := c.KnownHealingItems(items)
+
+	if len(result) != 1 {
+		t.Fatalf("KnownHealingItems(): got %d items, want 1 (exact match only)", len(result))
+	}
+	if result[0] != spottedRed {
+		t.Error("KnownHealingItems() should only return exactly matching item")
+	}
+}
