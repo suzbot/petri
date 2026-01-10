@@ -183,3 +183,15 @@ func NewNegativePreference(itemType string, color types.Color) Preference {
 		Color:    color,
 	}
 }
+
+// NewFullPreferenceFromItem creates a preference with ALL item attributes (full variety).
+// Used when forming preferences from knowledge (e.g., poison dislike).
+func NewFullPreferenceFromItem(item *Item, valence int) Preference {
+	return Preference{
+		Valence:  valence,
+		ItemType: item.ItemType,
+		Color:    item.Color,
+		Pattern:  item.Pattern,
+		Texture:  item.Texture,
+	}
+}

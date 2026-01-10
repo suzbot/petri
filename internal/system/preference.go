@@ -189,3 +189,33 @@ func logPreferenceRemoved(char *entity.Character, pref entity.Preference, log *A
 	}
 	log.Add(char.ID, char.Name, "preference", verb+" "+pref.Description())
 }
+
+// FormDislikeFromKnowledge creates a dislike preference for the full variety of an item.
+// Used when a character learns an item is poisonous.
+// Returns the formation result:
+//   - FormationNew: new dislike created
+//   - FormationRemoved: existing like was removed
+//   - FormationNoChange: dislike already exists
+func FormDislikeFromKnowledge(char *entity.Character, item *entity.Item, log *ActionLog) PreferenceFormationResult {
+	// Create full-variety dislike preference
+	candidate := entity.NewFullPreferenceFromItem(item, -1)
+
+	// Check for existing preference with exact match
+	for i, existing := range char.Preferences {
+		if existing.ExactMatch(candidate) {
+			if existing.Valence == candidate.Valence {
+				// Same dislike already exists - no change
+				return FormationNoChange
+			}
+			// Opposite valence (like) - remove existing preference
+			char.Preferences = append(char.Preferences[:i], char.Preferences[i+1:]...)
+			logPreferenceRemoved(char, existing, log)
+			return FormationRemoved
+		}
+	}
+
+	// No existing match - add new dislike
+	char.Preferences = append(char.Preferences, candidate)
+	logPreferenceFormed(char, candidate, log)
+	return FormationNew
+}

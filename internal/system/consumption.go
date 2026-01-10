@@ -81,8 +81,12 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 
 		// Learn that this item type is poisonous
 		knowledge := entity.NewKnowledgeFromItem(item, entity.KnowledgePoisonous)
-		if char.LearnKnowledge(knowledge) && log != nil {
-			log.Add(char.ID, char.Name, "learning", "Learned something!")
+		if char.LearnKnowledge(knowledge) {
+			if log != nil {
+				log.Add(char.ID, char.Name, "learning", "Learned something!")
+			}
+			// Form dislike for this item variety
+			FormDislikeFromKnowledge(char, item, log)
 		}
 	}
 

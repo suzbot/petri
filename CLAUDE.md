@@ -125,7 +125,7 @@ See: [Reqs](docs/Phase%204/phase04reqs.txt) | [Plan](docs/Phase%204/phase04-plan
 | A         | Knowledge by experience (learn poison/healing from eating)          | Complete |
 | B         | Knowledge panel UI (toggle in select mode) + ESC key behavior       | Complete |
 | C         | Action log: "Learned something!" + log fixes                        | Complete |
-| D         | Poison knowledge → dislike preference                               |          |
+| D         | Poison knowledge → dislike preference                               | Complete |
 | E-F       | Healing knowledge → seek healing intent + conditional food matching |          |
 | G         | Talking as idle activity (5s duration, targets idle chars)          |          |
 | H         | Knowledge transmission via talking                                  |          |

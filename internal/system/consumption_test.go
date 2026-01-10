@@ -689,3 +689,96 @@ func TestConsume_NonHealingItemDoesNotTeachHealingKnowledge(t *testing.T) {
 		}
 	}
 }
+
+// =============================================================================
+// Poison Knowledge Creates Dislike (Sub-Phase D)
+// =============================================================================
+
+func TestConsume_PoisonousItemCreatesDislike(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Knowledge = []entity.Knowledge{}
+	char.Preferences = []entity.Preference{}
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	item := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternSpotted, types.TextureNone, true, false)
+	gameMap.AddItem(item)
+
+	Consume(char, item, gameMap, nil)
+
+	// Should have 1 knowledge entry
+	if len(char.Knowledge) != 1 {
+		t.Fatalf("Expected 1 knowledge entry, got %d", len(char.Knowledge))
+	}
+
+	// Should have 1 dislike preference for the full variety
+	if len(char.Preferences) != 1 {
+		t.Fatalf("Expected 1 preference (dislike), got %d", len(char.Preferences))
+	}
+
+	pref := char.Preferences[0]
+	if pref.Valence != -1 {
+		t.Errorf("Expected dislike (valence -1), got %d", pref.Valence)
+	}
+	if pref.ItemType != "mushroom" {
+		t.Errorf("Expected ItemType 'mushroom', got '%s'", pref.ItemType)
+	}
+	if pref.Color != types.ColorBrown {
+		t.Errorf("Expected Color brown, got '%s'", pref.Color)
+	}
+	if pref.Pattern != types.PatternSpotted {
+		t.Errorf("Expected Pattern spotted, got '%s'", pref.Pattern)
+	}
+}
+
+func TestConsume_PoisonousItemRemovesExactMatchLike(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Knowledge = []entity.Knowledge{}
+
+	// Character has an exact matching "like" for the same variety
+	item := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternSpotted, types.TextureNone, true, false)
+	existingLike := entity.NewFullPreferenceFromItem(item, 1)
+	char.Preferences = []entity.Preference{existingLike}
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	gameMap.AddItem(item)
+
+	Consume(char, item, gameMap, nil)
+
+	// Existing like should be removed (not replaced with dislike)
+	if len(char.Preferences) != 0 {
+		t.Errorf("Expected 0 preferences (like removed), got %d", len(char.Preferences))
+	}
+}
+
+func TestConsume_PoisonousItemAlreadyKnown_NoDislikeChange(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+
+	item := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternSpotted, types.TextureNone, true, false)
+
+	// Character already knows AND dislikes this item
+	existingKnowledge := entity.NewKnowledgeFromItem(item, entity.KnowledgePoisonous)
+	existingDislike := entity.NewFullPreferenceFromItem(item, -1)
+	char.Knowledge = []entity.Knowledge{existingKnowledge}
+	char.Preferences = []entity.Preference{existingDislike}
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	gameMap.AddItem(item)
+
+	Consume(char, item, gameMap, nil)
+
+	// Knowledge should still be 1 (no duplicate)
+	if len(char.Knowledge) != 1 {
+		t.Errorf("Expected 1 knowledge entry (no duplicate), got %d", len(char.Knowledge))
+	}
+
+	// Preferences should still be 1 (no change since dislike already exists)
+	if len(char.Preferences) != 1 {
+		t.Errorf("Expected 1 preference (unchanged), got %d", len(char.Preferences))
+	}
+}

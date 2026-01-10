@@ -8,6 +8,7 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Latest Updates
 
+- **Poison creates dislike**: Characters automatically dislike items they learn are poisonous
 - **Knowledge system**: Characters learn about poison/healing items through experience
 - **Knowledge panel**: Press K to view what a character has learned
 - **ESC returns to menu**: ESC now returns to start screen instead of quitting

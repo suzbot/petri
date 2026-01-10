@@ -153,30 +153,58 @@ Methods:
 
 ## Sub-Phase D: Poison Knowledge Creates Dislike
 
-### D1. Create dislike preference on poison knowledge
+### Requirement
+> D. Poison knowledge creates dislike
+>    1. When the character learns that something is poisonous, it is affected by a negative opinion for the full variety description
+>    2. If a fully matching 'like' preference exists, remove it
+>    3. If no fully matching preference exists, create dislike
+>    4. If a fully matching dislike exists, nothing happens
+>    5. Confirm characters avoid disliked items at less urgent tiers
 
-**Discuss**: Timing - should dislike form immediately with knowledge, or as separate step?
+### User-Facing Outcome
+- Character eats poisonous Spotted Red Mushroom
+- Character learns "Spotted red mushrooms are poisonous"
+- Character forms "Dislikes spotted red mushrooms" preference (full variety)
+- At Moderate hunger, character will avoid spotted red mushrooms (seek other food)
 
-**File**: `internal/system/consumption.go` or new system file
+### Implementation Steps
 
-- When poison knowledge is gained:
-  - Check for existing preference matching the knowledge target
-  - If positive preference exists with exact match: remove it
-  - If no matching preference exists: create dislike
-  - If dislike already exists: no change
+**D1. Add `NewFullPreferenceFromItem` to entity/preference.go**
 
-**Tests**: Unit tests for preference formation from knowledge
+Creates preference with ALL item attributes (full variety description):
+- ItemType, Color, Pattern (if present), Texture (if present)
 
-### D2. Verify dislike affects food selection
+**Tests**: Unit test for full preference creation
 
-**Discuss**: Confirm existing valence logic handles this (chars avoid disliked at less urgent tiers)
+**D2. Add `FormDislikeFromKnowledge` to system/preference.go**
 
-**File**: `internal/system/movement.go`
+- Takes character, item, and log
+- Creates full-variety dislike preference
+- Handles three cases:
+  - Exact-match "like" exists → remove it (log "No longer likes...")
+  - No match exists → create dislike (log "New Opinion: Dislikes...")
+  - Exact-match dislike exists → no change
+- Reuses existing logging functions
 
-- Review `findFoodTarget()` - disliked items should already be filtered at Moderate hunger
-- May need no changes if existing logic is sufficient
+**Tests**:
+- Unit test: remove existing like
+- Unit test: create new dislike
+- Unit test: already dislikes (no change)
 
-[TEST] **Human Testing**: Verify character avoids learned-poisonous items
+**D3. Call from consumption.go**
+
+After `char.LearnKnowledge(knowledge)` succeeds for poison, call `FormDislikeFromKnowledge`
+
+**Tests**: Integration test: eat poison → knowledge + dislike formed
+
+**D4. Verify avoidance logic in movement.go**
+
+Review `findFoodTarget()` - disliked items should be filtered at Moderate hunger via existing valence logic. May need no changes.
+
+[TEST] **Human Testing**:
+- Verify character eating poison forms dislike
+- Verify character with existing "like" loses it when eating poison
+- Verify character avoids disliked items at Moderate hunger
 
 ---
 
@@ -316,7 +344,7 @@ Methods:
 | A: Knowledge by Experience | Complete | |
 | B: Knowledge Panel UI | Complete | + ESC key behavior |
 | C: Action Log ("learned something!") | Complete | + Action log vertical space fix, Full log (L) patterns |
-| D: Poison Knowledge → Dislike | Not Started | |
+| D: Poison Knowledge → Dislike | Complete | Existing avoidance logic handles filtering |
 | E-F: Healing Knowledge → Seeking + Food Selection | Not Started | |
 | G: Talking Activity | Not Started | |
 | H: Knowledge Transmission | Not Started | |

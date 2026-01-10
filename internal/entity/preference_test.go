@@ -610,6 +610,91 @@ func TestPreference_ExactMatch_WithPatternTexture(t *testing.T) {
 }
 
 // =============================================================================
+// NewFullPreferenceFromItem
+// =============================================================================
+
+func TestNewFullPreferenceFromItem_Berry(t *testing.T) {
+	t.Parallel()
+
+	item := &Item{ItemType: "berry", Color: types.ColorRed}
+	pref := NewFullPreferenceFromItem(item, -1)
+
+	if pref.Valence != -1 {
+		t.Errorf("Expected Valence -1, got %d", pref.Valence)
+	}
+	if pref.ItemType != "berry" {
+		t.Errorf("Expected ItemType 'berry', got '%s'", pref.ItemType)
+	}
+	if pref.Color != types.ColorRed {
+		t.Errorf("Expected Color red, got '%s'", pref.Color)
+	}
+	if pref.Pattern != "" {
+		t.Errorf("Expected empty Pattern, got '%s'", pref.Pattern)
+	}
+	if pref.Texture != "" {
+		t.Errorf("Expected empty Texture, got '%s'", pref.Texture)
+	}
+}
+
+func TestNewFullPreferenceFromItem_MushroomWithAllAttributes(t *testing.T) {
+	t.Parallel()
+
+	item := &Item{
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureSlimy,
+	}
+	pref := NewFullPreferenceFromItem(item, -1)
+
+	if pref.Valence != -1 {
+		t.Errorf("Expected Valence -1, got %d", pref.Valence)
+	}
+	if pref.ItemType != "mushroom" {
+		t.Errorf("Expected ItemType 'mushroom', got '%s'", pref.ItemType)
+	}
+	if pref.Color != types.ColorBrown {
+		t.Errorf("Expected Color brown, got '%s'", pref.Color)
+	}
+	if pref.Pattern != types.PatternSpotted {
+		t.Errorf("Expected Pattern spotted, got '%s'", pref.Pattern)
+	}
+	if pref.Texture != types.TextureSlimy {
+		t.Errorf("Expected Texture slimy, got '%s'", pref.Texture)
+	}
+}
+
+func TestNewFullPreferenceFromItem_MushroomPartialAttributes(t *testing.T) {
+	t.Parallel()
+
+	// Mushroom with only pattern, no texture
+	item := &Item{
+		ItemType: "mushroom",
+		Color:    types.ColorWhite,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureNone,
+	}
+	pref := NewFullPreferenceFromItem(item, 1)
+
+	if pref.Valence != 1 {
+		t.Errorf("Expected Valence 1, got %d", pref.Valence)
+	}
+	if pref.ItemType != "mushroom" {
+		t.Errorf("Expected ItemType 'mushroom', got '%s'", pref.ItemType)
+	}
+	if pref.Color != types.ColorWhite {
+		t.Errorf("Expected Color white, got '%s'", pref.Color)
+	}
+	if pref.Pattern != types.PatternSpotted {
+		t.Errorf("Expected Pattern spotted, got '%s'", pref.Pattern)
+	}
+	// TextureNone should be copied as-is (empty string equivalent)
+	if pref.Texture != types.TextureNone {
+		t.Errorf("Expected Texture none, got '%s'", pref.Texture)
+	}
+}
+
+// =============================================================================
 // Pluralization
 // =============================================================================
 

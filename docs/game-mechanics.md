@@ -240,10 +240,19 @@ When knowledge is gained, "Learned something!" appears in the action log (darker
 
 Press `K` in select mode to toggle the Knowledge panel (replaces action log). Shows all knowledge the selected character has learned. Press `K` again to return to action log.
 
+### Knowledge Affects Behavior
+
+**Poison Knowledge → Dislike Preference:**
+When a character learns an item is poisonous, they automatically form a dislike preference for the full variety (e.g., "Dislikes spotted brown mushrooms"). This affects food selection:
+- At Moderate hunger: character avoids the disliked item entirely
+- At Severe hunger: disliked items score lower but may still be eaten
+- At Crisis hunger: nearest food is eaten regardless of preference
+
+If the character had an exact matching "like" preference, it is removed instead of creating a new dislike.
+
 ### Future Behaviors (Planned)
 
 Knowledge will affect character behavior in future updates:
-- Poison knowledge will create dislike preferences
 - Healing knowledge will influence food selection when injured
 - Knowledge can be shared between characters through conversation
 

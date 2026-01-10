@@ -452,3 +452,135 @@ func TestRollPreferenceType_SoloCanBeAnyAttribute(t *testing.T) {
 		t.Error("Expected to see solo Texture preferences")
 	}
 }
+
+// =============================================================================
+// FormDislikeFromKnowledge (D4: Poison knowledge creates dislike)
+// =============================================================================
+
+func TestFormDislikeFromKnowledge_CreatesNewDislike(t *testing.T) {
+	t.Parallel()
+
+	log := NewActionLog(100)
+	char := &entity.Character{
+		ID:          1,
+		Name:        "Test",
+		Preferences: []entity.Preference{},
+	}
+	item := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternSpotted, types.TextureNone, true, false)
+
+	result := FormDislikeFromKnowledge(char, item, log)
+
+	if result != FormationNew {
+		t.Errorf("Expected FormationNew, got %v", result)
+	}
+	if len(char.Preferences) != 1 {
+		t.Fatalf("Expected 1 preference, got %d", len(char.Preferences))
+	}
+
+	pref := char.Preferences[0]
+	if pref.Valence != -1 {
+		t.Errorf("Expected dislike (valence -1), got %d", pref.Valence)
+	}
+	if pref.ItemType != "mushroom" {
+		t.Errorf("Expected ItemType 'mushroom', got '%s'", pref.ItemType)
+	}
+	if pref.Color != types.ColorBrown {
+		t.Errorf("Expected Color brown, got '%s'", pref.Color)
+	}
+	if pref.Pattern != types.PatternSpotted {
+		t.Errorf("Expected Pattern spotted, got '%s'", pref.Pattern)
+	}
+}
+
+func TestFormDislikeFromKnowledge_RemovesExistingLike(t *testing.T) {
+	t.Parallel()
+
+	log := NewActionLog(100)
+	item := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternSpotted, types.TextureNone, true, false)
+
+	// Character has an exact matching "like" preference
+	existingLike := entity.NewFullPreferenceFromItem(item, 1)
+	char := &entity.Character{
+		ID:          1,
+		Name:        "Test",
+		Preferences: []entity.Preference{existingLike},
+	}
+
+	result := FormDislikeFromKnowledge(char, item, log)
+
+	if result != FormationRemoved {
+		t.Errorf("Expected FormationRemoved, got %v", result)
+	}
+	if len(char.Preferences) != 0 {
+		t.Errorf("Expected 0 preferences after removal, got %d", len(char.Preferences))
+	}
+}
+
+func TestFormDislikeFromKnowledge_AlreadyDislikes_NoChange(t *testing.T) {
+	t.Parallel()
+
+	log := NewActionLog(100)
+	item := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternSpotted, types.TextureNone, true, false)
+
+	// Character already dislikes this exact variety
+	existingDislike := entity.NewFullPreferenceFromItem(item, -1)
+	char := &entity.Character{
+		ID:          1,
+		Name:        "Test",
+		Preferences: []entity.Preference{existingDislike},
+	}
+
+	result := FormDislikeFromKnowledge(char, item, log)
+
+	if result != FormationNoChange {
+		t.Errorf("Expected FormationNoChange, got %v", result)
+	}
+	if len(char.Preferences) != 1 {
+		t.Errorf("Expected 1 preference (unchanged), got %d", len(char.Preferences))
+	}
+}
+
+func TestFormDislikeFromKnowledge_PartialMatchLike_NotRemoved(t *testing.T) {
+	t.Parallel()
+
+	log := NewActionLog(100)
+	// Poisonous item is spotted brown mushroom
+	item := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternSpotted, types.TextureNone, true, false)
+
+	// Character likes "mushrooms" (general, not exact match)
+	generalLike := entity.NewPositivePreference("mushroom", "")
+	char := &entity.Character{
+		ID:          1,
+		Name:        "Test",
+		Preferences: []entity.Preference{generalLike},
+	}
+
+	result := FormDislikeFromKnowledge(char, item, log)
+
+	// Should create new dislike, not remove the general like
+	if result != FormationNew {
+		t.Errorf("Expected FormationNew (partial match doesn't count), got %v", result)
+	}
+	if len(char.Preferences) != 2 {
+		t.Errorf("Expected 2 preferences (general like + specific dislike), got %d", len(char.Preferences))
+	}
+
+	// Verify both preferences exist
+	hasGeneralLike := false
+	hasSpecificDislike := false
+	for _, p := range char.Preferences {
+		if p.ItemType == "mushroom" && p.Color == "" && p.Valence == 1 {
+			hasGeneralLike = true
+		}
+		if p.ItemType == "mushroom" && p.Color == types.ColorBrown && p.Pattern == types.PatternSpotted && p.Valence == -1 {
+			hasSpecificDislike = true
+		}
+	}
+
+	if !hasGeneralLike {
+		t.Error("General 'likes mushrooms' preference should still exist")
+	}
+	if !hasSpecificDislike {
+		t.Error("Specific dislike for spotted brown mushrooms should be created")
+	}
+}
