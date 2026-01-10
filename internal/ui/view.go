@@ -35,7 +35,12 @@ func colorByTier(level string, tier int) string {
 
 // colorLogMessage colors action log messages based on content
 func colorLogMessage(line, message string) string {
-	// Effect wore off messages (light blue) - check first as these override category colors
+	// Learning messages (darker blue) - check first as these are important
+	if strings.Contains(message, "Learned something") {
+		return learnedStyle.Render(line)
+	}
+
+	// Effect wore off messages (light blue)
 	woreOffKeywords := []string{"Calmed down", "Woke up", "Poison wore off"}
 	for _, kw := range woreOffKeywords {
 		if strings.Contains(message, kw) {

@@ -24,6 +24,9 @@ var (
 	// Effect wore off color
 	woreOffStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("117")) // light blue
 
+	// Learning color
+	learnedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("33")) // darker blue
+
 	// Item colors
 	redStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 	blueStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("27"))

@@ -81,7 +81,9 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 
 		// Learn that this item type is poisonous
 		knowledge := entity.NewKnowledgeFromItem(item, entity.KnowledgePoisonous)
-		char.LearnKnowledge(knowledge)
+		if char.LearnKnowledge(knowledge) && log != nil {
+			log.Add(char.ID, char.Name, "learning", "Learned something!")
+		}
 	}
 
 	// Apply healing effect
@@ -114,7 +116,9 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 
 		// Learn that this item type is healing
 		knowledge := entity.NewKnowledgeFromItem(item, entity.KnowledgeHealing)
-		char.LearnKnowledge(knowledge)
+		if char.LearnKnowledge(knowledge) && log != nil {
+			log.Add(char.ID, char.Name, "learning", "Learned something!")
+		}
 	}
 
 	// Try to form preference based on mood (C2)
