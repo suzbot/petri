@@ -382,39 +382,53 @@ func (m Model) viewFullLog() string {
 	// Calculate how many lines we can show (leave room for header, footer, borders)
 	availableLines := m.height - 6
 
-	// Apply scroll offset
-	startIdx := len(allEvents) - availableLines - m.logScrollOffset
+	// Apply scroll offset (from end, showing most recent first)
+	total := len(allEvents)
+	endIdx := total - m.logScrollOffset
+	if endIdx < 0 {
+		endIdx = 0
+	}
+	startIdx := endIdx - availableLines
 	if startIdx < 0 {
 		startIdx = 0
 	}
-	endIdx := startIdx + availableLines
-	if endIdx > len(allEvents) {
-		endIdx = len(allEvents)
+
+	if m.logScrollOffset > 0 {
+		lines = append(lines, fmt.Sprintf(" [Scrolled: -%d]", m.logScrollOffset))
 	}
 
-	// Render events (no truncation)
-	for i := startIdx; i < endIdx; i++ {
-		event := allEvents[i]
+	// Render events (most recent first, no truncation)
+	displayEvents := allEvents[startIdx:endIdx]
+	for i := len(displayEvents) - 1; i >= 0; i-- {
+		event := displayEvents[i]
 		elapsed := now.Sub(event.Timestamp)
 
 		// Full message with character name prefix
-		line := fmt.Sprintf(" %s %s: %s",
-			system.FormatElapsed(elapsed),
-			event.CharName,
-			event.Message)
+		// Only show timestamp if >= 1 minute (like other logs)
+		var line string
+		if elapsed >= time.Minute {
+			line = fmt.Sprintf(" %s [%s] %s", system.FormatElapsed(elapsed), event.CharName, event.Message)
+		} else {
+			line = fmt.Sprintf(" [%s] %s", event.CharName, event.Message)
+		}
 
-		line = colorLogMessage(line, event.Message)
-		lines = append(lines, line)
+		coloredLine := colorLogMessage(line, event.Message)
+
+		// Highlight most recent (only if not already colored)
+		isNewest := (i == len(displayEvents)-1) && m.logScrollOffset == 0
+		if coloredLine != line {
+			lines = append(lines, coloredLine)
+		} else if isNewest {
+			lines = append(lines, highlightStyle.Render(line))
+		} else {
+			lines = append(lines, line)
+		}
 	}
 
 	// Footer with controls
 	lines = append(lines, "")
-	scrollInfo := ""
-	if m.logScrollOffset > 0 {
-		scrollInfo = fmt.Sprintf(" (scroll: %d)", m.logScrollOffset)
-	}
 	lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(
-		fmt.Sprintf("PgUp/PgDn: Scroll | L or Esc: Exit%s", scrollInfo)))
+		"PgUp/PgDn: Scroll | L or Esc: Exit"))
 
 	content := strings.Join(lines, "\n")
 	return lipgloss.Place(m.width, m.height, lipgloss.Left, lipgloss.Top, content)
@@ -696,7 +710,22 @@ func (m Model) renderActionLog() string {
 		return strings.Join(lines, "\n")
 	}
 
-	events := m.actionLog.Events(char.ID, 100)
+	events := m.actionLog.Events(char.ID, 200)
+
+	// Pre-filter debug-only messages in non-debug mode
+	if !m.testCfg.Debug {
+		var filtered []system.Event
+		for _, event := range events {
+			if strings.Contains(event.Message, "Improved Mood") ||
+				strings.Contains(event.Message, "Worsened Mood") ||
+				strings.Contains(event.Message, "impacted health") {
+				continue
+			}
+			filtered = append(filtered, event)
+		}
+		events = filtered
+	}
+
 	if len(events) == 0 {
 		lines = append(lines, " No events yet")
 		return strings.Join(lines, "\n")
@@ -728,13 +757,6 @@ func (m Model) renderActionLog() string {
 	for i := len(displayEvents) - 1; i >= 0; i-- {
 		event := displayEvents[i]
 		elapsed := now.Sub(event.Timestamp)
-
-		// Skip debug-only messages in non-debug mode
-		if !m.testCfg.Debug {
-			if strings.Contains(event.Message, "Improved Mood") || strings.Contains(event.Message, "Worsened Mood") || strings.Contains(event.Message, "impacted health") {
-				continue
-			}
-		}
 
 		// Strip numeric details from messages in non-debug mode
 		message := event.Message
@@ -779,6 +801,21 @@ func (m Model) renderCombinedLog() string {
 	lines = append(lines, titleStyle.Render("     ALL ACTIVITY"), "")
 
 	events := m.actionLog.AllEvents(200)
+
+	// Pre-filter debug-only messages in non-debug mode
+	if !m.testCfg.Debug {
+		var filtered []system.Event
+		for _, event := range events {
+			if strings.Contains(event.Message, "Improved Mood") ||
+				strings.Contains(event.Message, "Worsened Mood") ||
+				strings.Contains(event.Message, "impacted health") {
+				continue
+			}
+			filtered = append(filtered, event)
+		}
+		events = filtered
+	}
+
 	if len(events) == 0 {
 		lines = append(lines, " No events yet")
 		return strings.Join(lines, "\n")
@@ -812,13 +849,6 @@ func (m Model) renderCombinedLog() string {
 	for i := len(displayEvents) - 1; i >= 0; i-- {
 		event := displayEvents[i]
 		elapsed := now.Sub(event.Timestamp)
-
-		// Skip debug-only messages in non-debug mode
-		if !m.testCfg.Debug {
-			if strings.Contains(event.Message, "Improved Mood") || strings.Contains(event.Message, "Worsened Mood") || strings.Contains(event.Message, "impacted health") {
-				continue
-			}
-		}
 
 		// Strip numeric details from messages in non-debug mode
 		message := event.Message
