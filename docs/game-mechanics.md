@@ -267,9 +267,17 @@ When seeking food while hurt (health below full), known healing items receive a 
 
 This makes injured characters prefer known healing food over equally-distant alternatives, with stronger preference at lower health.
 
-### Future Behaviors (Planned)
+### Knowledge Transmission
 
-- Knowledge can be shared between characters through conversation (Phase 4H)
+Characters can share knowledge through conversation:
+- When a conversation completes naturally (5 seconds), each character shares one random piece of knowledge
+- If the partner doesn't already have that knowledge, they learn it
+- Learning poison knowledge via transmission also creates a dislike preference (same as learning by eating)
+- Interrupted conversations do not transmit knowledge
+
+Log messages for transmission:
+- Sharer: "Shared knowledge with [Name]"
+- Learner: "Learned: [knowledge description]" + "Learned something!"
 
 ## Idle Activities
 
@@ -298,8 +306,9 @@ Characters seek out other characters doing idle activities (Idle, Looking, or al
 - Initiator moves to adjacent position of target
 - When adjacent, both characters enter "Talking with [Name]" state
 - Conversation lasts 5 seconds
+- On completion: knowledge transmission occurs (see Knowledge Transmission above)
 - Either character can be interrupted by Moderate+ needs
-- When one partner is interrupted, both stop talking
+- When one partner is interrupted, both stop talking (no knowledge transmitted)
 
 Idle activities are interruptible by any Moderate or higher tier need that can be fulfilled.
 

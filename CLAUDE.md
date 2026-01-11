@@ -6,7 +6,7 @@ Guidance for Claude Code when working with code in this repo.
 
 Petri is a Dwarf Fortress-inspired simulation exploring emergent culture development.
 
-**Current features:** Character creation, world generation with items and features, multi-stat survival, dynamic preference system, knowledge system (learning poison/healing, knowledge-driven behavior), social behavior (talking between idle characters), urgency-based AI with stat fallback and frustration mechanics, view modes, and action logging.
+**Current features:** Character creation, world generation with items and features, multi-stat survival, dynamic preference system, knowledge system (learning poison/healing, knowledge-driven behavior, knowledge transmission via talking), social behavior (talking between idle characters), urgency-based AI with stat fallback and frustration mechanics, view modes, and action logging.
 
 **Vision:** Complex roguelike simulation world with complex interactions between characters, items, and attributes. History exists only in character memories and created artifacts. As characters die, their knowledge dies with them except what they've communicated or created. See [docs/VISION.txt](docs/VISION.txt).
 
@@ -64,7 +64,7 @@ internal/
 - `internal/system/survival.go` - Stat decay, damage, sleep/wake mechanics
 - `internal/system/consumption.go` - Eating, drinking, poison/healing effects
 - `internal/system/preference.go` - Preference formation on eat/look
-- `internal/system/talking.go` - Idle activity selection, talking state management
+- `internal/system/talking.go` - Idle activity selection, talking state, knowledge transmission (LearnKnowledgeWithEffects)
 
 **World & Generation**
 
@@ -113,7 +113,7 @@ Results are documented in `docs/futureEnancements.md` under "Balance Observation
 
 ### Current Work
 
-Phase 4: Basic Knowledge & Transmission (in progress)
+Phase 4: Basic Knowledge & Transmission (complete)
 See: [Plan](docs/Phase%204/phase04-plan.md)
 
 ### Near-Term Roadmap
@@ -128,8 +128,8 @@ See: [Reqs](docs/Phase%204/phase04reqs.txt) | [Plan](docs/Phase%204/phase04-plan
 | C         | Action log: "Learned something!" + log fixes                        | Complete |
 | D         | Poison knowledge → dislike preference                               | Complete |
 | E-F       | Healing knowledge → seek healing intent + conditional food matching | Complete |
-| G         | Talking as idle activity (5s duration, targets idle chars)          | Testing  |
-| H         | Knowledge transmission via talking                                  |          |
+| G         | Talking as idle activity (5s duration, targets idle chars)          | Complete |
+| H         | Knowledge transmission via talking                                  | Complete |
 
 **Post-Phase 4: UI Polish Pass**
 Low-priority items to address after core Phase 4 features:

@@ -79,15 +79,9 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 				fmt.Sprintf("Became poisoned! (duration: %ds)", int(config.PoisonDuration)))
 		}
 
-		// Learn that this item type is poisonous
+		// Learn that this item type is poisonous (includes dislike formation)
 		knowledge := entity.NewKnowledgeFromItem(item, entity.KnowledgePoisonous)
-		if char.LearnKnowledge(knowledge) {
-			if log != nil {
-				log.Add(char.ID, char.Name, "learning", "Learned something!")
-			}
-			// Form dislike for this item variety
-			FormDislikeFromKnowledge(char, item, log)
-		}
+		LearnKnowledgeWithEffects(char, knowledge, log)
 	}
 
 	// Apply healing effect
@@ -109,9 +103,7 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 
 			// Learn that this item type is healing (only if we experienced healing)
 			knowledge := entity.NewKnowledgeFromItem(item, entity.KnowledgeHealing)
-			if char.LearnKnowledge(knowledge) && log != nil {
-				log.Add(char.ID, char.Name, "learning", "Learned something!")
-			}
+			LearnKnowledgeWithEffects(char, knowledge, log)
 		}
 
 		// Boost mood when fully healed

@@ -439,7 +439,8 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		// Decrement talk timer
 		char.TalkTimer -= delta
 		if char.TalkTimer <= 0 {
-			// Talk complete - stop talking (knowledge transmission will be added in Phase H)
+			// Talk complete - transmit knowledge, then stop talking
+			system.TransmitKnowledge(char, target, m.actionLog)
 			system.StopTalking(char, target, m.actionLog)
 		}
 	}

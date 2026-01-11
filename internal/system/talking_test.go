@@ -1,6 +1,7 @@
 package system
 
 import (
+	"strings"
 	"testing"
 
 	"petri/internal/entity"
@@ -492,6 +493,242 @@ func TestStopTalking_SetsIdleCooldown(t *testing.T) {
 	}
 	if bob.IdleCooldown <= 0 {
 		t.Error("Bob should have IdleCooldown set after stopping")
+	}
+}
+
+// =============================================================================
+// TransmitKnowledge
+// =============================================================================
+
+func TestTransmitKnowledge_TransfersToPartnerWhoDoesntKnow(t *testing.T) {
+	t.Parallel()
+
+	alice := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	bob := entity.NewCharacter(2, 6, 5, "Bob", "mushroom", types.ColorBlue)
+
+	// Alice knows something, Bob doesn't
+	knowledge := entity.Knowledge{
+		Category: entity.KnowledgePoisonous,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternSpotted,
+	}
+	alice.LearnKnowledge(knowledge)
+
+	// Transmit knowledge
+	TransmitKnowledge(alice, bob, nil)
+
+	// Bob should now know it
+	if !bob.HasKnowledge(knowledge) {
+		t.Error("Bob should have learned Alice's knowledge")
+	}
+}
+
+func TestTransmitKnowledge_NoTransferIfPartnerAlreadyKnows(t *testing.T) {
+	t.Parallel()
+
+	alice := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	bob := entity.NewCharacter(2, 6, 5, "Bob", "mushroom", types.ColorBlue)
+
+	// Both know the same thing
+	knowledge := entity.Knowledge{
+		Category: entity.KnowledgePoisonous,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternSpotted,
+	}
+	alice.LearnKnowledge(knowledge)
+	bob.LearnKnowledge(knowledge)
+
+	initialBobKnowledgeCount := len(bob.Knowledge)
+
+	// Transmit knowledge
+	TransmitKnowledge(alice, bob, nil)
+
+	// Bob shouldn't have duplicates
+	if len(bob.Knowledge) != initialBobKnowledgeCount {
+		t.Error("Bob should not have duplicate knowledge")
+	}
+}
+
+func TestTransmitKnowledge_BidirectionalTransfer(t *testing.T) {
+	t.Parallel()
+
+	alice := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	bob := entity.NewCharacter(2, 6, 5, "Bob", "mushroom", types.ColorBlue)
+
+	// Alice knows about poison, Bob knows about healing
+	aliceKnowledge := entity.Knowledge{
+		Category: entity.KnowledgePoisonous,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternSpotted,
+	}
+	bobKnowledge := entity.Knowledge{
+		Category: entity.KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+	alice.LearnKnowledge(aliceKnowledge)
+	bob.LearnKnowledge(bobKnowledge)
+
+	// Transmit knowledge
+	TransmitKnowledge(alice, bob, nil)
+
+	// Alice should know Bob's knowledge
+	if !alice.HasKnowledge(bobKnowledge) {
+		t.Error("Alice should have learned Bob's healing knowledge")
+	}
+	// Bob should know Alice's knowledge
+	if !bob.HasKnowledge(aliceKnowledge) {
+		t.Error("Bob should have learned Alice's poison knowledge")
+	}
+}
+
+func TestTransmitKnowledge_NoTransferIfNeitherHasKnowledge(t *testing.T) {
+	t.Parallel()
+
+	alice := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	bob := entity.NewCharacter(2, 6, 5, "Bob", "mushroom", types.ColorBlue)
+
+	// Neither has knowledge
+	TransmitKnowledge(alice, bob, nil)
+
+	// Neither should have learned anything
+	if len(alice.Knowledge) != 0 {
+		t.Error("Alice should have no knowledge")
+	}
+	if len(bob.Knowledge) != 0 {
+		t.Error("Bob should have no knowledge")
+	}
+}
+
+func TestTransmitKnowledge_LogsTransmission(t *testing.T) {
+	t.Parallel()
+
+	alice := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	bob := entity.NewCharacter(2, 6, 5, "Bob", "mushroom", types.ColorBlue)
+
+	knowledge := entity.Knowledge{
+		Category: entity.KnowledgePoisonous,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternSpotted,
+	}
+	alice.LearnKnowledge(knowledge)
+
+	log := NewActionLog(100)
+
+	// Transmit knowledge
+	TransmitKnowledge(alice, bob, log)
+
+	// Check for log entries
+	aliceEvents := log.Events(alice.ID, 0)
+	bobEvents := log.Events(bob.ID, 0)
+
+	// Alice should have a "shared" log entry
+	foundAliceShare := false
+	for _, event := range aliceEvents {
+		if strings.Contains(event.Message, "Shared") {
+			foundAliceShare = true
+			break
+		}
+	}
+	if !foundAliceShare {
+		t.Error("Alice should have a 'Shared' log entry")
+	}
+
+	// Bob should have a "learned" log entry
+	foundBobLearn := false
+	for _, event := range bobEvents {
+		if strings.Contains(event.Message, "Learned") {
+			foundBobLearn = true
+			break
+		}
+	}
+	if !foundBobLearn {
+		t.Error("Bob should have a 'Learned' log entry")
+	}
+}
+
+func TestTransmitKnowledge_OnlySharesOneRandomPiece(t *testing.T) {
+	t.Parallel()
+
+	alice := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	bob := entity.NewCharacter(2, 6, 5, "Bob", "mushroom", types.ColorBlue)
+
+	// Alice knows multiple things
+	knowledge1 := entity.Knowledge{
+		Category: entity.KnowledgePoisonous,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternSpotted,
+	}
+	knowledge2 := entity.Knowledge{
+		Category: entity.KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+	knowledge3 := entity.Knowledge{
+		Category: entity.KnowledgePoisonous,
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+	}
+	alice.LearnKnowledge(knowledge1)
+	alice.LearnKnowledge(knowledge2)
+	alice.LearnKnowledge(knowledge3)
+
+	// Transmit knowledge
+	TransmitKnowledge(alice, bob, nil)
+
+	// Bob should have learned exactly 1 piece of knowledge
+	if len(bob.Knowledge) != 1 {
+		t.Errorf("Bob should have learned exactly 1 piece of knowledge, got %d", len(bob.Knowledge))
+	}
+}
+
+func TestTransmitKnowledge_PoisonKnowledgeCreatesDislike(t *testing.T) {
+	t.Parallel()
+
+	alice := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	bob := entity.NewCharacter(2, 6, 5, "Bob", "mushroom", types.ColorBlue)
+
+	// Alice knows about a poisonous mushroom
+	knowledge := entity.Knowledge{
+		Category: entity.KnowledgePoisonous,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternSpotted,
+	}
+	alice.LearnKnowledge(knowledge)
+
+	// Bob starts with 2 default preferences (food type + color)
+	initialPrefCount := len(bob.Preferences)
+
+	// Transmit knowledge
+	TransmitKnowledge(alice, bob, nil)
+
+	// Bob should now have one additional preference (dislike for poison)
+	if len(bob.Preferences) != initialPrefCount+1 {
+		t.Fatalf("Bob should have %d preferences after learning poison knowledge, got %d",
+			initialPrefCount+1, len(bob.Preferences))
+	}
+
+	// Find the new dislike preference (should be the last one added)
+	var dislikePref *entity.Preference
+	for i := range bob.Preferences {
+		pref := &bob.Preferences[i]
+		if pref.Valence == -1 && pref.ItemType == "mushroom" && pref.Color == types.ColorRed {
+			dislikePref = pref
+			break
+		}
+	}
+
+	if dislikePref == nil {
+		t.Fatal("Bob should have a dislike preference for red spotted mushrooms")
+	}
+	if dislikePref.Pattern != types.PatternSpotted {
+		t.Errorf("Preference should be for spotted, got %s", dislikePref.Pattern)
 	}
 }
 

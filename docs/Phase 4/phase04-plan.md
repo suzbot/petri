@@ -434,8 +434,8 @@ set IdleCooldown regardless of outcome
 | C: Action Log ("learned something!") | Complete | + Action log vertical space fix, Full log (L) patterns |
 | D: Poison Knowledge → Dislike | Complete | Existing avoidance logic handles filtering |
 | E-F: Healing Knowledge → Seeking + Food Selection | Complete | Health in priority system, healing bonus in food selection |
-| G: Talking Activity | Testing | Impl complete, removed LookCooldown in favor of IdleCooldown, partner interruption, regression tests for approach continuation |
-| H: Knowledge Transmission | Not Started | |
+| G: Talking Activity | Complete | Impl complete, removed LookCooldown in favor of IdleCooldown, partner interruption, regression tests for approach continuation |
+| H: Knowledge Transmission | Complete | Bidirectional sharing, one random piece per conversation, only on natural completion, centralized via LearnKnowledgeWithEffects |
 
 ---
 
