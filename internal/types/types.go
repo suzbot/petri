@@ -14,19 +14,22 @@ const (
 	ColorOrange Color = "orange"
 	ColorYellow Color = "yellow"
 	ColorPurple Color = "purple"
+	ColorTan    Color = "tan"
+	ColorPink   Color = "pink"
+	ColorBlack  Color = "black"
 )
 
 // AllColors returns all valid colors
-var AllColors = []Color{ColorRed, ColorBlue, ColorBrown, ColorWhite, ColorOrange, ColorYellow, ColorPurple}
+var AllColors = []Color{ColorRed, ColorBlue, ColorBrown, ColorWhite, ColorOrange, ColorYellow, ColorPurple, ColorTan, ColorPink, ColorBlack}
 
 // BerryColors returns valid colors for berries
-var BerryColors = []Color{ColorRed, ColorBlue}
+var BerryColors = []Color{ColorRed, ColorBlue, ColorPink, ColorPurple, ColorWhite, ColorYellow, ColorOrange, ColorBlack}
 
 // MushroomColors returns valid colors for mushrooms
-var MushroomColors = []Color{ColorBrown, ColorWhite, ColorRed}
+var MushroomColors = []Color{ColorBrown, ColorWhite, ColorRed, ColorTan, ColorOrange, ColorYellow, ColorBlue, ColorBlack}
 
 // FlowerColors returns valid colors for flowers
-var FlowerColors = []Color{ColorRed, ColorOrange, ColorYellow, ColorBlue, ColorPurple, ColorWhite}
+var FlowerColors = []Color{ColorRed, ColorOrange, ColorYellow, ColorBlue, ColorPurple, ColorWhite, ColorPink}
 
 // StatType represents character survival stats
 type StatType string
@@ -58,7 +61,8 @@ type Texture string
 const (
 	TextureNone  Texture = ""
 	TextureSlimy Texture = "slimy"
+	TextureWaxy  Texture = "waxy"
 )
 
 // MushroomTextures returns valid textures for mushrooms (includes None for no texture)
-var MushroomTextures = []Texture{TextureNone, TextureSlimy}
+var MushroomTextures = []Texture{TextureNone, TextureSlimy, TextureWaxy}

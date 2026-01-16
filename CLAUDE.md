@@ -38,6 +38,7 @@ internal/
   types/types.go            # Shared type constants (Color, StatType)
   entity/                   # Character, Item, Feature
   game/                     # Map, world generation
+  save/                     # Save/load, world management, serialization types
   system/                   # Movement, survival, consumption, action log
   ui/                       # Bubble Tea model, update, view, styles
   simulation/               # Integration test utilities, balance observation tests
@@ -76,6 +77,12 @@ internal/
 - `internal/ui/model.go` - Game state, Bubble Tea model
 - `internal/ui/update.go` - Tick processing, intent application
 
+**Save System**
+
+- `internal/save/state.go` - SaveState struct, all serialization types
+- `internal/save/io.go` - World management, file I/O, backup rotation
+- `internal/ui/serialize.go` - ToSaveState/FromSaveState conversion
+
 ## Collaboration
 
 TTD, Iterative Approach. Frequent discussion. Present options with trade-offs. Frequent human testing checkpoints. Update claude.md, REAMDE, and other documentation along the way.
@@ -113,37 +120,12 @@ Results are documented in `docs/futureEnancements.md` under "Balance Observation
 
 ### Current Work
 
-Phase 4: Basic Knowledge & Transmission (complete)
-See: [Plan](docs/Phase%204/phase04-plan.md)
+Save system complete. Next: UI Polish Pass (see below)
 
 ### Near-Term Roadmap
 
-**Phase 4: Basic Knowledge & Transmission**
-See: [Reqs](docs/Phase%204/phase04reqs.txt) | [Plan](docs/Phase%204/phase04-plan.md)
-
-| Sub-phase | Description                                                         | Status   |
-| --------- | ------------------------------------------------------------------- | -------- |
-| A         | Knowledge by experience (learn poison/healing from eating)          | Complete |
-| B         | Knowledge panel UI (toggle in select mode) + ESC key behavior       | Complete |
-| C         | Action log: "Learned something!" + log fixes                        | Complete |
-| D         | Poison knowledge → dislike preference                               | Complete |
-| E-F       | Healing knowledge → seek healing intent + conditional food matching | Complete |
-| G         | Talking as idle activity (5s duration, targets idle chars)          | Complete |
-| H         | Knowledge transmission via talking                                  | Complete |
-
-**Post-Phase 4: UI Polish Pass**
-Low-priority items to address after core Phase 4 features:
-
-- Reorder fields in Details panel
-- Assess unicode symbols for entities
-- Start screen improvements (title, key hints)
-- Loading screen
-- ASCII art mushrooms on title screen
-
-**Pre-Phase 5 Decision Point**
-
-- Save game feature: assess placement before or during Phase 5 (Resources/Inventory)
-- Rationale: Save becomes more valuable as game state complexity increases
+- Expand item colors and textures, add new gourd item
+- Phase 5 (still in product planning)
 
 ### Deferred Enhancements & Trigger Points
 
@@ -165,3 +147,4 @@ Technical items analyzed and consciously deferred until trigger conditions are m
 | [docs/game-mechanics.md](docs/game-mechanics.md)       | Detailed stat thresholds, rates, systems      |
 | [docs/futureEnancements.md](docs/futureEnancements.md) | Deferred items with triggers, balance tuning  |
 | [docs/failed-approaches.md](docs/failed-approaches.md) | Approaches tried and abandoned                |
+| [docs/save-system-plan.md](docs/save-system-plan.md)   | Save system design and implementation plan    |

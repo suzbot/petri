@@ -8,6 +8,7 @@ import (
 	"petri/internal/config"
 	"petri/internal/entity"
 	"petri/internal/game"
+	"petri/internal/save"
 	"petri/internal/system"
 	"petri/internal/types"
 )
@@ -16,7 +17,8 @@ import (
 type gamePhase int
 
 const (
-	phaseSelectMode gamePhase = iota
+	phaseWorldSelect gamePhase = iota // New: world selection screen
+	phaseSelectMode
 	phaseCharacterCreate
 	phaseSelectFood
 	phaseSelectColor
@@ -56,7 +58,13 @@ type Model struct {
 	logScrollOffset  int
 	actionLog        *system.ActionLog
 
-	lastUpdate time.Time
+	lastUpdate      time.Time
+	elapsedGameTime float64 // Total simulation time in seconds
+
+	// Save state tracking
+	worldID          string    // Current world ID for saving
+	lastSaveGameTime float64   // Game time of last save (for periodic saves)
+	saveIndicatorEnd time.Time // When to stop showing "Saving" indicator
 
 	// Terminal size
 	width, height int
@@ -74,19 +82,28 @@ type Model struct {
 	// Character creation state
 	creationState *CharacterCreationState
 
+	// World selection state
+	worlds        []save.WorldMeta
+	selectedWorld int // Index into worlds slice, -1 = "New World"
+
 	// Test mode config
 	testCfg TestConfig
 }
 
 // NewModel creates a new game model
 func NewModel(testCfg TestConfig) Model {
+	// Load existing worlds
+	worlds, _ := save.ListWorlds()
+
 	return Model{
-		phase:     phaseSelectMode,
-		actionLog: system.NewActionLog(200),
-		width:     80,
-		height:    40,
-		paused:    true, // World starts paused
-		testCfg:   testCfg,
+		phase:         phaseWorldSelect,
+		actionLog:     system.NewActionLog(200),
+		width:         80,
+		height:        40,
+		paused:        true, // World starts paused
+		testCfg:       testCfg,
+		worlds:        worlds,
+		selectedWorld: 0, // First world or "New World" if empty
 	}
 }
 

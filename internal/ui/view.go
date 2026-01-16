@@ -112,6 +112,8 @@ func colorLogMessage(line, message string) string {
 // View implements tea.Model
 func (m Model) View() string {
 	switch m.phase {
+	case phaseWorldSelect:
+		return m.viewWorldSelect()
 	case phaseSelectMode:
 		return m.viewModeSelect()
 	case phaseCharacterCreate:
@@ -122,6 +124,85 @@ func (m Model) View() string {
 		return m.viewColorSelect()
 	default:
 		return m.viewGame()
+	}
+}
+
+// viewWorldSelect renders the world selection screen
+func (m Model) viewWorldSelect() string {
+	// Ensure we have valid dimensions for centering
+	width, height := m.width, m.height
+	if width < 40 {
+		width = 80
+	}
+	if height < 20 {
+		height = 40
+	}
+
+	var lines []string
+	lines = append(lines, titleStyle.Render("=== PETRI PROJECT ==="))
+	lines = append(lines, "")
+
+	if len(m.worlds) == 0 {
+		// No existing worlds
+		lines = append(lines, "No saved worlds found.")
+		lines = append(lines, "")
+		if m.selectedWorld == 0 {
+			lines = append(lines, highlightStyle.Render("> New World"))
+		} else {
+			lines = append(lines, "  New World")
+		}
+	} else {
+		// List existing worlds
+		for i, world := range m.worlds {
+			lastPlayed := formatTimeAgo(world.LastPlayedAt)
+			entry := fmt.Sprintf("Continue \"%s\" (%d alive, %s)", world.Name, world.AliveCount, lastPlayed)
+			if i == m.selectedWorld {
+				lines = append(lines, highlightStyle.Render("> "+entry))
+			} else {
+				lines = append(lines, "  "+entry)
+			}
+		}
+		// "New World" option at the end
+		newWorldIdx := len(m.worlds)
+		if m.selectedWorld == newWorldIdx {
+			lines = append(lines, highlightStyle.Render("> New World"))
+		} else {
+			lines = append(lines, "  New World")
+		}
+	}
+
+	lines = append(lines, "")
+	lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(
+		"↑/↓ Select   Enter: Continue   Q: Quit"))
+
+	content := lipgloss.JoinVertical(lipgloss.Center, lines...)
+	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content)
+}
+
+// formatTimeAgo formats a time as a human-readable "X ago" string
+func formatTimeAgo(t time.Time) string {
+	d := time.Since(t)
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		mins := int(d.Minutes())
+		if mins == 1 {
+			return "1 min ago"
+		}
+		return fmt.Sprintf("%d mins ago", mins)
+	case d < 24*time.Hour:
+		hours := int(d.Hours())
+		if hours == 1 {
+			return "1 hour ago"
+		}
+		return fmt.Sprintf("%d hours ago", hours)
+	default:
+		days := int(d.Hours() / 24)
+		if days == 1 {
+			return "1 day ago"
+		}
+		return fmt.Sprintf("%d days ago", days)
 	}
 }
 
@@ -339,6 +420,12 @@ func (m Model) viewGame() string {
 		stepHint = " | .=step"
 	}
 
+	// Saving indicator
+	saveHint := ""
+	if time.Now().Before(m.saveIndicatorEnd) {
+		saveHint = " " + orangeStyle.Render("[Saved]")
+	}
+
 	modeHint := ""
 	if m.viewMode == viewModeAllActivity {
 		modeHint = " | s=select | l=full log"
@@ -346,7 +433,7 @@ func (m Model) viewGame() string {
 		modeHint = " | a=all activity | l=full log | n=next char"
 	}
 
-	statusBar := fmt.Sprintf("\n[%s] SPACE=pause%s%s | ARROWS=cursor | ESC=menu", status, stepHint, modeHint)
+	statusBar := fmt.Sprintf("\n[%s]%s SPACE=pause%s%s | ARROWS=cursor | ESC=menu", status, saveHint, stepHint, modeHint)
 
 	// Debug line (only shown with -debug flag)
 	debugLine := ""
@@ -369,7 +456,6 @@ func (m Model) viewGame() string {
 
 // viewFullLog renders a full-screen log view with complete (non-truncated) messages
 func (m Model) viewFullLog() string {
-	now := time.Now()
 	var lines []string
 
 	// Header
@@ -379,8 +465,9 @@ func (m Model) viewFullLog() string {
 	// Get all events across all characters, sorted by time (0 = no limit)
 	allEvents := m.actionLog.AllEvents(0)
 
-	// Calculate how many lines we can show (leave room for header, footer, borders)
-	availableLines := m.height - 6
+	// Calculate how many lines we can show - use map height for consistency with game view
+	// Leave room for header (2 lines), footer (2 lines), and status bar (1 line)
+	availableLines := m.gameMap.Height - 3
 
 	// Apply scroll offset (from end, showing most recent first)
 	total := len(allEvents)
@@ -401,13 +488,13 @@ func (m Model) viewFullLog() string {
 	displayEvents := allEvents[startIdx:endIdx]
 	for i := len(displayEvents) - 1; i >= 0; i-- {
 		event := displayEvents[i]
-		elapsed := now.Sub(event.Timestamp)
+		elapsedSecs := m.elapsedGameTime - event.GameTime
 
 		// Full message with character name prefix
 		// Only show timestamp if >= 1 minute (like other logs)
 		var line string
-		if elapsed >= time.Minute {
-			line = fmt.Sprintf(" %s [%s] %s", system.FormatElapsed(elapsed), event.CharName, event.Message)
+		if elapsedSecs >= 60 {
+			line = fmt.Sprintf(" %s [%s] %s", system.FormatGameTime(elapsedSecs), event.CharName, event.Message)
 		} else {
 			line = fmt.Sprintf(" [%s] %s", event.CharName, event.Message)
 		}
@@ -428,7 +515,7 @@ func (m Model) viewFullLog() string {
 	// Footer with controls
 	lines = append(lines, "")
 	lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(
-		"PgUp/PgDn: Scroll | L or Esc: Exit"))
+		"PgUp/PgDn: Scroll | L: Back"))
 
 	content := strings.Join(lines, "\n")
 	return lipgloss.Place(m.width, m.height, lipgloss.Left, lipgloss.Top, content)
@@ -524,6 +611,12 @@ func (m Model) styledSymbol(e entity.Entity) string {
 			return yellowStyle.Render(sym)
 		case types.ColorPurple:
 			return purpleStyle.Render(sym)
+		case types.ColorTan:
+			return tanStyle.Render(sym)
+		case types.ColorPink:
+			return pinkStyle.Render(sym)
+		case types.ColorBlack:
+			return blackStyle.Render(sym)
 		}
 
 	case *entity.Feature:
@@ -751,12 +844,11 @@ func (m Model) renderActionLog() string {
 	}
 
 	// Format and display events (most recent first)
-	now := time.Now()
 	displayEvents := events[startIdx:endIdx]
 
 	for i := len(displayEvents) - 1; i >= 0; i-- {
 		event := displayEvents[i]
-		elapsed := now.Sub(event.Timestamp)
+		elapsedSecs := m.elapsedGameTime - event.GameTime
 
 		// Strip numeric details from messages in non-debug mode
 		message := event.Message
@@ -766,8 +858,8 @@ func (m Model) renderActionLog() string {
 		}
 
 		var line string
-		if elapsed >= time.Minute {
-			line = fmt.Sprintf(" %s %s", system.FormatElapsed(elapsed), message)
+		if elapsedSecs >= 60 {
+			line = fmt.Sprintf(" %s %s", system.FormatGameTime(elapsedSecs), message)
 		} else {
 			line = " " + message
 		}
@@ -843,12 +935,11 @@ func (m Model) renderCombinedLog() string {
 	}
 
 	// Format and display events (most recent first)
-	now := time.Now()
 	displayEvents := events[startIdx:endIdx]
 
 	for i := len(displayEvents) - 1; i >= 0; i-- {
 		event := displayEvents[i]
-		elapsed := now.Sub(event.Timestamp)
+		elapsedSecs := m.elapsedGameTime - event.GameTime
 
 		// Strip numeric details from messages in non-debug mode
 		message := event.Message
@@ -860,8 +951,8 @@ func (m Model) renderCombinedLog() string {
 		// Format with character name prefix
 		var line string
 		namePrefix := fmt.Sprintf("[%s] ", event.CharName)
-		if elapsed >= time.Minute {
-			line = fmt.Sprintf(" %s%s%s", system.FormatElapsed(elapsed), namePrefix, message)
+		if elapsedSecs >= 60 {
+			line = fmt.Sprintf(" %s%s%s", system.FormatGameTime(elapsedSecs), namePrefix, message)
 		} else {
 			line = " " + namePrefix + message
 		}

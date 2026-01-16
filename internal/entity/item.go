@@ -8,6 +8,7 @@ import (
 // Item represents an item in the game world
 type Item struct {
 	BaseEntity
+	ID int // Unique identifier for save/load
 
 	// Descriptive attributes (opinion-formable)
 	ItemType string        // "berry", "mushroom", etc.

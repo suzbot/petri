@@ -13,6 +13,7 @@ const (
 // Feature represents a persistent landscape feature (spring, leaf pile, etc.)
 type Feature struct {
 	BaseEntity
+	ID          int // Unique identifier for save/load
 	FType       FeatureType
 	DrinkSource bool // Can be used to drink
 	Bed         bool // Can be used to sleep

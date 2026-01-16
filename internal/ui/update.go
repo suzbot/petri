@@ -9,6 +9,7 @@ import (
 	"petri/internal/config"
 	"petri/internal/entity"
 	"petri/internal/game"
+	"petri/internal/save"
 	"petri/internal/system"
 	"petri/internal/types"
 )
@@ -38,6 +39,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // handleKey processes keyboard input
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch m.phase {
+	case phaseWorldSelect:
+		return m.handleWorldSelectKey(msg)
+
 	case phaseSelectMode:
 		switch msg.String() {
 		case "1":
@@ -90,25 +94,28 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case phasePlaying:
 		switch msg.String() {
 		case "q", "ctrl+c":
+			m.saveGame() // Save before quitting
 			return m, tea.Quit
 		case "esc":
-			// Close panels/views progressively, then return to start screen
-			if m.showKnowledgePanel {
-				m.showKnowledgePanel = false
-			} else if m.viewMode == viewModeFullLog {
-				m.viewMode = viewModeSelect
-				m.logScrollOffset = 0
-			} else {
-				// Return to start screen
-				m.phase = phaseSelectMode
-				m.gameMap = nil
-				m.following = nil
-				m.paused = true
-				m.showKnowledgePanel = false
-			}
+			// Save and return to world select screen
+			m.saveGame()
+			m.phase = phaseWorldSelect
+			// Reload world list to show updated metadata
+			m.worlds, _ = save.ListWorlds()
+			m.selectedWorld = 0
+			m.gameMap = nil
+			m.following = nil
+			m.paused = true
+			m.viewMode = viewModeSelect
+			m.showKnowledgePanel = false
+			m.logScrollOffset = 0
+			return m, tea.Batch(tea.ClearScreen, tea.WindowSize())
 		case " ":
 			m.paused = !m.paused
-			if !m.paused {
+			if m.paused {
+				// Save when pausing
+				m.saveGame()
+			} else {
 				// Reset lastUpdate when unpausing to prevent accumulated delta
 				m.lastUpdate = time.Now()
 			}
@@ -243,6 +250,15 @@ func (m Model) startGameMulti() Model {
 func (m Model) updateGame(now time.Time) (Model, tea.Cmd) {
 	delta := now.Sub(m.lastUpdate).Seconds()
 	m.lastUpdate = now
+	m.elapsedGameTime += delta
+
+	// Update action log with current game time
+	m.actionLog.SetGameTime(m.elapsedGameTime)
+
+	// Periodic auto-save check
+	if m.elapsedGameTime-m.lastSaveGameTime >= config.AutoSaveInterval {
+		m.saveGame()
+	}
 
 	// Update flash timer for status symbol cycling (0.5s intervals)
 	m.flashTimer += delta
@@ -639,6 +655,49 @@ func sign(x int) int {
 	return 0
 }
 
+// handleWorldSelectKey handles input during world selection phase
+func (m Model) handleWorldSelectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	maxIdx := len(m.worlds) // "New World" is at index len(worlds)
+
+	switch msg.String() {
+	case "up", "k":
+		if m.selectedWorld > 0 {
+			m.selectedWorld--
+		}
+	case "down", "j":
+		if m.selectedWorld < maxIdx {
+			m.selectedWorld++
+		}
+	case "enter":
+		if m.selectedWorld < len(m.worlds) {
+			// Load existing world
+			return m.loadWorld(m.worlds[m.selectedWorld].ID)
+		}
+		// New World selected - go to character creation
+		m.phase = phaseSelectMode
+	case "q", "ctrl+c":
+		return m, tea.Quit
+	}
+
+	return m, nil
+}
+
+// loadWorld loads an existing world and returns to playing phase
+func (m Model) loadWorld(worldID string) (Model, tea.Cmd) {
+	state, err := save.LoadWorld(worldID)
+	if err != nil {
+		// Failed to load - stay on world select
+		// TODO: Show error message
+		return m, nil
+	}
+
+	// Restore model from save state
+	m = FromSaveState(state, worldID, m.testCfg)
+	m.paused = true // Start paused
+
+	return m, tickCmd()
+}
+
 // handleCharacterCreationKey handles input during character creation phase
 func (m Model) handleCharacterCreationKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
@@ -739,5 +798,51 @@ func (m Model) startGameFromCreation() Model {
 	}
 	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 
+	// Create world for saving if not already set
+	if m.worldID == "" {
+		worldID, err := save.CreateWorld()
+		if err == nil {
+			m.worldID = worldID
+		}
+	}
+
 	return m
+}
+
+// saveGame saves the current game state to disk
+// Returns error if save fails, nil on success
+func (m *Model) saveGame() error {
+	if m.worldID == "" || m.gameMap == nil {
+		return nil // Nothing to save
+	}
+
+	state := m.ToSaveState()
+	if err := save.SaveWorld(m.worldID, state); err != nil {
+		return err
+	}
+
+	// Update metadata
+	chars := m.gameMap.Characters()
+	aliveCount := 0
+	for _, c := range chars {
+		if !c.IsDead {
+			aliveCount++
+		}
+	}
+
+	meta, err := save.LoadMeta(m.worldID)
+	if err != nil {
+		return err
+	}
+	meta.LastPlayedAt = time.Now()
+	meta.CharacterCount = len(chars)
+	meta.AliveCount = aliveCount
+
+	if err := save.SaveMeta(m.worldID, meta); err != nil {
+		return err
+	}
+
+	m.lastSaveGameTime = m.elapsedGameTime
+	m.saveIndicatorEnd = time.Now().Add(1 * time.Second) // Show "Saving" for 1 second
+	return nil
 }

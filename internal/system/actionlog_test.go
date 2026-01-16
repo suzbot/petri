@@ -3,7 +3,6 @@ package system
 import (
 	"sync"
 	"testing"
-	"time"
 )
 
 // =============================================================================
@@ -34,9 +33,8 @@ func TestActionLog_AddAndRetrieve(t *testing.T) {
 	if e.Message != "Getting hungry" {
 		t.Errorf("Event Message should be 'Getting hungry', got '%s'", e.Message)
 	}
-	if e.Timestamp.IsZero() {
-		t.Error("Event Timestamp should be set")
-	}
+	// GameTime will be 0 since we didn't call SetGameTime - that's expected
+	// The test just verifies the event was recorded with the current game time
 }
 
 func TestActionLog_EventsLimit(t *testing.T) {
@@ -61,10 +59,10 @@ func TestActionLog_EventsReturnsMostRecent(t *testing.T) {
 
 	log := NewActionLog(100)
 
-	// Add events with different messages
+	// Add events with different messages and game times
 	for i := 1; i <= 10; i++ {
+		log.SetGameTime(float64(i))
 		log.Add(1, "Len", "test", string(rune('A'+i-1))) // A, B, C, ...
-		time.Sleep(time.Millisecond) // Ensure different timestamps
 	}
 
 	// Request 3 most recent
@@ -128,11 +126,12 @@ func TestActionLog_AllEventsMergesCharacters(t *testing.T) {
 
 	log := NewActionLog(100)
 
-	// Add events with controlled timing
+	// Add events with controlled game time
+	log.SetGameTime(1.0)
 	log.Add(1, "Len", "test", "Event A")
-	time.Sleep(time.Millisecond)
+	log.SetGameTime(2.0)
 	log.Add(2, "Macca", "test", "Event B")
-	time.Sleep(time.Millisecond)
+	log.SetGameTime(3.0)
 	log.Add(1, "Len", "test", "Event C")
 
 	events := log.AllEvents(100)
@@ -140,7 +139,7 @@ func TestActionLog_AllEventsMergesCharacters(t *testing.T) {
 		t.Fatalf("AllEvents() should return 3 events, got %d", len(events))
 	}
 
-	// Should be sorted by timestamp (oldest first)
+	// Should be sorted by game time (oldest first)
 	if events[0].Message != "Event A" {
 		t.Errorf("First event should be 'Event A', got '%s'", events[0].Message)
 	}
@@ -193,6 +192,38 @@ func TestActionLog_AllEventCount(t *testing.T) {
 	}
 }
 
+func TestActionLog_AllEventsSortingIsStable(t *testing.T) {
+	t.Parallel()
+
+	log := NewActionLog(100)
+
+	// Add events at the SAME game time from multiple characters
+	// This tests that the sort is stable and uses CharID as tiebreaker
+	log.SetGameTime(1.0)
+	log.Add(3, "Charlie", "test", "Event from 3")
+	log.Add(1, "Alice", "test", "Event from 1")
+	log.Add(2, "Bob", "test", "Event from 2")
+
+	// Call AllEvents multiple times - result should be consistent
+	for i := 0; i < 10; i++ {
+		events := log.AllEvents(100)
+		if len(events) != 3 {
+			t.Fatalf("AllEvents() should return 3 events, got %d", len(events))
+		}
+
+		// With CharID as tiebreaker, should be sorted: 1, 2, 3
+		if events[0].CharID != 1 {
+			t.Errorf("Iteration %d: First event should be from CharID 1, got %d", i, events[0].CharID)
+		}
+		if events[1].CharID != 2 {
+			t.Errorf("Iteration %d: Second event should be from CharID 2, got %d", i, events[1].CharID)
+		}
+		if events[2].CharID != 3 {
+			t.Errorf("Iteration %d: Third event should be from CharID 3, got %d", i, events[2].CharID)
+		}
+	}
+}
+
 // =============================================================================
 // Event Trimming Tests
 // =============================================================================
@@ -222,8 +253,8 @@ func TestActionLog_TrimsOldestFirst(t *testing.T) {
 
 	// Add 15 events: A through O
 	for i := 1; i <= 15; i++ {
+		log.SetGameTime(float64(i))
 		log.Add(1, "Len", "test", string(rune('A'+i-1)))
-		time.Sleep(time.Millisecond)
 	}
 
 	events := log.Events(1, 100)
@@ -310,64 +341,64 @@ func TestActionLog_ConcurrentReadWrite(t *testing.T) {
 }
 
 // =============================================================================
-// FormatElapsed Tests
+// FormatGameTime Tests
 // =============================================================================
 
-func TestFormatElapsed_Seconds(t *testing.T) {
+func TestFormatGameTime_Seconds(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		elapsed  time.Duration
+		secs     float64
 		expected string
 	}{
 		{0, "[0s]"},
-		{30 * time.Second, "[30s]"},
-		{59 * time.Second, "[59s]"},
+		{30, "[30s]"},
+		{59, "[59s]"},
 	}
 
 	for _, tt := range tests {
-		got := FormatElapsed(tt.elapsed)
+		got := FormatGameTime(tt.secs)
 		if got != tt.expected {
-			t.Errorf("FormatElapsed(%v) = '%s', want '%s'", tt.elapsed, got, tt.expected)
+			t.Errorf("FormatGameTime(%v) = '%s', want '%s'", tt.secs, got, tt.expected)
 		}
 	}
 }
 
-func TestFormatElapsed_Minutes(t *testing.T) {
+func TestFormatGameTime_Minutes(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		elapsed  time.Duration
+		secs     float64
 		expected string
 	}{
-		{60 * time.Second, "[1m]"},
-		{5 * time.Minute, "[5m]"},
-		{59 * time.Minute, "[59m]"},
+		{60, "[1m]"},
+		{300, "[5m]"},  // 5 minutes
+		{3540, "[59m]"}, // 59 minutes
 	}
 
 	for _, tt := range tests {
-		got := FormatElapsed(tt.elapsed)
+		got := FormatGameTime(tt.secs)
 		if got != tt.expected {
-			t.Errorf("FormatElapsed(%v) = '%s', want '%s'", tt.elapsed, got, tt.expected)
+			t.Errorf("FormatGameTime(%v) = '%s', want '%s'", tt.secs, got, tt.expected)
 		}
 	}
 }
 
-func TestFormatElapsed_Hours(t *testing.T) {
+func TestFormatGameTime_Hours(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		elapsed  time.Duration
+		secs     float64
 		expected string
 	}{
-		{60 * time.Minute, "[1h]"},
-		{2 * time.Hour, "[2h]"},
+		{3600, "[1h]"},  // 1 hour
+		{7200, "[2h]"},  // 2 hours
 	}
 
 	for _, tt := range tests {
-		got := FormatElapsed(tt.elapsed)
+		got := FormatGameTime(tt.secs)
 		if got != tt.expected {
-			t.Errorf("FormatElapsed(%v) = '%s', want '%s'", tt.elapsed, got, tt.expected)
+			t.Errorf("FormatGameTime(%v) = '%s', want '%s'", tt.secs, got, tt.expected)
 		}
 	}
 }

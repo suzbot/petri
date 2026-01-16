@@ -8,16 +8,16 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Latest Updates
 
+- **Save system**: Auto-saves on pause, quit, and every 60 seconds of game time. Multiple worlds supported.
+- **World selection**: Continue existing worlds or start new ones from the title screen
 - **Knowledge transmission**: Characters share knowledge when conversations complete
 - **Talking activity**: Characters now talk with each other as an idle activity
-- **Idle activity system**: Characters choose between idle, looking, or talking when no needs are urgent
-- **Healing knowledge drives behavior**: Injured characters seek known healing items and prefer them when hungry
-- **Poison creates dislike**: Characters automatically dislike items they learn are poisonous
 - **Knowledge system**: Characters learn about poison/healing items through experience
 - **Knowledge panel**: Press K to view what a character has learned
 
 ## Features
 
+- **Save/Load**: Auto-saves on pause/quit, multiple worlds, continue or start new
 - **Multi-character simulation** with character creation (names, food/color preferences)
 - **Multi-stat survival**: hunger, thirst, energy, health, mood with urgency-based AI
 - **Social behavior**: Characters talk with each other when idle
@@ -42,9 +42,11 @@ go run ./cmd/petri
 
 ## Controls
 
-**Start Screen:**
+**World Selection:**
 
-- `M` - Start game (opens character creation)
+- `↑ ↓` - Select world
+- `Enter` - Continue selected world or start new
+- `Q` - Quit
 
 **Character Creation:**
 
@@ -56,7 +58,7 @@ go run ./cmd/petri
 
 **During Game:**
 
-- `Space` - Pause/unpause (world starts paused)
+- `Space` - Pause/unpause (saves on pause)
 - `.` - Step forward one tick (while paused)
 - Arrow keys - Move cursor
 - `F` - Follow/unfollow character
@@ -65,8 +67,8 @@ go run ./cmd/petri
 - `A` / `S` - All Activity / Select mode
 - `L` - Full log view (complete messages, no truncation)
 - `PgUp` / `PgDn` - Scroll action log
-- `ESC` - Return to start screen (closes panels first)
-- `Q` - Quit
+- `ESC` - Save and return to world selection
+- `Q` - Save and quit
 
 ## How It Works
 
@@ -91,6 +93,37 @@ For detailed mechanics, see [docs/game-mechanics.md](docs/game-mechanics.md). Fo
 ```
 
 Debug mode reveals exact stat values, action progress timers, and poison/healing information.
+
+## Save Files
+
+Save data is stored in `~/.petri/worlds/`. Each world has its own directory:
+
+```
+~/.petri/
+  worlds/
+    world-0001/
+      state.json      # Current game state
+      state.backup    # Previous save (backup)
+      meta.json       # World name, character count, last played
+    world-0002/
+      ...
+```
+
+**Managing saves outside the game:**
+
+```bash
+# List all saved worlds
+ls ~/.petri/worlds/
+
+# Delete a specific world
+rm -rf ~/.petri/worlds/world-0001
+
+# Delete ALL save data (start fresh)
+rm -rf ~/.petri
+
+# Backup your saves
+cp -r ~/.petri ~/petri-backup
+```
 
 ## Project Vision
 

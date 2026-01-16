@@ -19,6 +19,13 @@ type Map struct {
 	characterByPos map[Pos]*entity.Character // O(1) position lookup, max 1 character per position
 	items          []*entity.Item
 	features       []*entity.Feature
+
+	// ID counters for save/load
+	nextItemID    int
+	nextFeatureID int
+
+	// Variety registry for this world (determines poison/healing for item types)
+	varieties *VarietyRegistry
 }
 
 // NewMap creates a new map with the given dimensions
@@ -46,10 +53,19 @@ func (m *Map) AddCharacter(c *entity.Character) bool {
 	return true
 }
 
-// AddItem adds an item to the map
+// AddItem adds an item to the map, assigning a unique ID
 func (m *Map) AddItem(item *entity.Item) {
+	// Assign unique ID
+	m.nextItemID++
+	item.ID = m.nextItemID
+
 	// Items are stored only in the items slice, not in entities map
 	// This allows characters to walk over items without overwriting them
+	m.items = append(m.items, item)
+}
+
+// AddItemDirect adds an item to the map without assigning an ID (for save/load)
+func (m *Map) AddItemDirect(item *entity.Item) {
 	m.items = append(m.items, item)
 }
 
@@ -159,10 +175,19 @@ func (m *Map) ItemAt(x, y int) *entity.Item {
 	return nil
 }
 
-// AddFeature adds a feature to the map
+// AddFeature adds a feature to the map, assigning a unique ID
 func (m *Map) AddFeature(f *entity.Feature) {
+	// Assign unique ID
+	m.nextFeatureID++
+	f.ID = m.nextFeatureID
+
 	// Features are stored only in the features slice, not in entities map
 	// This allows characters to walk over/onto features
+	m.features = append(m.features, f)
+}
+
+// AddFeatureDirect adds a feature to the map without assigning an ID (for save/load)
+func (m *Map) AddFeatureDirect(f *entity.Feature) {
 	m.features = append(m.features, f)
 }
 
@@ -261,4 +286,34 @@ func abs(x int) int {
 		return -x
 	}
 	return x
+}
+
+// Varieties returns the variety registry for this map
+func (m *Map) Varieties() *VarietyRegistry {
+	return m.varieties
+}
+
+// SetVarieties sets the variety registry for this map
+func (m *Map) SetVarieties(v *VarietyRegistry) {
+	m.varieties = v
+}
+
+// NextItemID returns the current next item ID (for save/load)
+func (m *Map) NextItemID() int {
+	return m.nextItemID
+}
+
+// SetNextItemID sets the next item ID (for save/load)
+func (m *Map) SetNextItemID(id int) {
+	m.nextItemID = id
+}
+
+// NextFeatureID returns the current next feature ID (for save/load)
+func (m *Map) NextFeatureID() int {
+	return m.nextFeatureID
+}
+
+// SetNextFeatureID sets the next feature ID (for save/load)
+func (m *Map) SetNextFeatureID(id int) {
+	m.nextFeatureID = id
 }

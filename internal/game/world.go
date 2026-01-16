@@ -11,6 +11,7 @@ import (
 func SpawnItems(m *Map, mushroomsOnly bool) {
 	// Generate varieties for this world (defines what combos exist, assigns poison/healing)
 	registry := GenerateVarieties()
+	m.SetVarieties(registry)
 
 	// Calculate initial spawn cycle for staggered timers
 	initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers

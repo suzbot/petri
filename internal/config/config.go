@@ -12,25 +12,25 @@ const (
 	FlowerSpawnCount = 20
 	SpringCount      = 2
 	LeafPileCount    = 4
-	UpdateInterval = 150 * time.Millisecond
+	UpdateInterval   = 150 * time.Millisecond
 
 	// Symbols
 	CharRobot    = '@'
-	CharBerry    = '*'
-	CharMushroom = '^'
-	CharFlower   = '❀'
-	CharSpring   = '~'
-	CharLeafPile = '&'
+	CharBerry    = '●'
+	CharMushroom = '♠'
+	CharFlower   = '✿'
+	CharSpring   = '☉'
+	CharLeafPile = '#'
 	CharSleeping = 'z'
 
 	// Speed system
-	BaseSpeed          = 50  // baseline speed (0-100 scale)
-	MinSpeed           = 5   // minimum speed floor
-	PoisonSpeedPenalty = 25
-	ParchedSpeedPenalty    = 10  // thirst >= 90
-	DehydratedSpeedPenalty = 10  // thirst >= 100 (additional)
-	VeryTiredSpeedPenalty  = 10  // energy <= 25
-	ExhaustedSpeedPenalty  = 10  // energy <= 10 (additional)
+	BaseSpeed              = 50 // baseline speed (0-100 scale)
+	MinSpeed               = 5  // minimum speed floor
+	PoisonSpeedPenalty     = 25
+	ParchedSpeedPenalty    = 10 // thirst >= 90
+	DehydratedSpeedPenalty = 10 // thirst >= 100 (additional)
+	VeryTiredSpeedPenalty  = 10 // energy <= 25
+	ExhaustedSpeedPenalty  = 10 // energy <= 10 (additional)
 
 	// Survival mechanics
 	PoisonDuration          = 20.0 // seconds
@@ -45,13 +45,13 @@ const (
 	DrinkThirstReduction    = 20.0 // thirst reduced per drink
 	BedEnergyRestoreRate    = 5.0  // energy per second in bed
 	GroundEnergyRestoreRate = 2.0  // energy per second on ground
-	SatisfactionCooldown = 5.0 // seconds before stat starts changing after reaching optimal
-	ActionDuration       = 1.5 // seconds for consume/drink/sleep actions to complete
+	SatisfactionCooldown    = 5.0  // seconds before stat starts changing after reaching optimal
+	ActionDuration          = 1.5  // seconds for consume/drink/sleep actions to complete
 
 	// Idle activities (looking, talking)
-	IdleCooldown = 10.0  // seconds between idle activity attempts
-	LookDuration = 3.0   // seconds to complete looking at an item
-	TalkDuration = 5.0   // seconds to complete a conversation
+	IdleCooldown = 10.0 // seconds between idle activity attempts
+	LookDuration = 3.0  // seconds to complete looking at an item
+	TalkDuration = 5.0  // seconds to complete a conversation
 
 	// Frustration mechanics
 	FrustrationThreshold = 3   // consecutive failed intents before frustrated
@@ -71,8 +71,8 @@ const (
 	HealAmount = 20.0 // health restored by healing items (instant)
 
 	// Item lifecycle
-	ItemSpawnChance       = 0.50 // 50% chance per spawn opportunity
-	ItemSpawnMaxDensity   = 0.50 // max 50% of map coordinates occupied by items
+	ItemSpawnChance           = 0.50 // 50% chance per spawn opportunity
+	ItemSpawnMaxDensity       = 0.50 // max 50% of map coordinates occupied by items
 	LifecycleIntervalVariance = 0.20 // ±20% randomization for spawn/death timers
 
 	// Preference formation
@@ -88,6 +88,9 @@ const (
 	VarietyMinCount       = 2    // minimum varieties per item type
 	VarietyPoisonPercent  = 0.20 // 20% of edible varieties are poisonous
 	VarietyHealingPercent = 0.20 // 20% of edible varieties are healing
+
+	// Auto-save
+	AutoSaveInterval = 60.0 // seconds of game time between auto-saves
 
 	// Food seeking - gradient scoring
 	// Score = (NetPreference × PrefWeight) - (Distance × DistWeight)
@@ -114,7 +117,7 @@ type LifecycleConfig struct {
 
 // ItemLifecycle maps item types to their lifecycle configuration
 var ItemLifecycle = map[string]LifecycleConfig{
-	"berry":    {SpawnInterval: 3.0, DeathInterval: 0},    // immortal until eaten
-	"mushroom": {SpawnInterval: 3.0, DeathInterval: 0},    // immortal until eaten
+	"berry":    {SpawnInterval: 3.0, DeathInterval: 0},   // immortal until eaten
+	"mushroom": {SpawnInterval: 3.0, DeathInterval: 0},   // immortal until eaten
 	"flower":   {SpawnInterval: 3.0, DeathInterval: 8.0}, // dies after ~6-10 min
 }

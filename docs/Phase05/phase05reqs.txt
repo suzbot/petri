@@ -1,0 +1,40 @@
+    Phase V:    Resources, Inventory, and simple job assignment
+                 - Ability to forage for a mushroom, berry, or flower based on preference
+                 - Ability to view character inventory
+                 - Ability to view jobs panel
+                 - Ability for user to order forage job
+                 - Job Acceptance by any idle char (no preference/critically queue yet)
+                 - Job reflected in current activity, and activity log
+                 - Need Interruption and return
+                 - mood impacted by carrying
+                 - can eat carried object when hungry
+
+Phase 5 Requirements - Picking up Items and Inventory
+
+General Idea:
+This phase introduces the concept of items that can be picked up, and containers.
+
+New ItemType: Gourd
+    1. Gourd belongs to Category Plant
+        i. Flowers, Berries, and Mushrooms are also Plants
+        ii. Plants are a kind of item that can spawn on the map at world creation, reproduce,
+            and potentially die.
+        iii. Plants may be edible and poison or healing.
+        iv.  Mushrooms, Berries, and Flowers are also Plants
+    2. Gourd follows the same spawning and reproduction rules as mushrooms
+    3. Gourds are edible.
+    4. Gourds are never poison or healing.
+    5. Characters can interact with gourds by eating or looking
+    6. Gourds can be: white, green, yellow, orange
+    7. Gourds can have Pattern striped (stripes) or no pattern
+    8. Gourds can have texture: knobbly or no texture
+New Idle Activity: Forage
+
+Character has inventory view
+    1. When a character is selected, the user has an option to press 'i' for the bottom panel
+        to show 'Inventory'
+    2. When the inventory is viewed, it will say 'Carrying [item]' for each item that is carried
+Dropping Item
+Harvest
+
+

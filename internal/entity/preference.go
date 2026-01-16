@@ -130,9 +130,11 @@ func patternNoun(pattern types.Pattern) string {
 func textureNoun(texture types.Texture) string {
 	switch texture {
 	case types.TextureSlimy:
-		return "Slime"
+		return "slimy texture"
+	case types.TextureWaxy:
+		return "waxy texture"
 	default:
-		return string(texture)
+		return string(texture) + " texture"
 	}
 }
 

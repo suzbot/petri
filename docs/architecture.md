@@ -86,3 +86,28 @@ Key distinction:
 - Selective storage of notable events
 - Persists until character death
 - Basis for knowledge transmission, storytelling, artifact creation
+
+## Save/Load Serialization
+
+Save files stored in `~/.petri/worlds/world-XXXX/` with:
+- `state.json` - Full game state
+- `state.backup` - Previous save (backup rotation)
+- `meta.json` - World metadata for selection screen
+
+### Serialization Checklist
+
+When adding fields to saved structs, ensure ALL fields are included:
+
+1. **Display fields**: Symbols (`Sym`), colors, styles set by constructors
+2. **All attribute fields**: Easy to miss nested fields (e.g., Pattern/Texture on preferences)
+3. **Round-trip tests**: Save → load → verify all fields match
+
+Constructor-set fields like `Sym` won't be populated when deserializing directly into structs - must be explicitly restored based on type.
+
+## Common Implementation Pitfalls
+
+**Game time vs wall clock**: UI indicators that should work when paused (like "Saved" message) need wall clock time (`time.Now()`), not game time which only advances when unpaused.
+
+**Sorting stability**: When displaying merged data from maps (e.g., AllEvents from ActionLog), use `sort.SliceStable` with deterministic tiebreakers (like CharID) to prevent visual jitter from Go's random map iteration order.
+
+**View transitions**: When switching between views with different rendering approaches (game view uses direct rendering, menus use lipgloss.Place for centering), add dimension safeguards for edge cases.

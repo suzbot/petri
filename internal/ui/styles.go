@@ -35,6 +35,9 @@ var (
 	orangeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
 	yellowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("226"))
 	purpleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("135"))
+	tanStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("180"))
+	pinkStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("213"))
+	blackStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // dark gray for visibility
 
 	// Feature colors
 	waterStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))  // bright blue

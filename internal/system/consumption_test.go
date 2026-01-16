@@ -737,6 +737,7 @@ func TestConsume_PoisonousItemRemovesExactMatchLike(t *testing.T) {
 
 	char := newTestCharacter()
 	char.Knowledge = []entity.Knowledge{}
+	char.Mood = 40 // Low enough that preference boost (+20) keeps mood in Neutral tier
 
 	// Character has an exact matching "like" for the same variety
 	item := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternSpotted, types.TextureNone, true, false)
