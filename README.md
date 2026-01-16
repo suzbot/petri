@@ -8,6 +8,8 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Latest Updates
 
+- **Inventory & Foraging**: Characters can now pick up and carry items. Foraging is a new idle activity where characters collect nearby edible items based on preference.
+- **Inventory panel**: Press I to view what a character is carrying
 - **Gourds**: New edible item type with colors, patterns (striped, speckled), and textures (waxy, warty). Gourds are never poisonous or healing.
 - **Expanded item attributes**: More colors, patterns, and textures for existing item types
 - **Save system**: Auto-saves on pause, quit, and every 60 seconds of game time. Multiple worlds supported.
@@ -22,6 +24,7 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 - **Save/Load**: Auto-saves on pause/quit, multiple worlds, continue or start new
 - **Multi-character simulation** with character creation (names, food/color preferences)
 - **Multi-stat survival**: hunger, thirst, energy, health, mood with urgency-based AI
+- **Inventory system**: Characters can carry items, forage as an idle activity
 - **Social behavior**: Characters talk with each other when idle
 - **Knowledge system**: Characters learn about poison/healing through experience, share knowledge through talking, and act on what they know
 - **Dynamic preferences**: Characters form opinions about items based on attributes
@@ -65,6 +68,7 @@ go run ./cmd/petri
 - Arrow keys - Move cursor
 - `F` - Follow/unfollow character
 - `N` - Cycle to next character
+- `I` - Toggle inventory panel (select mode)
 - `K` - Toggle knowledge panel (select mode)
 - `A` / `S` - All Activity / Select mode
 - `L` - Full log view (complete messages, no truncation)
@@ -77,9 +81,10 @@ go run ./cmd/petri
 1. Create characters with names and preferences, then start the simulation
 2. Characters manage needs (hunger, thirst, energy, health) prioritized by urgency
 3. The world contains edible items (berries, mushrooms, gourds), decorative flowers, springs for water, and leaf piles for sleep
-4. Characters learn from experience: eating poison/healing items creates knowledge that affects future behavior
-5. Characters form preferences based on their mood when interacting with items
-6. Mood reflects emotional state, affected by need urgency and preferences
+4. When idle, characters may look at items, talk with each other, or forage (pick up items to carry)
+5. Characters learn from experience: eating poison/healing items creates knowledge that affects future behavior
+6. Characters form preferences based on their mood when interacting with items
+7. Mood reflects emotional state, affected by need urgency and preferences
 
 For detailed mechanics, see [docs/game-mechanics.md](docs/game-mechanics.md). For configuration values, see `internal/config/config.go`.
 

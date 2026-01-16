@@ -67,6 +67,17 @@ Phase 5 introduces inventory, know-how (activity knowledge), discovery mechanics
 
 **[TEST]:** Run simulation, observe characters foraging during idle time. Verify they pick up items (not eat). Press 'i' to view inventory. Verify foraging stops when carrying an item. Save/load and verify inventory persists.
 
+**Implementation Notes (5.2):**
+- Character.Carrying field added (`*Item`, nil = empty)
+- ActionPickup constant added to ActionType enum
+- IsInventoryFull() helper method added to Character
+- Serialization: CharacterSave.Carrying field (`*ItemSave`, omitempty), timers set to 0 for carried items
+- itemFromSave() updated to handle "gourd" item type
+- UI: showInventoryPanel bool in Model, 'i'/'k' mutually exclusive toggles
+- renderInventoryPanel() shows "Carrying: [description]" or "Carrying: nothing"
+- Foraging: 4th idle activity at 25%, uses findForageIntent() with preference/distance scoring (same weights as eating)
+- Foraging logs: "Foraging for [item type]" on start, "[name] picked up [item]" on pickup
+
 ---
 
 ### 5.3: Eating from Inventory
@@ -176,7 +187,12 @@ Phase 5 introduces inventory, know-how (activity knowledge), discovery mechanics
 ## Feature-Specific Questions (to address during implementation)
 
 ### 5.2
-- Foraging selection probability vs looking/talking? (Currently 1/3 each for look/talk/idle)
+- Foraging selection probability vs looking/talking? **Decision: 4th option at 25% each (look/talk/idle/forage)**
+- Empty inventory display? **Decision: "Carrying: nothing"**
+- Action log entries? **Decision: Log both "starting to forage" and "picked up [item]"**
+- Movement mechanics? **Decision: Multi-tick move-then-act like eating**
+- Panel toggling? **Decision: 'i' and 'k' are mutually exclusive (pressing one closes the other)**
+- Carried item timers? **Decision: Carried items become static (no spawn/death timers). Timers cleared on pickup. Future planting feature may re-enable timers, but only when planted.**
 
 ### 5.4
 - Discovery probability per trigger event?

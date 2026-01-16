@@ -759,6 +759,65 @@ func TestContinueIntent_OwnPositionDoesNotAbandon(t *testing.T) {
 	}
 }
 
+func TestContinueIntent_PickupNotConvertedToLook(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPosition(4, 5) // Adjacent to item at (5,5)
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	item := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	gameMap.AddItem(item)
+
+	// ActionPickup intent (foraging) should NOT be converted to ActionLook
+	char.Intent = &entity.Intent{
+		TargetX:    5,
+		TargetY:    5,
+		Action:     entity.ActionPickup,
+		TargetItem: item,
+		// No DrivingStat - idle activity
+	}
+
+	intent := continueIntent(char, 4, 5, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Should continue pickup intent")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Action: got %d, want ActionPickup (should NOT convert to Look)", intent.Action)
+	}
+}
+
+func TestContinueIntent_PickupContinuesToItem(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPosition(0, 0) // Not adjacent to item at (5,5)
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	item := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	gameMap.AddItem(item)
+
+	char.Intent = &entity.Intent{
+		TargetX:    1,
+		TargetY:    0,
+		Action:     entity.ActionPickup,
+		TargetItem: item,
+	}
+
+	intent := continueIntent(char, 0, 0, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Should continue pickup intent when item exists")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Action: got %d, want ActionPickup", intent.Action)
+	}
+	if intent.TargetItem != item {
+		t.Error("Should maintain same target item")
+	}
+}
+
 // =============================================================================
 // findHealingIntent (E2: Health-driven seeking)
 // =============================================================================

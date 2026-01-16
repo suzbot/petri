@@ -185,3 +185,4 @@ func StartSleep(char *entity.Character, atBed bool, log *ActionLog) {
 		}
 	}
 }
+

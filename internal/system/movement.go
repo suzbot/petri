@@ -338,7 +338,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	}
 
 	// Check if we've arrived adjacent to an item for looking (no DrivingStat means looking intent)
-	if intent.TargetItem != nil && intent.DrivingStat == "" && isAdjacent(cx, cy, tx, ty) {
+	// Skip if ActionPickup (foraging) - those need to move onto the item, not stay adjacent
+	if intent.TargetItem != nil && intent.DrivingStat == "" && intent.Action != entity.ActionPickup && isAdjacent(cx, cy, tx, ty) {
 		newActivity := "Looking at " + intent.TargetItem.Description()
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
@@ -361,7 +362,7 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		}
 	}
 
-	nx, ny := nextStep(cx, cy, tx, ty)
+	nx, ny := NextStep(cx, cy, tx, ty)
 
 	return &entity.Intent{
 		TargetX:         nx,
@@ -410,7 +411,7 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 	}
 
 	// Move toward spring
-	nx, ny := nextStep(cx, cy, tx, ty)
+	nx, ny := NextStep(cx, cy, tx, ty)
 	newActivity := "Moving to spring"
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
@@ -443,7 +444,7 @@ func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, ti
 	}
 
 	tx, ty := result.Item.Position()
-	nx, ny := nextStep(cx, cy, tx, ty)
+	nx, ny := NextStep(cx, cy, tx, ty)
 
 	newActivity := "Moving to " + result.Item.Description()
 	if char.CurrentActivity != newActivity {
@@ -500,7 +501,7 @@ func findHealingIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 	}
 
 	tx, ty := nearest.Position()
-	nx, ny := nextStep(cx, cy, tx, ty)
+	nx, ny := NextStep(cx, cy, tx, ty)
 
 	newActivity := "Moving to " + nearest.Description() + " (healing)"
 	if char.CurrentActivity != newActivity {
@@ -569,7 +570,7 @@ func findSleepIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 	}
 
 	// Move toward bed
-	nx, ny := nextStep(cx, cy, tx, ty)
+	nx, ny := NextStep(cx, cy, tx, ty)
 	newActivity := "Moving to leaf pile"
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
@@ -689,8 +690,8 @@ func findFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 	}
 }
 
-// nextStep calculates the next position moving toward target
-func nextStep(fromX, fromY, toX, toY int) (int, int) {
+// NextStep calculates the next position moving toward target
+func NextStep(fromX, fromY, toX, toY int) (int, int) {
 	dx := toX - fromX
 	dy := toY - fromY
 
@@ -783,7 +784,7 @@ func findLookIntent(char *entity.Character, cx, cy int, items []*entity.Item, ga
 	}
 
 	// Move toward adjacent tile
-	nx, ny := nextStep(cx, cy, adjX, adjY)
+	nx, ny := NextStep(cx, cy, adjX, adjY)
 
 	newActivity := "Moving to look at " + target.Description()
 	if char.CurrentActivity != newActivity {
@@ -799,6 +800,90 @@ func findLookIntent(char *entity.Character, cx, cy int, items []*entity.Item, ga
 		Action:     entity.ActionMove,
 		TargetItem: target,
 	}
+}
+
+// findForageIntent creates an intent to forage (pick up) an edible item.
+// Called by selectIdleActivity when foraging is selected.
+// Uses preference/distance scoring similar to eating but without hunger-based filtering.
+func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, log *ActionLog) *entity.Intent {
+	// Find best edible item using preference/distance gradient
+	target := findForageTarget(char, cx, cy, items)
+	if target == nil {
+		return nil
+	}
+
+	tx, ty := target.Position()
+
+	// Check if already at target
+	if cx == tx && cy == ty {
+		// Start foraging immediately
+		newActivity := "Foraging " + target.Description()
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+			if log != nil {
+				log.Add(char.ID, char.Name, "activity", "Foraging for "+target.ItemType)
+			}
+		}
+		return &entity.Intent{
+			TargetX:    cx,
+			TargetY:    cy,
+			Action:     entity.ActionPickup,
+			TargetItem: target,
+		}
+	}
+
+	// Move toward target - use ActionPickup to distinguish from looking
+	nx, ny := NextStep(cx, cy, tx, ty)
+
+	newActivity := "Moving to forage " + target.Description()
+	if char.CurrentActivity != newActivity {
+		char.CurrentActivity = newActivity
+		if log != nil {
+			log.Add(char.ID, char.Name, "activity", "Foraging for "+target.ItemType)
+		}
+	}
+
+	return &entity.Intent{
+		TargetX:    nx,
+		TargetY:    ny,
+		Action:     entity.ActionPickup,
+		TargetItem: target,
+	}
+}
+
+// findForageTarget finds the best edible item for foraging using preference/distance scoring.
+// Uses moderate preference weight - foraging is idle activity, not urgent need.
+func findForageTarget(char *entity.Character, cx, cy int, items []*entity.Item) *entity.Item {
+	if len(items) == 0 {
+		return nil
+	}
+
+	var bestItem *entity.Item
+	bestScore := float64(int(^uint(0)>>1)) * -1 // Negative max float
+	bestDist := int(^uint(0) >> 1)              // Max int for distance tiebreaker
+
+	for _, item := range items {
+		// Only consider edible items for foraging
+		if !item.Edible {
+			continue
+		}
+
+		netPref := char.NetPreference(item)
+		ix, iy := item.Position()
+		dist := abs(cx-ix) + abs(cy-iy)
+
+		// Calculate gradient score (same weights as moderate hunger eating)
+		score := float64(netPref)*config.FoodSeekPrefWeightModerate - float64(dist)*config.FoodSeekDistWeight
+
+		// Update best if better score, or same score but closer
+		if score > bestScore || (score == bestScore && dist < bestDist) {
+			bestItem = item
+			bestScore = score
+			bestDist = dist
+		}
+	}
+
+	return bestItem
 }
 
 // findNearestItem finds the closest item of any type to the given position

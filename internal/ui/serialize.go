@@ -57,6 +57,24 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 			talkingWithID = c.TalkingWith.ID
 		}
 
+		// Convert carried item if present (timers cleared - carried items are static)
+		var carrying *save.ItemSave
+		if c.Carrying != nil {
+			carrying = &save.ItemSave{
+				ID:        c.Carrying.ID,
+				X:         c.Carrying.X,
+				Y:         c.Carrying.Y,
+				ItemType:  c.Carrying.ItemType,
+				Color:     string(c.Carrying.Color),
+				Pattern:   string(c.Carrying.Pattern),
+				Texture:   string(c.Carrying.Texture),
+				Edible:    c.Carrying.Edible,
+				Poisonous: c.Carrying.Poisonous,
+				Healing:   c.Carrying.Healing,
+				// SpawnTimer/DeathTimer intentionally 0 - carried items are static
+			}
+		}
+
 		result[i] = save.CharacterSave{
 			ID:   c.ID,
 			Name: c.Name,
@@ -97,6 +115,8 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 
 			Preferences: preferencesToSave(c.Preferences),
 			Knowledge:   knowledgeToSave(c.Knowledge),
+
+			Carrying: carrying,
 		}
 	}
 	return result
@@ -316,6 +336,11 @@ func characterFromSave(cs save.CharacterSave) *entity.Character {
 	char.Sym = config.CharRobot
 	char.EType = entity.TypeCharacter
 
+	// Restore carried item if present
+	if cs.Carrying != nil {
+		char.Carrying = itemFromSave(*cs.Carrying)
+	}
+
 	return char
 }
 
@@ -375,6 +400,8 @@ func itemFromSave(is save.ItemSave) *entity.Item {
 		item.Sym = config.CharMushroom
 	case "flower":
 		item.Sym = config.CharFlower
+	case "gourd":
+		item.Sym = config.CharGourd
 	}
 
 	return item

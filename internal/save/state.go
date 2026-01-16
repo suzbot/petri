@@ -89,6 +89,9 @@ type CharacterSave struct {
 	// Mind
 	Preferences []PreferenceSave `json:"preferences"`
 	Knowledge   []KnowledgeSave  `json:"knowledge"`
+
+	// Inventory
+	Carrying *ItemSave `json:"carrying,omitempty"` // Item being carried (nil if empty)
 }
 
 // ItemSave represents an item for serialization

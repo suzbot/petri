@@ -6,7 +6,7 @@ Guidance for Claude Code when working with code in this repo.
 
 Petri is a Dwarf Fortress-inspired simulation exploring emergent culture development.
 
-**Current features:** Character creation, world generation with items and features, multi-stat survival, dynamic preference system, knowledge system (learning poison/healing, knowledge-driven behavior, knowledge transmission via talking), social behavior (talking between idle characters), urgency-based AI with stat fallback and frustration mechanics, view modes, and action logging.
+**Current features:** Character creation, world generation with items (berries, mushrooms, gourds, flowers) and features, multi-stat survival, dynamic preference system, knowledge system (learning poison/healing, knowledge-driven behavior, knowledge transmission via talking), social behavior (talking between idle characters), inventory system (foraging to pick up items), urgency-based AI with stat fallback and frustration mechanics, view modes, and action logging.
 
 **Vision:** Complex roguelike simulation world with complex interactions between characters, items, and attributes. History exists only in character memories and created artifacts. As characters die, their knowledge dies with them except what they've communicated or created. See [docs/VISION.txt](docs/VISION.txt).
 
@@ -120,12 +120,11 @@ Results are documented in `docs/futureEnancements.md` under "Balance Observation
 
 ### Current Work
 
-Save system complete. Next: UI Polish Pass (see below)
+Phase 5: Picking up Items and Inventory. Sub-phases 5.1 (Item Category & Gourd) and 5.2 (Inventory & Foraging) complete.
 
 ### Near-Term Roadmap
 
-- Expand item colors and textures, add new gourd item
-- Phase 5 (still in product planning)
+- Phase 5.3+ (see docs/phase05-plan.md for full plan)
 
 ### Deferred Enhancements & Trigger Points
 
@@ -147,4 +146,4 @@ Technical items analyzed and consciously deferred until trigger conditions are m
 | [docs/game-mechanics.md](docs/game-mechanics.md)       | Detailed stat thresholds, rates, systems      |
 | [docs/futureEnancements.md](docs/futureEnancements.md) | Deferred items with triggers, balance tuning  |
 | [docs/failed-approaches.md](docs/failed-approaches.md) | Approaches tried and abandoned                |
-| [docs/save-system-plan.md](docs/save-system-plan.md)   | Save system design and implementation plan    |
+| [docs/phase05-plan.md](docs/phase05-plan.md)           | Phase 5 implementation plan                   |

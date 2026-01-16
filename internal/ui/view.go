@@ -397,13 +397,15 @@ func (m Model) viewGame() string {
 		logView := borderStyle.Width(panelWidth).Height(allActivityHeight).Render(m.renderCombinedLog())
 		rightPanel = logView
 	} else {
-		// Select mode: Details on top, Action Log or Knowledge Panel below
+		// Select mode: Details on top, Action Log/Knowledge/Inventory Panel below
 		detailsHeight := totalContentHeight / 2
 		logHeight := totalContentHeight - detailsHeight
 		detailsView := borderStyle.Width(panelWidth).Height(detailsHeight).Render(m.renderDetails())
 		var bottomPanel string
 		if m.showKnowledgePanel {
 			bottomPanel = borderStyle.Width(panelWidth).Height(logHeight).Render(m.renderKnowledgePanel())
+		} else if m.showInventoryPanel {
+			bottomPanel = borderStyle.Width(panelWidth).Height(logHeight).Render(m.renderInventoryPanel())
 		} else {
 			bottomPanel = borderStyle.Width(panelWidth).Height(logHeight).Render(m.renderActionLog())
 		}
@@ -1018,6 +1020,31 @@ func (m Model) renderKnowledgePanel() string {
 	}
 
 	lines = append(lines, "", " Press K to return")
+
+	return strings.Join(lines, "\n")
+}
+
+// renderInventoryPanel renders the inventory panel for the selected character
+func (m Model) renderInventoryPanel() string {
+	var lines []string
+	lines = append(lines, titleStyle.Render("       INVENTORY"), "")
+
+	// Get character at cursor
+	if e := m.gameMap.EntityAt(m.cursorX, m.cursorY); e != nil {
+		if char, ok := e.(*entity.Character); ok {
+			if char.Carrying != nil {
+				lines = append(lines, " Carrying: "+char.Carrying.Description())
+			} else {
+				lines = append(lines, " Carrying: nothing")
+			}
+		} else {
+			lines = append(lines, " Select a character")
+		}
+	} else {
+		lines = append(lines, " Select a character")
+	}
+
+	lines = append(lines, "", " Press I to return")
 
 	return strings.Join(lines, "\n")
 }

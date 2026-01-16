@@ -277,6 +277,25 @@ Log messages for transmission:
 - Sharer: "Shared knowledge with [Name]"
 - Learner: "Learned: [knowledge description]" + "Learned something!"
 
+## Inventory
+
+Characters can carry items in their inventory.
+
+### Capacity
+
+Current inventory capacity: 1 item. Characters can carry one item at a time.
+
+### Viewing Inventory
+
+Press `I` in select mode to toggle the Inventory panel (replaces action log). Shows "Carrying: [item description]" or "Carrying: nothing". Press `I` again to return to action log.
+
+### Carried Item Properties
+
+When an item is picked up:
+- Item is removed from the map
+- Spawn/death timers are cleared (carried items are static)
+- Item remains in inventory until consumed or dropped (future feature)
+
 ## Idle Activities
 
 When characters have no urgent needs (all stats below Moderate tier), they select from idle activities:
@@ -284,11 +303,12 @@ When characters have no urgent needs (all stats below Moderate tier), they selec
 ### Activity Selection
 
 Every 10 seconds (IdleCooldown), characters roll for an idle activity:
-- **1/3 chance**: Look at nearest item
-- **1/3 chance**: Talk with nearby idle character
-- **1/3 chance**: Stay idle
+- **1/4 chance**: Look at nearest item
+- **1/4 chance**: Talk with nearby idle character
+- **1/4 chance**: Forage for edible item (if inventory not full)
+- **1/4 chance**: Stay idle
 
-If the selected activity isn't possible (no items to look at, no idle characters nearby), the system falls back to the next option.
+If the selected activity isn't possible (no items to look at, no idle characters nearby, inventory full), the system falls back to the next option.
 
 ### Looking
 
@@ -300,13 +320,22 @@ Characters look at nearby items, which:
 
 ### Talking
 
-Characters seek out other characters doing idle activities (Idle, Looking, or already Talking):
+Characters seek out other characters doing idle activities (Idle, Looking, Talking, or Foraging):
 - Initiator moves to adjacent position of target
 - When adjacent, both characters enter "Talking with [Name]" state
 - Conversation lasts 5 seconds
 - On completion: knowledge transmission occurs (see Knowledge Transmission above)
 - Either character can be interrupted by Moderate+ needs
 - When one partner is interrupted, both stop talking (no knowledge transmitted)
+
+### Foraging
+
+Characters pick up edible items to carry in inventory:
+- Only available when inventory is not full
+- Uses preference/distance scoring (same weights as moderate hunger eating)
+- Character moves to item, then picks it up (takes ActionDuration to complete)
+- Picked up item is removed from map and placed in inventory
+- Logs "Foraging for [item type]" when starting, "Picked up [item]" on completion
 
 Idle activities are interruptible by any Moderate or higher tier need that can be fulfilled.
 

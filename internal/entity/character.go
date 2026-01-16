@@ -54,6 +54,9 @@ type Character struct {
 	// Activity tracking
 	CurrentActivity string
 
+	// Inventory
+	Carrying *Item // Item being carried (nil if empty, capacity: 1)
+
 	// Intent-based movement for Phase II concurrency
 	Intent *Intent
 }
@@ -80,6 +83,7 @@ const (
 	ActionSleep
 	ActionLook
 	ActionTalk
+	ActionPickup
 )
 
 // NewCharacter creates a new character with the given preferences
@@ -372,4 +376,9 @@ func (c *Character) IsInCrisis() bool {
 		c.ThirstTier() == TierCrisis ||
 		c.EnergyTier() == TierCrisis ||
 		c.HealthTier() == TierCrisis
+}
+
+// IsInventoryFull returns true if the character cannot carry more items
+func (c *Character) IsInventoryFull() bool {
+	return c.Carrying != nil
 }

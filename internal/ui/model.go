@@ -76,8 +76,9 @@ type Model struct {
 	// View mode (select vs all-activity)
 	viewMode viewMode
 
-	// Knowledge panel toggle (replaces action log in select mode)
+	// Bottom panel toggles (mutually exclusive, replaces action log in select mode)
 	showKnowledgePanel bool
+	showInventoryPanel bool
 
 	// Character creation state
 	creationState *CharacterCreationState

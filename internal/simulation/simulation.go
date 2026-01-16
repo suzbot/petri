@@ -134,6 +134,58 @@ func applyIntent(char *entity.Character, gameMap *game.Map, delta float64, actio
 			char.ActionProgress = 0
 			system.StartSleep(char, atBed, actionLog)
 		}
+
+	case entity.ActionPickup:
+		applyPickupIntent(char, gameMap, delta, actionLog)
+	}
+}
+
+// applyPickupIntent handles foraging - movement and pickup at destination
+func applyPickupIntent(char *entity.Character, gameMap *game.Map, delta float64, actionLog *system.ActionLog) {
+	cx, cy := char.Position()
+
+	if char.Intent.TargetItem == nil {
+		return
+	}
+
+	ix, iy := char.Intent.TargetItem.Position()
+
+	// Check if at target item
+	if cx == ix && cy == iy {
+		// At item - pickup in progress
+		char.ActionProgress += delta
+		if char.ActionProgress >= config.ActionDuration {
+			char.ActionProgress = 0
+			if item := gameMap.ItemAt(cx, cy); item == char.Intent.TargetItem {
+				system.Pickup(char, item, gameMap, actionLog)
+			}
+		}
+		return
+	}
+
+	// Not at item yet - move toward it
+	speed := char.EffectiveSpeed()
+	char.SpeedAccumulator += float64(speed) * delta
+
+	const movementThreshold = 7.5
+
+	if char.SpeedAccumulator < movementThreshold {
+		return
+	}
+
+	char.SpeedAccumulator -= movementThreshold
+
+	// Move toward target item
+	tx, ty := char.Intent.TargetX, char.Intent.TargetY
+	if gameMap.MoveCharacter(char, tx, ty) {
+		// Successfully moved - update intent for next step
+		newX, newY := char.Position()
+		if newX != ix || newY != iy {
+			// Need to keep moving toward item
+			nextX, nextY := system.NextStep(newX, newY, ix, iy)
+			char.Intent.TargetX = nextX
+			char.Intent.TargetY = nextY
+		}
 	}
 }
 
@@ -146,7 +198,7 @@ func applyMoveIntent(char *entity.Character, gameMap *game.Map, delta float64, a
 	if char.Intent.TargetItem != nil {
 		ix, iy := char.Intent.TargetItem.Position()
 		if cx == ix && cy == iy {
-			// At food - eating in progress
+			// At target item - eating in progress
 			char.ActionProgress += delta
 			if char.ActionProgress >= config.ActionDuration {
 				char.ActionProgress = 0

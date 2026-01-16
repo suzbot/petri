@@ -108,6 +108,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.paused = true
 			m.viewMode = viewModeSelect
 			m.showKnowledgePanel = false
+			m.showInventoryPanel = false
 			m.logScrollOffset = 0
 			return m, tea.Batch(tea.ClearScreen, tea.WindowSize())
 		case " ":
@@ -138,9 +139,20 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.logScrollOffset = 0
 		case "k", "K":
-			// Toggle knowledge panel (only in select mode)
+			// Toggle knowledge panel (only in select mode, mutually exclusive with inventory)
 			if m.viewMode == viewModeSelect {
 				m.showKnowledgePanel = !m.showKnowledgePanel
+				if m.showKnowledgePanel {
+					m.showInventoryPanel = false
+				}
+			}
+		case "i", "I":
+			// Toggle inventory panel (only in select mode, mutually exclusive with knowledge)
+			if m.viewMode == viewModeSelect {
+				m.showInventoryPanel = !m.showInventoryPanel
+				if m.showInventoryPanel {
+					m.showKnowledgePanel = false
+				}
 			}
 		case "n":
 			// Cycle to next alive character
@@ -327,7 +339,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		if char.Intent.TargetItem != nil {
 			ix, iy := char.Intent.TargetItem.Position()
 			if cx == ix && cy == iy {
-				// Already at food - eating in progress
+				// At target item - eating in progress
 				char.ActionProgress += delta
 				if char.ActionProgress >= config.ActionDuration {
 					char.ActionProgress = 0
@@ -458,6 +470,54 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			// Talk complete - transmit knowledge, then stop talking
 			system.TransmitKnowledge(char, target, m.actionLog)
 			system.StopTalking(char, target, m.actionLog)
+		}
+
+	case entity.ActionPickup:
+		// Foraging - move to item and pick it up
+		cx, cy := char.Position()
+
+		if char.Intent.TargetItem == nil {
+			return
+		}
+
+		ix, iy := char.Intent.TargetItem.Position()
+
+		// Check if at target item
+		if cx == ix && cy == iy {
+			// At item - pickup in progress
+			char.ActionProgress += delta
+			if char.ActionProgress >= config.ActionDuration {
+				char.ActionProgress = 0
+				if item := m.gameMap.ItemAt(cx, cy); item == char.Intent.TargetItem {
+					system.Pickup(char, item, m.gameMap, m.actionLog)
+				}
+			}
+			return
+		}
+
+		// Not at item yet - move toward it
+		speed := char.EffectiveSpeed()
+		char.SpeedAccumulator += float64(speed) * delta
+
+		const movementThreshold = 7.5
+
+		if char.SpeedAccumulator < movementThreshold {
+			return
+		}
+
+		char.SpeedAccumulator -= movementThreshold
+
+		// Move toward target item
+		tx, ty := char.Intent.TargetX, char.Intent.TargetY
+		if m.gameMap.MoveCharacter(char, tx, ty) {
+			// Successfully moved - update intent for next step
+			newX, newY := char.Position()
+			if newX != ix || newY != iy {
+				// Not at item yet, calculate next step
+				nx, ny := system.NextStep(newX, newY, ix, iy)
+				char.Intent.TargetX = nx
+				char.Intent.TargetY = ny
+			}
 		}
 	}
 }
