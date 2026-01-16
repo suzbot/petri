@@ -38,6 +38,7 @@ var (
 	tanStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("180"))
 	pinkStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("213"))
 	blackStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // dark gray for visibility
+	greenStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("34"))
 
 	// Feature colors
 	waterStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))  // bright blue

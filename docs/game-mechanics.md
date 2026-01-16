@@ -108,12 +108,10 @@ Items are generated from varieties at world creation. Each variety defines a uni
 
 ### Item Types
 
-- **Berries**: Color only (red, blue)
-- **Mushrooms**: Color + optional Pattern + optional Texture
-  - Colors: brown, white, red
-  - Pattern: spotted or none
-  - Texture: slimy or none
-- **Flowers**: Color only (red, orange, yellow, blue, purple, white) - non-edible
+- **Berries**: Color, optional poisonous/healing; edible
+- **Mushrooms**: Color + optional Pattern + optional Texture, optional poisonous/healing; edible
+- **Gourds**: Color + optional Pattern + optional Texture; edible, never poisonous/healing
+- **Flowers**: Color; non-edible (decorative)
 
 ### Variety Generation
 

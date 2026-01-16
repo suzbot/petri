@@ -1,40 +1,83 @@
-    Phase V:    Resources, Inventory, and simple job assignment
-                 - Ability to forage for a mushroom, berry, or flower based on preference
-                 - Ability to view character inventory
-                 - Ability to view jobs panel
-                 - Ability for user to order forage job
-                 - Job Acceptance by any idle char (no preference/critically queue yet)
-                 - Job reflected in current activity, and activity log
-                 - Need Interruption and return
-                 - mood impacted by carrying
-                 - can eat carried object when hungry
-
 Phase 5 Requirements - Picking up Items and Inventory
 
 General Idea:
-This phase introduces the concept of items that can be picked up, and containers.
+This phase introduces the concept of inventory, know-how (activity knowledge), discovery, and orders
 
-New ItemType: Gourd
+A. New ItemType: Gourd
     1. Gourd belongs to Category Plant
         i. Flowers, Berries, and Mushrooms are also Plants
         ii. Plants are a kind of item that can spawn on the map at world creation, reproduce,
             and potentially die.
-        iii. Plants may be edible and poison or healing.
+        iii. Plants may be edible and poison or healing. Some other categories will not be able to have these properties.
         iv.  Mushrooms, Berries, and Flowers are also Plants
-    2. Gourd follows the same spawning and reproduction rules as mushrooms
-    3. Gourds are edible.
-    4. Gourds are never poison or healing.
-    5. Characters can interact with gourds by eating or looking
-    6. Gourds can be: white, green, yellow, orange
-    7. Gourds can have Pattern striped (stripes) or no pattern
-    8. Gourds can have texture: knobbly or no texture
-New Idle Activity: Forage
-
-Character has inventory view
+    2. Gourds can be: white, green, yellow, orange, tan
+    3. Gourds can have Pattern: striped ("likes stripes"), speckled ("likes speckles") or no pattern
+    4. Gourds can have texture: warty, waxy, or no texture
+    5. Gourd follows the same spawning and reproduction rules as mushrooms
+    6. Gourds are edible.
+        i. just like any other edible item, this can cause preference formation
+        ii. just like any other edible item, this should become available on character creation as a favorite food option
+    7. Gourds are never poison or healing.
+    8. Just like any other item, character can look at gourds, and have chance to form preference for looking
+B. New Idle Activity: Forage
+    1. A new random option for idle activity is forage
+    2. Foraging is always available to all characters (no know-how required)
+    3. A foraging character will go to a nearby EDIBLE item based on preference/distance score
+    4. Instead of consuming the item, they will pick up the item
+        i. picking up the item removes it from the map
+        ii. picking up the item places it in the character's inventory
+        iii. character can carry one item at a time
+        iv.  if their inventory is full, then foraging is not available as an idle activity
+C. Character has inventory view
     1. When a character is selected, the user has an option to press 'i' for the bottom panel
         to show 'Inventory'
     2. When the inventory is viewed, it will say 'Carrying [item]' for each item that is carried
-Dropping Item
-Harvest
+D. Character will eat edible carried items if mildly or more hungry (distance counts as -1 for calculation)
+    1. when item is consumed, should have all the existing effects of consumption, based on its attributes
+    2. when item is consumed, it is removed from inventory/world
+    3. when item is consumed, leaving inventory empty, foraging becomes available as a possible idle activity again
+E. New kind of knowledge: 'Know-how'
+    1. Current knowledge about healing and poison are 'Facts'
+    2. New kind of knowledge is 'Know-How', which is learned activities they know how to do
+    3. When a character is engaged in certain activities, there's a chance they will discover related know-how
+    4. Unlike facts, know-how cannot be transmitted by talking
+    5. 'Harvest' know-how: gathering a specific item type according to a plan (user order)
+        i. Distinct from foraging: foraging is instinctive (grab what's nearby/preferred),
+           harvesting is intentional (seek out a particular item type as directed)
+        ii. Chance of discovering Harvest know-how when: foraging, eating, or looking at an edible item
+        iii. Harvesting may become more complex in future phases (e.g., tools, processing)
+F. User can request that a worker Harvest
+    1. There is a new view, on keypress O an 'Orders' panel replaces the details/log panels.
+    2. This will show a list of all ordered activities
+    3. It will also have an option to add a new order
+    4. When a user is adding a new order, they will see a list of all orderable activities (ie, known by at least one living Characterr)
+    5. Harvest is an orderable activity
+        i. When the user selects Harvest as an order, they will be prompted to select an edible item (out of list of all edible items)
+        ii. Harvest Activity: a harvesting character picks up the nearest requested item type
+            the activity is complete when their carrying capacity is full (currently 1 item)
+    6. The new order now shows at the bottom of the orders list, as "Harvest [items]"
+    7. The next time a character who has the know-how to harvest becomes idle, they will take the order instead of doing a random idle activity
+        i. taking an order shown in activity log
+    8. Orders are interruptable by moderate or higher needs, pausing it
+        i. if the order is interrupted by a character need, the character will start doing that task again once their moderate need(s) are fufilled and they are eligible to work again
+    9. Orders can be abandoned if unfufillable (ie Harvest Gourds, but there are no Gourds on the map)
+        i. abandoned orders removed from order list
+        ii. abandoned orders shown in activity log
+    10. Order list will show if the order is open, assigned, paused
+    11. Orders are removed from the order list when they are completed
+
+Implementation Notes:
+- Make sure its easy to add new activities in the future. Activities have two orthogonal properties:
+    1. Intent formation:
+        - Automatic: triggered by needs or chosen as idle activity (eating, drinking, looking, foraging)
+        - Orderable: triggered by user orders (harvesting)
+    2. Availability:
+        - Default: available to all characters (eating, drinking, looking, foraging)
+        - Know-how: requires discovery before character can perform (harvesting)
+    3. Each discoverable know-how activity has certain conditions under which it has a chance of discovery
+        - For example, next phase will have the know-how of making a hollow gourd container,
+          which would have a chance of discovery when eating or looking at a gourd
+- The reason for introducing item category of Plant is to differentiate from non-spawning items in future,
+  like said hollow gourd container
 
 

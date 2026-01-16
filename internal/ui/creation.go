@@ -2,8 +2,10 @@ package ui
 
 import (
 	"math/rand"
+	"sort"
 	"strings"
 
+	"petri/internal/game"
 	"petri/internal/types"
 )
 
@@ -15,23 +17,44 @@ const (
 	numFields  = 3
 )
 
-// Food options
-const (
-	FoodBerry    = "Berry"
-	FoodMushroom = "Mushroom"
-)
-
 // Maximum name length
 const MaxNameLength = 16
 
 // Default character names
 var defaultNames = []string{"Len", "Macca", "Hari", "Starr"}
 
-// Food options list for cycling
-var foodOptions = []string{FoodBerry, FoodMushroom}
+// foodOptions built dynamically from edible item types
+var foodOptions = buildFoodOptions()
 
 // colorOptions built dynamically from types.AllColors
 var colorOptions = buildColorOptions()
+
+// buildFoodOptions generates display strings from edible item types
+func buildFoodOptions() []string {
+	configs := game.GetItemTypeConfigs()
+	var options []string
+	for itemType, cfg := range configs {
+		if cfg.Edible {
+			options = append(options, capitalizeItemType(itemType))
+		}
+	}
+	// Sort for consistent ordering (maps iterate randomly)
+	sort.Strings(options)
+	return options
+}
+
+// capitalizeItemType converts an item type to display string (e.g., "berry" -> "Berry")
+func capitalizeItemType(itemType string) string {
+	if len(itemType) == 0 {
+		return itemType
+	}
+	return strings.ToUpper(itemType[:1]) + itemType[1:]
+}
+
+// DisplayToItemType converts a display string back to item type (e.g., "Berry" -> "berry")
+func DisplayToItemType(display string) string {
+	return strings.ToLower(display)
+}
 
 // buildColorOptions generates display strings from types.AllColors
 func buildColorOptions() []string {

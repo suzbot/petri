@@ -11,10 +11,15 @@ type Item struct {
 	ID int // Unique identifier for save/load
 
 	// Descriptive attributes (opinion-formable)
-	ItemType string        // "berry", "mushroom", etc.
+	ItemType string        // "berry", "mushroom", "gourd", etc.
 	Color    types.Color   // all items have color
-	Pattern  types.Pattern // mushrooms only (spotted, plain)
-	Texture  types.Texture // mushrooms only (slimy, none)
+	Pattern  types.Pattern // mushrooms, gourds (spotted, striped, speckled)
+	Texture  types.Texture // mushrooms, gourds (slimy, waxy, warty)
+
+	// Category for item classification
+	// Currently: "plant" for items that spawn/reproduce on the map
+	// Future: May formalize to type when non-plant categories are added (tools, crafted items)
+	Category string
 
 	// Functional attributes (not opinion-formable)
 	Edible    bool
@@ -37,6 +42,7 @@ func NewBerry(x, y int, color types.Color, poisonous, healing bool) *Item {
 		},
 		ItemType:  "berry",
 		Color:     color,
+		Category:  "plant",
 		Edible:    true,
 		Poisonous: poisonous,
 		Healing:   healing,
@@ -56,6 +62,7 @@ func NewMushroom(x, y int, color types.Color, pattern types.Pattern, texture typ
 		Color:     color,
 		Pattern:   pattern,
 		Texture:   texture,
+		Category:  "plant",
 		Edible:    true,
 		Poisonous: poisonous,
 		Healing:   healing,
@@ -73,7 +80,28 @@ func NewFlower(x, y int, color types.Color) *Item {
 		},
 		ItemType:  "flower",
 		Color:     color,
+		Category:  "plant",
 		Edible:    false,
+		Poisonous: false,
+		Healing:   false,
+	}
+}
+
+// NewGourd creates a new gourd item (edible, never poisonous or healing)
+func NewGourd(x, y int, color types.Color, pattern types.Pattern, texture types.Texture) *Item {
+	return &Item{
+		BaseEntity: BaseEntity{
+			X:     x,
+			Y:     y,
+			Sym:   config.CharGourd,
+			EType: TypeItem,
+		},
+		ItemType:  "gourd",
+		Color:     color,
+		Pattern:   pattern,
+		Texture:   texture,
+		Category:  "plant",
+		Edible:    true,
 		Poisonous: false,
 		Healing:   false,
 	}

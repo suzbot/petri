@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"petri/internal/entity"
+	"petri/internal/game"
 	"petri/internal/system"
 	"petri/internal/types"
 )
@@ -617,6 +618,8 @@ func (m Model) styledSymbol(e entity.Entity) string {
 			return pinkStyle.Render(sym)
 		case types.ColorBlack:
 			return blackStyle.Render(sym)
+		case types.ColorGreen:
+			return greenStyle.Render(sym)
 		}
 
 	case *entity.Feature:
@@ -760,13 +763,22 @@ func (m Model) renderDetails() string {
 			fmt.Sprintf(" Kind: %s", item.ItemType),
 			fmt.Sprintf(" Color: %s", item.Color),
 		)
-		// Show Pattern/Texture for mushrooms
-		if item.ItemType == "mushroom" {
-			if item.Pattern != "" {
-				lines = append(lines, fmt.Sprintf(" Pattern: %s", item.Pattern))
+		// Show Pattern/Texture for item types that can have them
+		configs := game.GetItemTypeConfigs()
+		if cfg, ok := configs[item.ItemType]; ok {
+			if cfg.Patterns != nil {
+				pattern := "none"
+				if item.Pattern != "" {
+					pattern = string(item.Pattern)
+				}
+				lines = append(lines, fmt.Sprintf(" Pattern: %s", pattern))
 			}
-			if item.Texture != "" {
-				lines = append(lines, fmt.Sprintf(" Texture: %s", item.Texture))
+			if cfg.Textures != nil {
+				texture := "none"
+				if item.Texture != "" {
+					texture = string(item.Texture)
+				}
+				lines = append(lines, fmt.Sprintf(" Texture: %s", texture))
 			}
 		}
 		lines = append(lines,

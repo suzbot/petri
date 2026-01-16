@@ -214,7 +214,7 @@ func (m Model) startGameMulti() Model {
 
 	// Character names and preferences
 	names := []string{"Len", "Macca", "Hari", "Starr"}
-	foods := []string{"berry", "mushroom"}
+	foods := getEdibleItemTypes()
 	colors := types.AllColors
 
 	// Clustered starting positions near center
@@ -655,6 +655,18 @@ func sign(x int) int {
 	return 0
 }
 
+// getEdibleItemTypes returns item types that are edible (for character preferences)
+func getEdibleItemTypes() []string {
+	configs := game.GetItemTypeConfigs()
+	var types []string
+	for itemType, cfg := range configs {
+		if cfg.Edible {
+			types = append(types, itemType)
+		}
+	}
+	return types
+}
+
 // handleWorldSelectKey handles input during world selection phase
 func (m Model) handleWorldSelectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	maxIdx := len(m.worlds) // "New World" is at index len(worlds)
@@ -771,13 +783,8 @@ func (m Model) startGameFromCreation() Model {
 	for i, charData := range m.creationState.Characters {
 		x := cx + offsets[i][0]
 		y := cy + offsets[i][1]
-		// Convert food/color to lowercase for consistency with existing code
-		food := charData.Food
-		if food == FoodBerry {
-			food = "berry"
-		} else {
-			food = "mushroom"
-		}
+		// Convert food/color display strings to lowercase for consistency
+		food := DisplayToItemType(charData.Food)
 		color := DisplayToColor(charData.Color)
 		char := entity.NewCharacter(i+1, x, y, charData.Name, food, color)
 		m.gameMap.AddCharacter(char)

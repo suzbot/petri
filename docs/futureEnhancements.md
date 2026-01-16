@@ -6,7 +6,8 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | -------------------------------------- | --------------------------------------------------------------------------------- |
 | **Parallel Intent Calculation**        | Character count ≥ 16; Intent calc exceeds ~1ms/char; Tick time exceeds 50ms       |
 | **EventType for ActionLog**            | Event filtering in UI; Event-driven behavior; Event persistence                   |
-| **Category field for Items**           | When adding non-spawining itemtypes                                               |
+| **Category type formalization**        | Adding non-plant categories (tools, crafted items); Need category-based filtering |
+| **Category-based world spawning**      | When Category is formalized; Filter spawn loop by category (plants spawn, tools don't) |
 | **Performance optimizations**          | Noticeable lag; Profiling shows bottlenecks                                       |
 | **Preference formation for beverages** | Other beverages (non-spring) introduced                                           |
 | **Depression and Rage mechanics**      | Job acceptance logic implemented                                                  |

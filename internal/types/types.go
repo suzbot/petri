@@ -17,10 +17,11 @@ const (
 	ColorTan    Color = "tan"
 	ColorPink   Color = "pink"
 	ColorBlack  Color = "black"
+	ColorGreen  Color = "green"
 )
 
 // AllColors returns all valid colors
-var AllColors = []Color{ColorRed, ColorBlue, ColorBrown, ColorWhite, ColorOrange, ColorYellow, ColorPurple, ColorTan, ColorPink, ColorBlack}
+var AllColors = []Color{ColorRed, ColorBlue, ColorBrown, ColorWhite, ColorOrange, ColorYellow, ColorPurple, ColorTan, ColorPink, ColorBlack, ColorGreen}
 
 // BerryColors returns valid colors for berries
 var BerryColors = []Color{ColorRed, ColorBlue, ColorPink, ColorPurple, ColorWhite, ColorYellow, ColorOrange, ColorBlack}
@@ -30,6 +31,9 @@ var MushroomColors = []Color{ColorBrown, ColorWhite, ColorRed, ColorTan, ColorOr
 
 // FlowerColors returns valid colors for flowers
 var FlowerColors = []Color{ColorRed, ColorOrange, ColorYellow, ColorBlue, ColorPurple, ColorWhite, ColorPink}
+
+// GourdColors returns valid colors for gourds
+var GourdColors = []Color{ColorWhite, ColorGreen, ColorYellow, ColorOrange, ColorTan}
 
 // StatType represents character survival stats
 type StatType string
@@ -43,26 +47,39 @@ const (
 )
 
 // Pattern represents item surface patterns (descriptive attribute, opinion-formable)
-// Currently only applies to mushrooms
 type Pattern string
 
 const (
-	PatternNone    Pattern = ""
-	PatternSpotted Pattern = "spotted"
+	PatternNone     Pattern = ""
+	PatternSpotted  Pattern = "spotted"
+	PatternStriped  Pattern = "striped"
+	PatternSpeckled Pattern = "speckled"
 )
+
+// AllPatterns returns all valid patterns (excluding None)
+var AllPatterns = []Pattern{PatternSpotted, PatternStriped, PatternSpeckled}
 
 // MushroomPatterns returns valid patterns for mushrooms (includes None for no pattern)
 var MushroomPatterns = []Pattern{PatternNone, PatternSpotted}
 
+// GourdPatterns returns valid patterns for gourds (includes None for no pattern)
+var GourdPatterns = []Pattern{PatternNone, PatternStriped, PatternSpeckled}
+
 // Texture represents item surface textures (descriptive attribute, opinion-formable)
-// Currently only applies to mushrooms
 type Texture string
 
 const (
 	TextureNone  Texture = ""
 	TextureSlimy Texture = "slimy"
 	TextureWaxy  Texture = "waxy"
+	TextureWarty Texture = "warty"
 )
+
+// AllTextures returns all valid textures (excluding None)
+var AllTextures = []Texture{TextureSlimy, TextureWaxy, TextureWarty}
 
 // MushroomTextures returns valid textures for mushrooms (includes None for no texture)
 var MushroomTextures = []Texture{TextureNone, TextureSlimy, TextureWaxy}
+
+// GourdTextures returns valid textures for gourds (includes None for no texture)
+var GourdTextures = []Texture{TextureNone, TextureWaxy, TextureWarty}

@@ -10,40 +10,53 @@ import (
 
 // ItemTypeConfig defines which attributes are applicable for each item type
 type ItemTypeConfig struct {
-	Colors     []types.Color
-	Patterns   []types.Pattern // nil if patterns don't apply
-	Textures   []types.Texture // nil if textures don't apply
-	Edible     bool
-	Sym        rune
-	SpawnCount int
+	Colors              []types.Color
+	Patterns            []types.Pattern // nil if patterns don't apply
+	Textures            []types.Texture // nil if textures don't apply
+	Edible              bool
+	CanBePoisonOrHealing bool            // if false, never assigned poison/healing (e.g., gourds)
+	Sym                 rune
+	SpawnCount          int
 }
 
 // GetItemTypeConfigs returns configuration for all item types
 func GetItemTypeConfigs() map[string]ItemTypeConfig {
 	return map[string]ItemTypeConfig{
 		"berry": {
-			Colors:     types.BerryColors,
-			Patterns:   nil, // berries don't have patterns
-			Textures:   nil, // berries don't have textures
-			Edible:     true,
-			Sym:        config.CharBerry,
-			SpawnCount: config.ItemSpawnCount,
+			Colors:               types.BerryColors,
+			Patterns:             nil, // berries don't have patterns
+			Textures:             nil, // berries don't have textures
+			Edible:               true,
+			CanBePoisonOrHealing: true,
+			Sym:                  config.CharBerry,
+			SpawnCount:           config.ItemSpawnCount,
 		},
 		"mushroom": {
-			Colors:     types.MushroomColors,
-			Patterns:   types.MushroomPatterns,
-			Textures:   types.MushroomTextures,
-			Edible:     true,
-			Sym:        config.CharMushroom,
-			SpawnCount: config.ItemSpawnCount,
+			Colors:               types.MushroomColors,
+			Patterns:             types.MushroomPatterns,
+			Textures:             types.MushroomTextures,
+			Edible:               true,
+			CanBePoisonOrHealing: true,
+			Sym:                  config.CharMushroom,
+			SpawnCount:           config.ItemSpawnCount,
 		},
 		"flower": {
-			Colors:     types.FlowerColors,
-			Patterns:   nil,
-			Textures:   nil,
-			Edible:     false,
-			Sym:        config.CharFlower,
-			SpawnCount: config.FlowerSpawnCount,
+			Colors:               types.FlowerColors,
+			Patterns:             nil,
+			Textures:             nil,
+			Edible:               false,
+			CanBePoisonOrHealing: false,
+			Sym:                  config.CharFlower,
+			SpawnCount:           config.FlowerSpawnCount,
+		},
+		"gourd": {
+			Colors:               types.GourdColors,
+			Patterns:             types.GourdPatterns,
+			Textures:             types.GourdTextures,
+			Edible:               true,
+			CanBePoisonOrHealing: false, // gourds are never poisonous or healing
+			Sym:                  config.CharGourd,
+			SpawnCount:           config.ItemSpawnCount,
 		},
 	}
 }
@@ -122,42 +135,52 @@ func generateVarietiesForType(itemType string, cfg ItemTypeConfig) []*entity.Ite
 }
 
 // assignPoisonAndHealing randomly assigns poison and healing properties to edible varieties
+// Only assigns to varieties whose item type has CanBePoisonOrHealing=true
 func assignPoisonAndHealing(registry *VarietyRegistry) {
-	edible := registry.EdibleVarieties()
-	if len(edible) == 0 {
+	configs := GetItemTypeConfigs()
+
+	// Filter to edible varieties that can be poison/healing
+	var eligible []*entity.ItemVariety
+	for _, v := range registry.EdibleVarieties() {
+		if cfg, ok := configs[v.ItemType]; ok && cfg.CanBePoisonOrHealing {
+			eligible = append(eligible, v)
+		}
+	}
+
+	if len(eligible) == 0 {
 		return
 	}
 
 	// Shuffle to randomize selection
-	rand.Shuffle(len(edible), func(i, j int) {
-		edible[i], edible[j] = edible[j], edible[i]
+	rand.Shuffle(len(eligible), func(i, j int) {
+		eligible[i], eligible[j] = eligible[j], eligible[i]
 	})
 
 	// Calculate counts (at least 1 of each if we have enough varieties)
-	poisonCount := int(float64(len(edible)) * config.VarietyPoisonPercent)
-	if poisonCount < 1 && len(edible) >= 2 {
+	poisonCount := int(float64(len(eligible)) * config.VarietyPoisonPercent)
+	if poisonCount < 1 && len(eligible) >= 2 {
 		poisonCount = 1
 	}
 
-	healingCount := int(float64(len(edible)) * config.VarietyHealingPercent)
-	if healingCount < 1 && len(edible) >= 2 {
+	healingCount := int(float64(len(eligible)) * config.VarietyHealingPercent)
+	if healingCount < 1 && len(eligible) >= 2 {
 		healingCount = 1
 	}
 
 	// Ensure we don't over-assign (poison + healing can't exceed total)
-	if poisonCount+healingCount > len(edible) {
+	if poisonCount+healingCount > len(eligible) {
 		// Split evenly
-		poisonCount = len(edible) / 2
-		healingCount = len(edible) - poisonCount
+		poisonCount = len(eligible) / 2
+		healingCount = len(eligible) - poisonCount
 	}
 
 	// Assign poison to first N
 	for i := 0; i < poisonCount; i++ {
-		edible[i].Poisonous = true
+		eligible[i].Poisonous = true
 	}
 
 	// Assign healing to next N (no overlap with poison)
 	for i := poisonCount; i < poisonCount+healingCount; i++ {
-		edible[i].Healing = true
+		eligible[i].Healing = true
 	}
 }

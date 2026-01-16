@@ -120,7 +120,11 @@ func (p Preference) Description() string {
 func patternNoun(pattern types.Pattern) string {
 	switch pattern {
 	case types.PatternSpotted:
-		return "Spots"
+		return "spots"
+	case types.PatternStriped:
+		return "stripes"
+	case types.PatternSpeckled:
+		return "speckles"
 	default:
 		return string(pattern)
 	}
@@ -133,6 +137,8 @@ func textureNoun(texture types.Texture) string {
 		return "slimy texture"
 	case types.TextureWaxy:
 		return "waxy texture"
+	case types.TextureWarty:
+		return "warty texture"
 	default:
 		return string(texture) + " texture"
 	}

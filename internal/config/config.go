@@ -19,6 +19,7 @@ const (
 	CharBerry    = '●'
 	CharMushroom = '♠'
 	CharFlower   = '✿'
+	CharGourd    = 'G'
 	CharSpring   = '☉'
 	CharLeafPile = '#'
 	CharSleeping = 'z'
@@ -120,4 +121,5 @@ var ItemLifecycle = map[string]LifecycleConfig{
 	"berry":    {SpawnInterval: 3.0, DeathInterval: 0},   // immortal until eaten
 	"mushroom": {SpawnInterval: 3.0, DeathInterval: 0},   // immortal until eaten
 	"flower":   {SpawnInterval: 3.0, DeathInterval: 8.0}, // dies after ~6-10 min
+	"gourd":    {SpawnInterval: 3.0, DeathInterval: 0},   // immortal until eaten
 }

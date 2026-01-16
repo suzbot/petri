@@ -8,6 +8,8 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Latest Updates
 
+- **Gourds**: New edible item type with colors, patterns (striped, speckled), and textures (waxy, warty). Gourds are never poisonous or healing.
+- **Expanded item attributes**: More colors, patterns, and textures for existing item types
 - **Save system**: Auto-saves on pause, quit, and every 60 seconds of game time. Multiple worlds supported.
 - **World selection**: Continue existing worlds or start new ones from the title screen
 - **Knowledge transmission**: Characters share knowledge when conversations complete
@@ -23,7 +25,7 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 - **Social behavior**: Characters talk with each other when idle
 - **Knowledge system**: Characters learn about poison/healing through experience, share knowledge through talking, and act on what they know
 - **Dynamic preferences**: Characters form opinions about items based on attributes
-- **Item variety**: Berries, mushrooms (with pattern/texture), and flowers
+- **Item variety**: Berries, mushrooms, gourds (with patterns/textures), and flowers
 - **World dynamics**: Item spawning, springs, leaf piles, poison and healing effects
 - **View modes**: Select mode (examine entities) and All Activity mode (combined log)
 
@@ -74,7 +76,7 @@ go run ./cmd/petri
 
 1. Create characters with names and preferences, then start the simulation
 2. Characters manage needs (hunger, thirst, energy, health) prioritized by urgency
-3. The world contains edible items (berries, mushrooms), decorative flowers, springs for water, and leaf piles for sleep
+3. The world contains edible items (berries, mushrooms, gourds), decorative flowers, springs for water, and leaf piles for sleep
 4. Characters learn from experience: eating poison/healing items creates knowledge that affects future behavior
 5. Characters form preferences based on their mood when interacting with items
 6. Mood reflects emotional state, affected by need urgency and preferences

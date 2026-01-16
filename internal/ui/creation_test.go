@@ -40,6 +40,12 @@ func TestNewCharacterCreationState_DefaultValues(t *testing.T) {
 func TestNewCharacterCreationState_RandomFoodAndColor(t *testing.T) {
 	t.Parallel()
 
+	// Build valid foods map from foodOptions
+	validFoods := make(map[string]bool)
+	for _, f := range foodOptions {
+		validFoods[f] = true
+	}
+
 	// Build valid colors map from colorOptions
 	validColors := make(map[string]bool)
 	for _, c := range colorOptions {
@@ -51,8 +57,8 @@ func TestNewCharacterCreationState_RandomFoodAndColor(t *testing.T) {
 		state := NewCharacterCreationState()
 
 		for j, char := range state.Characters {
-			// Food should be valid
-			if char.Food != FoodBerry && char.Food != FoodMushroom {
+			// Food should be valid (from dynamically generated foodOptions)
+			if !validFoods[char.Food] {
 				t.Errorf("Character %d has invalid food: %q", j, char.Food)
 			}
 
@@ -268,16 +274,15 @@ func TestCharacterCreationState_CycleFoodOption(t *testing.T) {
 	state := NewCharacterCreationState()
 	state.SelectedChar = 0
 	state.SelectedField = FieldFood
-	state.Characters[0].Food = FoodBerry
+	state.Characters[0].Food = foodOptions[0] // Start with first food option
 
-	state.CycleOption()
-	if state.Characters[0].Food != FoodMushroom {
-		t.Errorf("Expected food Mushroom, got %q", state.Characters[0].Food)
-	}
-
-	state.CycleOption()
-	if state.Characters[0].Food != FoodBerry {
-		t.Errorf("Expected food to wrap to Berry, got %q", state.Characters[0].Food)
+	// Cycle through all food options and verify it wraps back
+	for i := 1; i <= len(foodOptions); i++ {
+		state.CycleOption()
+		expected := foodOptions[i%len(foodOptions)]
+		if state.Characters[0].Food != expected {
+			t.Errorf("After %d cycles: expected food %q, got %q", i, expected, state.Characters[0].Food)
+		}
 	}
 }
 
@@ -338,6 +343,12 @@ func TestCharacterCreationState_RandomizeAll(t *testing.T) {
 		}
 	}
 
+	// Build valid foods map from foodOptions
+	validFoods := make(map[string]bool)
+	for _, f := range foodOptions {
+		validFoods[f] = true
+	}
+
 	// Build valid colors map from colorOptions
 	validColors := make(map[string]bool)
 	for _, c := range colorOptions {
@@ -346,7 +357,7 @@ func TestCharacterCreationState_RandomizeAll(t *testing.T) {
 
 	// Food and color should still be valid (randomized)
 	for i, char := range state.Characters {
-		if char.Food != FoodBerry && char.Food != FoodMushroom {
+		if !validFoods[char.Food] {
 			t.Errorf("Character %d has invalid food after randomize: %q", i, char.Food)
 		}
 		if !validColors[char.Color] {
