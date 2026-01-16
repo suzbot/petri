@@ -91,7 +91,21 @@ Phase 5 introduces inventory, know-how (activity knowledge), discovery mechanics
 - Consume from inventory applies standard effects (preference formation, poison/healing, knowledge)
 - Clear inventory slot after consumption
 
-**[TEST]:** Let character forage, then get hungry. Verify they eat carried item before seeking map items. Verify effects apply normally.
+**Decisions:**
+- Hunger threshold: Mild (hunger ≥ 50) - same threshold as seeking map food for consistency
+- Scoring integration: Option B - check inventory first in `findFoodIntent()` before `findFoodTarget()`
+  - Distance=-1 guarantees carried item beats any map item, so "check first" is equivalent
+  - Simpler than modifying scoring function; cleaner separation of inventory vs map paths
+- Action log: "Ate carried [item description]"
+- Movement: No movement needed, but still use eating action duration (ActionConsume with 0 movement ticks)
+
+**Implementation Notes (5.3):**
+- `findFoodIntent()`: Check `char.Carrying != nil && char.Carrying.Edible` first, return `ActionConsume` intent
+- `ConsumeFromInventory()`: New function in `consumption.go` (not foraging.go - future phases will have other ways to get consumables into inventory)
+  - Same effects as `Consume()` but clears `char.Carrying = nil` instead of `gameMap.RemoveItem()`
+- `applyIntent()`: Add `case entity.ActionConsume` with action duration, calls `ConsumeFromInventory`
+
+**[TEST]:** Let character forage, then get hungry. Verify they eat carried item before seeking map items. Verify effects apply normally. Verify "Ate carried [item]" appears in log.
 
 ---
 

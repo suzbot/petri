@@ -519,6 +519,17 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 				char.Intent.TargetY = ny
 			}
 		}
+
+	case entity.ActionConsume:
+		// Eating from inventory - no movement needed, just duration
+		char.ActionProgress += delta
+		if char.ActionProgress >= config.ActionDuration {
+			char.ActionProgress = 0
+			// Verify target item matches what we're carrying
+			if char.Carrying == char.Intent.TargetItem {
+				system.ConsumeFromInventory(char, char.Carrying, m.actionLog)
+			}
+		}
 	}
 }
 

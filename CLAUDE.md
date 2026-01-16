@@ -120,11 +120,11 @@ Results are documented in `docs/futureEnancements.md` under "Balance Observation
 
 ### Current Work
 
-Phase 5: Picking up Items and Inventory. Sub-phases 5.1 (Item Category & Gourd) and 5.2 (Inventory & Foraging) complete.
+Phase 5: Picking up Items and Inventory. Sub-phases 5.1 (Item Category & Gourd), 5.2 (Inventory & Foraging), and 5.3 (Eating from Inventory) complete.
 
 ### Near-Term Roadmap
 
-- Phase 5.3+ (see docs/phase05-plan.md for full plan)
+- Phase 5.4+ (see docs/phase05-plan.md for full plan)
 
 ### Deferred Enhancements & Trigger Points
 

@@ -1046,3 +1046,130 @@ func TestCalculateIntent_HealthWins_WhenHigherTier(t *testing.T) {
 		t.Errorf("DrivingStat: got %q, want %q (higher tier)", intent.DrivingStat, types.StatHealth)
 	}
 }
+
+// =============================================================================
+// Eating from Inventory (5.3)
+// =============================================================================
+
+func TestFindFoodIntent_ReturnsConsumeIntent_WhenCarryingEdibleItem(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 60 // Moderate tier - should trigger food seeking
+	char.SetPosition(5, 5)
+
+	// Character is carrying an edible item
+	carriedBerry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.Carrying = carriedBerry
+
+	// Map item exists but is farther away
+	mapItem := entity.NewBerry(10, 10, types.ColorRed, false, false)
+	items := []*entity.Item{mapItem}
+
+	intent := findFoodIntent(char, 5, 5, items, entity.TierMild, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent when carrying edible item")
+	}
+	if intent.Action != entity.ActionConsume {
+		t.Errorf("Action: got %d, want ActionConsume (%d)", intent.Action, entity.ActionConsume)
+	}
+	if intent.TargetItem != carriedBerry {
+		t.Error("TargetItem should be the carried item")
+	}
+	if intent.DrivingStat != types.StatHunger {
+		t.Errorf("DrivingStat: got %q, want %q", intent.DrivingStat, types.StatHunger)
+	}
+}
+
+func TestFindFoodIntent_IgnoresCarriedItem_WhenNotEdible(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 60
+	char.SetPosition(5, 5)
+
+	// Character is carrying a non-edible item (flower)
+	carriedFlower := entity.NewFlower(0, 0, types.ColorRed)
+	char.Carrying = carriedFlower
+
+	// Map has edible item
+	mapBerry := entity.NewBerry(6, 6, types.ColorRed, false, false)
+	items := []*entity.Item{mapBerry}
+
+	intent := findFoodIntent(char, 5, 5, items, entity.TierMild, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent when map has edible items")
+	}
+	// Should seek map item, not try to eat non-edible carried item
+	if intent.Action == entity.ActionConsume {
+		t.Error("Should not return ActionConsume for non-edible carried item")
+	}
+	if intent.TargetItem != mapBerry {
+		t.Error("Should target map item when carried item is not edible")
+	}
+}
+
+func TestFindFoodIntent_FallsBackToMapItems_WhenNotCarrying(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 60
+	char.SetPosition(5, 5)
+	char.Carrying = nil // Not carrying anything
+
+	mapBerry := entity.NewBerry(6, 6, types.ColorRed, false, false)
+	items := []*entity.Item{mapBerry}
+
+	intent := findFoodIntent(char, 5, 5, items, entity.TierMild, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent for map item")
+	}
+	if intent.Action == entity.ActionConsume {
+		t.Error("Should not return ActionConsume when not carrying anything")
+	}
+	if intent.TargetItem != mapBerry {
+		t.Error("Should target map item")
+	}
+}
+
+func TestContinueIntent_ActionConsume_PreservesIntent(t *testing.T) {
+	t.Parallel()
+
+	// Regression test: ActionConsume intent should not be abandoned
+	// because the carried item isn't on the map (it's in inventory)
+	char := newTestCharacter()
+	char.Hunger = 60
+	char.SetPosition(5, 5)
+
+	carriedItem := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.Carrying = carriedItem
+
+	// Set up an ActionConsume intent (eating from inventory)
+	char.Intent = &entity.Intent{
+		TargetX:     5,
+		TargetY:     5,
+		Action:      entity.ActionConsume,
+		TargetItem:  carriedItem,
+		DrivingStat: types.StatHunger,
+		DrivingTier: entity.TierMild,
+	}
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+
+	// continueIntent should preserve the ActionConsume intent
+	// (not return nil because the item isn't on the map)
+	result := continueIntent(char, 5, 5, gameMap, nil)
+
+	if result == nil {
+		t.Fatal("continueIntent should not abandon ActionConsume intent")
+	}
+	if result.Action != entity.ActionConsume {
+		t.Errorf("Action: got %d, want ActionConsume", result.Action)
+	}
+	if result.TargetItem != carriedItem {
+		t.Error("TargetItem should be preserved")
+	}
+}

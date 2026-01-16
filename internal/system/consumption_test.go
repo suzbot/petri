@@ -783,3 +783,135 @@ func TestConsume_PoisonousItemAlreadyKnown_NoDislikeChange(t *testing.T) {
 		t.Errorf("Expected 1 preference (unchanged), got %d", len(char.Preferences))
 	}
 }
+
+// =============================================================================
+// Eating from Inventory (5.3)
+// =============================================================================
+
+func TestConsumeFromInventory_ClearsCarrying(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	item := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.Carrying = item
+
+	ConsumeFromInventory(char, item, nil)
+
+	if char.Carrying != nil {
+		t.Error("Carrying should be nil after consuming from inventory")
+	}
+}
+
+func TestConsumeFromInventory_ReducesHunger(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+	item := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.Carrying = item
+
+	ConsumeFromInventory(char, item, nil)
+
+	expected := 80 - config.FoodHungerReduction
+	if char.Hunger != expected {
+		t.Errorf("Hunger: got %.2f, want %.2f", char.Hunger, expected)
+	}
+}
+
+func TestConsumeFromInventory_AppliesPoison(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Poisoned = false
+	item := entity.NewBerry(0, 0, types.ColorRed, true, false) // Poisonous
+	char.Carrying = item
+
+	ConsumeFromInventory(char, item, nil)
+
+	if !char.Poisoned {
+		t.Error("Eating poisonous item from inventory should apply poison")
+	}
+}
+
+func TestConsumeFromInventory_AppliesHealing(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Health = 60
+	item := entity.NewBerry(0, 0, types.ColorRed, false, true) // Healing
+	char.Carrying = item
+
+	ConsumeFromInventory(char, item, nil)
+
+	expected := 60 + config.HealAmount
+	if char.Health != expected {
+		t.Errorf("Health: got %.2f, want %.2f", char.Health, expected)
+	}
+}
+
+func TestConsumeFromInventory_AppliesMoodFromPreference(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berry, likes red
+	char.Mood = 50
+	char.Hunger = 80 // Won't reach 0
+	item := entity.NewBerry(0, 0, types.ColorRed, false, false) // +2 preference
+	char.Carrying = item
+
+	ConsumeFromInventory(char, item, nil)
+
+	expected := 50 + 2*config.MoodPreferenceModifier
+	if char.Mood != expected {
+		t.Errorf("Mood: got %.2f, want %.2f", char.Mood, expected)
+	}
+}
+
+func TestConsumeFromInventory_TriggersPreferenceFormation(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Mood = 95 // High mood - very likely to form preference
+	char.Preferences = []entity.Preference{}
+	item := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+	char.Carrying = item
+
+	// Run multiple times to increase chance of preference formation
+	// (preference formation is probabilistic based on mood)
+	formed := false
+	for i := 0; i < 20; i++ {
+		testChar := newTestCharacter()
+		testChar.Mood = 95
+		testChar.Preferences = []entity.Preference{}
+		testItem := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+		testChar.Carrying = testItem
+
+		ConsumeFromInventory(testChar, testItem, nil)
+
+		if len(testChar.Preferences) > 0 {
+			formed = true
+			break
+		}
+	}
+
+	if !formed {
+		t.Error("ConsumeFromInventory should trigger preference formation (failed after 20 attempts)")
+	}
+}
+
+func TestConsumeFromInventory_LearnsKnowledge(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Knowledge = []entity.Knowledge{}
+	item := entity.NewBerry(0, 0, types.ColorRed, true, false) // Poisonous
+	char.Carrying = item
+
+	ConsumeFromInventory(char, item, nil)
+
+	if len(char.Knowledge) != 1 {
+		t.Fatalf("Expected 1 knowledge entry, got %d", len(char.Knowledge))
+	}
+	if char.Knowledge[0].Category != entity.KnowledgePoisonous {
+		t.Errorf("Expected poison knowledge, got %s", char.Knowledge[0].Category)
+	}
+}

@@ -15,6 +15,7 @@ type WorldOptions struct {
 	NoWater       bool
 	NoFood        bool
 	NoBeds        bool
+	NoCharacters  bool
 	NumCharacters int
 }
 
@@ -29,26 +30,29 @@ func CreateTestWorld(opts WorldOptions) *TestWorld {
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	actionLog := system.NewActionLog(200)
 
-	numChars := opts.NumCharacters
-	if numChars == 0 {
-		numChars = 4
-	}
+	// Create characters unless explicitly disabled
+	if !opts.NoCharacters {
+		numChars := opts.NumCharacters
+		if numChars == 0 {
+			numChars = 4
+		}
 
-	// Place characters in a cluster near center
-	cx, cy := config.MapWidth/2, config.MapHeight/2
-	offsets := [][2]int{{0, 0}, {2, 0}, {0, 2}, {2, 2}, {4, 0}, {0, 4}, {4, 2}, {2, 4}}
-	names := []string{"Len", "Macca", "Hari", "Starr", "Test5", "Test6", "Test7", "Test8"}
-	foods := []string{"berry", "mushroom"}
-	colors := types.AllColors
+		// Place characters in a cluster near center
+		cx, cy := config.MapWidth/2, config.MapHeight/2
+		offsets := [][2]int{{0, 0}, {2, 0}, {0, 2}, {2, 2}, {4, 0}, {0, 4}, {4, 2}, {2, 4}}
+		names := []string{"Len", "Macca", "Hari", "Starr", "Test5", "Test6", "Test7", "Test8"}
+		foods := []string{"berry", "mushroom"}
+		colors := types.AllColors
 
-	for i := 0; i < numChars && i < len(offsets); i++ {
-		x := cx + offsets[i][0]
-		y := cy + offsets[i][1]
-		food := foods[i%len(foods)]
-		color := colors[i%len(colors)]
-		name := names[i]
-		char := entity.NewCharacter(i+1, x, y, name, food, color)
-		gameMap.AddCharacter(char)
+		for i := 0; i < numChars && i < len(offsets); i++ {
+			x := cx + offsets[i][0]
+			y := cy + offsets[i][1]
+			food := foods[i%len(foods)]
+			color := colors[i%len(colors)]
+			name := names[i]
+			char := entity.NewCharacter(i+1, x, y, name, food, color)
+			gameMap.AddCharacter(char)
+		}
 	}
 
 	// Spawn resources based on options

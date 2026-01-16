@@ -321,6 +321,70 @@ func TestObserveTimeToFirstDeath(t *testing.T) {
 	fmt.Printf("Runs with no deaths: %d/%d\n", noDeathRuns, numRuns)
 }
 
+// TestObserveGourdReproduction verifies gourds are spawning and reproducing
+func TestObserveGourdReproduction(t *testing.T) {
+	const (
+		ticks = 2000
+		delta = 0.15
+	)
+
+	fmt.Println("\n=== GOURD REPRODUCTION OBSERVATION ===")
+	fmt.Printf("Running simulation for %d ticks (%.0f game-seconds) with NO characters\n\n",
+		ticks, float64(ticks)*delta)
+
+	// Create world without characters so items don't get eaten
+	world := CreateTestWorld(WorldOptions{NoCharacters: true})
+
+	countByType := func() map[string]int {
+		counts := make(map[string]int)
+		for _, item := range world.GameMap.Items() {
+			counts[item.ItemType]++
+		}
+		return counts
+	}
+
+	initial := countByType()
+	fmt.Println("Initial item counts:")
+	for itemType, count := range initial {
+		fmt.Printf("  %s: %d\n", itemType, count)
+	}
+
+	// Run simulation
+	samplePoints := []int{500, 1000, 1500, 2000}
+	sampleIdx := 0
+
+	for tick := 0; tick < ticks; tick++ {
+		RunTick(world, delta)
+
+		if sampleIdx < len(samplePoints) && tick == samplePoints[sampleIdx] {
+			counts := countByType()
+			fmt.Printf("\nTick %d (%.0fs):\n", tick, float64(tick)*delta)
+			for itemType, count := range counts {
+				change := count - initial[itemType]
+				sign := ""
+				if change > 0 {
+					sign = "+"
+				}
+				fmt.Printf("  %s: %d (%s%d)\n", itemType, count, sign, change)
+			}
+			sampleIdx++
+		}
+	}
+
+	final := countByType()
+	fmt.Println("\n=== REPRODUCTION SUMMARY ===")
+
+	gourdInitial := initial["gourd"]
+	gourdFinal := final["gourd"]
+	fmt.Printf("Gourds: %d → %d (change: %+d)\n", gourdInitial, gourdFinal, gourdFinal-gourdInitial)
+
+	if gourdFinal <= gourdInitial {
+		fmt.Println("⚠️  WARNING: Gourds did not reproduce!")
+	} else {
+		fmt.Println("✓ Gourds are reproducing")
+	}
+}
+
 // TestObserveDeathProgression tracks all deaths over extended simulation
 func TestObserveDeathProgression(t *testing.T) {
 	const (

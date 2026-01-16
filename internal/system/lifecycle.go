@@ -144,6 +144,8 @@ func spawnItem(gameMap *game.Map, parent *entity.Item, x, y int, initialItemCoun
 		newItem = entity.NewBerry(x, y, parent.Color, parent.Poisonous, parent.Healing)
 	case "mushroom":
 		newItem = entity.NewMushroom(x, y, parent.Color, parent.Pattern, parent.Texture, parent.Poisonous, parent.Healing)
+	case "gourd":
+		newItem = entity.NewGourd(x, y, parent.Color, parent.Pattern, parent.Texture)
 	case "flower":
 		newItem = entity.NewFlower(x, y, parent.Color)
 	default:

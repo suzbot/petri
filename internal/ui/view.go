@@ -747,6 +747,7 @@ func (m Model) renderDetails() string {
 			lines = append(lines, "", " Press F to follow")
 		}
 		lines = append(lines, " Press K for Knowledge")
+		lines = append(lines, " Press I for Inventory")
 
 	} else if item != nil {
 		poison := "No"

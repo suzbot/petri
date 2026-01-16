@@ -272,6 +272,11 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *ActionLog) *entity.Intent {
 	intent := char.Intent
 
+	// For ActionConsume (eating from inventory), just continue - item is in inventory, not on map
+	if intent.Action == entity.ActionConsume {
+		return intent
+	}
+
 	// Check if target item still exists at expected position (O(1) instead of O(n))
 	if intent.TargetItem != nil {
 		ix, iy := intent.TargetItem.Position()
@@ -431,7 +436,27 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 }
 
 // findFoodIntent finds food based on hunger priority
+// Checks inventory first - carried edible items are always "closer" than map items
 func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, tier int, log *ActionLog) *entity.Intent {
+	// Check inventory first - carried edible item is always preferred (distance=-1 equivalent)
+	if char.Carrying != nil && char.Carrying.Edible {
+		newActivity := "Eating carried " + char.Carrying.Description()
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+			if log != nil {
+				log.Add(char.ID, char.Name, "activity", "Eating from inventory")
+			}
+		}
+		return &entity.Intent{
+			TargetX:     cx,
+			TargetY:     cy,
+			Action:      entity.ActionConsume,
+			TargetItem:  char.Carrying,
+			DrivingStat: types.StatHunger,
+			DrivingTier: tier,
+		}
+	}
+
 	result := findFoodTarget(char, items)
 	if result.Item == nil {
 		if char.CurrentActivity != "Idle" {
