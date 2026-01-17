@@ -136,20 +136,23 @@ func findEmptyAdjacent(x, y int, gameMap *game.Map) (int, int, bool) {
 }
 
 // spawnItem creates a new item matching the parent's properties
+// Uses generic copying so new plant types don't require code changes here
 func spawnItem(gameMap *game.Map, parent *entity.Item, x, y int, initialItemCount int) {
-	var newItem *entity.Item
-
-	switch parent.ItemType {
-	case "berry":
-		newItem = entity.NewBerry(x, y, parent.Color, parent.Poisonous, parent.Healing)
-	case "mushroom":
-		newItem = entity.NewMushroom(x, y, parent.Color, parent.Pattern, parent.Texture, parent.Poisonous, parent.Healing)
-	case "gourd":
-		newItem = entity.NewGourd(x, y, parent.Color, parent.Pattern, parent.Texture)
-	case "flower":
-		newItem = entity.NewFlower(x, y, parent.Color)
-	default:
-		return
+	newItem := &entity.Item{
+		BaseEntity: entity.BaseEntity{
+			X:     x,
+			Y:     y,
+			Sym:   parent.Sym,
+			EType: entity.TypeItem,
+		},
+		ItemType:  parent.ItemType,
+		Color:     parent.Color,
+		Pattern:   parent.Pattern,
+		Texture:   parent.Texture,
+		Category:  parent.Category,
+		Edible:    parent.Edible,
+		Poisonous: parent.Poisonous,
+		Healing:   parent.Healing,
 	}
 
 	// Set lifecycle timers for the new item

@@ -236,7 +236,11 @@ When knowledge is gained, "Learned something!" appears in the action log (darker
 
 ### Knowledge Panel
 
-Press `K` in select mode to toggle the Knowledge panel (replaces action log). Shows all knowledge the selected character has learned. Press `K` again to return to action log.
+Press `K` in select mode to toggle the Knowledge panel (replaces action log). Shows two sections:
+- **Facts**: Learned poison/healing knowledge (e.g., "Red berries are poisonous")
+- **Knows how to**: Discovered activity skills (e.g., "Harvest")
+
+Press `K` again to return to action log.
 
 ### Knowledge Affects Behavior
 
@@ -276,6 +280,30 @@ Characters can share knowledge through conversation:
 Log messages for transmission:
 - Sharer: "Shared knowledge with [Name]"
 - Learner: "Learned: [knowledge description]" + "Learned something!"
+
+## Know-how System
+
+Know-how represents activity skills that characters discover through experience. Unlike facts, know-how cannot be transmitted through talking.
+
+### Discovery
+
+Characters can discover know-how by performing related activities. Currently discoverable:
+- **Harvest**: Discovered when foraging (picking up items), eating edible items, or looking at edible items
+
+Discovery chance is configured in `config.KnowHowDiscoveryChance`. When discovery occurs, "Discovered how to [Activity]!" appears in the action log (blue color).
+
+### Know-how vs Facts
+
+| Aspect | Facts (Knowledge) | Know-how |
+|--------|-------------------|----------|
+| Examples | "Red berries are poisonous" | "Harvest" |
+| Learned by | Experience (eating/healing) | Discovery (foraging/eating/looking) |
+| Can be transmitted | Yes (via talking) | No |
+| Display | Knowledge panel: "Facts:" section | Knowledge panel: "Knows how to:" section |
+
+### Future Use
+
+Know-how will enable user-ordered activities in future phases. Characters with Harvest know-how will be able to take harvest orders from the player, intentionally gathering specific item types.
 
 ## Inventory
 

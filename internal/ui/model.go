@@ -39,6 +39,7 @@ type TestConfig struct {
 	NoFood        bool // Skip spawning food items
 	NoWater       bool // Skip spawning water sources
 	NoBeds        bool // Skip spawning beds
+	NoCharacters  bool // Skip spawning characters (test mode)
 	Debug         bool // Show debug info (action progress, etc.)
 	MushroomsOnly bool // Replace all items with mushroom varieties
 }
@@ -79,6 +80,10 @@ type Model struct {
 	// Bottom panel toggles (mutually exclusive, replaces action log in select mode)
 	showKnowledgePanel bool
 	showInventoryPanel bool
+
+	// Orders system
+	orders      []*entity.Order
+	nextOrderID int
 
 	// Character creation state
 	creationState *CharacterCreationState

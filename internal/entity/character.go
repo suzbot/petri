@@ -10,8 +10,9 @@ type Character struct {
 	BaseEntity
 	ID          int
 	Name        string
-	Preferences []Preference // Dynamic likes/dislikes for item attributes
-	Knowledge   []Knowledge  // Things learned through experience
+	Preferences      []Preference // Dynamic likes/dislikes for item attributes
+	Knowledge        []Knowledge  // Things learned through experience (facts)
+	KnownActivities  []string     // Activity IDs discovered (know-how)
 
 	// Survival attributes
 	Health      float64
@@ -168,6 +169,26 @@ func (c *Character) KnowsItemIsHealing(item *Item) bool {
 		}
 	}
 	return false
+}
+
+// KnowsActivity returns true if the character has discovered the specified activity.
+func (c *Character) KnowsActivity(activityID string) bool {
+	for _, id := range c.KnownActivities {
+		if id == activityID {
+			return true
+		}
+	}
+	return false
+}
+
+// LearnActivity adds an activity to the character's known activities if not already known.
+// Returns true if the activity was newly learned, false if already known.
+func (c *Character) LearnActivity(activityID string) bool {
+	if c.KnowsActivity(activityID) {
+		return false
+	}
+	c.KnownActivities = append(c.KnownActivities, activityID)
+	return true
 }
 
 // HungerLevel returns a human-readable hunger description

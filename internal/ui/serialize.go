@@ -113,8 +113,9 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 			SpeedAccumulator: c.SpeedAccumulator,
 			CurrentActivity:  c.CurrentActivity,
 
-			Preferences: preferencesToSave(c.Preferences),
-			Knowledge:   knowledgeToSave(c.Knowledge),
+			Preferences:     preferencesToSave(c.Preferences),
+			Knowledge:       knowledgeToSave(c.Knowledge),
+			KnownActivities: c.KnownActivities,
 
 			Carrying: carrying,
 		}
@@ -326,8 +327,9 @@ func characterFromSave(cs save.CharacterSave) *entity.Character {
 		SpeedAccumulator: cs.SpeedAccumulator,
 		CurrentActivity:  cs.CurrentActivity,
 
-		Preferences: preferencesFromSave(cs.Preferences),
-		Knowledge:   knowledgeFromSave(cs.Knowledge),
+		Preferences:     preferencesFromSave(cs.Preferences),
+		Knowledge:       knowledgeFromSave(cs.Knowledge),
+		KnownActivities: cs.KnownActivities,
 	}
 
 	// Set position and symbol via BaseEntity

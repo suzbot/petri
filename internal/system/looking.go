@@ -56,4 +56,7 @@ func CompleteLook(char *entity.Character, item *entity.Item, log *ActionLog) {
 
 	// Try to form a preference based on mood
 	TryFormPreference(char, item, log)
+
+	// Try to discover know-how from looking at edible items
+	TryDiscoverKnowHow(char, entity.ActionLook, item, log, config.KnowHowDiscoveryChance)
 }

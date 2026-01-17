@@ -8,6 +8,7 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Latest Updates
 
+- **Know-how Discovery**: Characters can discover "Harvest" know-how through foraging, eating, or looking at edible items. Know-how is displayed in the Knowledge panel and cannot be transmitted through talking.
 - **Inventory & Foraging**: Characters can now pick up and carry items. Foraging is a new idle activity where characters collect nearby edible items based on preference.
 - **Inventory panel**: Press I to view what a character is carrying
 - **Gourds**: New edible item type with colors, patterns (striped, speckled), and textures (waxy, warty). Gourds are never poisonous or healing.
@@ -26,7 +27,7 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 - **Multi-stat survival**: hunger, thirst, energy, health, mood with urgency-based AI
 - **Inventory system**: Characters can carry items, forage as an idle activity
 - **Social behavior**: Characters talk with each other when idle
-- **Knowledge system**: Characters learn about poison/healing through experience, share knowledge through talking, and act on what they know
+- **Knowledge system**: Characters learn facts (poison/healing) through experience and share them via talking. They also discover know-how (skills like Harvest) that cannot be shared.
 - **Dynamic preferences**: Characters form opinions about items based on attributes
 - **Item variety**: Berries, mushrooms, gourds (with patterns/textures), and flowers
 - **World dynamics**: Item spawning, springs, leaf piles, poison and healing effects

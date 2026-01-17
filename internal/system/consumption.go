@@ -123,6 +123,9 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 	// Try to form preference based on mood (C2)
 	TryFormPreference(char, item, log)
 
+	// Try to discover know-how from eating
+	TryDiscoverKnowHow(char, entity.ActionConsume, item, log, config.KnowHowDiscoveryChance)
+
 	// Remove item from map
 	gameMap.RemoveItem(item)
 }
@@ -242,6 +245,9 @@ func ConsumeFromInventory(char *entity.Character, item *entity.Item, log *Action
 
 	// Try to form preference based on mood (C2)
 	TryFormPreference(char, item, log)
+
+	// Try to discover know-how from eating
+	TryDiscoverKnowHow(char, entity.ActionConsume, item, log, config.KnowHowDiscoveryChance)
 
 	// Clear inventory (item consumed from inventory, not map)
 	char.Carrying = nil

@@ -31,6 +31,9 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 			fmt.Sprintf("Picked up %s", itemName))
 	}
 
+	// Try to discover know-how from foraging
+	TryDiscoverKnowHow(char, entity.ActionPickup, item, log, config.KnowHowDiscoveryChance)
+
 	// Clear intent and set idle cooldown
 	char.Intent = nil
 	char.IdleCooldown = config.IdleCooldown

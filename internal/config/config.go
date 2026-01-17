@@ -84,6 +84,10 @@ const (
 	PrefFormationWeightSingle    = 0.30 // 30% chance to form single-attribute preference
 	PrefFormationWeightCombo     = 0.70 // 70% chance to form combo preference (2+ attributes)
 
+	// Know-how discovery
+	// Set high (50%) for testing. For gameplay balance, use 5%.
+	KnowHowDiscoveryChance = 0.50
+
 	// Variety generation
 	VarietyDivisor        = 4    // varietyCount = max(2, spawnCount / divisor)
 	VarietyMinCount       = 2    // minimum varieties per item type

@@ -224,30 +224,33 @@ func (m Model) startGameMulti() Model {
 	m.phase = phasePlaying
 	m.lastUpdate = time.Now()
 
-	// Character names and preferences
-	names := []string{"Len", "Macca", "Hari", "Starr"}
-	foods := getEdibleItemTypes()
-	colors := types.AllColors
-
-	// Clustered starting positions near center
+	// Center position for cursor fallback
 	cx, cy := config.MapWidth/2, config.MapHeight/2
-	offsets := [][2]int{{0, 0}, {2, 0}, {0, 2}, {2, 2}}
+	m.cursorX, m.cursorY = cx, cy
 
-	var chars []*entity.Character
-	for i, name := range names {
-		x := cx + offsets[i][0]
-		y := cy + offsets[i][1]
-		food := foods[rand.Intn(len(foods))]
-		color := colors[rand.Intn(len(colors))]
-		char := entity.NewCharacter(i+1, x, y, name, food, color)
-		m.gameMap.AddCharacter(char)
-		chars = append(chars, char)
+	// Spawn characters unless disabled
+	if !m.testCfg.NoCharacters {
+		names := []string{"Len", "Macca", "Hari", "Starr"}
+		foods := getEdibleItemTypes()
+		colors := types.AllColors
+		offsets := [][2]int{{0, 0}, {2, 0}, {0, 2}, {2, 2}}
+
+		var chars []*entity.Character
+		for i, name := range names {
+			x := cx + offsets[i][0]
+			y := cy + offsets[i][1]
+			food := foods[rand.Intn(len(foods))]
+			color := colors[rand.Intn(len(colors))]
+			char := entity.NewCharacter(i+1, x, y, name, food, color)
+			m.gameMap.AddCharacter(char)
+			chars = append(chars, char)
+		}
+
+		// Randomly select one character to follow
+		followIdx := rand.Intn(len(chars))
+		m.following = chars[followIdx]
+		m.cursorX, m.cursorY = chars[followIdx].Position()
 	}
-
-	// Randomly select one character to follow
-	followIdx := rand.Intn(len(chars))
-	m.following = chars[followIdx]
-	m.cursorX, m.cursorY = chars[followIdx].Position()
 
 	// Spawn items and features (respecting test config)
 	if !m.testCfg.NoFood {

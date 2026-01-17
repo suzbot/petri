@@ -14,8 +14,8 @@ Phase 5 introduces inventory, know-how (activity knowledge), discovery mechanics
    - ID, Name (display)
    - IntentFormation (automatic vs orderable)
    - Availability (default vs know-how)
-   - DiscoveryTriggers (type TBD - discuss when approaching 5.4)
-2. **Know-how vs Fact Knowledge**: Separate `KnowHow` struct (distinct from `Knowledge`)
+   - DiscoveryTriggers: `[]DiscoveryTrigger` where each trigger has Action (ActionType), ItemType (string, empty=any), RequiresEdible (bool)
+2. **Know-how storage**: `KnownActivities []string` on Character (activity IDs). Simpler than separate KnowHow struct since know-how is just "which activities has this character discovered"
 3. **Order storage**: On `World` struct for persistence across save/load
 4. **Foraging preference weights**: Same as eating (reuse existing config values)
 5. **Harvest know-how starting state**: All characters must discover it (none start with it)
@@ -115,14 +115,36 @@ Phase 5 introduces inventory, know-how (activity knowledge), discovery mechanics
 **User-facing outcome:** Characters can discover "Harvest" know-how through experience. Know-how is displayed in character knowledge panel. Know-how cannot be transmitted via talking.
 
 **Scope:**
-- Create `KnowHow` struct (separate from `Knowledge`)
-- Add `KnowHow []KnowHow` to Character
-- Define Harvest know-how
+- Create `Activity` struct and `ActivityRegistry` in new file `internal/entity/activity.go`
+- Add `KnownActivities []string` to Character
+- Define all activities in registry (eat, drink, look, talk, forage, harvest)
 - Implement discovery chance when: foraging, eating edible, looking at edible
 - Display know-how in knowledge panel
-- Exclude know-how from `TransmitKnowledge()`
+- Verify `TransmitKnowledge()` doesn't transmit know-how (already excluded by design - only transmits Knowledge facts)
+
+**Decisions:**
+- Discovery probability: 50% for testing, 5% for gameplay balance (config constant with comment)
+- Activity struct fields: ID, Name, IntentFormation, Availability, DiscoveryTriggers
+- DiscoveryTrigger struct: Action (ActionType), ItemType (string), RequiresEdible (bool)
+- Discovery hook: Single `TryDiscoverKnowHow()` function called from Pickup, Consume, ConsumeFromInventory, CompleteLook
+- Know-how display: Separate section in knowledge panel, format "Knows how to: Harvest"
+
+**Implementation Notes (5.4):**
+- `internal/entity/activity.go`: Activity struct, IntentFormation/Availability enums, DiscoveryTrigger struct, ActivityRegistry map
+- ActivityRegistry includes: eat, drink, look, talk, forage (all automatic/default), harvest (orderable/knowhow)
+- Harvest DiscoveryTriggers: `{ActionPickup, "", true}`, `{ActionConsume, "", true}`, `{ActionLook, "", true}`
+- `internal/entity/character.go`: Add `KnownActivities []string` field
+- `internal/config/config.go`: Add `KnowHowDiscoveryChance = 0.50` with comment for 5% gameplay value
+- `internal/system/discovery.go`: `TryDiscoverKnowHow(char, action, item, log)` - iterates registry, matches triggers, rolls for discovery
+- `internal/system/foraging.go`: Call `TryDiscoverKnowHow` in `Pickup()`
+- `internal/system/consumption.go`: Call `TryDiscoverKnowHow` in `Consume()` and `ConsumeFromInventory()`
+- `internal/system/looking.go`: Call `TryDiscoverKnowHow` in `CompleteLook()`
+- Serialization: Add `KnownActivities []string` to CharacterSave
+- UI: Update knowledge panel to show "Knows how to: [activity names]" section
 
 **[TEST]:** Run simulation until a character discovers Harvest. Verify it appears in knowledge panel. Verify talking does NOT transmit know-how.
+
+**Status: Complete**
 
 ---
 
@@ -142,7 +164,34 @@ Phase 5 introduces inventory, know-how (activity knowledge), discovery mechanics
 - Implement order cancellation (player removes order from list)
 - Add orders serialization
 
-**[TEST]:** Press 'O' to see empty orders panel. After a character has Harvest know-how, add a Harvest order. Verify order appears in list as "open". Cancel order, verify it's removed.
+**Decisions:**
+- Panel layout: Full height next to map (like All Activity mode), 'X' expands to full-screen overlay
+- Hint: Follow existing hint format, always visible below map
+- Panel toggling: 'O' toggles panel, 'S'/'A' close it and return to those modes
+- Add order: '+' key starts add order flow
+  - Step 1: Show orderable activities (known by at least one living character)
+  - Step 2: For Harvest, show edible item types to select
+  - Arrow keys to navigate, Enter to select
+- Cancel order: 'C' enters cancel mode, arrow keys to highlight, Enter to confirm, Esc to exit cancel mode
+- Order struct:
+  ```go
+  type OrderStatus string
+  const (
+      OrderOpen     OrderStatus = "open"
+      OrderAssigned OrderStatus = "assigned"
+      OrderPaused   OrderStatus = "paused"
+  )
+
+  type Order struct {
+      ID         int
+      ActivityID string      // "harvest"
+      TargetType string      // "berry", "mushroom", "gourd"
+      Status     OrderStatus
+      AssignedTo int         // Character ID, 0 if unassigned
+  }
+  ```
+
+**[TEST]:** Press 'O' to see empty orders panel. After a character has Harvest know-how, add a Harvest order with '+'. Verify order appears in list as "open". Enter cancel mode with 'C', select order, confirm cancellation. Verify order is removed.
 
 ---
 
@@ -209,11 +258,11 @@ Phase 5 introduces inventory, know-how (activity knowledge), discovery mechanics
 - Carried item timers? **Decision: Carried items become static (no spawn/death timers). Timers cleared on pickup. Future planting feature may re-enable timers, but only when planted.**
 
 ### 5.4
-- Discovery probability per trigger event?
-- DiscoveryTriggers type: strings, activity references, or something else?
+- Discovery probability per trigger event? **Decision: 50% for testing, 5% for gameplay balance**
+- DiscoveryTriggers type: strings, activity references, or something else? **Decision: `[]DiscoveryTrigger` struct with Action (ActionType), ItemType (string), RequiresEdible (bool)**
 
 ### 5.5
-- Order panel replaces which existing panels? (Req says "details/log panels")
+- Order panel replaces which existing panels? (Req says "details/log panels") **Decision: Full height panel next to map (like All Activity), 'X' for full-screen overlay. Hint always visible below map.**
 
 ### 5.6
 - When order is paused and character resumes, do they continue same order or re-evaluate?

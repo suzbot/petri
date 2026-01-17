@@ -36,8 +36,8 @@ func colorByTier(level string, tier int) string {
 
 // colorLogMessage colors action log messages based on content
 func colorLogMessage(line, message string) string {
-	// Learning messages (darker blue) - check first as these are important
-	if strings.Contains(message, "Learned something") {
+	// Learning/discovery messages (darker blue) - check first as these are important
+	if strings.Contains(message, "Learned") || strings.Contains(message, "Discovered") {
 		return learnedStyle.Render(line)
 	}
 
@@ -1003,15 +1003,33 @@ func (m Model) renderKnowledgePanel() string {
 	// Get character at cursor
 	if e := m.gameMap.EntityAt(m.cursorX, m.cursorY); e != nil {
 		if char, ok := e.(*entity.Character); ok {
-			if len(char.Knowledge) == 0 {
+			hasKnowHow := len(char.KnownActivities) > 0
+			hasFacts := len(char.Knowledge) > 0
+
+			if !hasKnowHow && !hasFacts {
 				// Empty state - just show title, panel appears empty
 				return strings.Join(lines, "\n")
 			}
 
-			// Show knowledge entries
-			for _, k := range char.Knowledge {
-				line := " " + k.Description()
-				lines = append(lines, line)
+			// Show facts section
+			if hasFacts {
+				lines = append(lines, " Facts:")
+				for _, k := range char.Knowledge {
+					lines = append(lines, "   "+k.Description())
+				}
+				if hasKnowHow {
+					lines = append(lines, "") // spacing between sections
+				}
+			}
+
+			// Show know-how section
+			if hasKnowHow {
+				lines = append(lines, " Knows how to:")
+				for _, activityID := range char.KnownActivities {
+					if activity, ok := entity.ActivityRegistry[activityID]; ok {
+						lines = append(lines, "   "+activity.Name)
+					}
+				}
 			}
 		} else {
 			lines = append(lines, " Select a character")

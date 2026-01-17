@@ -35,10 +35,10 @@ This separation is important for the preference/opinion system - characters form
 ```go
 type Item struct {
     // Descriptive attributes (opinion-formable)
-    ItemType  string         // "berry", "mushroom", "flower"
+    ItemType  string         // "berry", "mushroom", "gourd", "flower"
     Color     types.Color
-    Pattern   types.Pattern  // mushrooms only
-    Texture   types.Texture  // mushrooms only
+    Pattern   types.Pattern  // mushrooms, gourds
+    Texture   types.Texture  // mushrooms, gourds
 
     // Functional attributes (not opinion-formable)
     Edible    bool
@@ -46,6 +46,17 @@ type Item struct {
     Healing   bool
 }
 ```
+
+### Adding New Plant Types
+
+When adding a new plant type (like gourd was added in Phase 5):
+
+1. `entity/item.go` - Add `NewX()` constructor
+2. `config/config.go` - Add to `ItemLifecycle` map (spawn/death intervals)
+3. `game/variety_generation.go` - Add variety generation logic
+4. `game/world.go` - Add to `GetItemTypeConfigs()` for UI/character creation
+
+Note: `spawnItem()` in `lifecycle.go` is generic - copies parent properties, no changes needed.
 
 ### Future Extensions
 
