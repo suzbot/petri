@@ -17,7 +17,7 @@ var (
 	frustratedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("208")) // orange
 
 	// Severity colors for stat tiers
-	optimalStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("28"))  // dark green (best)
+	optimalStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("34"))  // green (best)
 	severeStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("226")) // yellow
 	crisisStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("196")) // red
 

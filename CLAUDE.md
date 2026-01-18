@@ -125,6 +125,11 @@ Results are documented in `docs/futureEnancements.md` under "Balance Observation
 
 Phase 5: Picking up Items and Inventory - **Complete**. All sub-phases done: 5.1 (Item Category & Gourd), 5.2 (Inventory & Foraging), 5.3 (Eating from Inventory), 5.4 (Know-how System), 5.5 (Orders System - Data & UI), 5.6 (Orders System - Execution).
 
+### Quick Wins (Before Phase 6)
+
+- [x] Move memory/action-log item from randomideas.txt to futureEnhancements.md
+- [x] Improve success green readability - changed optimalStyle from color 28 to 34 in `internal/ui/styles.go:20`
+
 ### Near-Term Roadmap
 
 - Phase 6: TBD (see docs/VISION.txt for project phases)

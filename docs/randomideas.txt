@@ -8,11 +8,9 @@ When items are completed OR documented as part of a roadmap, requirement, or pla
 then they can be removed from this list.
 
 #Ready Ideas
-- [Needs to be moved to future enhancements] When implementing character memory, revisit how much we keep in the action log. May need to consider world time vs real time.
 - delete worlds from ui
 - Replace l for full log with x on all activity panel to expand
 - Discovery should be 1% when Happy and 5% when Joyful maybe hardcode it so that happy discovery is always 1..5 of config which is joyful rate?
-- Make success green a more readable green
 - Double collapse message, don't need to see it twice (now that it works right)
 - Create a flag that lets you control how many chars are created? Or just adjust character creation screen?
 - remove single char mode from ui, skip the screen phase where selecting single vs multi

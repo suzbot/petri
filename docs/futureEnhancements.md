@@ -16,6 +16,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **ItemType constants**                 | Adding new item types; Want compile-time safety for item type checks              |
 | **Activity enum**                      | Need to enumerate/filter activities; Activity-based game logic beyond display     |
 | **Feature capability derivation**      | Adding new feature types; DrinkSource/Bed bools become redundant                  |
+| **Action log retention policy**        | Implementing character memory; May need world time vs real time consideration     |
 | **UI color style map**                 | Adding new colors frequently; Switch statement maintenance becomes tedious        |
 | **Cobra CLI migration**                | Next time we want to add a flag; Current flag parsing becomes unwieldy            |
 
