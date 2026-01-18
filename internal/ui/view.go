@@ -861,7 +861,8 @@ func (m Model) renderActionLog() string {
 		for _, event := range events {
 			if strings.Contains(event.Message, "Improved Mood") ||
 				strings.Contains(event.Message, "Worsened Mood") ||
-				strings.Contains(event.Message, "impacted health") {
+				strings.Contains(event.Message, "impacted health") ||
+				event.Message == "Collapsed from exhaustion!" {
 				continue
 			}
 			filtered = append(filtered, event)
@@ -950,7 +951,8 @@ func (m Model) renderCombinedLog() string {
 		for _, event := range events {
 			if strings.Contains(event.Message, "Improved Mood") ||
 				strings.Contains(event.Message, "Worsened Mood") ||
-				strings.Contains(event.Message, "impacted health") {
+				strings.Contains(event.Message, "impacted health") ||
+				event.Message == "Collapsed from exhaustion!" {
 				continue
 			}
 			filtered = append(filtered, event)

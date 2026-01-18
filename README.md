@@ -9,7 +9,7 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 ## Latest Updates
 
 - **Orders System**: Press 'O' to open the Orders panel. Add Harvest orders to direct characters to gather specific item types. Characters with Harvest know-how will automatically take open orders and collect items until their inventory is full.
-- **Know-how Discovery**: Characters can discover "Harvest" know-how through foraging, eating, or looking at edible items. Know-how is displayed in the Knowledge panel and cannot be transmitted through talking.
+- **Know-how Discovery**: Characters can discover "Harvest" know-how through foraging, eating, or looking at edible items. Discovery chance depends on mood (Joyful > Happy > none for lower moods). Know-how is displayed in the Knowledge panel and cannot be transmitted through talking.
 - **Inventory & Foraging**: Characters can now pick up and carry items. Foraging is a new idle activity where characters collect nearby edible items based on preference.
 - **Inventory panel**: Press I to view what a character is carrying
 - **Gourds**: New edible item type with colors, patterns (striped, speckled), and textures (waxy, warty). Gourds are never poisonous or healing.

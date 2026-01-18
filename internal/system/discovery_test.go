@@ -143,6 +143,54 @@ func TestTryDiscoverKnowHow_NoDiscoverOnDrink(t *testing.T) {
 	}
 }
 
+func TestGetDiscoveryChance_ByMoodTier(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		mood     float64
+		wantZero bool
+		wantFull bool // true = full config rate (Joyful), false = 20% of config rate (Happy)
+	}{
+		// TierNone (Joyful): 90-100 - full rate
+		{"mood 100 (Joyful) gets full rate", 100, false, true},
+		{"mood 90 (Joyful) gets full rate", 90, false, true},
+		// TierMild (Happy): 65-89 - 20% of rate
+		{"mood 89 (Happy) gets 20% rate", 89, false, false},
+		{"mood 65 (Happy) gets 20% rate", 65, false, false},
+		// TierModerate (Neutral): 35-64 - no discovery
+		{"mood 64 (Neutral) gets zero", 64, true, false},
+		{"mood 50 (Neutral) gets zero", 50, true, false},
+		// TierSevere (Unhappy): 11-34 - no discovery
+		{"mood 34 (Unhappy) gets zero", 34, true, false},
+		// TierCrisis (Miserable): 0-10 - no discovery
+		{"mood 10 (Miserable) gets zero", 10, true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			char := &entity.Character{Mood: tt.mood}
+			chance := GetDiscoveryChance(char)
+
+			if tt.wantZero && chance != 0 {
+				t.Errorf("Expected 0 chance for mood %.0f, got %f", tt.mood, chance)
+			}
+			if tt.wantFull && chance == 0 {
+				t.Errorf("Expected non-zero chance for mood %.0f (Joyful)", tt.mood)
+			}
+			if !tt.wantZero && !tt.wantFull {
+				// Happy tier - should be 20% of Joyful
+				joyfulChar := &entity.Character{Mood: 100}
+				joyfulChance := GetDiscoveryChance(joyfulChar)
+				expected := joyfulChance * 0.20
+				if chance != expected {
+					t.Errorf("Expected Happy chance %f (20%% of %f), got %f", expected, joyfulChance, chance)
+				}
+			}
+		})
+	}
+}
+
 func TestTryDiscoverKnowHow_LogsDiscovery(t *testing.T) {
 	char := &entity.Character{
 		ID:              1,

@@ -84,8 +84,9 @@ const (
 	PrefFormationWeightSingle    = 0.30 // 30% chance to form single-attribute preference
 	PrefFormationWeightCombo     = 0.70 // 70% chance to form combo preference (2+ attributes)
 
-	// Know-how discovery
-	// Set high (50%) for testing. For gameplay balance, use 5%.
+	// Know-how discovery (Joyful mood rate)
+	// Happy mood uses 20% of this rate. Neutral and below: 0%.
+	// Set high (50%) for testing. For gameplay balance, use 5% (Happy: 1%).
 	KnowHowDiscoveryChance = 0.50
 
 	// Variety generation

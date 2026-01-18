@@ -124,7 +124,7 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 	TryFormPreference(char, item, log)
 
 	// Try to discover know-how from eating
-	TryDiscoverKnowHow(char, entity.ActionConsume, item, log, config.KnowHowDiscoveryChance)
+	TryDiscoverKnowHow(char, entity.ActionConsume, item, log, GetDiscoveryChance(char))
 
 	// Remove item from map
 	gameMap.RemoveItem(item)
@@ -247,7 +247,7 @@ func ConsumeFromInventory(char *entity.Character, item *entity.Item, log *Action
 	TryFormPreference(char, item, log)
 
 	// Try to discover know-how from eating
-	TryDiscoverKnowHow(char, entity.ActionConsume, item, log, config.KnowHowDiscoveryChance)
+	TryDiscoverKnowHow(char, entity.ActionConsume, item, log, GetDiscoveryChance(char))
 
 	// Clear inventory (item consumed from inventory, not map)
 	char.Carrying = nil

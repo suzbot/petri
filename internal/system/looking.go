@@ -58,5 +58,5 @@ func CompleteLook(char *entity.Character, item *entity.Item, log *ActionLog) {
 	TryFormPreference(char, item, log)
 
 	// Try to discover know-how from looking at edible items
-	TryDiscoverKnowHow(char, entity.ActionLook, item, log, config.KnowHowDiscoveryChance)
+	TryDiscoverKnowHow(char, entity.ActionLook, item, log, GetDiscoveryChance(char))
 }

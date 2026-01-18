@@ -290,7 +290,12 @@ Know-how represents activity skills that characters discover through experience.
 Characters can discover know-how by performing related activities. Currently discoverable:
 - **Harvest**: Discovered when foraging (picking up items), eating edible items, or looking at edible items
 
-Discovery chance is configured in `config.KnowHowDiscoveryChance`. When discovery occurs, "Discovered how to [Activity]!" appears in the action log (blue color).
+Discovery chance depends on mood:
+- **Joyful**: Uses `config.KnowHowDiscoveryChance` (e.g., 5%)
+- **Happy**: 20% of Joyful rate (e.g., 1%)
+- **Neutral and below**: No discovery possible
+
+When discovery occurs, "Discovered how to [Activity]!" appears in the action log (blue color).
 
 ### Know-how vs Facts
 

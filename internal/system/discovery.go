@@ -4,8 +4,23 @@ import (
 	"fmt"
 	"math/rand"
 
+	"petri/internal/config"
 	"petri/internal/entity"
 )
+
+// GetDiscoveryChance returns the know-how discovery chance based on character mood.
+// Joyful (TierNone) uses the configured rate, Happy (TierMild) uses 20% of that rate.
+// All other moods return 0 (no discovery possible).
+func GetDiscoveryChance(char *entity.Character) float64 {
+	switch char.MoodTier() {
+	case entity.TierNone: // Joyful
+		return config.KnowHowDiscoveryChance
+	case entity.TierMild: // Happy
+		return config.KnowHowDiscoveryChance * 0.20
+	default:
+		return 0
+	}
+}
 
 // TryDiscoverKnowHow attempts to discover know-how activities based on the action performed.
 // Returns true if a new activity was discovered.
