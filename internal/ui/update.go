@@ -138,6 +138,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Switch to Select mode
 			m.viewMode = viewModeSelect
 			m.showOrdersPanel = false
+			m.activityFullScreen = false
 			m.logScrollOffset = 0
 		case "o", "O":
 			// Toggle orders panel
@@ -149,9 +150,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.selectedOrderIndex = 0
 			}
 		case "x", "X":
-			// Toggle full-screen orders panel
+			// Toggle full-screen for orders panel or activity log
 			if m.showOrdersPanel {
 				m.ordersFullScreen = !m.ordersFullScreen
+			} else if m.viewMode == viewModeAllActivity {
+				m.activityFullScreen = !m.activityFullScreen
+				m.logScrollOffset = 0
 			}
 		case "+", "=":
 			// Start add order mode (= is unshifted + on most keyboards)
@@ -233,14 +237,6 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
-		case "l":
-			// Toggle full-screen log view
-			if m.viewMode == viewModeFullLog {
-				m.viewMode = viewModeSelect
-			} else {
-				m.viewMode = viewModeFullLog
-			}
-			m.logScrollOffset = 0
 		case "k", "K":
 			// Toggle knowledge panel (only in select mode, mutually exclusive with inventory)
 			if m.viewMode == viewModeSelect {

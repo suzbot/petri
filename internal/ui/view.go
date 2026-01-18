@@ -383,9 +383,9 @@ func (m Model) viewCharacterCreate() string {
 
 // viewGame renders the main game view
 func (m Model) viewGame() string {
-	// Full-screen log view
-	if m.viewMode == viewModeFullLog {
-		return m.viewFullLog()
+	// Full-screen activity log
+	if m.viewMode == viewModeAllActivity && m.activityFullScreen {
+		return m.viewFullScreenActivity()
 	}
 
 	// Full-screen orders panel
@@ -463,11 +463,11 @@ func (m Model) viewGame() string {
 
 	// View mode switching (always available)
 	if m.viewMode == viewModeAllActivity {
-		hints = append(hints, "s=select")
+		hints = append(hints, "s=select", "x=expand")
 	} else {
 		hints = append(hints, "a=all activity")
 	}
-	hints = append(hints, "l=log", "n=next", "o=orders")
+	hints = append(hints, "n=next", "o=orders")
 
 	// Cursor movement (not available in orders add/cancel mode)
 	inOrdersInput := m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode)
@@ -499,73 +499,6 @@ func (m Model) viewGame() string {
 	}
 
 	return gameArea + statusBar + debugLine
-}
-
-// viewFullLog renders a full-screen log view with complete (non-truncated) messages
-func (m Model) viewFullLog() string {
-	var lines []string
-
-	// Header
-	lines = append(lines, titleStyle.Render("=== FULL LOG VIEW ==="))
-	lines = append(lines, "")
-
-	// Get all events across all characters, sorted by time (0 = no limit)
-	allEvents := m.actionLog.AllEvents(0)
-
-	// Calculate how many lines we can show - use map height for consistency with game view
-	// Leave room for header (2 lines), footer (2 lines), and status bar (1 line)
-	availableLines := m.gameMap.Height - 3
-
-	// Apply scroll offset (from end, showing most recent first)
-	total := len(allEvents)
-	endIdx := total - m.logScrollOffset
-	if endIdx < 0 {
-		endIdx = 0
-	}
-	startIdx := endIdx - availableLines
-	if startIdx < 0 {
-		startIdx = 0
-	}
-
-	if m.logScrollOffset > 0 {
-		lines = append(lines, fmt.Sprintf(" [Scrolled: -%d]", m.logScrollOffset))
-	}
-
-	// Render events (most recent first, no truncation)
-	displayEvents := allEvents[startIdx:endIdx]
-	for i := len(displayEvents) - 1; i >= 0; i-- {
-		event := displayEvents[i]
-		elapsedSecs := m.elapsedGameTime - event.GameTime
-
-		// Full message with character name prefix
-		// Only show timestamp if >= 1 minute (like other logs)
-		var line string
-		if elapsedSecs >= 60 {
-			line = fmt.Sprintf(" %s [%s] %s", system.FormatGameTime(elapsedSecs), event.CharName, event.Message)
-		} else {
-			line = fmt.Sprintf(" [%s] %s", event.CharName, event.Message)
-		}
-
-		coloredLine := colorLogMessage(line, event.Message)
-
-		// Highlight most recent (only if not already colored)
-		isNewest := (i == len(displayEvents)-1) && m.logScrollOffset == 0
-		if coloredLine != line {
-			lines = append(lines, coloredLine)
-		} else if isNewest {
-			lines = append(lines, highlightStyle.Render(line))
-		} else {
-			lines = append(lines, line)
-		}
-	}
-
-	// Footer with controls
-	lines = append(lines, "")
-	lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(
-		"PgUp/PgDn: Scroll | L: Back"))
-
-	content := strings.Join(lines, "\n")
-	return lipgloss.Place(m.width, m.height, lipgloss.Left, lipgloss.Top, content)
 }
 
 // renderCell renders a single map cell
@@ -960,6 +893,31 @@ func (m Model) renderActionLog() string {
 func (m Model) renderCombinedLog() string {
 	var lines []string
 	lines = append(lines, titleStyle.Render("     ALL ACTIVITY"), "")
+	lines = append(lines, m.renderActivityContent(false)...)
+	return strings.Join(lines, "\n")
+}
+
+// viewFullScreenActivity renders full-screen activity log
+func (m Model) viewFullScreenActivity() string {
+	var lines []string
+	lines = append(lines, "")
+	lines = append(lines, titleStyle.Render("                  ALL ACTIVITY"))
+	lines = append(lines, "")
+	lines = append(lines, m.renderActivityContent(true)...)
+
+	// Footer with controls
+	lines = append(lines, "")
+	lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(
+		"PgUp/PgDn: Scroll | X: Collapse | S: Select Mode"))
+
+	content := strings.Join(lines, "\n")
+	return borderStyle.Width(m.width - 4).Height(m.height - 4).Render(content)
+}
+
+// renderActivityContent generates the activity log content lines
+// expanded: true for full-screen (no truncation), false for side panel (truncated)
+func (m Model) renderActivityContent(expanded bool) []string {
+	var lines []string
 
 	events := m.actionLog.AllEvents(200)
 
@@ -980,13 +938,19 @@ func (m Model) renderCombinedLog() string {
 
 	if len(events) == 0 {
 		lines = append(lines, " No events yet")
-		return strings.Join(lines, "\n")
+		return lines
 	}
 
-	// Calculate display range (full panel height minus header lines)
-	// All Activity panel uses full map height (gameMap.Height) for content
-	allActivityHeight := m.gameMap.Height
-	maxDisplay := allActivityHeight - 3 // Account for header and borders
+	// Calculate display range based on mode
+	var maxDisplay int
+	if expanded {
+		// Full screen: use most of the screen height
+		maxDisplay = m.height - 8 // Account for header, footer, borders
+	} else {
+		// Side panel: use map height
+		allActivityHeight := m.gameMap.Height
+		maxDisplay = allActivityHeight - 3 // Account for header and borders
+	}
 
 	total := len(events)
 
@@ -1027,10 +991,12 @@ func (m Model) renderCombinedLog() string {
 			line = " " + namePrefix + message
 		}
 
-		// Truncate if too long (use runes for proper Unicode handling)
-		runes := []rune(line)
-		if len(runes) > 50 {
-			line = string(runes[:49]) + "…"
+		// Truncate if too long in collapsed mode (use runes for proper Unicode handling)
+		if !expanded {
+			runes := []rune(line)
+			if len(runes) > 50 {
+				line = string(runes[:49]) + "…"
+			}
 		}
 
 		// Color based on message content
@@ -1047,7 +1013,7 @@ func (m Model) renderCombinedLog() string {
 		}
 	}
 
-	return strings.Join(lines, "\n")
+	return lines
 }
 
 // renderKnowledgePanel renders the knowledge panel for the selected character

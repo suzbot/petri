@@ -435,7 +435,7 @@ Idle activities are interruptible by any Moderate or higher tier need that can b
 
 ## View Modes
 
-Three view modes available during gameplay:
+Two view modes available during gameplay:
 
 ### Select Mode (default)
 - Details panel shows selected entity info
@@ -446,9 +446,5 @@ Three view modes available during gameplay:
 - Combined log showing all character events
 - No details panel
 - Press `A` to enter
-
-### Full Log View
-- Full-screen log with complete (non-truncated) messages
-- Shows all events with character name prefix
-- Useful for reading long debug messages (e.g., gradient scores)
-- Press `L` to enter, `L` or `Esc` to exit
+- Press `X` to expand to full-screen (no message truncation)
+- Press `X` again or `S` to collapse

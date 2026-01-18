@@ -31,7 +31,6 @@ type viewMode int
 const (
 	viewModeSelect      viewMode = iota // Cursor/examine mode with details panel
 	viewModeAllActivity                 // Combined activity log, no details panel
-	viewModeFullLog                     // Full-screen log view (complete messages)
 )
 
 // TestConfig holds test mode settings
@@ -75,7 +74,8 @@ type Model struct {
 	flashIndex int
 
 	// View mode (select vs all-activity)
-	viewMode viewMode
+	viewMode           viewMode
+	activityFullScreen bool // When true and in AllActivity mode, show full-screen log
 
 	// Bottom panel toggles (mutually exclusive, replaces action log in select mode)
 	showKnowledgePanel bool

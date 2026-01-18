@@ -8,7 +8,6 @@ When items are completed OR documented as part of a roadmap, requirement, or pla
 then they can be removed from this list.
 
 #Ready Ideas
-- Replace l for full log with x on all activity panel to expand
 - Create a flag that lets you control how many chars are created? Or just adjust character creation screen?
 - remove single char mode from ui, skip the screen phase where selecting single vs multi
 

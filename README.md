@@ -66,8 +66,7 @@ go run ./cmd/petri
 - `I` - Toggle inventory panel (select mode)
 - `K` - Toggle knowledge panel (select mode)
 - `O` - Toggle orders panel (+: add, c: cancel, x: expand)
-- `A` / `S` - All Activity / Select mode
-- `L` - Full log view (complete messages, no truncation)
+- `A` / `S` - All Activity / Select mode (x: expand to full screen)
 - `PgUp` / `PgDn` - Scroll action log
 - `ESC` - Save and return to world selection
 - `Q` - Save and quit
