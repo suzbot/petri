@@ -144,6 +144,18 @@ func (m Model) viewWorldSelect() string {
 	lines = append(lines, titleStyle.Render("=== PETRI PROJECT ==="))
 	lines = append(lines, "")
 
+	// Check if we're confirming a delete
+	if m.confirmingDelete >= 0 && m.confirmingDelete < len(m.worlds) {
+		worldName := m.worlds[m.confirmingDelete].Name
+		lines = append(lines, fmt.Sprintf("Delete \"%s\"? This cannot be undone.", worldName))
+		lines = append(lines, "")
+		lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(
+			"Y: Confirm   N: Cancel"))
+
+		content := lipgloss.JoinVertical(lipgloss.Center, lines...)
+		return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content)
+	}
+
 	if len(m.worlds) == 0 {
 		// No existing worlds
 		lines = append(lines, "No saved worlds found.")
@@ -174,8 +186,14 @@ func (m Model) viewWorldSelect() string {
 	}
 
 	lines = append(lines, "")
-	lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(
-		"↑/↓ Select   Enter: Continue   Q: Quit"))
+	// Show D: Delete hint only when a saved world is selected (not "New World")
+	if m.selectedWorld < len(m.worlds) {
+		lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(
+			"↑/↓ Select   Enter: Continue   D: Delete   Q: Quit"))
+	} else {
+		lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(
+			"↑/↓ Select   Enter: Continue   Q: Quit"))
+	}
 
 	content := lipgloss.JoinVertical(lipgloss.Center, lines...)
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content)

@@ -234,6 +234,20 @@ func ListWorlds() ([]WorldMeta, error) {
 	return worlds, nil
 }
 
+// DeleteWorld removes a world and all its data
+func DeleteWorld(worldID string) error {
+	dir, err := WorldDir(worldID)
+	if err != nil {
+		return err
+	}
+
+	if err := os.RemoveAll(dir); err != nil {
+		return fmt.Errorf("could not delete world: %w", err)
+	}
+
+	return nil
+}
+
 // GenerateWorldID creates a new unique world ID
 func GenerateWorldID() (string, error) {
 	baseDir, err := BaseDir()

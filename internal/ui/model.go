@@ -99,8 +99,9 @@ type Model struct {
 	creationState *CharacterCreationState
 
 	// World selection state
-	worlds        []save.WorldMeta
-	selectedWorld int // Index into worlds slice, -1 = "New World"
+	worlds           []save.WorldMeta
+	selectedWorld    int // Index into worlds slice, len(worlds) = "New World"
+	confirmingDelete int // -1 = not confirming, otherwise index of world to delete
 
 	// Test mode config
 	testCfg TestConfig
@@ -112,14 +113,15 @@ func NewModel(testCfg TestConfig) Model {
 	worlds, _ := save.ListWorlds()
 
 	return Model{
-		phase:         phaseWorldSelect,
-		actionLog:     system.NewActionLog(200),
-		width:         80,
-		height:        40,
-		paused:        true, // World starts paused
-		testCfg:       testCfg,
-		worlds:        worlds,
-		selectedWorld: 0, // First world or "New World" if empty
+		phase:            phaseWorldSelect,
+		actionLog:        system.NewActionLog(200),
+		width:            80,
+		height:           40,
+		paused:           true, // World starts paused
+		testCfg:          testCfg,
+		worlds:           worlds,
+		selectedWorld:    0,  // First world or "New World" if empty
+		confirmingDelete: -1, // Not confirming delete
 	}
 }
 

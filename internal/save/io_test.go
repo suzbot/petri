@@ -326,3 +326,48 @@ func TestWorldDir(t *testing.T) {
 		t.Errorf("Expected '%s', got '%s'", expected, worldDir)
 	}
 }
+
+func TestDeleteWorld(t *testing.T) {
+	setupTestDir(t)
+
+	// Create a world with state and meta
+	worldID, err := CreateWorld()
+	if err != nil {
+		t.Fatalf("CreateWorld failed: %v", err)
+	}
+
+	// Save some state
+	state := &SaveState{Version: 1, ElapsedGameTime: 100.0}
+	if err := SaveWorld(worldID, state); err != nil {
+		t.Fatalf("SaveWorld failed: %v", err)
+	}
+
+	// Verify world exists
+	if !WorldExists(worldID) {
+		t.Fatal("World should exist before delete")
+	}
+
+	// Delete the world
+	if err := DeleteWorld(worldID); err != nil {
+		t.Fatalf("DeleteWorld failed: %v", err)
+	}
+
+	// Verify world no longer exists
+	if WorldExists(worldID) {
+		t.Error("World should not exist after delete")
+	}
+
+	// Verify directory is gone
+	dir, _ := WorldDir(worldID)
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Error("World directory should be removed")
+	}
+
+	// Verify world is not in list
+	worlds, _ := ListWorlds()
+	for _, w := range worlds {
+		if w.ID == worldID {
+			t.Error("Deleted world should not appear in list")
+		}
+	}
+}

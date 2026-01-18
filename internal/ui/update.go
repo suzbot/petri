@@ -898,6 +898,29 @@ func getEdibleItemTypes() []string {
 
 // handleWorldSelectKey handles input during world selection phase
 func (m Model) handleWorldSelectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle delete confirmation mode
+	if m.confirmingDelete >= 0 {
+		switch msg.String() {
+		case "y", "Y":
+			// Confirm delete
+			if m.confirmingDelete < len(m.worlds) {
+				worldID := m.worlds[m.confirmingDelete].ID
+				save.DeleteWorld(worldID)
+				// Refresh world list
+				m.worlds, _ = save.ListWorlds()
+				// Adjust selection if needed
+				if m.selectedWorld >= len(m.worlds) {
+					m.selectedWorld = len(m.worlds) // Point to "New World"
+				}
+			}
+			m.confirmingDelete = -1
+		case "n", "N", "esc":
+			// Cancel delete
+			m.confirmingDelete = -1
+		}
+		return m, nil
+	}
+
 	maxIdx := len(m.worlds) // "New World" is at index len(worlds)
 
 	switch msg.String() {
@@ -916,6 +939,11 @@ func (m Model) handleWorldSelectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		// New World selected - go to character creation
 		m.phase = phaseSelectMode
+	case "d", "x":
+		// Start delete confirmation (only for saved worlds, not "New World")
+		if m.selectedWorld < len(m.worlds) {
+			m.confirmingDelete = m.selectedWorld
+		}
 	case "q", "ctrl+c":
 		return m, tea.Quit
 	}
