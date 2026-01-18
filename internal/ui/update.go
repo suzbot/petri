@@ -109,10 +109,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Reload world list to show updated metadata
 			m.worlds, _ = save.ListWorlds()
 			m.selectedWorld = 0
+			m.confirmingDelete = -1
 			m.gameMap = nil
 			m.following = nil
 			m.paused = true
 			m.viewMode = viewModeSelect
+			m.activityFullScreen = false
 			m.showKnowledgePanel = false
 			m.showInventoryPanel = false
 			m.showOrdersPanel = false
