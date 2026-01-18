@@ -85,6 +85,16 @@ type Model struct {
 	orders      []*entity.Order
 	nextOrderID int
 
+	// Orders panel UI state
+	showOrdersPanel       bool
+	ordersFullScreen      bool
+	ordersCancelMode      bool
+	selectedOrderIndex    int
+	ordersAddMode         bool
+	ordersAddStep         int // 0 = select activity, 1 = select target
+	selectedActivityIndex int
+	selectedTargetIndex   int
+
 	// Character creation state
 	creationState *CharacterCreationState
 

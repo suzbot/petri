@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -369,6 +370,11 @@ func (m Model) viewGame() string {
 		return m.viewFullLog()
 	}
 
+	// Full-screen orders panel
+	if m.showOrdersPanel && m.ordersFullScreen {
+		return m.viewFullScreenOrders()
+	}
+
 	// Build map view
 	var mapBuilder strings.Builder
 	for y := 0; y < m.gameMap.Height; y++ {
@@ -388,7 +394,12 @@ func (m Model) viewGame() string {
 	totalContentHeight := m.gameMap.Height - 2 // Account for extra borders on right panel
 
 	var rightPanel string
-	if m.viewMode == viewModeAllActivity {
+	if m.showOrdersPanel {
+		// Orders panel: full-height like All Activity mode
+		allActivityHeight := totalContentHeight + 2
+		ordersView := borderStyle.Width(panelWidth).Height(allActivityHeight).Render(m.renderOrdersPanel())
+		rightPanel = ordersView
+	} else if m.viewMode == viewModeAllActivity {
 		// All Activity mode: full-height combined log
 		// Use full map height so panel bottom aligns with map bottom
 		// (Select mode has 2 panels with 2 borders each = 4 border rows total,
@@ -429,14 +440,29 @@ func (m Model) viewGame() string {
 		saveHint = " " + orangeStyle.Render("[Saved]")
 	}
 
-	modeHint := ""
+	// Build hints for all currently applicable actions
+	var hints []string
+
+	// View mode switching (always available)
 	if m.viewMode == viewModeAllActivity {
-		modeHint = " | s=select | l=full log"
+		hints = append(hints, "s=select")
 	} else {
-		modeHint = " | a=all activity | l=full log | n=next char"
+		hints = append(hints, "a=all activity")
+	}
+	hints = append(hints, "l=log", "n=next", "o=orders")
+
+	// Cursor movement (not available in orders add/cancel mode)
+	inOrdersInput := m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode)
+	if !inOrdersInput {
+		hints = append(hints, "ARROWS=cursor")
 	}
 
-	statusBar := fmt.Sprintf("\n[%s]%s SPACE=pause%s%s | ARROWS=cursor | ESC=menu", status, saveHint, stepHint, modeHint)
+	// ESC goes to menu unless in orders input mode (where it means "back")
+	if !inOrdersInput {
+		hints = append(hints, "ESC=menu")
+	}
+
+	statusBar := fmt.Sprintf("\n[%s]%s SPACE=pause%s | %s", status, saveHint, stepHint, strings.Join(hints, " | "))
 
 	// Debug line (only shown with -debug flag)
 	debugLine := ""
@@ -725,8 +751,17 @@ func (m Model) renderDetails() string {
 		if m.testCfg.Debug && char.ActionProgress > 0 {
 			activityLine = fmt.Sprintf(" Activity: %s (%.1fs)", char.CurrentActivity, char.ActionProgress)
 		}
+		lines = append(lines, activityLine)
+
+		// Show assigned order if any
+		if char.AssignedOrderID != 0 {
+			if order := m.findOrderByID(char.AssignedOrderID); order != nil {
+				orderLine := fmt.Sprintf(" Order: %s [%s]", order.DisplayName(), order.StatusDisplay())
+				lines = append(lines, orderLine)
+			}
+		}
+
 		lines = append(lines,
-			activityLine,
 			"",
 			" Preferences:",
 		)
@@ -1066,4 +1101,186 @@ func (m Model) renderInventoryPanel() string {
 	lines = append(lines, "", " Press I to return")
 
 	return strings.Join(lines, "\n")
+}
+
+// renderOrdersContent generates the orders panel content lines
+// expanded: true for full-screen, false for side panel
+func (m Model) renderOrdersContent(expanded bool) []string {
+	var lines []string
+
+	// Indentation varies by mode
+	indent := " "
+	selectIndent := "   "
+	selectPrefix := " > "
+	if expanded {
+		indent = "  "
+		selectIndent = "    "
+		selectPrefix = "  > "
+	}
+
+	// Get orderable activities (known by at least one living character)
+	orderableActivities := m.getOrderableActivities()
+
+	// Add hints at top so they're always visible
+	if m.ordersAddMode || m.ordersCancelMode {
+		lines = append(lines, indent+"enter: confirm  esc: back", "")
+	} else {
+		var hints []string
+		if len(orderableActivities) > 0 {
+			hints = append(hints, "+: add")
+		}
+		if len(m.orders) > 0 {
+			hints = append(hints, "c: cancel")
+		}
+		if expanded {
+			hints = append(hints, "x: collapse")
+		} else {
+			hints = append(hints, "x: expand")
+		}
+		hints = append(hints, "o: close")
+		lines = append(lines, indent+strings.Join(hints, "  "), "")
+	}
+
+	if m.ordersAddMode {
+		// Add order flow
+		if m.ordersAddStep == 0 {
+			// Step 1: Select activity
+			lines = append(lines, indent+"Select activity:", "")
+			if len(orderableActivities) == 0 {
+				lines = append(lines, selectIndent+"(no activities available)")
+				lines = append(lines, selectIndent+"Characters must discover")
+				lines = append(lines, selectIndent+"know-how first.")
+			} else {
+				for i, activity := range orderableActivities {
+					prefix := selectIndent
+					if i == m.selectedActivityIndex {
+						prefix = selectPrefix
+					}
+					lines = append(lines, prefix+activity.Name)
+				}
+			}
+		} else {
+			// Step 2: Select target type
+			edibleTypes := m.getEdibleItemTypes()
+			lines = append(lines, indent+"Select item type:", "")
+			for i, itemType := range edibleTypes {
+				prefix := selectIndent
+				if i == m.selectedTargetIndex {
+					prefix = selectPrefix
+				}
+				lines = append(lines, prefix+itemType)
+			}
+		}
+	} else if m.ordersCancelMode {
+		// Cancel mode - show orders with selection
+		lines = append(lines, indent+"Select order to cancel:", "")
+		if len(m.orders) == 0 {
+			lines = append(lines, selectIndent+"(no orders)")
+		} else {
+			for i, order := range m.orders {
+				prefix := selectIndent
+				if i == m.selectedOrderIndex {
+					prefix = selectPrefix
+				}
+				lines = append(lines, fmt.Sprintf("%s%s [%s]", prefix, order.DisplayName(), order.StatusDisplay()))
+			}
+		}
+	} else {
+		// Normal view - show order list
+		if len(m.orders) == 0 {
+			lines = append(lines, indent+"No orders.")
+			lines = append(lines, "")
+			if len(orderableActivities) > 0 {
+				lines = append(lines, indent+"Press + to add an order.")
+			} else {
+				lines = append(lines, indent+"Characters must discover")
+				lines = append(lines, indent+"know-how before orders")
+				lines = append(lines, indent+"can be created.")
+			}
+		} else {
+			for _, order := range m.orders {
+				lines = append(lines, fmt.Sprintf("%s%s [%s]", indent, order.DisplayName(), order.StatusDisplay()))
+			}
+		}
+	}
+
+	return lines
+}
+
+// renderOrdersPanel renders the collapsed orders panel
+func (m Model) renderOrdersPanel() string {
+	var lines []string
+	lines = append(lines, titleStyle.Render("         ORDERS"), "")
+	lines = append(lines, m.renderOrdersContent(false)...)
+	return strings.Join(lines, "\n")
+}
+
+// getOrderableActivities returns activities that can be ordered
+// (known by at least one living character)
+func (m Model) getOrderableActivities() []entity.Activity {
+	var result []entity.Activity
+	chars := m.gameMap.Characters()
+
+	for _, activity := range entity.ActivityRegistry {
+		if activity.Availability != entity.AvailabilityKnowHow {
+			continue // Only knowhow activities are orderable
+		}
+		if activity.IntentFormation != entity.IntentOrderable {
+			continue // Only orderable activities
+		}
+		// Check if any living character knows this activity
+		for _, char := range chars {
+			if !char.IsDead && char.KnowsActivity(activity.ID) {
+				result = append(result, activity)
+				break
+			}
+		}
+	}
+	return result
+}
+
+// getEdibleItemTypes returns a list of edible item type names
+func (m Model) getEdibleItemTypes() []string {
+	configs := game.GetItemTypeConfigs()
+	var result []string
+	for itemType, cfg := range configs {
+		if cfg.Edible {
+			result = append(result, itemType)
+		}
+	}
+	// Sort for consistent ordering
+	sort.Strings(result)
+	return result
+}
+
+// findOrderByID returns the order with the given ID, or nil if not found
+func (m Model) findOrderByID(id int) *entity.Order {
+	for _, order := range m.orders {
+		if order.ID == id {
+			return order
+		}
+	}
+	return nil
+}
+
+// removeOrder removes an order by ID from the orders list
+func (m *Model) removeOrder(id int) {
+	for i, order := range m.orders {
+		if order.ID == id {
+			m.orders = append(m.orders[:i], m.orders[i+1:]...)
+			return
+		}
+	}
+}
+
+// viewFullScreenOrders renders full-screen orders panel
+func (m Model) viewFullScreenOrders() string {
+	var lines []string
+	lines = append(lines, "")
+	lines = append(lines, titleStyle.Render("                    ORDERS"))
+	lines = append(lines, "")
+	lines = append(lines, m.renderOrdersContent(true)...)
+
+	content := strings.Join(lines, "\n")
+	return borderStyle.Width(m.width - 4).Height(m.height - 4).Render(content)
 }

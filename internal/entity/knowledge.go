@@ -48,7 +48,7 @@ func (k Knowledge) Description() string {
 	if k.Color != "" {
 		parts = append(parts, string(k.Color))
 	}
-	parts = append(parts, pluralize(k.ItemType))
+	parts = append(parts, Pluralize(k.ItemType))
 
 	description := strings.Join(parts, " ")
 	description += " are " + string(k.Category)

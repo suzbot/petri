@@ -35,7 +35,7 @@ func (o *Order) DisplayName() string {
 	if !ok {
 		return o.ActivityID + " " + o.TargetType
 	}
-	return activity.Name + " " + o.TargetType + "s"
+	return activity.Name + " " + Pluralize(o.TargetType)
 }
 
 // StatusDisplay returns a human-readable status string

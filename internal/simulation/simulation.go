@@ -80,7 +80,7 @@ func RunTick(world *TestWorld, delta float64) {
 	// Phase 2: Calculate intents for all characters
 	for _, char := range chars {
 		oldIntent := char.Intent
-		char.Intent = system.CalculateIntent(char, items, world.GameMap, world.ActionLog)
+		char.Intent = system.CalculateIntent(char, items, world.GameMap, world.ActionLog, nil)
 
 		// Reset action progress if intent action changed
 		if oldIntent == nil || char.Intent == nil || oldIntent.Action != char.Intent.Action {
@@ -140,6 +140,8 @@ func applyIntent(char *entity.Character, gameMap *game.Map, delta float64, actio
 		}
 
 	case entity.ActionPickup:
+		// Picking up an item (used by both foraging and harvest orders)
+		// Order completion is handled in UI layer
 		applyPickupIntent(char, gameMap, delta, actionLog)
 	}
 }

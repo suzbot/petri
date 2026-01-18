@@ -154,18 +154,19 @@ func TestTryDiscoverKnowHow_LogsDiscovery(t *testing.T) {
 		Edible:   true,
 		Color:    types.ColorRed,
 	}
-	log := NewActionLog()
+	log := NewActionLog(100)
 
 	TryDiscoverKnowHow(char, entity.ActionPickup, item, log, 1.0)
 
-	if len(log.Entries) == 0 {
+	entries := log.Events(1, 0)
+	if len(entries) == 0 {
 		t.Error("Expected log entry for discovery")
 	}
-	entry := log.Entries[0]
+	entry := entries[0]
 	if entry.CharID != 1 {
 		t.Errorf("Expected CharID 1, got %d", entry.CharID)
 	}
-	if entry.Category != "discovery" {
-		t.Errorf("Expected category 'discovery', got '%s'", entry.Category)
+	if entry.Type != "discovery" {
+		t.Errorf("Expected type 'discovery', got '%s'", entry.Type)
 	}
 }

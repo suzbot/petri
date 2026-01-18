@@ -9,10 +9,10 @@ import (
 	"petri/internal/game"
 )
 
-// selectIdleActivity randomly selects an idle activity (looking, talking, foraging, or staying idle).
+// selectIdleActivity checks for order work first, then randomly selects an idle activity.
 // Returns nil if cooldown is active or if the selected activity cannot be performed.
 // Sets IdleCooldown after being called (regardless of outcome).
-func selectIdleActivity(char *entity.Character, cx, cy int, items []*entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
+func selectIdleActivity(char *entity.Character, cx, cy int, items []*entity.Item, gameMap *game.Map, log *ActionLog, orders []*entity.Order) *entity.Intent {
 	// Check cooldown
 	if char.IdleCooldown > 0 {
 		return nil
@@ -20,6 +20,11 @@ func selectIdleActivity(char *entity.Character, cx, cy int, items []*entity.Item
 
 	// Set cooldown for next attempt
 	char.IdleCooldown = config.IdleCooldown
+
+	// First priority: check for order work (assigned or available)
+	if intent := selectOrderActivity(char, cx, cy, items, orders, log); intent != nil {
+		return intent
+	}
 
 	// Roll 0-3 for activity selection (equal 1/4 probability each)
 	roll := rand.Intn(4)

@@ -642,9 +642,9 @@ func TestPluralize(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		result := pluralize(tc.input)
+		result := Pluralize(tc.input)
 		if result != tc.expected {
-			t.Errorf("pluralize(%q): expected %q, got %q", tc.input, tc.expected, result)
+			t.Errorf("Pluralize(%q): expected %q, got %q", tc.input, tc.expected, result)
 		}
 	}
 }

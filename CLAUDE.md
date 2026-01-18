@@ -6,7 +6,7 @@ Guidance for Claude Code when working with code in this repo.
 
 Petri is a Dwarf Fortress-inspired simulation exploring emergent culture development.
 
-**Current features:** Character creation, world generation with items (berries, mushrooms, gourds, flowers) and features, multi-stat survival, dynamic preference system, knowledge system (learning poison/healing, knowledge-driven behavior, knowledge transmission via talking), social behavior (talking between idle characters), inventory system (foraging to pick up items), urgency-based AI with stat fallback and frustration mechanics, view modes, and action logging.
+**Current features:** Character creation, world generation with items (berries, mushrooms, gourds, flowers) and features, multi-stat survival, dynamic preference system, knowledge system (learning poison/healing, knowledge-driven behavior, knowledge transmission via talking), social behavior (talking between idle characters), inventory system (foraging to pick up items), orders system (player-directed harvesting), know-how discovery, urgency-based AI with stat fallback and frustration mechanics, view modes, and action logging.
 
 **Vision:** Complex roguelike simulation world with complex interactions between characters, items, and attributes. History exists only in character memories and created artifacts. As characters die, their knowledge dies with them except what they've communicated or created. See [docs/VISION.txt](docs/VISION.txt).
 
@@ -58,6 +58,8 @@ internal/
 - `internal/entity/variety.go` - ItemVariety for world generation
 - `internal/entity/preference.go` - Preference struct, matching logic
 - `internal/entity/knowledge.go` - Knowledge struct, learning from experience
+- `internal/entity/activity.go` - Activity struct, ActivityRegistry, know-how discovery triggers
+- `internal/entity/order.go` - Order struct for player-directed tasks
 
 **Core Systems**
 
@@ -66,6 +68,7 @@ internal/
 - `internal/system/consumption.go` - Eating, drinking, poison/healing effects
 - `internal/system/preference.go` - Preference formation on eat/look
 - `internal/system/talking.go` - Idle activity selection, talking state, knowledge transmission (LearnKnowledgeWithEffects)
+- `internal/system/order_execution.go` - Order assignment, intent finding, completion/abandonment
 
 **World & Generation**
 
@@ -120,11 +123,11 @@ Results are documented in `docs/futureEnancements.md` under "Balance Observation
 
 ### Current Work
 
-Phase 5: Picking up Items and Inventory. Sub-phases 5.1 (Item Category & Gourd), 5.2 (Inventory & Foraging), 5.3 (Eating from Inventory), and 5.4 (Know-how System) complete.
+Phase 5: Picking up Items and Inventory - **Complete**. All sub-phases done: 5.1 (Item Category & Gourd), 5.2 (Inventory & Foraging), 5.3 (Eating from Inventory), 5.4 (Know-how System), 5.5 (Orders System - Data & UI), 5.6 (Orders System - Execution).
 
 ### Near-Term Roadmap
 
-- Phase 5.5+ (see docs/phase05-plan.md for full plan)
+- Phase 6: TBD (see docs/VISION.txt for project phases)
 
 ### Deferred Enhancements & Trigger Points
 

@@ -24,8 +24,25 @@ func (m Model) ToSaveState() *save.SaveState {
 		Items:           itemsToSave(m.gameMap.Items()),
 		Features:        featuresToSave(m.gameMap.Features()),
 		ActionLogs:      actionLogsToSave(m.actionLog),
+		Orders:          ordersToSave(m.orders),
+		NextOrderID:     m.nextOrderID,
 	}
 	return state
+}
+
+// ordersToSave converts orders to save format
+func ordersToSave(orders []*entity.Order) []save.OrderSave {
+	result := make([]save.OrderSave, len(orders))
+	for i, o := range orders {
+		result[i] = save.OrderSave{
+			ID:         o.ID,
+			ActivityID: o.ActivityID,
+			TargetType: o.TargetType,
+			Status:     string(o.Status),
+			AssignedTo: o.AssignedTo,
+		}
+	}
+	return result
 }
 
 // varietiesToSave converts the variety registry to save format
@@ -117,7 +134,8 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 			Knowledge:       knowledgeToSave(c.Knowledge),
 			KnownActivities: c.KnownActivities,
 
-			Carrying: carrying,
+			Carrying:        carrying,
+			AssignedOrderID: c.AssignedOrderID,
 		}
 	}
 	return result
@@ -263,6 +281,10 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 	m.actionLog.SetAllLogs(actionLogsFromSave(state.ActionLogs))
 	m.actionLog.SetGameTime(state.ElapsedGameTime)
 
+	// Restore orders
+	m.orders = ordersFromSave(state.Orders)
+	m.nextOrderID = state.NextOrderID
+
 	// Set cursor to first character position if any
 	chars := m.gameMap.Characters()
 	if len(chars) > 0 {
@@ -270,6 +292,21 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 	}
 
 	return m
+}
+
+// ordersFromSave converts saved orders back to entities
+func ordersFromSave(orders []save.OrderSave) []*entity.Order {
+	result := make([]*entity.Order, len(orders))
+	for i, os := range orders {
+		result[i] = &entity.Order{
+			ID:         os.ID,
+			ActivityID: os.ActivityID,
+			TargetType: os.TargetType,
+			Status:     entity.OrderStatus(os.Status),
+			AssignedTo: os.AssignedTo,
+		}
+	}
+	return result
 }
 
 // varietiesFromSave converts saved varieties back to a registry
@@ -342,6 +379,9 @@ func characterFromSave(cs save.CharacterSave) *entity.Character {
 	if cs.Carrying != nil {
 		char.Carrying = itemFromSave(*cs.Carrying)
 	}
+
+	// Restore assigned order
+	char.AssignedOrderID = cs.AssignedOrderID
 
 	return char
 }

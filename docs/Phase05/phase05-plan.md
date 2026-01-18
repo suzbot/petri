@@ -193,21 +193,68 @@ Phase 5 introduces inventory, know-how (activity knowledge), discovery mechanics
 
 **[TEST]:** Press 'O' to see empty orders panel. After a character has Harvest know-how, add a Harvest order with '+'. Verify order appears in list as "open". Enter cancel mode with 'C', select order, confirm cancellation. Verify order is removed.
 
+**Implementation Notes (5.5):**
+- `internal/entity/order.go`: Order struct with ID, ActivityID, TargetType, Status, AssignedTo
+- OrderStatus enum: OrderOpen, OrderAssigned, OrderPaused
+- `internal/ui/model.go`: Added orders slice, nextOrderID, panel UI state (showOrdersPanel, ordersFullScreen, ordersAddMode, ordersCancelMode, etc.)
+- `internal/ui/view.go`: renderOrdersContent() shared by collapsed and expanded views, getOrderableActivities(), getEdibleItemTypes()
+- `internal/ui/update.go`: Key handlers for o, x, +, c, enter, esc, arrows (inline logic to avoid value/pointer receiver issues)
+- `internal/save/state.go`: OrderSave struct
+- `internal/ui/serialize.go`: ordersToSave(), ordersFromSave()
+- Status bar hints dynamically built based on applicable actions
+- Panel hints at top for visibility with long order lists
+
+**Status: Complete**
+
 ---
 
 ### 5.6: Orders System - Execution
 **Requirements:** F.5, F.7-F.11
 
-**User-facing outcome:** Characters with Harvest know-how take open orders when idle. They seek specific item types, pick them up, and complete order when inventory full. Orders can be interrupted by needs and resumed. Unfulfillable orders are abandoned.
+**User-facing outcome:** When any character is eligible to become idle, they first check for open orders they have the know-how to execute. If found, they take that order instead of a random idle activity. Characters seek the specific item type, pick it up, and complete the Harvest order when inventory is full. Orders can be interrupted by moderate+ needs (paused) and resumed when needs satisfied. Unfulfillable orders are abandoned.
 
 **Scope:**
-- Add `AssignedOrder *Order` to Character
-- Implement order assignment: idle + has know-how + open order → assign
+- Add `AssignedOrderID int` to Character (0 = none)
+- Show assigned order on details panel
+- Implement order assignment: eligible-for-idle + has know-how + open order → assign (first-come-first-served)
 - Implement `findHarvestIntent()`: seek specific item type, pick up
 - Order interruption: moderate+ needs pause order, resume when satisfied
 - Order abandonment: no matching items on map → remove order
-- Order completion: inventory full → remove order
+- Order completion (Harvest-specific): inventory full → remove order
 - Activity log entries for: taking order, pausing, resuming, completing, abandoning
+
+**Decisions:**
+- **AssignedOrder storage**: Store `AssignedOrderID int` (not pointer). Safer if player cancels assigned order - we detect "order not found" and handle gracefully. Trivial serialization (just an int).
+- **Assignment timing**: Check for open orders when character becomes eligible for idle activity (in `selectIdleActivity()` or just before). If executable order exists, take it instead of random idle.
+- **Assignment priority**: First-come-first-served. Iterate characters, assign first available matching order.
+- **Interruption detection**: At end of `CalculateIntent()`, if character has AssignedOrderID != 0 AND returned intent is not a harvest intent, mark order as Paused.
+- **Resumption**: In `selectIdleActivity()`, check if character has assigned order first. If yes, return harvest intent and set order status back to Assigned.
+- **Abandonment check**: In `findHarvestIntent()`, if no items matching TargetType exist on map, abandon order (remove from list, log, clear character's assignment).
+- **Continue after interruption**: Character resumes the same assigned order after needs are satisfied (no re-evaluation).
+- **Code structure**: Separate order execution logic into `order_execution.go`:
+  - `idle.go` orchestrates idle eligibility, calls `selectOrderActivity()` before random idle selection
+  - `order_execution.go` contains all order-related logic: `selectOrderActivity()`, `findAvailableOrder()`, `canExecuteOrder()`, activity-specific intent finding (e.g., `findHarvestIntent()`)
+  - Order eligibility is generic: checks activity's `Availability` requirement against character's known activities
+  - Intent finding dispatches to activity-specific logic (switch on ActivityID)
+  - This structure allows future expansion: character preference weighting, order urgency, new orderable activities
+
+- **Separate physical actions from order/activity context** (architectural pattern):
+  - **Problem**: Adding new activities that share physical mechanics (e.g., both foraging and harvest orders involve picking up items) led to duplicate code in `applyIntent` and forgotten exclusions in `continueIntent`.
+  - **Solution**: ActionTypes describe *what* is physically being done, not *why*. Context (order vs idle activity) is tracked separately via `char.AssignedOrderID`.
+  - **Example**: Both foraging (idle) and harvest (order) use `ActionPickup`. After pickup completes, check `char.AssignedOrderID != 0` to determine if order completion logic applies.
+  - **Benefits**:
+    - No duplicate switch cases in `applyIntent` for same physical action
+    - No need to update exclusion lists in `continueIntent` for each new triggering context
+    - Clean separation: ActionType = physical action, Order = triggering context + completion criteria
+  - **Future extensibility**: Orders with multiple steps (e.g., Craft: ActionPickup → ActionMove → ActionCraft) can compose physical actions while tracking order-level completion criteria separately.
+
+**Order Status Transitions:**
+```
+Open → Assigned    : Character takes the order
+Assigned → Paused  : CalculateIntent returns non-harvest intent due to needs
+Paused → Assigned  : Character resumes in selectIdleActivity
+Assigned → Removed : Order completed (inventory full) or abandoned (no items)
+```
 
 **[TEST]:**
 1. Create Harvest order for gourds
@@ -216,6 +263,7 @@ Phase 5 introduces inventory, know-how (activity knowledge), discovery mechanics
 4. Order completes when inventory full
 5. Test interruption: make character thirsty, verify order pauses
 6. Test abandonment: order item type with none on map
+7. Test cancellation: player cancels assigned order, character returns to idle
 
 ---
 
@@ -265,4 +313,4 @@ Phase 5 introduces inventory, know-how (activity knowledge), discovery mechanics
 - Order panel replaces which existing panels? (Req says "details/log panels") **Decision: Full height panel next to map (like All Activity), 'X' for full-screen overlay. Hint always visible below map.**
 
 ### 5.6
-- When order is paused and character resumes, do they continue same order or re-evaluate?
+- When order is paused and character resumes, do they continue same order or re-evaluate? **Decision: Continue same order. Character was assigned this specific order, so they resume it. Re-evaluating could cause thrashing if multiple orders exist.**

@@ -24,7 +24,7 @@ func TestCalculateIntent_HighestTierPrioritized(t *testing.T) {
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	items := []*entity.Item{entity.NewBerry(5, 5, types.ColorRed, false, false)}
 
-	intent := CalculateIntent(char, items, gameMap, nil)
+	intent := CalculateIntent(char, items, gameMap, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent, got nil")
@@ -46,7 +46,7 @@ func TestCalculateIntent_TieBreakerFavorsThirstOverHunger(t *testing.T) {
 	gameMap.AddFeature(entity.NewSpring(5, 5))
 	items := []*entity.Item{entity.NewBerry(10, 10, types.ColorRed, false, false)}
 
-	intent := CalculateIntent(char, items, gameMap, nil)
+	intent := CalculateIntent(char, items, gameMap, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent, got nil")
@@ -68,7 +68,7 @@ func TestCalculateIntent_TieBreakerFavorsHungerOverEnergy(t *testing.T) {
 	gameMap.AddFeature(entity.NewLeafPile(5, 5))
 	items := []*entity.Item{entity.NewBerry(10, 10, types.ColorRed, false, false)}
 
-	intent := CalculateIntent(char, items, gameMap, nil)
+	intent := CalculateIntent(char, items, gameMap, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent, got nil")
@@ -90,7 +90,7 @@ func TestCalculateIntent_FallsBackWhenHighestCantBeFulfilled(t *testing.T) {
 	// No springs!
 	items := []*entity.Item{entity.NewBerry(5, 5, types.ColorRed, false, false)}
 
-	intent := CalculateIntent(char, items, gameMap, nil)
+	intent := CalculateIntent(char, items, gameMap, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent after fallback, got nil")
@@ -110,7 +110,7 @@ func TestCalculateIntent_ReturnsNilWhenNoNeeds(t *testing.T) {
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 
-	intent := CalculateIntent(char, nil, gameMap, nil)
+	intent := CalculateIntent(char, nil, gameMap, nil, nil)
 
 	if intent != nil {
 		t.Errorf("Expected nil intent when no needs, got %+v", intent)
@@ -127,7 +127,7 @@ func TestCalculateIntent_DeadCharacterReturnsNil(t *testing.T) {
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	items := []*entity.Item{entity.NewBerry(5, 5, types.ColorRed, false, false)}
 
-	intent := CalculateIntent(char, items, gameMap, nil)
+	intent := CalculateIntent(char, items, gameMap, nil, nil)
 
 	if intent != nil {
 		t.Error("Dead character should return nil intent")
@@ -144,7 +144,7 @@ func TestCalculateIntent_SleepingCharacterReturnsNil(t *testing.T) {
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	items := []*entity.Item{entity.NewBerry(5, 5, types.ColorRed, false, false)}
 
-	intent := CalculateIntent(char, items, gameMap, nil)
+	intent := CalculateIntent(char, items, gameMap, nil, nil)
 
 	if intent != nil {
 		t.Error("Sleeping character should return nil intent")
@@ -161,7 +161,7 @@ func TestCalculateIntent_FrustratedCharacterReturnsNil(t *testing.T) {
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	items := []*entity.Item{entity.NewBerry(5, 5, types.ColorRed, false, false)}
 
-	intent := CalculateIntent(char, items, gameMap, nil)
+	intent := CalculateIntent(char, items, gameMap, nil, nil)
 
 	if intent != nil {
 		t.Error("Frustrated character should return nil intent")
@@ -184,7 +184,7 @@ func TestCalculateIntent_FailedIntentIncrementsCounterAtSevere(t *testing.T) {
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	// No food, no water - hunger and thirst unfulfillable
 
-	CalculateIntent(char, nil, gameMap, nil)
+	CalculateIntent(char, nil, gameMap, nil, nil)
 
 	if char.FailedIntentCount != 1 {
 		t.Errorf("FailedIntentCount: got %d, want 1", char.FailedIntentCount)
@@ -203,7 +203,7 @@ func TestCalculateIntent_FailedIntentDoesNotIncrementAtLowerTiers(t *testing.T) 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	// No resources
 
-	CalculateIntent(char, nil, gameMap, nil)
+	CalculateIntent(char, nil, gameMap, nil, nil)
 
 	if char.FailedIntentCount != 0 {
 		t.Errorf("FailedIntentCount should stay 0 at Moderate tier, got %d", char.FailedIntentCount)
@@ -220,7 +220,7 @@ func TestCalculateIntent_FrustrationTriggersAtThreshold(t *testing.T) {
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	// No food
 
-	CalculateIntent(char, nil, gameMap, nil)
+	CalculateIntent(char, nil, gameMap, nil, nil)
 
 	if !char.IsFrustrated {
 		t.Error("Character should become frustrated at threshold")
@@ -243,7 +243,7 @@ func TestCalculateIntent_SuccessfulIntentResetsFailureCounter(t *testing.T) {
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	items := []*entity.Item{entity.NewBerry(5, 5, types.ColorRed, false, false)}
 
-	intent := CalculateIntent(char, items, gameMap, nil)
+	intent := CalculateIntent(char, items, gameMap, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected successful intent")
@@ -941,7 +941,7 @@ func TestCalculateIntent_HealthDrivesIntent_WhenHasHealingKnowledge(t *testing.T
 		entity.NewBerry(5, 5, types.ColorBlue, false, true), // Known healing
 	}
 
-	intent := CalculateIntent(char, items, gameMap, nil)
+	intent := CalculateIntent(char, items, gameMap, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent when health is urgent and healing knowledge exists")
@@ -967,7 +967,7 @@ func TestCalculateIntent_HealthIgnored_WhenNoHealingKnowledge(t *testing.T) {
 		entity.NewBerry(6, 6, types.ColorRed, false, false), // Regular food
 	}
 
-	intent := CalculateIntent(char, items, gameMap, nil)
+	intent := CalculateIntent(char, items, gameMap, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent for hunger")
@@ -1001,7 +1001,7 @@ func TestCalculateIntent_HealthPriority_SameTierAsOtherStats(t *testing.T) {
 		entity.NewBerry(6, 6, types.ColorRed, false, false), // Regular food
 	}
 
-	intent := CalculateIntent(char, items, gameMap, nil)
+	intent := CalculateIntent(char, items, gameMap, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent")
@@ -1036,7 +1036,7 @@ func TestCalculateIntent_HealthWins_WhenHigherTier(t *testing.T) {
 		entity.NewBerry(6, 6, types.ColorRed, false, false), // Regular food
 	}
 
-	intent := CalculateIntent(char, items, gameMap, nil)
+	intent := CalculateIntent(char, items, gameMap, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent")

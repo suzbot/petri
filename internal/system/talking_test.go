@@ -271,7 +271,7 @@ func TestSelectIdleActivity_ReturnsNilWhenCooldownActive(t *testing.T) {
 	item := entity.NewFlower(6, 5, types.ColorPurple)
 	items := []*entity.Item{item}
 
-	intent := selectIdleActivity(char, 5, 5, items, gameMap, nil)
+	intent := selectIdleActivity(char, 5, 5, items, gameMap, nil, nil)
 
 	if intent != nil {
 		t.Error("Should return nil when cooldown is active")
@@ -290,7 +290,7 @@ func TestSelectIdleActivity_SetsCooldownWhenCalled(t *testing.T) {
 	items := []*entity.Item{}
 
 	// Call multiple times - cooldown should be set
-	selectIdleActivity(char, 5, 5, items, gameMap, nil)
+	selectIdleActivity(char, 5, 5, items, gameMap, nil, nil)
 
 	if char.IdleCooldown <= 0 {
 		t.Error("Should set IdleCooldown after being called")
@@ -321,7 +321,7 @@ func TestSelectIdleActivity_ReturnsVariedIntents(t *testing.T) {
 		char.IdleCooldown = 0
 		gameMap.AddCharacter(char)
 
-		intent := selectIdleActivity(char, 5, 5, items, gameMap, nil)
+		intent := selectIdleActivity(char, 5, 5, items, gameMap, nil, nil)
 
 		if intent == nil {
 			idleCount++
@@ -364,7 +364,7 @@ func TestSelectIdleActivity_FallsBackWhenLookingNotPossible(t *testing.T) {
 		char.IdleCooldown = 0
 		gameMap.AddCharacter(char)
 
-		intent := selectIdleActivity(char, 5, 5, items, gameMap, nil)
+		intent := selectIdleActivity(char, 5, 5, items, gameMap, nil, nil)
 
 		if intent != nil && intent.TargetItem != nil {
 			t.Error("Should not return looking intent when no items exist")
@@ -389,7 +389,7 @@ func TestSelectIdleActivity_FallsBackWhenTalkingNotPossible(t *testing.T) {
 		char.IdleCooldown = 0
 		gameMap.AddCharacter(char)
 
-		intent := selectIdleActivity(char, 5, 5, items, gameMap, nil)
+		intent := selectIdleActivity(char, 5, 5, items, gameMap, nil, nil)
 
 		if intent != nil && intent.TargetCharacter != nil {
 			t.Error("Should not return talking intent when no other characters exist")
@@ -758,7 +758,7 @@ func TestCalculateIntent_ContinuesTalkingWhenNoUrgentNeeds(t *testing.T) {
 	items := []*entity.Item{}
 
 	// Calculate intent - should continue talking
-	intent := CalculateIntent(alice, items, gameMap, nil)
+	intent := CalculateIntent(alice, items, gameMap, nil, nil)
 
 	if intent == nil || intent.Action != entity.ActionTalk {
 		t.Error("Should continue talking when no urgent needs")
@@ -790,7 +790,7 @@ func TestCalculateIntent_InterruptsTalkingForModerateNeed(t *testing.T) {
 	items := []*entity.Item{food}
 
 	// Calculate intent - should interrupt talking for food
-	intent := CalculateIntent(alice, items, gameMap, nil)
+	intent := CalculateIntent(alice, items, gameMap, nil, nil)
 
 	if intent != nil && intent.Action == entity.ActionTalk {
 		t.Error("Should interrupt talking for Moderate hunger")
@@ -827,7 +827,7 @@ func TestCalculateIntent_ContinuesApproachingTalkTarget(t *testing.T) {
 	// Simulate multiple ticks - alice should keep pursuing bob
 	for i := 0; i < 10; i++ {
 		cx, cy := alice.Position()
-		intent := CalculateIntent(alice, items, gameMap, nil)
+		intent := CalculateIntent(alice, items, gameMap, nil, nil)
 
 		if intent == nil {
 			t.Fatalf("Tick %d: Intent should not be nil while approaching talk target", i)
@@ -883,7 +883,7 @@ func TestCalculateIntent_ApproachingTalkTargetReachesAndTalks(t *testing.T) {
 	}
 
 	// First tick - should continue moving
-	intent1 := CalculateIntent(alice, items, gameMap, nil)
+	intent1 := CalculateIntent(alice, items, gameMap, nil, nil)
 	if intent1 == nil || intent1.Action != entity.ActionMove {
 		t.Fatal("First tick should continue moving toward Bob")
 	}
@@ -896,7 +896,7 @@ func TestCalculateIntent_ApproachingTalkTargetReachesAndTalks(t *testing.T) {
 	gameMap.MoveCharacter(alice, 5, 5)
 
 	// Second tick - should switch to ActionTalk since now adjacent
-	intent2 := CalculateIntent(alice, items, gameMap, nil)
+	intent2 := CalculateIntent(alice, items, gameMap, nil, nil)
 	if intent2 == nil {
 		t.Fatal("Second tick intent should not be nil")
 	}
@@ -933,7 +933,7 @@ func TestCalculateIntent_ApproachStopsIfTargetBecomesNonIdle(t *testing.T) {
 	bob.CurrentActivity = "Moving to berry"
 
 	// Alice should abandon approach and re-evaluate
-	intent := CalculateIntent(alice, items, gameMap, nil)
+	intent := CalculateIntent(alice, items, gameMap, nil, nil)
 
 	// Should not still be targeting Bob
 	if intent != nil && intent.TargetCharacter == bob {

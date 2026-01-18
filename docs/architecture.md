@@ -115,6 +115,48 @@ When adding fields to saved structs, ensure ALL fields are included:
 
 Constructor-set fields like `Sym` won't be populated when deserializing directly into structs - must be explicitly restored based on type.
 
+## Orders and Actions Pattern
+
+Orders (player-directed tasks) and idle activities share physical actions but have different triggering contexts and completion criteria.
+
+### Separation of Concerns
+
+| Concept | Description | Example |
+|---------|-------------|---------|
+| **ActionType** | Physical action being performed | `ActionPickup` - move to item, pick it up |
+| **Order/Activity Context** | Why the action is being performed | Foraging (idle) vs Harvest (order) |
+| **Completion Criteria** | When the task is done | Foraging: after one pickup; Harvest: when inventory full |
+
+### Implementation
+
+- ActionTypes describe *what* is physically being done, not *why*
+- Context is tracked via `char.AssignedOrderID` (0 = no order, non-zero = working on order)
+- After an action completes, check context to determine next steps:
+
+```go
+// After ActionPickup completes:
+system.Pickup(char, item, gameMap, actionLog)
+
+// Check if this was order-driven
+if char.IsInventoryFull() && char.AssignedOrderID != 0 {
+    // Complete the harvest order
+    order := findOrderByID(char.AssignedOrderID)
+    CompleteOrder(char, order, actionLog)
+}
+```
+
+### Benefits
+
+- No duplicate switch cases in `applyIntent` for same physical action
+- No need to update exclusion lists when adding new triggering contexts
+- Clean separation enables future multi-step orders (e.g., Craft: ActionPickup → ActionMove → ActionCraft)
+
+### Code Structure
+
+- `idle.go` - Orchestrates idle eligibility, calls `selectOrderActivity()` first
+- `order_execution.go` - Order selection, assignment, intent finding, completion logic
+- Order eligibility is generic: checks activity's `Availability` requirement against character's known activities
+
 ## Common Implementation Pitfalls
 
 **Game time vs wall clock**: UI indicators that should work when paused (like "Saved" message) need wall clock time (`time.Now()`), not game time which only advances when unpaused.

@@ -11,7 +11,7 @@ import (
 
 // CalculateIntent determines what a character wants to do next tick
 // This is safe to call concurrently - it only reads world state
-func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
+func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game.Map, log *ActionLog, orders []*entity.Order) *entity.Intent {
 	if char.IsDead || char.IsSleeping {
 		return nil
 	}
@@ -175,7 +175,7 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 
 	// No urgent needs - try an idle activity (looking, talking, or staying idle)
 	if maxTier == entity.TierNone {
-		if intent := selectIdleActivity(char, cx, cy, items, gameMap, log); intent != nil {
+		if intent := selectIdleActivity(char, cx, cy, items, gameMap, log, orders); intent != nil {
 			return intent
 		}
 		if char.CurrentActivity != "Idle" {
@@ -233,6 +233,14 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 			intent = findSleepIntent(char, cx, cy, gameMap, p.tier, log)
 		}
 		if intent != nil {
+			// Check for order interruption - character has assigned order but pursuing a need
+			// (DrivingStat being set means this is a need-driven intent, not order work)
+			if char.AssignedOrderID != 0 && intent.DrivingStat != "" {
+				order := findOrderByID(orders, char.AssignedOrderID)
+				if order != nil {
+					PauseOrder(order, log, char.ID, char.Name)
+				}
+			}
 			// Successfully found an intent - reset failure counter
 			char.FailedIntentCount = 0
 			return intent
@@ -255,7 +263,7 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 	}
 
 	// No needs could be fulfilled - try an idle activity
-	if intent := selectIdleActivity(char, cx, cy, items, gameMap, log); intent != nil {
+	if intent := selectIdleActivity(char, cx, cy, items, gameMap, log, orders); intent != nil {
 		return intent
 	}
 

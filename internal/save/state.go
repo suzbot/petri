@@ -14,11 +14,22 @@ type SaveState struct {
 	MapWidth  int `json:"map_width"`
 	MapHeight int `json:"map_height"`
 
-	Varieties  []VarietySave            `json:"varieties"`   // Full variety registry
-	Characters []CharacterSave          `json:"characters"`
-	Items      []ItemSave               `json:"items"`
-	Features   []FeatureSave            `json:"features"`
-	ActionLogs map[int][]EventSave      `json:"action_logs"` // Per-character event logs, keyed by char ID
+	Varieties   []VarietySave            `json:"varieties"`   // Full variety registry
+	Characters  []CharacterSave          `json:"characters"`
+	Items       []ItemSave               `json:"items"`
+	Features    []FeatureSave            `json:"features"`
+	ActionLogs  map[int][]EventSave      `json:"action_logs"` // Per-character event logs, keyed by char ID
+	Orders      []OrderSave              `json:"orders,omitempty"`
+	NextOrderID int                      `json:"next_order_id,omitempty"`
+}
+
+// OrderSave represents an order for serialization
+type OrderSave struct {
+	ID         int    `json:"id"`
+	ActivityID string `json:"activity_id"`
+	TargetType string `json:"target_type"`
+	Status     string `json:"status"`
+	AssignedTo int    `json:"assigned_to"`
 }
 
 // WorldMeta contains display info for world selection (separate from full state)
@@ -93,6 +104,9 @@ type CharacterSave struct {
 
 	// Inventory
 	Carrying *ItemSave `json:"carrying,omitempty"` // Item being carried (nil if empty)
+
+	// Orders
+	AssignedOrderID int `json:"assigned_order_id,omitempty"` // ID of assigned order (0 = none)
 }
 
 // ItemSave represents an item for serialization

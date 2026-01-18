@@ -97,6 +97,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.saveGame() // Save before quitting
 			return m, tea.Quit
 		case "esc":
+			// If in orders add/cancel mode, exit that mode
+			if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
+				m.ordersAddMode = false
+				m.ordersCancelMode = false
+				return m, nil
+			}
 			// Save and return to world select screen
 			m.saveGame()
 			m.phase = phaseWorldSelect
@@ -109,6 +115,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.viewMode = viewModeSelect
 			m.showKnowledgePanel = false
 			m.showInventoryPanel = false
+			m.showOrdersPanel = false
 			m.logScrollOffset = 0
 			return m, tea.Batch(tea.ClearScreen, tea.WindowSize())
 		case " ":
@@ -125,11 +132,107 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "a":
 			// Switch to All Activity mode
 			m.viewMode = viewModeAllActivity
+			m.showOrdersPanel = false
 			m.logScrollOffset = 0
 		case "s":
 			// Switch to Select mode
 			m.viewMode = viewModeSelect
+			m.showOrdersPanel = false
 			m.logScrollOffset = 0
+		case "o", "O":
+			// Toggle orders panel
+			m.showOrdersPanel = !m.showOrdersPanel
+			if m.showOrdersPanel {
+				// Reset orders panel state
+				m.ordersCancelMode = false
+				m.ordersAddMode = false
+				m.selectedOrderIndex = 0
+			}
+		case "x", "X":
+			// Toggle full-screen orders panel
+			if m.showOrdersPanel {
+				m.ordersFullScreen = !m.ordersFullScreen
+			}
+		case "+", "=":
+			// Start add order mode (= is unshifted + on most keyboards)
+			if m.showOrdersPanel && !m.ordersCancelMode && !m.ordersAddMode {
+				orderableActivities := m.getOrderableActivities()
+				if len(orderableActivities) > 0 {
+					m.ordersAddMode = true
+					m.ordersAddStep = 0
+					m.selectedActivityIndex = 0
+					m.selectedTargetIndex = 0
+				}
+			}
+		case "c", "C":
+			// Start cancel order mode
+			if m.showOrdersPanel && !m.ordersAddMode && !m.ordersCancelMode {
+				if len(m.orders) > 0 {
+					m.ordersCancelMode = true
+					m.selectedOrderIndex = 0
+				}
+			}
+		case "enter":
+			// Confirm selection in orders panel
+			if m.showOrdersPanel {
+				if m.ordersAddMode {
+					// Handle add order confirmation inline
+					if m.ordersAddStep == 0 {
+						// Move to target selection
+						activities := m.getOrderableActivities()
+						if len(activities) > 0 && m.selectedActivityIndex < len(activities) {
+							m.ordersAddStep = 1
+							m.selectedTargetIndex = 0
+						}
+					} else {
+						// Create the order
+						activities := m.getOrderableActivities()
+						types := m.getEdibleItemTypes()
+						if len(activities) > 0 && len(types) > 0 {
+							activityID := activities[m.selectedActivityIndex].ID
+							targetType := types[m.selectedTargetIndex]
+
+							order := entity.NewOrder(m.nextOrderID, activityID, targetType)
+							m.nextOrderID++
+							m.orders = append(m.orders, order)
+
+							// Exit add mode
+							m.ordersAddMode = false
+							m.ordersAddStep = 0
+						}
+					}
+				} else if m.ordersCancelMode {
+					// Handle cancel order confirmation inline
+					if m.selectedOrderIndex < len(m.orders) {
+						order := m.orders[m.selectedOrderIndex]
+
+						// Clear assignment from character if order was assigned
+						if order.AssignedTo != 0 {
+							for _, char := range m.gameMap.Characters() {
+								if char.ID == order.AssignedTo {
+									char.AssignedOrderID = 0
+									char.Intent = nil // Clear intent so they re-evaluate
+									break
+								}
+							}
+						}
+
+						// Remove the selected order
+						m.orders = append(m.orders[:m.selectedOrderIndex], m.orders[m.selectedOrderIndex+1:]...)
+
+						// Adjust selection if needed
+						if m.selectedOrderIndex >= len(m.orders) && m.selectedOrderIndex > 0 {
+							m.selectedOrderIndex--
+						}
+
+						// Exit cancel mode if no orders left
+						if len(m.orders) == 0 {
+							m.ordersCancelMode = false
+						}
+					}
+				}
+				return m, nil
+			}
 		case "l":
 			// Toggle full-screen log view
 			if m.viewMode == viewModeFullLog {
@@ -158,13 +261,57 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Cycle to next alive character
 			m.cycleToNextCharacter()
 		case "up":
-			m.moveCursor(0, -1)
+			if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
+				// Handle orders panel navigation inline
+				if m.ordersAddMode {
+					if m.ordersAddStep == 0 {
+						if m.selectedActivityIndex > 0 {
+							m.selectedActivityIndex--
+						}
+					} else {
+						if m.selectedTargetIndex > 0 {
+							m.selectedTargetIndex--
+						}
+					}
+				} else if m.ordersCancelMode {
+					if m.selectedOrderIndex > 0 {
+						m.selectedOrderIndex--
+					}
+				}
+			} else {
+				m.moveCursor(0, -1)
+			}
 		case "down":
-			m.moveCursor(0, 1)
+			if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
+				// Handle orders panel navigation inline
+				if m.ordersAddMode {
+					if m.ordersAddStep == 0 {
+						activities := m.getOrderableActivities()
+						if m.selectedActivityIndex < len(activities)-1 {
+							m.selectedActivityIndex++
+						}
+					} else {
+						types := m.getEdibleItemTypes()
+						if m.selectedTargetIndex < len(types)-1 {
+							m.selectedTargetIndex++
+						}
+					}
+				} else if m.ordersCancelMode {
+					if m.selectedOrderIndex < len(m.orders)-1 {
+						m.selectedOrderIndex++
+					}
+				}
+			} else {
+				m.moveCursor(0, 1)
+			}
 		case "left":
-			m.moveCursor(-1, 0)
+			if !(m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode)) {
+				m.moveCursor(-1, 0)
+			}
 		case "right":
-			m.moveCursor(1, 0)
+			if !(m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode)) {
+				m.moveCursor(1, 0)
+			}
 		case "pgup":
 			m.logScrollOffset += 5
 		case "pgdown":
@@ -300,7 +447,7 @@ func (m Model) updateGame(now time.Time) (Model, tea.Cmd) {
 	items := m.gameMap.Items()
 	for _, char := range m.gameMap.Characters() {
 		oldIntent := char.Intent
-		char.Intent = system.CalculateIntent(char, items, m.gameMap, m.actionLog)
+		char.Intent = system.CalculateIntent(char, items, m.gameMap, m.actionLog, m.orders)
 
 		// Reset action progress if intent action changed
 		if oldIntent == nil || char.Intent == nil || oldIntent.Action != char.Intent.Action {
@@ -476,7 +623,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		}
 
 	case entity.ActionPickup:
-		// Foraging - move to item and pick it up
+		// Picking up an item (used by both foraging and harvest orders)
 		cx, cy := char.Position()
 
 		if char.Intent.TargetItem == nil {
@@ -493,6 +640,14 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 				char.ActionProgress = 0
 				if item := m.gameMap.ItemAt(cx, cy); item == char.Intent.TargetItem {
 					system.Pickup(char, item, m.gameMap, m.actionLog)
+
+					// Check for order completion (inventory now full while on an order)
+					if char.IsInventoryFull() && char.AssignedOrderID != 0 {
+						if order := m.findOrderByID(char.AssignedOrderID); order != nil {
+							system.CompleteOrder(char, order, m.actionLog)
+							m.removeOrder(order.ID)
+						}
+					}
 				}
 			}
 			return
@@ -626,7 +781,7 @@ func (m *Model) stepForward() {
 	items := m.gameMap.Items()
 	for _, char := range m.gameMap.Characters() {
 		oldIntent := char.Intent
-		char.Intent = system.CalculateIntent(char, items, m.gameMap, m.actionLog)
+		char.Intent = system.CalculateIntent(char, items, m.gameMap, m.actionLog, m.orders)
 		if oldIntent == nil || char.Intent == nil || oldIntent.Action != char.Intent.Action {
 			char.ActionProgress = 0
 		}
@@ -927,3 +1082,4 @@ func (m *Model) saveGame() error {
 	m.saveIndicatorEnd = time.Now().Add(1 * time.Second) // Show "Saving" for 1 second
 	return nil
 }
+

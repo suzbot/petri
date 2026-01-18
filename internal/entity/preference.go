@@ -101,7 +101,7 @@ func (p Preference) Description() string {
 		parts = append(parts, string(p.Color))
 	}
 	if p.ItemType != "" {
-		parts = append(parts, pluralize(p.ItemType))
+		parts = append(parts, Pluralize(p.ItemType))
 	}
 
 	if len(parts) == 0 {
@@ -158,8 +158,8 @@ func (p Preference) ExactMatch(other Preference) bool {
 		p.Texture == other.Texture
 }
 
-// pluralize returns the plural form of an item type.
-func pluralize(itemType string) string {
+// Pluralize returns the plural form of an item type.
+func Pluralize(itemType string) string {
 	switch itemType {
 	case "berry":
 		return "berries"

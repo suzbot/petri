@@ -877,8 +877,10 @@ func TestConsumeFromInventory_TriggersPreferenceFormation(t *testing.T) {
 
 	// Run multiple times to increase chance of preference formation
 	// (preference formation is probabilistic based on mood)
+	// At mood 95 (Joyful tier), formation chance is 10% per attempt
+	// With 75 attempts: P(all fail) = 0.9^75 = 0.04%
 	formed := false
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 75; i++ {
 		testChar := newTestCharacter()
 		testChar.Mood = 95
 		testChar.Preferences = []entity.Preference{}
@@ -894,7 +896,7 @@ func TestConsumeFromInventory_TriggersPreferenceFormation(t *testing.T) {
 	}
 
 	if !formed {
-		t.Error("ConsumeFromInventory should trigger preference formation (failed after 20 attempts)")
+		t.Error("ConsumeFromInventory should trigger preference formation (failed after 75 attempts)")
 	}
 }
 

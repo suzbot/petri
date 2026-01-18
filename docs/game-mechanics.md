@@ -301,9 +301,70 @@ Discovery chance is configured in `config.KnowHowDiscoveryChance`. When discover
 | Can be transmitted | Yes (via talking) | No |
 | Display | Knowledge panel: "Facts:" section | Knowledge panel: "Knows how to:" section |
 
-### Future Use
+## Orders System
 
-Know-how will enable user-ordered activities in future phases. Characters with Harvest know-how will be able to take harvest orders from the player, intentionally gathering specific item types.
+Players can issue orders to direct characters to perform specific tasks. Orders are managed through the Orders panel.
+
+### Orders Panel
+
+Press `O` to toggle the Orders panel. The panel shows:
+- List of current orders with status (Open, Assigned, Paused)
+- Hints for available actions
+
+Panel controls:
+- `+` - Add a new order
+- `c` - Enter cancel mode to remove orders
+- `x` - Toggle between side panel and full-screen view
+- `o` - Close the panel
+
+### Adding Orders
+
+To add an order:
+1. Press `+` to start add order flow
+2. Select an activity (only activities known by at least one living character appear)
+3. Select a target type (e.g., for Harvest: choose berry, mushroom, or gourd)
+4. Press Enter to confirm
+
+### Order Status
+
+- **Open**: Available to be taken by a character with the required know-how
+- **Assigned**: Currently being worked on by a character
+- **Paused**: Interrupted by character needs; will resume when needs are satisfied
+
+### Requirements
+
+Orders can only be created for activities that at least one living character knows. For example, Harvest orders require at least one character to have discovered Harvest know-how.
+
+### Order Execution
+
+When a character becomes eligible for an idle activity and has relevant know-how:
+
+1. **Assignment**: Character takes the first available open order (first-come-first-served)
+2. **Seeking**: Character moves toward nearest item matching the order's target type
+3. **Pickup**: Character picks up the item (same action as foraging)
+4. **Completion**: When inventory is full, order is completed and removed
+
+### Order Interruption and Resumption
+
+- If a character's needs reach Moderate+ tier while working on an order, the order is **paused**
+- The character addresses their needs first (eating, drinking, sleeping, etc.)
+- When needs are satisfied and character becomes idle-eligible again, the **same order resumes**
+- No re-evaluation occurs - character continues their assigned order
+
+### Order Abandonment
+
+Orders are abandoned (removed) if:
+- No items matching the target type exist on the map
+- The order is cancelled by the player while assigned
+
+When cancelled while assigned, the character's assignment is cleared and they return to normal idle behavior.
+
+### Order Priority vs Idle Activities
+
+Order work takes priority over random idle activities:
+1. Check for assigned order to resume → if found, continue order
+2. Check for open orders character can take → if found, take order
+3. Fall through to random idle activity selection (look/talk/forage/idle)
 
 ## Inventory
 

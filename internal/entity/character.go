@@ -58,6 +58,9 @@ type Character struct {
 	// Inventory
 	Carrying *Item // Item being carried (nil if empty, capacity: 1)
 
+	// Orders
+	AssignedOrderID int // ID of currently assigned order (0 = none)
+
 	// Intent-based movement for Phase II concurrency
 	Intent *Intent
 }
@@ -84,7 +87,7 @@ const (
 	ActionSleep
 	ActionLook
 	ActionTalk
-	ActionPickup
+	ActionPickup // Picking up an item (used by both foraging and harvest orders)
 )
 
 // NewCharacter creates a new character with the given preferences
