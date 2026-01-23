@@ -8,8 +8,17 @@ When items are completed OR documented as part of a roadmap, requirement, or pla
 then they can be removed from this list.
 
 #Ready Ideas
-- Create a flag that lets you control how many chars are created? Or just adjust character creation screen?
-- remove single char mode from ui, skip the screen phase where selecting single vs multi
+- Re-evaluate how characters eat carried items:
+    - they definitely shouldn't eat a carried item they know is poison, right?
+    - Should they eat a carried disliked item instead of a liked nearby item? How does need tier play in?
+    - How do we keep characters from getting stuck carrying around poisoned items they won't eat? Will future plans for item handling take care of that naturally? (see future brainstorming rtf)
+- Reset all time configs so that a "day" for the characters is 2 game minutes long (.5 seconds ~ 6 min activity, 1.5 seconds ~ 18 min activity, 5 seconds ~ 1 hr, 40 seconds ~ 8 hrs)
+- ability to edit name of existing character on map
+- sticks and nuts spawn randomly, but do not grow, they are "placed" on the ground by falling from the canopy.
+- make background of map green
+- generate pond at world beginning
+- generate stream at world beginning
+- generate clay pit?? Maybe later for clay crafting
 
 # Ideas that aren't ready yet:
 - hello world loading screen

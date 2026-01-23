@@ -27,3 +27,24 @@
 - **Bubble Tea integration** - Framework responsibility
 - **Exact log message wording** - Brittle; test that events ARE logged, not exact text
 - **Configuration constants** - Just values, no logic
+
+### Balance Observation Tests
+
+Headless simulation tests for measuring game balance. Located in `internal/simulation/observation_test.go`
+
+   Run all observation tests:
+
+     ```bash
+     go test -v -run TestObserve ./internal/simulation/
+     ```
+
+     | Test                          | Purpose                                                      |
+     | ----------------------------- | ------------------------------------------------------------ |
+     | `TestObserveBalanceMetrics`   | 5 runs × 300s: survival rate, mood distribution, preferences |
+     | `TestObserveFoodScarcity`     | Tracks food availability vs consumption over time            |
+     | `TestObserveFlowerGrowth`     | Monitors flower population growth                            |
+     | `TestObserveTimeToFirstDeath` | 10 runs: measures time until first death                     |
+     | `TestObserveDeathProgression` | Single extended run tracking all deaths                      |
+
+   Results are documented in `docs/futureEnancements.md` under "Balance Observation Results".
+

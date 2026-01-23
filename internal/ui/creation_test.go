@@ -18,12 +18,22 @@ func TestNewCharacterCreationState_DefaultValues(t *testing.T) {
 		t.Errorf("Expected 4 characters, got %d", len(state.Characters))
 	}
 
-	// Check default names
-	expectedNames := []string{"Len", "Macca", "Hari", "Starr"}
-	for i, expected := range expectedNames {
-		if state.Characters[i].Name != expected {
-			t.Errorf("Character %d name: expected %q, got %q", i, expected, state.Characters[i].Name)
+	// Build valid names map from nameOptions
+	validNames := make(map[string]bool)
+	for _, n := range nameOptions {
+		validNames[n] = true
+	}
+
+	// Check names are valid and unique
+	seenNames := make(map[string]bool)
+	for i, char := range state.Characters {
+		if !validNames[char.Name] {
+			t.Errorf("Character %d has invalid name: %q", i, char.Name)
 		}
+		if seenNames[char.Name] {
+			t.Errorf("Character %d has duplicate name: %q", i, char.Name)
+		}
+		seenNames[char.Name] = true
 	}
 
 	// First character should be selected
@@ -335,12 +345,22 @@ func TestCharacterCreationState_RandomizeAll(t *testing.T) {
 
 	state.RandomizeAll()
 
-	// Names should be reset to defaults
-	expectedNames := []string{"Len", "Macca", "Hari", "Starr"}
-	for i, expected := range expectedNames {
-		if state.Characters[i].Name != expected {
-			t.Errorf("Character %d name: expected %q, got %q", i, expected, state.Characters[i].Name)
+	// Build valid names map from nameOptions
+	validNames := make(map[string]bool)
+	for _, n := range nameOptions {
+		validNames[n] = true
+	}
+
+	// Names should be valid and unique after randomize
+	seenNames := make(map[string]bool)
+	for i, char := range state.Characters {
+		if !validNames[char.Name] {
+			t.Errorf("Character %d has invalid name after randomize: %q", i, char.Name)
 		}
+		if seenNames[char.Name] {
+			t.Errorf("Character %d has duplicate name after randomize: %q", i, char.Name)
+		}
+		seenNames[char.Name] = true
 	}
 
 	// Build valid foods map from foodOptions

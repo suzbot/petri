@@ -1,5 +1,3 @@
-# CLAUDE.md
-
 Guidance for Claude Code when working with code in this repo.
 
 ## Project Overview
@@ -90,49 +88,43 @@ internal/
 
 TTD, Iterative Approach. Frequent discussion. Present options with trade-offs. Frequent human testing checkpoints. Update claude.md, REAMDE, and other documentation along the way.
 
-- When starting a new Phase, see docs/new-phase-process.md
-- When starting a new feature within a phase, see docs/feature-dev-process.md
+- When starting a new Phase, always read docs/new-phase-process.md
+- When starting a new feature within a phase, always read docs/feature-dev-process.md
 
 ## Testing
 
 - TDD process. See docs/testingProcess for details
 - Add regression tests when making bug fixes
 - No tests needed for UI rendering, Bubble Tea integration, brittle log wording, configuration constants
-
-### Balance Observation Tests
-
-Headless simulation tests for measuring game balance. Located in `internal/simulation/observation_test.go`.
-
-Run all observation tests:
-
-```bash
-go test -v -run TestObserve ./internal/simulation/
-```
-
-| Test                          | Purpose                                                      |
-| ----------------------------- | ------------------------------------------------------------ |
-| `TestObserveBalanceMetrics`   | 5 runs × 300s: survival rate, mood distribution, preferences |
-| `TestObserveFoodScarcity`     | Tracks food availability vs consumption over time            |
-| `TestObserveFlowerGrowth`     | Monitors flower population growth                            |
-| `TestObserveTimeToFirstDeath` | 10 runs: measures time until first death                     |
-| `TestObserveDeathProgression` | Single extended run tracking all deaths                      |
-
-Results are documented in `docs/futureEnancements.md` under "Balance Observation Results".
+- Headless simulation tests for measuring game balance. Located in `internal/simulation/observation_test.go`.
 
 ## Development
 
 ### Current Work
 
-Phase 5: Picking up Items and Inventory - **Complete**. All sub-phases done: 5.1 (Item Category & Gourd), 5.2 (Inventory & Foraging), 5.3 (Eating from Inventory), 5.4 (Know-how System), 5.5 (Orders System - Data & UI), 5.6 (Orders System - Execution).
-
-### Quick Wins (Before Phase 6)
-
-- [x] Move memory/action-log item from randomideas.txt to futureEnhancements.md
-- [x] Improve success green readability - changed optimalStyle from color 28 to 34 in `internal/ui/styles.go:20`
+Phase 6: Containers and Storage (Planning)
 
 ### Near-Term Roadmap
 
-- Phase 6: TBD (see docs/VISION.txt for project phases)
+**Phase 6 Prep:**
+- Category type formalization (triggered by adding non-plant categories)
+- Composition approach: optional property structs (ContainerProperties, PlantProperties)
+- Update spawning logic to use categories
+
+**Phase 6 Features (Sequential):**
+1. Item Placement System - drop/pickup, IsPlaced tracking
+2. Crafting Foundation - general know-how, recipe system, craft activity
+3. Hollow Gourd Vessel - specific recipe, crafting execution
+4. Vessel Contents - stack sizes, single-variety restriction, filling logic
+5. Eating from Vessels - extend consumption system
+6. UI Updates - inventory panel, map symbols
+
+**Quick Wins (Parallel):**
+- Randomize starting names from: Bud, Ash, Moss, Twig, Elm, Wing, Dew, Oak, Loam, Leaf, Bug, Sprig, Sprout, Fuzz, Bole, Fluff, Burl, Burr, Toad, Fern, Brer, Bean, Thorn, Moth, Bloom, Eft, Leek, Puff
+- Remove single char mode from UI
+- Flag for character count control
+
+See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 
 ### Deferred Enhancements & Trigger Points
 
@@ -155,3 +147,4 @@ Technical items analyzed and consciously deferred until trigger conditions are m
 | [docs/futureEnancements.md](docs/futureEnancements.md) | Deferred items with triggers, balance tuning  |
 | [docs/failed-approaches.md](docs/failed-approaches.md) | Approaches tried and abandoned                |
 | [docs/phase05-plan.md](docs/phase05-plan.md)           | Phase 5 implementation plan                   |
+| [docs/phase06-plan.md](docs/phase06-plan.md)           | Phase 6 implementation plan                   |

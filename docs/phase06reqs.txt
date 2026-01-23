@@ -19,12 +19,25 @@ A. Say a gourd is picked, and then put on the ground. That gourd shouldn't be ab
     retaining the same effects on consumption that it would have before. Likewise, flowers that have been
     picked from their spawn point, but then put back down, should not be able to spawn
     (but maybe they still die?). What is the best way to differentiate growing plants from picked plants?
+
+    **Possible implementation:** Add an `IsPlaced` bool to items. When an item is dropped on the ground,
+    `IsPlaced = true`. Spawning logic skips placed items. This handles "picked flower still dies" naturally
+    since existing decay logic would still apply to placed items.
 B. Should a character be discovering the concept of crafting a vessel in general, and right now the only
     vessel recipe that materials are all available for is a 'hollow gourd vessel'?
     OR are they only learning the recipe for hollow gourd vessel? Imagine that in the future there are
     also recipes for wood bucket vessel and clay pot vessel.
+
+    **Decision:** Characters learn both - a general "crafting" know-how that enables the craft menu,
+    plus specific recipes (e.g., "hollow gourd vessel recipe"). This allows future recipes without
+    re-implementing discovery, supports character variation (some know clay pot, others know gourd vessel),
+    and enables knowledge transmission of specific recipes via talking.
 C. How do we want to formalize our item categories? currently we have a string of plants. but with this
 we'll now have these conceptual definitions... how should we handle these:
+
+    **To discuss further:** Consider a composition approach where Item has optional property structs
+    (e.g., ContainerProperties, PlantProperties) that are nil when not applicable. This avoids
+    inheritance complexity while allowing items to have multiple category behaviors.
     - A 'container' can hold a certain amount of other items.
         - Some containers will be portable (can have items put in while being carried), and some will not.
         - Some containers will be watertight (can hold liquids), and some will not.
@@ -34,7 +47,7 @@ we'll now have these conceptual definitions... how should we handle these:
         - a vessel will always be watertight
         - once a variety of item is put in that vessel, only that variety can be put in it
         - tbd whether all vessels will have the same capacity,
-          but we can assume that at first avessel can hold 1 stack
+          but we can assume that at first a vessel can hold 1 stack
     - A variety of vessel would be a 'hollow gourd' vessel
         - the recipe for a 'hollow gourd' vessel would be
             - 1 gourd
@@ -73,7 +86,7 @@ B. **Interacting with a vessel**
         iii. if foraging, then they can fill their portable container before stopping
         (unless interrupted or out of matching varieties for that vessel)
         iv. if harvesting, then their order isn't complete until their portable is full
-        OR or out of matching varieties on map for that vessel)
+        OR out of matching varieties on map for that vessel)
     3. If a character is not carrying a portable container, when starting a foraging or harvesting activity, then
     they can look for an empty portable container first.
         i. Consider allowing a foraging or harvesting character to start by picking up a partially full
@@ -82,3 +95,18 @@ B. **Interacting with a vessel**
     when it blocks their action, then they can drop the container.
     5. If a character is carrying a vessel containing an edible item, then that edible item counts as
     a carried item for purposes of eating when hungry, like existing eating carried item logic.
+    When eating from a vessel, the count in the stack is reduced by 1. If the vessel becomes empty,
+    it can accept any variety again.
+C. **UI for vessels**
+    1. Carried vessels are listed in the inventory panel, showing their contents.
+    2. Dropped vessels appear on the map (symbol TBD).
+D. **Recipe timing**
+    Recipe time (e.g., 2 minutes for hollow gourd vessel) is in game time. Note: May need further
+    discussion on this value, and whether adjusting configs for overall game pace should be in scope
+    of this phase.
+
+# Implementation Notes
+
+- **Save/Load for nested items:** Vessels containing items introduce nested item serialization.
+  The save system will need to handle items-within-items. Consider whether contained items
+  are serialized inline with the vessel or referenced by ID.

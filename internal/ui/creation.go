@@ -20,8 +20,13 @@ const (
 // Maximum name length
 const MaxNameLength = 16
 
-// Default character names
-var defaultNames = []string{"Len", "Macca", "Hari", "Starr"}
+// Name options for random selection
+var nameOptions = []string{
+	"Bud", "Ash", "Moss", "Twig", "Elm", "Wing", "Dew", "Oak",
+	"Loam", "Leaf", "Bug", "Sprig", "Sprout", "Fuzz", "Bole", "Fluff",
+	"Burl", "Burr", "Toad", "Fern", "Brer", "Bean", "Thorn", "Moth",
+	"Bloom", "Eft", "Leek", "Puff",
+}
 
 // foodOptions built dynamically from edible item types
 var foodOptions = buildFoodOptions()
@@ -100,10 +105,11 @@ func NewCharacterCreationState() *CharacterCreationState {
 		SelectedField: FieldName,
 	}
 
-	// Initialize characters with default names and random food/color
+	// Initialize characters with random unique names and random food/color
+	names := randomUniqueNames(4)
 	for i := 0; i < 4; i++ {
 		state.Characters[i] = CharacterCreationData{
-			Name:  defaultNames[i],
+			Name:  names[i],
 			Food:  randomFood(),
 			Color: randomColor(),
 		}
@@ -156,11 +162,12 @@ func (s *CharacterCreationState) CycleOption() {
 	}
 }
 
-// RandomizeAll resets all characters to default names with random food/color
+// RandomizeAll resets all characters to random names with random food/color
 func (s *CharacterCreationState) RandomizeAll() {
+	names := randomUniqueNames(4)
 	for i := 0; i < 4; i++ {
 		s.Characters[i] = CharacterCreationData{
-			Name:  defaultNames[i],
+			Name:  names[i],
 			Food:  randomFood(),
 			Color: randomColor(),
 		}
@@ -185,6 +192,18 @@ func randomFood() string {
 
 func randomColor() string {
 	return colorOptions[rand.Intn(len(colorOptions))]
+}
+
+// randomUniqueNames returns n unique random names from nameOptions
+func randomUniqueNames(n int) []string {
+	// Shuffle a copy of nameOptions
+	shuffled := make([]string, len(nameOptions))
+	copy(shuffled, nameOptions)
+	rand.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
+	// Return first n names
+	return shuffled[:n]
 }
 
 func nextOption(current string, options []string) string {
