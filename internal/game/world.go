@@ -51,7 +51,10 @@ func spawnItemsOfType(m *Map, registry *VarietyRegistry, itemType string, count 
 
 		x, y := findEmptySpot(m)
 		item := createItemFromVariety(v, x, y)
-		item.SpawnTimer = rand.Float64() * maxInitialTimer // stagger across first cycle
+		// Stagger spawn timers across first cycle (all spawned items are plants)
+		if item.Plant != nil {
+			item.Plant.SpawnTimer = rand.Float64() * maxInitialTimer
+		}
 
 		// Set death timer if this item type is mortal (stagger to avoid synchronized die-off)
 		if maxDeathTimer > 0 {

@@ -122,6 +122,7 @@ func NewModel(testCfg TestConfig) Model {
 		worlds:           worlds,
 		selectedWorld:    0,  // First world or "New World" if empty
 		confirmingDelete: -1, // Not confirming delete
+		nextOrderID:      1,  // Start at 1 so ID 0 means "no order"
 	}
 }
 

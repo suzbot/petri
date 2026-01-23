@@ -5,6 +5,12 @@ import (
 	"petri/internal/types"
 )
 
+// PlantProperties contains properties specific to growing plants
+type PlantProperties struct {
+	IsGrowing  bool    // Can reproduce at location (gates spawning)
+	SpawnTimer float64 // Countdown until next spawn opportunity
+}
+
 // Item represents an item in the game world
 type Item struct {
 	BaseEntity
@@ -16,10 +22,8 @@ type Item struct {
 	Pattern  types.Pattern // mushrooms, gourds (spotted, striped, speckled)
 	Texture  types.Texture // mushrooms, gourds (slimy, waxy, warty)
 
-	// Category for item classification
-	// Currently: "plant" for items that spawn/reproduce on the map
-	// Future: May formalize to type when non-plant categories are added (tools, crafted items)
-	Category string
+	// Plant properties (nil for non-plants like crafted items)
+	Plant *PlantProperties
 
 	// Functional attributes (not opinion-formable)
 	Edible    bool
@@ -27,7 +31,6 @@ type Item struct {
 	Healing   bool
 
 	// Lifecycle
-	SpawnTimer float64 // countdown until next spawn opportunity
 	DeathTimer float64 // countdown until death (0 = immortal)
 }
 
@@ -42,7 +45,7 @@ func NewBerry(x, y int, color types.Color, poisonous, healing bool) *Item {
 		},
 		ItemType:  "berry",
 		Color:     color,
-		Category:  "plant",
+		Plant:     &PlantProperties{IsGrowing: true},
 		Edible:    true,
 		Poisonous: poisonous,
 		Healing:   healing,
@@ -62,7 +65,7 @@ func NewMushroom(x, y int, color types.Color, pattern types.Pattern, texture typ
 		Color:     color,
 		Pattern:   pattern,
 		Texture:   texture,
-		Category:  "plant",
+		Plant:     &PlantProperties{IsGrowing: true},
 		Edible:    true,
 		Poisonous: poisonous,
 		Healing:   healing,
@@ -80,7 +83,7 @@ func NewFlower(x, y int, color types.Color) *Item {
 		},
 		ItemType:  "flower",
 		Color:     color,
-		Category:  "plant",
+		Plant:     &PlantProperties{IsGrowing: true},
 		Edible:    false,
 		Poisonous: false,
 		Healing:   false,
@@ -100,7 +103,7 @@ func NewGourd(x, y int, color types.Color, pattern types.Pattern, texture types.
 		Color:     color,
 		Pattern:   pattern,
 		Texture:   texture,
-		Category:  "plant",
+		Plant:     &PlantProperties{IsGrowing: true},
 		Edible:    true,
 		Poisonous: false,
 		Healing:   false,

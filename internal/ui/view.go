@@ -1163,12 +1163,24 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 		if len(m.orders) == 0 {
 			lines = append(lines, selectIndent+"(no orders)")
 		} else {
+			// Build character lookup map for assigned names
+			charByID := make(map[int]*entity.Character)
+			for _, c := range m.gameMap.Characters() {
+				charByID[c.ID] = c
+			}
+
 			for i, order := range m.orders {
 				prefix := selectIndent
 				if i == m.selectedOrderIndex {
 					prefix = selectPrefix
 				}
-				lines = append(lines, fmt.Sprintf("%s%s [%s]", prefix, order.DisplayName(), order.StatusDisplay()))
+				statusStr := order.StatusDisplay()
+				if order.AssignedTo != 0 {
+					if char, ok := charByID[order.AssignedTo]; ok {
+						statusStr = fmt.Sprintf("%s: %s", order.StatusDisplay(), char.Name)
+					}
+				}
+				lines = append(lines, fmt.Sprintf("%s%s [%s]", prefix, order.DisplayName(), statusStr))
 			}
 		}
 	} else {
@@ -1184,8 +1196,20 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 				lines = append(lines, indent+"can be created.")
 			}
 		} else {
+			// Build character lookup map for assigned names
+			charByID := make(map[int]*entity.Character)
+			for _, c := range m.gameMap.Characters() {
+				charByID[c.ID] = c
+			}
+
 			for _, order := range m.orders {
-				lines = append(lines, fmt.Sprintf("%s%s [%s]", indent, order.DisplayName(), order.StatusDisplay()))
+				statusStr := order.StatusDisplay()
+				if order.AssignedTo != 0 {
+					if char, ok := charByID[order.AssignedTo]; ok {
+						statusStr = fmt.Sprintf("%s: %s", order.StatusDisplay(), char.Name)
+					}
+				}
+				lines = append(lines, fmt.Sprintf("%s%s [%s]", indent, order.DisplayName(), statusStr))
 			}
 		}
 	}

@@ -1,6 +1,6 @@
 # Phase 6: Containers and Storage - Implementation Plan
 
-**Status:** Planning
+**Status:** Prep Stage 1 Complete - Ready for Prep Stage 2
 **Requirements:** [docs/phase06reqs.txt](phase06reqs.txt)
 
 ---
@@ -11,78 +11,81 @@ Characters can craft containers and store things in them. Items can be placed on
 
 ---
 
-## Phase 6 Prep: Category Type Formalization
+## Phase 6 Prep
 
 **Trigger:** Adding non-plant categories (tools, crafted items) - from futureEnhancements.md
+**Addresses:** OQ-A (growing vs picked plants), OQ-C (item categories)
 
-This foundational work should be completed before feature implementation to avoid retrofitting.
+### Prep Stage 1: PlantProperties Refactor ✓
 
-### Prep Tasks
-
-- [ ] Create `PlantProperties` struct and refactor plant fields
+- [x] Create `PlantProperties` struct
   - `IsGrowing bool`: can reproduce at location (gates spawning)
   - `SpawnTimer float64`: countdown until next spawn
-  - Move from flat Item fields into `Plant *PlantProperties`
-  - On pickup: set `IsGrowing = false`
-- [ ] Create `Stack` struct for container contents
+- [x] Add `Plant *PlantProperties` to Item struct
+- [x] Update item creation functions (`NewBerry`, `NewMushroom`, `NewFlower`, `NewGourd`)
+- [x] Update spawning logic: `Plant != nil && Plant.IsGrowing`
+- [x] Remove `Category string` from Item
+- [x] Update serialization for PlantProperties
+- [x] Update tests
+
+**Test checkpoint:** Game works, plants spawn normally, save/load works
+
+### Prep Stage 2: Container Structs
+
+- [ ] Create `Stack` struct
   - `Variety *ItemVariety`: what variety this stack holds
   - `Count int`: how many in the stack
-- [ ] Create `ContainerData` struct for containers
+- [ ] Create `ContainerData` struct
   - `Capacity int`: how many stacks it can hold
-  - `Contents []Stack`: slice of stacks (supports future multi-stack containers)
-  - Add as `Container *ContainerData` on Item (nil for non-containers)
-  - Serialization: save slice of {variety ID, count} pairs, restore on load
-- [ ] Remove `Category string` from Item
-  - Derive plant status from `item.Plant != nil` where needed
-- [ ] Update spawning logic
-  - Check `item.Plant != nil && item.Plant.IsGrowing`
-- [ ] Audit existing item creation
-  - World-gen plants: `Plant = &PlantProperties{IsGrowing: true, SpawnTimer: ...}`
-  - Crafted items: `Plant = nil`
-- [ ] Keep on Item (broader applicability beyond plants)
-  - `Edible`, `Poisonous`, `Healing` (future crafted consumables)
-  - `DeathTimer` (future spoiling/degrading items)
+  - `Contents []Stack`: slice of stacks
+- [ ] Add `Container *ContainerData` to Item (nil for non-containers)
+- [ ] Update serialization (containers nil for existing items)
 
-### Deferred Fields (not needed for Phase 6)
+**Test checkpoint:** Save/load still works
 
+### Design Decisions (Prep)
+
+**Fields staying on Item** (broader applicability):
+- `Edible`, `Poisonous`, `Healing` - future crafted consumables
+- `DeathTimer` - future spoiling/degrading items
+
+**Deferred fields** (not needed for Phase 6):
 - `IsPortable` on ContainerData - all items currently carriable
-- `IsWatertight` on ContainerData - all vessels are watertight, defer until non-watertight containers
+- `IsWatertight` on ContainerData - all vessels are watertight
 - `LockedVariety` on ContainerData - future vessel restriction
 
 ---
 
 ## Feature 1: Item Placement System
 
-Characters can drop items; dropped items can be picked up.
+**Addresses:** OQ-A (picked plants don't respawn)
 
 ### Requirements
 - Characters can drop carried items
 - Dropped items appear on map at character's location
 - Dropped items have `IsGrowing = false` (set on pickup, stays false when dropped)
 - Existing pickup logic works for dropped items
-- Dropped items don't spawn new items
 
 ### Tasks
 - [ ] Implement drop action/intent
 - [ ] Update map rendering for dropped items
-- [ ] Verify existing pickup logic handles dropped items
-- [ ] Verify spawning correctly skips `IsGrowing = false` items (from Prep)
+- [ ] Set `IsGrowing = false` on pickup
+- [ ] Verify spawning correctly skips `IsGrowing = false` items
 - [ ] Tests for drop/pickup cycle
 
-### Testing Checkpoint
-- Manual: Drop item, verify map display, pick it up again
+**Test checkpoint:** Drop item, verify map display, pick it up again
 
 ---
 
 ## Feature 2: Crafting Foundation
 
-General crafting system infrastructure.
+**Addresses:** Req A.1 (discovery), A.2 (orderable), OQ-B (crafting know-how structure)
 
 ### Requirements
-- "Crafting" know-how that enables craft menu access
-- Recipe system for defining craftable items
-- Craft activity with duration
-- Discovery triggers for crafting know-how
+- Req A.1.i: Discovery when engaging in gourd interaction (looking, picking up, consuming)
+- Req A.1.ii: Discovery when engaging in spring interaction (drinking)
+- Req A.2: Orderable via Craft option in task menu
+- OQ-B: General "crafting" know-how + specific recipe know-how
 
 ### Tasks
 - [ ] Define Recipe struct (inputs, output, duration)
@@ -93,25 +96,22 @@ General crafting system infrastructure.
 - [ ] UI: Craft option in order menu (gated by know-how)
 - [ ] Tests for recipe system, know-how discovery
 
-### Open Design Questions (Feature 2)
-
+### Open Design Questions
 1. **Recipe storage:** Where do recipes live? Config? Separate registry?
-2. **Recipe know-how:** Is knowing "crafting" enough to see all recipes, or must each recipe be discovered separately?
 
-### Testing Checkpoint
-- Manual: Character discovers crafting, craft menu appears
+**Test checkpoint:** Character discovers crafting, craft menu appears
 
 ---
 
 ## Feature 3: Hollow Gourd Vessel
 
-First craftable item: vessel from gourd.
+**Addresses:** Req A.3 (recipe), B.1 (post-craft inventory)
 
 ### Requirements
-- Recipe: 1 gourd -> 1 hollow gourd vessel, 2 minutes game time
-- Character must have gourd in inventory to craft
-- If no gourd in inventory: target gourd, drop current item if needed, pick up gourd, then craft
-- Crafted vessel goes to inventory if room, else dropped
+- Req A.3: Recipe is 1 gourd for 2 minutes game time
+- Req A.3.i: If gourd in inventory, begin crafting
+- Req A.3.ii: If no gourd, target gourd to pick up; drop current item if inventory full
+- Req B.1: Crafted item goes to inventory if room, else dropped
 
 ### Tasks
 - [ ] Define hollow gourd vessel recipe
@@ -121,51 +121,49 @@ First craftable item: vessel from gourd.
 - [ ] Post-craft: add to inventory or drop
 - [ ] Tests for craft flow, inventory handling
 
-### Testing Checkpoint
-- Manual: Order craft vessel, watch character acquire gourd and craft
+**Test checkpoint:** Order craft vessel, watch character acquire gourd and craft
 
 ---
 
 ## Feature 4: Vessel Contents
 
-Vessels can hold stacks of items.
+**Addresses:** Req B.2 (filling vessel), B.3 (look for container), B.4 (drop when blocked)
 
 ### Requirements
-- Stack sizes by item type (Mushrooms: 10, Berries: 20, Gourds: 1, Flowers: 10)
-- Vessel capacity: 1 stack (configurable per vessel type)
-- Once an item variety is added, only that variety can be added
-- Empty vessel accepts any variety
-- Foraging fills vessel before stopping
-- Harvesting completes when vessel full or no matching items remain
+- Req B.2.i: Stack sizes - Mushrooms: 10, Berries: 20, Gourds: 1, Flowers: 10
+- Req B.2.ii: Once variety added, only that variety can be added (vessel-specific)
+- Req B.2.iii: Foraging fills vessel before stopping
+- Req B.2.iv: Harvesting complete when vessel full OR no matching varieties
+- Req B.3: If not carrying container, look for empty/matching vessel first
+- Req B.4: Drop container when it blocks action
 
 ### Design Decision: Stack Slice
 Contents tracked via `Contents []Stack` where each Stack has `Variety` + `Count`:
-- Adding item: if empty, append new Stack; if same variety exists, increment count
-- Eating: decrement count; remove Stack from slice when count hits 0
+- Adding item: if empty, append new Stack; if same variety, increment count
+- Eating: decrement count; remove Stack when count hits 0
 - Vessel variety-lock: enforced because `Capacity == 1` means only one Stack allowed
-- Future containers with `Capacity > 1` can hold multiple different-variety Stacks
 
 ### Tasks
-- [ ] Add StackSize to item type definitions (config or variety level)
+- [ ] Add StackSize to item type definitions (config)
 - [ ] Implement add-to-vessel logic (variety lock, count increment)
 - [ ] Update foraging to fill vessel before stopping
-- [ ] Update harvesting order completion logic (full OR no matching items)
+- [ ] Update harvesting order completion logic
+- [ ] Implement look-for-container behavior (Req B.3)
+- [ ] Implement drop-when-blocked behavior (Req B.4)
 - [ ] Tests for stacking, variety lock, forage/harvest with vessel
 
-### Testing Checkpoint
-- Manual: Forage with vessel, verify stacking and variety lock
+**Test checkpoint:** Forage with vessel, verify stacking and variety lock
 
 ---
 
 ## Feature 5: Eating from Vessels
 
-Hungry characters can eat from carried vessels.
+**Addresses:** Req B.5 (eating from vessel)
 
 ### Requirements
-- Vessel contents count as carried items for hunger intent
+- Req B.5: Vessel contents count as carried item for eating when hungry
 - Eating decrements Stack count by 1
-- When Stack count hits 0, remove Stack from Contents (vessel accepts any variety again)
-- Knowledge-based eating decisions apply to vessel contents
+- When Stack empty, vessel accepts any variety again
 
 ### Tasks
 - [ ] Update hunger intent to check vessel `Contents` for edible Stacks
@@ -174,39 +172,40 @@ Hungry characters can eat from carried vessels.
 - [ ] Apply poison/healing knowledge to vessel contents
 - [ ] Tests for eating from vessel, knowledge application
 
-### Open Design Questions (Feature 5)
-
+### Open Design Questions
 1. **Priority:** Loose carried item vs item in vessel - which eaten first?
 2. **Poison avoidance:** Should characters refuse to eat known-poison items from vessels?
 
-### Testing Checkpoint
-- Manual: Character eats from vessel when hungry
+**Test checkpoint:** Character eats from vessel when hungry
 
 ---
 
 ## Feature 6: UI Updates
 
-Visual feedback for vessels and contents.
+**Addresses:** Req C.1 (inventory panel), C.2 (map symbol)
 
 ### Requirements
-- Inventory panel shows vessel contents (item, count)
-- Dropped vessels visible on map (symbol TBD)
-- Vessel contents visible in item details
+- Req C.1: Carried vessels listed in inventory panel, showing contents
+- Req C.2: Dropped vessels appear on map (symbol TBD)
 
 ### Tasks
 - [ ] Update inventory panel rendering for vessels
 - [ ] Choose and implement map symbol for dropped vessels
 - [ ] Update item detail view for vessel contents
-- [ ] Tests: N/A (UI rendering)
 
-### Testing Checkpoint
-- Manual: Verify all vessel states display correctly
+**Test checkpoint:** Verify all vessel states display correctly
+
+---
+
+## Recipe Timing Note
+
+**Addresses:** Req D
+
+Recipe time (2 minutes for hollow gourd vessel) is in game time. May revisit timing values after initial implementation.
 
 ---
 
 ## Quick Wins (Parallel Work)
-
-Low-effort improvements from randomideas.txt, can be done between features:
 
 - [x] Randomize starting names from curated list
 - [ ] Remove single char mode from UI
@@ -215,8 +214,6 @@ Low-effort improvements from randomideas.txt, can be done between features:
 ---
 
 ## Post-Phase 6 Considerations
-
-Items to revisit after Phase 6 stabilizes:
 
 - **Time config reset:** Adjust so "day" = 2 game minutes
 - **Carried item eating logic:** Re-evaluate with vessel context
@@ -228,11 +225,3 @@ Items to revisit after Phase 6 stabilizes:
 
 1. **After Prep completion:** Review category system design before building on it
 2. **After Phase 6 completion:** Full audit of new systems, test coverage review
-
----
-
-## Reference
-
-- [phase06reqs.txt](phase06reqs.txt) - Original requirements
-- [futureEnhancements.md](futureEnhancements.md) - Deferred items and triggers
-- [architecture.md](architecture.md) - System design patterns

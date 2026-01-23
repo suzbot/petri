@@ -15,8 +15,13 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 	// Remove item from map
 	gameMap.RemoveItem(item)
 
-	// Clear spawn/death timers - carried items are static
-	item.SpawnTimer = 0
+	// Mark as no longer growing (won't respawn if dropped)
+	if item.Plant != nil {
+		item.Plant.IsGrowing = false
+		item.Plant.SpawnTimer = 0
+	}
+	// Clear death timer - carried items don't decay
+	// TODO: Revisit when implementing item spoiling/rotting
 	item.DeathTimer = 0
 
 	// Add to inventory

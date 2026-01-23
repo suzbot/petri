@@ -106,25 +106,15 @@ Phase 6: Containers and Storage (Planning)
 
 ### Near-Term Roadmap
 
-**Phase 6 Prep:**
-- Category type formalization (triggered by adding non-plant categories)
-- Composition approach: optional property structs (ContainerProperties, PlantProperties)
-- Update spawning logic to use categories
+See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 
-**Phase 6 Features (Sequential):**
-1. Item Placement System - drop/pickup, IsPlaced tracking
-2. Crafting Foundation - general know-how, recipe system, craft activity
-3. Hollow Gourd Vessel - specific recipe, crafting execution
-4. Vessel Contents - stack sizes, single-variety restriction, filling logic
-5. Eating from Vessels - extend consumption system
-6. UI Updates - inventory panel, map symbols
+**Phase 6 Prep:** PlantProperties struct, ContainerData struct, Stack struct, remove Category string
+
+**Phase 6 Features:** Item placement, crafting foundation, hollow gourd vessel, vessel contents, eating from vessels, UI updates
 
 **Quick Wins (Parallel):**
-- Randomize starting names from: Bud, Ash, Moss, Twig, Elm, Wing, Dew, Oak, Loam, Leaf, Bug, Sprig, Sprout, Fuzz, Bole, Fluff, Burl, Burr, Toad, Fern, Brer, Bean, Thorn, Moth, Bloom, Eft, Leek, Puff
 - Remove single char mode from UI
 - Flag for character count control
-
-See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 
 ### Deferred Enhancements & Trigger Points
 

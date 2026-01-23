@@ -50,9 +50,12 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 			maxTier = healthTier
 		}
 
-		// Continue looking if no urgent needs
+		// Continue looking/working if no urgent needs
 		if char.Intent.TargetItem != nil && maxTier < entity.TierModerate {
-			return continueIntent(char, cx, cy, gameMap, log)
+			if result := continueIntent(char, cx, cy, gameMap, log); result != nil {
+				return result
+			}
+			// Target gone (e.g., taken by another character), fall through to re-evaluate
 		}
 
 		// Continue talking/approaching if no urgent needs

@@ -105,15 +105,15 @@ func TestUpdateSpawnTimers_DecrementsTimers(t *testing.T) {
 
 	gameMap := game.NewMap(10, 10)
 	item := entity.NewBerry(5, 5, types.ColorRed, false, false)
-	item.SpawnTimer = 100.0
+	item.Plant.SpawnTimer = 100.0
 	gameMap.AddItem(item)
 
 	delta := 10.0
 
 	UpdateSpawnTimers(gameMap, 40, delta)
 
-	if item.SpawnTimer != 90.0 {
-		t.Errorf("SpawnTimer: got %.2f, want 90.0", item.SpawnTimer)
+	if item.Plant.SpawnTimer != 90.0 {
+		t.Errorf("SpawnTimer: got %.2f, want 90.0", item.Plant.SpawnTimer)
 	}
 }
 
@@ -122,7 +122,7 @@ func TestUpdateSpawnTimers_ResetsTimerWhenExpired(t *testing.T) {
 
 	gameMap := game.NewMap(10, 10)
 	item := entity.NewBerry(5, 5, types.ColorRed, false, false)
-	item.SpawnTimer = 0.5 // Will expire with delta of 1.0
+	item.Plant.SpawnTimer = 0.5 // Will expire with delta of 1.0
 	gameMap.AddItem(item)
 
 	initialItemCount := 40
@@ -133,8 +133,8 @@ func TestUpdateSpawnTimers_ResetsTimerWhenExpired(t *testing.T) {
 	base := config.ItemLifecycle["berry"].SpawnInterval * float64(initialItemCount)
 	variance := base * config.LifecycleIntervalVariance
 
-	if item.SpawnTimer < base-variance || item.SpawnTimer > base+variance {
-		t.Errorf("SpawnTimer %.2f should be in range [%.2f, %.2f]", item.SpawnTimer, base-variance, base+variance)
+	if item.Plant.SpawnTimer < base-variance || item.Plant.SpawnTimer > base+variance {
+		t.Errorf("SpawnTimer %.2f should be in range [%.2f, %.2f]", item.Plant.SpawnTimer, base-variance, base+variance)
 	}
 }
 
@@ -146,7 +146,7 @@ func TestUpdateSpawnTimers_RespectsMapCap(t *testing.T) {
 	// Fill to capacity
 	for i := 0; i < 8; i++ {
 		item := entity.NewBerry(i%4, i/4, types.ColorRed, false, false)
-		item.SpawnTimer = 0.1 // Will expire immediately
+		item.Plant.SpawnTimer = 0.1 // Will expire immediately
 		gameMap.AddItem(item)
 	}
 
@@ -166,12 +166,12 @@ func TestUpdateSpawnTimers_SpawnsAdjacentToParent(t *testing.T) {
 
 	// Create a parent item with expired timer
 	parent := entity.NewBerry(5, 5, types.ColorBlue, true, true)
-	parent.SpawnTimer = 0.0 // Expired
+	parent.Plant.SpawnTimer = 0.0 // Expired
 	gameMap.AddItem(parent)
 
 	// Run multiple times to increase chance of spawn (50% chance)
 	for i := 0; i < 20; i++ {
-		parent.SpawnTimer = 0.0 // Reset to expired each iteration
+		parent.Plant.SpawnTimer = 0.0 // Reset to expired each iteration
 		UpdateSpawnTimers(gameMap, 40, 1.0)
 	}
 
@@ -303,8 +303,8 @@ func TestSpawnItem_SetsSpawnTimer(t *testing.T) {
 	base := config.ItemLifecycle["berry"].SpawnInterval * float64(initialItemCount)
 	variance := base * config.LifecycleIntervalVariance
 
-	if spawned.SpawnTimer < base-variance || spawned.SpawnTimer > base+variance {
-		t.Errorf("SpawnTimer %.2f should be in range [%.2f, %.2f]", spawned.SpawnTimer, base-variance, base+variance)
+	if spawned.Plant.SpawnTimer < base-variance || spawned.Plant.SpawnTimer > base+variance {
+		t.Errorf("SpawnTimer %.2f should be in range [%.2f, %.2f]", spawned.Plant.SpawnTimer, base-variance, base+variance)
 	}
 }
 

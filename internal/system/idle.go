@@ -13,7 +13,16 @@ import (
 // Returns nil if cooldown is active or if the selected activity cannot be performed.
 // Sets IdleCooldown after being called (regardless of outcome).
 func selectIdleActivity(char *entity.Character, cx, cy int, items []*entity.Item, gameMap *game.Map, log *ActionLog, orders []*entity.Order) *entity.Intent {
-	// Check cooldown
+	// Priority: if character has an assigned order, always try to resume it (bypass cooldown)
+	// This ensures order work isn't blocked by idle cooldown when target changes
+	if char.AssignedOrderID != 0 {
+		if intent := selectOrderActivity(char, cx, cy, items, orders, log); intent != nil {
+			return intent
+		}
+		// Order couldn't find a target - fall through to idle activities
+	}
+
+	// Check cooldown for idle activities (looking, talking, foraging, taking new orders)
 	if char.IdleCooldown > 0 {
 		return nil
 	}
@@ -21,7 +30,7 @@ func selectIdleActivity(char *entity.Character, cx, cy int, items []*entity.Item
 	// Set cooldown for next attempt
 	char.IdleCooldown = config.IdleCooldown
 
-	// First priority: check for order work (assigned or available)
+	// Check for new order work (taking unassigned orders)
 	if intent := selectOrderActivity(char, cx, cy, items, orders, log); intent != nil {
 		return intent
 	}

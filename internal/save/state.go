@@ -109,6 +109,12 @@ type CharacterSave struct {
 	AssignedOrderID int `json:"assigned_order_id,omitempty"` // ID of assigned order (0 = none)
 }
 
+// PlantPropertiesSave represents plant properties for serialization
+type PlantPropertiesSave struct {
+	IsGrowing  bool    `json:"is_growing"`
+	SpawnTimer float64 `json:"spawn_timer"`
+}
+
 // ItemSave represents an item for serialization
 type ItemSave struct {
 	ID       int    `json:"id"`
@@ -119,11 +125,13 @@ type ItemSave struct {
 	Pattern  string `json:"pattern"`
 	Texture  string `json:"texture"`
 
+	// Plant properties (nil for non-plants)
+	Plant *PlantPropertiesSave `json:"plant,omitempty"`
+
 	Edible    bool `json:"edible"`
 	Poisonous bool `json:"poisonous"`
 	Healing   bool `json:"healing"`
 
-	SpawnTimer float64 `json:"spawn_timer"`
 	DeathTimer float64 `json:"death_timer"`
 }
 

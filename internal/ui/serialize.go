@@ -74,21 +74,29 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 			talkingWithID = c.TalkingWith.ID
 		}
 
-		// Convert carried item if present (timers cleared - carried items are static)
+		// Convert carried item if present
 		var carrying *save.ItemSave
 		if c.Carrying != nil {
+			var plantSave *save.PlantPropertiesSave
+			if c.Carrying.Plant != nil {
+				plantSave = &save.PlantPropertiesSave{
+					IsGrowing:  c.Carrying.Plant.IsGrowing,
+					SpawnTimer: c.Carrying.Plant.SpawnTimer,
+				}
+			}
 			carrying = &save.ItemSave{
-				ID:        c.Carrying.ID,
-				X:         c.Carrying.X,
-				Y:         c.Carrying.Y,
-				ItemType:  c.Carrying.ItemType,
-				Color:     string(c.Carrying.Color),
-				Pattern:   string(c.Carrying.Pattern),
-				Texture:   string(c.Carrying.Texture),
-				Edible:    c.Carrying.Edible,
-				Poisonous: c.Carrying.Poisonous,
-				Healing:   c.Carrying.Healing,
-				// SpawnTimer/DeathTimer intentionally 0 - carried items are static
+				ID:         c.Carrying.ID,
+				X:          c.Carrying.X,
+				Y:          c.Carrying.Y,
+				ItemType:   c.Carrying.ItemType,
+				Color:      string(c.Carrying.Color),
+				Pattern:    string(c.Carrying.Pattern),
+				Texture:    string(c.Carrying.Texture),
+				Plant:      plantSave,
+				Edible:     c.Carrying.Edible,
+				Poisonous:  c.Carrying.Poisonous,
+				Healing:    c.Carrying.Healing,
+				DeathTimer: c.Carrying.DeathTimer,
 			}
 		}
 
@@ -175,6 +183,13 @@ func knowledgeToSave(knowledge []entity.Knowledge) []save.KnowledgeSave {
 func itemsToSave(items []*entity.Item) []save.ItemSave {
 	result := make([]save.ItemSave, len(items))
 	for i, item := range items {
+		var plantSave *save.PlantPropertiesSave
+		if item.Plant != nil {
+			plantSave = &save.PlantPropertiesSave{
+				IsGrowing:  item.Plant.IsGrowing,
+				SpawnTimer: item.Plant.SpawnTimer,
+			}
+		}
 		result[i] = save.ItemSave{
 			ID:         item.ID,
 			X:          item.X,
@@ -183,10 +198,10 @@ func itemsToSave(items []*entity.Item) []save.ItemSave {
 			Color:      string(item.Color),
 			Pattern:    string(item.Pattern),
 			Texture:    string(item.Texture),
+			Plant:      plantSave,
 			Edible:     item.Edible,
 			Poisonous:  item.Poisonous,
 			Healing:    item.Healing,
-			SpawnTimer: item.SpawnTimer,
 			DeathTimer: item.DeathTimer,
 		}
 	}
@@ -284,6 +299,10 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 	// Restore orders
 	m.orders = ordersFromSave(state.Orders)
 	m.nextOrderID = state.NextOrderID
+	// Ensure nextOrderID is at least 1 (ID 0 means "no order assigned")
+	if m.nextOrderID < 1 {
+		m.nextOrderID = 1
+	}
 
 	// Set cursor to first character position if any
 	chars := m.gameMap.Characters()
@@ -418,16 +437,24 @@ func knowledgeFromSave(knowledge []save.KnowledgeSave) []entity.Knowledge {
 
 // itemFromSave converts a saved item back to an entity
 func itemFromSave(is save.ItemSave) *entity.Item {
+	var plant *entity.PlantProperties
+	if is.Plant != nil {
+		plant = &entity.PlantProperties{
+			IsGrowing:  is.Plant.IsGrowing,
+			SpawnTimer: is.Plant.SpawnTimer,
+		}
+	}
+
 	item := &entity.Item{
 		ID:         is.ID,
 		ItemType:   is.ItemType,
 		Color:      types.Color(is.Color),
 		Pattern:    types.Pattern(is.Pattern),
 		Texture:    types.Texture(is.Texture),
+		Plant:      plant,
 		Edible:     is.Edible,
 		Poisonous:  is.Poisonous,
 		Healing:    is.Healing,
-		SpawnTimer: is.SpawnTimer,
 		DeathTimer: is.DeathTimer,
 	}
 	item.X = is.X

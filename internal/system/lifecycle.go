@@ -8,7 +8,7 @@ import (
 	"petri/internal/game"
 )
 
-// UpdateSpawnTimers decrements spawn timers for all items and spawns new items when timers expire
+// UpdateSpawnTimers decrements spawn timers for growing plants and spawns new items when timers expire
 func UpdateSpawnTimers(gameMap *game.Map, initialItemCount int, delta float64) {
 	items := gameMap.Items()
 
@@ -17,21 +17,30 @@ func UpdateSpawnTimers(gameMap *game.Map, initialItemCount int, delta float64) {
 	if len(items) >= maxItems {
 		// Still decrement timers but don't spawn
 		for _, item := range items {
-			item.SpawnTimer -= delta
-			if item.SpawnTimer <= 0 {
-				item.SpawnTimer = CalculateSpawnInterval(item.ItemType, initialItemCount)
+			// Only process growing plants
+			if item.Plant == nil || !item.Plant.IsGrowing {
+				continue
+			}
+			item.Plant.SpawnTimer -= delta
+			if item.Plant.SpawnTimer <= 0 {
+				item.Plant.SpawnTimer = CalculateSpawnInterval(item.ItemType, initialItemCount)
 			}
 		}
 		return
 	}
 
-	// Process each item's spawn timer
+	// Process each growing plant's spawn timer
 	for _, item := range items {
-		item.SpawnTimer -= delta
+		// Only process growing plants
+		if item.Plant == nil || !item.Plant.IsGrowing {
+			continue
+		}
 
-		if item.SpawnTimer <= 0 {
+		item.Plant.SpawnTimer -= delta
+
+		if item.Plant.SpawnTimer <= 0 {
 			// Reset timer regardless of spawn success
-			item.SpawnTimer = CalculateSpawnInterval(item.ItemType, initialItemCount)
+			item.Plant.SpawnTimer = CalculateSpawnInterval(item.ItemType, initialItemCount)
 
 			// Roll for spawn chance
 			if rand.Float64() >= config.ItemSpawnChance {
@@ -149,14 +158,16 @@ func spawnItem(gameMap *game.Map, parent *entity.Item, x, y int, initialItemCoun
 		Color:     parent.Color,
 		Pattern:   parent.Pattern,
 		Texture:   parent.Texture,
-		Category:  parent.Category,
+		Plant: &entity.PlantProperties{
+			IsGrowing:  true,
+			SpawnTimer: CalculateSpawnInterval(parent.ItemType, initialItemCount),
+		},
 		Edible:    parent.Edible,
 		Poisonous: parent.Poisonous,
 		Healing:   parent.Healing,
 	}
 
-	// Set lifecycle timers for the new item
-	newItem.SpawnTimer = CalculateSpawnInterval(newItem.ItemType, initialItemCount)
+	// Set death timer for mortal items
 	newItem.DeathTimer = CalculateDeathInterval(newItem.ItemType, initialItemCount)
 
 	gameMap.AddItem(newItem)
