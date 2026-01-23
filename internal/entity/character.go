@@ -13,6 +13,7 @@ type Character struct {
 	Preferences      []Preference // Dynamic likes/dislikes for item attributes
 	Knowledge        []Knowledge  // Things learned through experience (facts)
 	KnownActivities  []string     // Activity IDs discovered (know-how)
+	KnownRecipes     []string     // Recipe IDs learned (e.g., "hollow-gourd")
 
 	// Survival attributes
 	Health      float64
@@ -192,6 +193,39 @@ func (c *Character) LearnActivity(activityID string) bool {
 	}
 	c.KnownActivities = append(c.KnownActivities, activityID)
 	return true
+}
+
+// KnowsRecipe returns true if the character has learned the specified recipe.
+func (c *Character) KnowsRecipe(recipeID string) bool {
+	for _, id := range c.KnownRecipes {
+		if id == recipeID {
+			return true
+		}
+	}
+	return false
+}
+
+// LearnRecipe adds a recipe to the character's known recipes if not already known.
+// Returns true if the recipe was newly learned, false if already known.
+func (c *Character) LearnRecipe(recipeID string) bool {
+	if c.KnowsRecipe(recipeID) {
+		return false
+	}
+	c.KnownRecipes = append(c.KnownRecipes, recipeID)
+	return true
+}
+
+// GetKnownRecipesForActivity returns the character's known recipes for a given activity.
+func (c *Character) GetKnownRecipesForActivity(activityID string) []*Recipe {
+	var result []*Recipe
+	for _, recipeID := range c.KnownRecipes {
+		if recipe, ok := RecipeRegistry[recipeID]; ok {
+			if recipe.ActivityID == activityID {
+				result = append(result, recipe)
+			}
+		}
+	}
+	return result
 }
 
 // HungerLevel returns a human-readable hunger description

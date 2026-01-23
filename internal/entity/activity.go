@@ -79,6 +79,13 @@ var ActivityRegistry = map[string]Activity{
 			{Action: ActionLook, RequiresEdible: true},    // looking
 		},
 	},
+	"craftVessel": {
+		ID:              "craftVessel",
+		Name:            "Vessel",
+		IntentFormation: IntentOrderable,
+		Availability:    AvailabilityKnowHow,
+		// No DiscoveryTriggers - discovered via recipes
+	},
 }
 
 // GetDiscoverableActivities returns all activities that require know-how

@@ -184,27 +184,44 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				if m.ordersAddMode {
 					// Handle add order confirmation inline
 					if m.ordersAddStep == 0 {
-						// Move to target selection
 						activities := m.getOrderableActivities()
 						if len(activities) > 0 && m.selectedActivityIndex < len(activities) {
+							// Both Harvest and Craft need step 1 selection
+							// Harvest selects target type, Craft selects craft activity
 							m.ordersAddStep = 1
 							m.selectedTargetIndex = 0
 						}
 					} else {
-						// Create the order
+						// Step 1: Create the order based on what was selected
 						activities := m.getOrderableActivities()
-						types := m.getEdibleItemTypes()
-						if len(activities) > 0 && len(types) > 0 {
-							activityID := activities[m.selectedActivityIndex].ID
-							targetType := types[m.selectedTargetIndex]
+						if len(activities) > 0 && m.selectedActivityIndex < len(activities) {
+							selectedActivity := activities[m.selectedActivityIndex]
 
-							order := entity.NewOrder(m.nextOrderID, activityID, targetType)
-							m.nextOrderID++
-							m.orders = append(m.orders, order)
+							if isCraftCategory(selectedActivity.ID) {
+								// Craft category - get selected craft activity
+								craftActivities := m.getCraftActivities()
+								if m.selectedTargetIndex < len(craftActivities) {
+									craftActivity := craftActivities[m.selectedTargetIndex]
+									order := entity.NewOrder(m.nextOrderID, craftActivity.ID, "")
+									m.nextOrderID++
+									m.orders = append(m.orders, order)
 
-							// Exit add mode
-							m.ordersAddMode = false
-							m.ordersAddStep = 0
+									m.ordersAddMode = false
+									m.ordersAddStep = 0
+								}
+							} else {
+								// Harvest - get selected target type
+								types := m.getEdibleItemTypes()
+								if m.selectedTargetIndex < len(types) {
+									targetType := types[m.selectedTargetIndex]
+									order := entity.NewOrder(m.nextOrderID, selectedActivity.ID, targetType)
+									m.nextOrderID++
+									m.orders = append(m.orders, order)
+
+									m.ordersAddMode = false
+									m.ordersAddStep = 0
+								}
+							}
 						}
 					}
 				} else if m.ordersCancelMode {
@@ -289,8 +306,16 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 							m.selectedActivityIndex++
 						}
 					} else {
-						types := m.getEdibleItemTypes()
-						if m.selectedTargetIndex < len(types)-1 {
+						// Step 1: determine list length based on selected activity
+						activities := m.getOrderableActivities()
+						var maxIndex int
+						if m.selectedActivityIndex < len(activities) &&
+							isCraftCategory(activities[m.selectedActivityIndex].ID) {
+							maxIndex = len(m.getCraftActivities()) - 1
+						} else {
+							maxIndex = len(m.getEdibleItemTypes()) - 1
+						}
+						if m.selectedTargetIndex < maxIndex {
 							m.selectedTargetIndex++
 						}
 					}

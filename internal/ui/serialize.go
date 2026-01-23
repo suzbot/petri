@@ -142,6 +142,7 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 			Preferences:     preferencesToSave(c.Preferences),
 			Knowledge:       knowledgeToSave(c.Knowledge),
 			KnownActivities: c.KnownActivities,
+			KnownRecipes:    c.KnownRecipes,
 
 			Carrying:        carrying,
 			AssignedOrderID: c.AssignedOrderID,
@@ -410,6 +411,7 @@ func characterFromSave(cs save.CharacterSave, registry *game.VarietyRegistry) *e
 		Preferences:     preferencesFromSave(cs.Preferences),
 		Knowledge:       knowledgeFromSave(cs.Knowledge),
 		KnownActivities: cs.KnownActivities,
+		KnownRecipes:    cs.KnownRecipes,
 	}
 
 	// Set position and symbol via BaseEntity

@@ -1,6 +1,6 @@
 # Phase 6: Containers and Storage - Implementation Plan
 
-**Status:** Prep Stage 1 Complete - Ready for Prep Stage 2
+**Status:** Feature 2 Complete - Ready for Feature 3
 **Requirements:** [docs/phase06reqs.txt](phase06reqs.txt)
 
 ---
@@ -30,18 +30,18 @@ Characters can craft containers and store things in them. Items can be placed on
 
 **Test checkpoint:** Game works, plants spawn normally, save/load works
 
-### Prep Stage 2: Container Structs
+### Prep Stage 2: Container Structs ✓
 
-- [ ] Create `Stack` struct
+- [x] Create `Stack` struct
   - `Variety *ItemVariety`: what variety this stack holds
   - `Count int`: how many in the stack
-- [ ] Create `ContainerData` struct
+- [x] Create `ContainerData` struct
   - `Capacity int`: how many stacks it can hold
   - `Contents []Stack`: slice of stacks
-- [ ] Add `Container *ContainerData` to Item (nil for non-containers)
-- [ ] Update serialization (containers nil for existing items)
+- [x] Add `Container *ContainerData` to Item (nil for non-containers)
+- [x] Update serialization (containers nil for existing items)
 
-**Test checkpoint:** Save/load still works
+**Test checkpoint:** Save/load still works ✓
 
 ### Design Decisions (Prep)
 
@@ -56,28 +56,34 @@ Characters can craft containers and store things in them. Items can be placed on
 
 ---
 
-## Feature 1: Item Placement System
+## Feature 1: Item Placement System ✓
 
 **Addresses:** OQ-A (picked plants don't respawn)
 
-### Requirements
-- Characters can drop carried items
-- Dropped items appear on map at character's location
-- Dropped items have `IsGrowing = false` (set on pickup, stays false when dropped)
-- Existing pickup logic works for dropped items
+### Already Complete (from Prep Stage 1)
+- `IsGrowing = false` set on pickup (foraging.go)
+- Spawning correctly skips `IsGrowing = false` items (lifecycle.go)
+- Existing pickup logic works for any item on map
+
+### Scope Decision
+Drop action deferred until Feature 2/3 when crafting logic needs it. No player-initiated drops - characters decide when to drop based on simulation needs.
 
 ### Tasks
-- [ ] Implement drop action/intent
-- [ ] Update map rendering for dropped items
-- [ ] Set `IsGrowing = false` on pickup
-- [ ] Verify spawning correctly skips `IsGrowing = false` items
-- [ ] Tests for drop/pickup cycle
+- [x] Show "Growing" status in item details panel for growing plants
 
-**Test checkpoint:** Drop item, verify map display, pick it up again
+### Deferred to Feature 2/3
+- Implement `Drop` function:
+  - Remove item from `char.Carrying`
+  - Place item on map at character's position
+  - `IsGrowing` already false (set on pickup), stays false
+  - Dropped item can be picked up again via existing pickup logic
+- AI logic for dropping (when inventory full and need to pick up something else)
+
+**Test checkpoint:** Select growing plant on map, verify "Growing" shown in details panel ✓
 
 ---
 
-## Feature 2: Crafting Foundation
+## Feature 2: Crafting Foundation ✓
 
 **Addresses:** Req A.1 (discovery), A.2 (orderable), OQ-B (crafting know-how structure)
 
@@ -87,19 +93,56 @@ Characters can craft containers and store things in them. Items can be placed on
 - Req A.2: Orderable via Craft option in task menu
 - OQ-B: General "crafting" know-how + specific recipe know-how
 
+### Design Decisions
+
+**Know-how structure:**
+- Activity-level: `craftVessel` in `KnownActivities` (like `harvest`)
+- Recipe-level: `KnownRecipes []string` on Character (e.g., `["hollow-gourd"]`)
+- UI groups all `craft*` activities under a "Craft" menu header (presentation convention)
+
+**Recipe struct** (`entity/recipe.go`):
+```go
+type Recipe struct {
+    ID                string             // "hollow-gourd"
+    ActivityID        string             // "craftVessel" - links recipe to activity
+    Name              string             // "Hollow Gourd"
+    Inputs            []RecipeInput      // [{ItemType: "gourd", Count: 1}]
+    Output            RecipeOutput       // ItemType: "vessel", creates ContainerData
+    Duration          float64            // Game time in seconds
+    DiscoveryTriggers []DiscoveryTrigger // Triggers for discovering this recipe
+}
+```
+
+**Discovery triggers - two patterns:**
+- **Direct activity discovery** (e.g., harvest): Triggers on Activity, grants activity only
+- **Recipe-based discovery** (e.g., craftVessel): Triggers on Recipe, grants activity + recipe
+
+For craftVessel:
+- Activity has no DiscoveryTriggers (discovered via recipes)
+- hollow-gourd recipe has triggers: gourd interaction (look, pickup, consume), drinking (ActionDrink)
+- Discovery grants: `craftVessel` activity + `hollow-gourd` recipe together
+
+**Orders:**
+- Order: `{ActivityID: "craftVessel", TargetType: ""}` (no target - recipe determines output)
+- Character selects recipe based on known recipes for that activity + available materials
+
+**Knowledge transfer (talking):**
+- Can only receive a recipe if you already know the corresponding activity
+- e.g., must know `craftVessel` to receive a vessel recipe
+
 ### Tasks
-- [ ] Define Recipe struct (inputs, output, duration)
-- [ ] Add "crafting" know-how to knowledge system
-- [ ] Add discovery triggers (gourd interaction, spring interaction)
-- [ ] Implement craft activity type
-- [ ] Add craft order type to orders system
-- [ ] UI: Craft option in order menu (gated by know-how)
-- [ ] Tests for recipe system, know-how discovery
+- [ ] Create `entity/recipe.go` with Recipe struct (including DiscoveryTriggers) and RecipeRegistry
+- [ ] Add `KnownRecipes []string` to Character
+- [ ] Add `craftVessel` activity to ActivityRegistry (no discovery triggers - discovered via recipes)
+- [ ] Update discovery system to also check recipe triggers
+- [ ] Update discovery system to handle ActionDrink (item can be nil)
+- [ ] Recipe discovery grants activity + recipe together
+- [ ] UI: Group craft* activities under "Craft" menu header
+- [ ] UI: Craft activities skip target selection step
+- [ ] Update serialization for KnownRecipes
+- [ ] Tests for recipe system, discovery
 
-### Open Design Questions
-1. **Recipe storage:** Where do recipes live? Config? Separate registry?
-
-**Test checkpoint:** Character discovers crafting, craft menu appears
+**Test checkpoint:** Character discovers craftVessel via gourd/spring interaction, Craft > Vessel appears in order menu
 
 ---
 
@@ -113,15 +156,32 @@ Characters can craft containers and store things in them. Items can be placed on
 - Req A.3.ii: If no gourd, target gourd to pick up; drop current item if inventory full
 - Req B.1: Crafted item goes to inventory if room, else dropped
 
-### Tasks
-- [ ] Define hollow gourd vessel recipe
-- [ ] Add "hollow gourd vessel recipe" know-how
-- [ ] Implement vessel item type with `Container = &ContainerData{Capacity: 1}`
-- [ ] Craft execution: check inventory, acquire gourd if needed
-- [ ] Post-craft: add to inventory or drop
-- [ ] Tests for craft flow, inventory handling
+### Design Decisions
 
-**Test checkpoint:** Order craft vessel, watch character acquire gourd and craft
+**Recipe definition:**
+- ID: `"hollow-gourd"`
+- ActivityID: `"craftVessel"`
+- Input: 1 gourd (any variety)
+- Output: vessel item with `Container = &ContainerData{Capacity: 1}`
+- Duration: 2 minutes game time
+- Vessel variety inherits color/pattern/texture from input gourd
+
+**Naming:**
+- Recipe: "Hollow Gourd"
+- Created item: ItemType "vessel", description includes variety (e.g., "spotted red vessel")
+
+### Tasks
+- [ ] Add `hollow-gourd` recipe to RecipeRegistry
+- [ ] Implement vessel item creation (ItemType "vessel" + ContainerData)
+- [ ] Implement Drop function (deferred from Feature 1):
+  - Remove item from `char.Carrying`
+  - Place item on map at character's position
+  - Item retains `IsGrowing = false`
+- [ ] Craft execution: check inventory, acquire gourd if needed, drop if blocked
+- [ ] Post-craft: add to inventory or drop
+- [ ] Tests for craft flow, inventory handling, drop mechanics
+
+**Test checkpoint:** Order craft vessel, watch character acquire gourd, craft, and hold/drop result
 
 ---
 

@@ -774,6 +774,10 @@ func (m Model) renderDetails() string {
 			fmt.Sprintf(" Poisonous: %s", poison),
 			fmt.Sprintf(" Healing: %s", healing),
 		)
+		// Show Growing status for plants that can spread
+		if item.Plant != nil && item.Plant.IsGrowing {
+			lines = append(lines, " Growing")
+		}
 	} else if feature != nil {
 		lines = append(lines, " Type: Feature")
 		if m.testCfg.Debug {
@@ -1026,8 +1030,9 @@ func (m Model) renderKnowledgePanel() string {
 		if char, ok := e.(*entity.Character); ok {
 			hasKnowHow := len(char.KnownActivities) > 0
 			hasFacts := len(char.Knowledge) > 0
+			hasRecipes := len(char.KnownRecipes) > 0
 
-			if !hasKnowHow && !hasFacts {
+			if !hasKnowHow && !hasFacts && !hasRecipes {
 				// Empty state - just show title, panel appears empty
 				return strings.Join(lines, "\n")
 			}
@@ -1038,7 +1043,7 @@ func (m Model) renderKnowledgePanel() string {
 				for _, k := range char.Knowledge {
 					lines = append(lines, "   "+k.Description())
 				}
-				if hasKnowHow {
+				if hasKnowHow || hasRecipes {
 					lines = append(lines, "") // spacing between sections
 				}
 			}
@@ -1048,7 +1053,25 @@ func (m Model) renderKnowledgePanel() string {
 				lines = append(lines, " Knows how to:")
 				for _, activityID := range char.KnownActivities {
 					if activity, ok := entity.ActivityRegistry[activityID]; ok {
-						lines = append(lines, "   "+activity.Name)
+						// Prefix craft activities with "Craft: "
+						if isCraftActivity(activityID) {
+							lines = append(lines, "   Craft: "+activity.Name)
+						} else {
+							lines = append(lines, "   "+activity.Name)
+						}
+					}
+				}
+				if hasRecipes {
+					lines = append(lines, "") // spacing between sections
+				}
+			}
+
+			// Show recipes section
+			if hasRecipes {
+				lines = append(lines, " Recipes:")
+				for _, recipeID := range char.KnownRecipes {
+					if recipe, ok := entity.RecipeRegistry[recipeID]; ok {
+						lines = append(lines, "   "+recipe.Name)
 					}
 				}
 			}
@@ -1146,15 +1169,30 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 				}
 			}
 		} else {
-			// Step 2: Select target type
-			edibleTypes := m.getEdibleItemTypes()
-			lines = append(lines, indent+"Select item type:", "")
-			for i, itemType := range edibleTypes {
-				prefix := selectIndent
-				if i == m.selectedTargetIndex {
-					prefix = selectPrefix
+			// Step 2: Select target type (for Harvest) or craft activity (for Craft)
+			if m.selectedActivityIndex < len(orderableActivities) &&
+				isCraftCategory(orderableActivities[m.selectedActivityIndex].ID) {
+				// Craft category selected - show craft activities
+				craftActivities := m.getCraftActivities()
+				lines = append(lines, indent+"Select item to craft:", "")
+				for i, activity := range craftActivities {
+					prefix := selectIndent
+					if i == m.selectedTargetIndex {
+						prefix = selectPrefix
+					}
+					lines = append(lines, prefix+activity.Name)
 				}
-				lines = append(lines, prefix+itemType)
+			} else {
+				// Harvest selected - show item types
+				edibleTypes := m.getEdibleItemTypes()
+				lines = append(lines, indent+"Select item type:", "")
+				for i, itemType := range edibleTypes {
+					prefix := selectIndent
+					if i == m.selectedTargetIndex {
+						prefix = selectPrefix
+					}
+					lines = append(lines, prefix+itemType)
+				}
 			}
 		}
 	} else if m.ordersCancelMode {
@@ -1227,9 +1265,11 @@ func (m Model) renderOrdersPanel() string {
 
 // getOrderableActivities returns activities that can be ordered
 // (known by at least one living character)
+// Returns non-craft activities first, then craft activities
 func (m Model) getOrderableActivities() []entity.Activity {
 	var result []entity.Activity
 	chars := m.gameMap.Characters()
+	hasCraft := false
 
 	for _, activity := range entity.ActivityRegistry {
 		if activity.Availability != entity.AvailabilityKnowHow {
@@ -1237,6 +1277,58 @@ func (m Model) getOrderableActivities() []entity.Activity {
 		}
 		if activity.IntentFormation != entity.IntentOrderable {
 			continue // Only orderable activities
+		}
+		// Check if any living character knows this activity
+		for _, char := range chars {
+			if !char.IsDead && char.KnowsActivity(activity.ID) {
+				if isCraftActivity(activity.ID) {
+					hasCraft = true // Track that craft is available, but don't add individual craft activities
+				} else {
+					result = append(result, activity)
+				}
+				break
+			}
+		}
+	}
+
+	// Add synthetic "Craft" category if any craft activities are available
+	if hasCraft {
+		result = append(result, entity.Activity{
+			ID:   craftCategoryID,
+			Name: "Craft",
+		})
+	}
+
+	return result
+}
+
+// craftCategoryID is a synthetic activity ID representing the Craft menu category
+const craftCategoryID = "craft"
+
+// isCraftActivity returns true if the activity ID indicates a craft activity
+func isCraftActivity(activityID string) bool {
+	return len(activityID) >= 5 && activityID[:5] == "craft"
+}
+
+// isCraftCategory returns true if this is the synthetic Craft category (not a real activity)
+func isCraftCategory(activityID string) bool {
+	return activityID == craftCategoryID
+}
+
+// getCraftActivities returns available craft activities that at least one character knows
+func (m Model) getCraftActivities() []entity.Activity {
+	var result []entity.Activity
+	chars := m.gameMap.Characters()
+
+	for _, activity := range entity.ActivityRegistry {
+		if !isCraftActivity(activity.ID) {
+			continue
+		}
+		if activity.Availability != entity.AvailabilityKnowHow {
+			continue
+		}
+		if activity.IntentFormation != entity.IntentOrderable {
+			continue
 		}
 		// Check if any living character knows this activity
 		for _, char := range chars {

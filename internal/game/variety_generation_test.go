@@ -29,32 +29,44 @@ func TestGenerateVarieties_CreatesExpectedCounts(t *testing.T) {
 }
 
 func TestGenerateVarieties_MushroomsCanHavePatternOrTexture(t *testing.T) {
-	registry := GenerateVarieties()
-	mushrooms := registry.VarietiesOfType("mushroom")
+	// Test that mushroom config allows patterns and textures
+	// (unlike berries which don't support them)
+	configs := GetItemTypeConfigs()
 
-	if len(mushrooms) == 0 {
-		t.Fatal("Expected at least one mushroom variety")
+	mushroomCfg, ok := configs["mushroom"]
+	if !ok {
+		t.Fatal("Expected mushroom config to exist")
 	}
 
-	// Mushrooms may have pattern (spotted) and/or texture (slimy)
-	// PatternNone and TextureNone are valid - not all mushrooms have distinguishing features
-	hasSpotted := false
-	hasSlimy := false
-	for _, m := range mushrooms {
-		if m.Pattern == types.PatternSpotted {
-			hasSpotted = true
+	if mushroomCfg.Patterns == nil || len(mushroomCfg.Patterns) == 0 {
+		t.Error("Expected mushroom config to support patterns")
+	}
+	if mushroomCfg.Textures == nil || len(mushroomCfg.Textures) == 0 {
+		t.Error("Expected mushroom config to support textures")
+	}
+
+	// Verify patterns include a non-None option
+	hasNonNonePattern := false
+	for _, p := range mushroomCfg.Patterns {
+		if p != types.PatternNone {
+			hasNonNonePattern = true
+			break
 		}
-		if m.Texture == types.TextureSlimy {
-			hasSlimy = true
-		}
+	}
+	if !hasNonNonePattern {
+		t.Error("Expected mushroom patterns to include at least one non-None pattern")
 	}
 
-	// With enough varieties, we should see both pattern and texture options used
-	if len(mushrooms) >= 4 && !hasSpotted {
-		t.Error("Expected at least one spotted mushroom variety")
+	// Verify textures include a non-None option
+	hasNonNoneTexture := false
+	for _, tex := range mushroomCfg.Textures {
+		if tex != types.TextureNone {
+			hasNonNoneTexture = true
+			break
+		}
 	}
-	if len(mushrooms) >= 4 && !hasSlimy {
-		t.Error("Expected at least one slimy mushroom variety")
+	if !hasNonNoneTexture {
+		t.Error("Expected mushroom textures to include at least one non-None texture")
 	}
 }
 

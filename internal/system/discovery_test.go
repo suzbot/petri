@@ -125,10 +125,11 @@ func TestTryDiscoverKnowHow_NoDiscoverWithZeroChance(t *testing.T) {
 	}
 }
 
-func TestTryDiscoverKnowHow_NoDiscoverOnDrink(t *testing.T) {
+func TestTryDiscoverKnowHow_NoHarvestDiscoverOnDrink(t *testing.T) {
 	char := &entity.Character{
 		Name:            "Test",
 		KnownActivities: []string{},
+		KnownRecipes:    []string{"hollow-gourd"}, // Already knows recipe so that won't trigger
 	}
 	item := &entity.Item{
 		ItemType: "berry",
@@ -140,6 +141,9 @@ func TestTryDiscoverKnowHow_NoDiscoverOnDrink(t *testing.T) {
 
 	if discovered {
 		t.Error("Should not discover harvest from drinking")
+	}
+	if char.KnowsActivity("harvest") {
+		t.Error("Should not know harvest after drinking")
 	}
 }
 
@@ -216,5 +220,167 @@ func TestTryDiscoverKnowHow_LogsDiscovery(t *testing.T) {
 	}
 	if entry.Type != "discovery" {
 		t.Errorf("Expected type 'discovery', got '%s'", entry.Type)
+	}
+}
+
+// Recipe discovery tests
+
+func TestTryDiscoverKnowHow_DiscoverRecipeOnGourdLook(t *testing.T) {
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{"harvest"}, // Already knows harvest so recipe can trigger
+		KnownRecipes:    []string{},
+	}
+	item := &entity.Item{
+		ItemType: "gourd",
+		Edible:   true,
+	}
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected discovery with 100% chance")
+	}
+	// Should discover both activity and recipe
+	if !char.KnowsActivity("craftVessel") {
+		t.Error("Expected character to know craftVessel after recipe discovery")
+	}
+	if !char.KnowsRecipe("hollow-gourd") {
+		t.Error("Expected character to know hollow-gourd recipe after discovery")
+	}
+}
+
+func TestTryDiscoverKnowHow_DiscoverRecipeOnGourdPickup(t *testing.T) {
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{"harvest"}, // Already knows harvest so recipe can trigger
+		KnownRecipes:    []string{},
+	}
+	item := &entity.Item{
+		ItemType: "gourd",
+		Edible:   true,
+	}
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionPickup, item, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected discovery with 100% chance")
+	}
+	if !char.KnowsActivity("craftVessel") {
+		t.Error("Expected character to know craftVessel")
+	}
+	if !char.KnowsRecipe("hollow-gourd") {
+		t.Error("Expected character to know hollow-gourd recipe")
+	}
+}
+
+func TestTryDiscoverKnowHow_DiscoverRecipeOnGourdConsume(t *testing.T) {
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{"harvest"}, // Already knows harvest so recipe can trigger
+		KnownRecipes:    []string{},
+	}
+	item := &entity.Item{
+		ItemType: "gourd",
+		Edible:   true,
+	}
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionConsume, item, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected discovery with 100% chance")
+	}
+	if !char.KnowsActivity("craftVessel") {
+		t.Error("Expected character to know craftVessel")
+	}
+	if !char.KnowsRecipe("hollow-gourd") {
+		t.Error("Expected character to know hollow-gourd recipe")
+	}
+}
+
+func TestTryDiscoverKnowHow_DiscoverRecipeOnDrink(t *testing.T) {
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{},
+		KnownRecipes:    []string{},
+	}
+
+	// Drinking from spring - no item needed
+	discovered := TryDiscoverKnowHow(char, entity.ActionDrink, nil, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected discovery with 100% chance")
+	}
+	if !char.KnowsActivity("craftVessel") {
+		t.Error("Expected character to know craftVessel")
+	}
+	if !char.KnowsRecipe("hollow-gourd") {
+		t.Error("Expected character to know hollow-gourd recipe")
+	}
+}
+
+func TestTryDiscoverKnowHow_NoRecipeDiscoverOnNonGourd(t *testing.T) {
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{},
+		KnownRecipes:    []string{},
+	}
+	item := &entity.Item{
+		ItemType: "berry", // not a gourd
+		Edible:   true,
+	}
+
+	// Looking at a berry should discover harvest, not craftVessel
+	TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
+
+	if char.KnowsActivity("craftVessel") {
+		t.Error("Should not discover craftVessel from berry")
+	}
+	if char.KnowsRecipe("hollow-gourd") {
+		t.Error("Should not discover hollow-gourd recipe from berry")
+	}
+	// But should discover harvest
+	if !char.KnowsActivity("harvest") {
+		t.Error("Should discover harvest from berry")
+	}
+}
+
+func TestTryDiscoverKnowHow_NoRecipeDiscoverWhenAlreadyKnown(t *testing.T) {
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{"harvest", "craftVessel"}, // knows both so nothing new to discover
+		KnownRecipes:    []string{"hollow-gourd"},
+	}
+	item := &entity.Item{
+		ItemType: "gourd",
+		Edible:   true,
+	}
+
+	// Should return false because everything already known
+	discovered := TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
+
+	if discovered {
+		t.Error("Should not discover when everything already known")
+	}
+}
+
+func TestTryDiscoverKnowHow_ActivityAlreadyKnownButNotRecipe(t *testing.T) {
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{"harvest", "craftVessel"}, // already knows activities
+		KnownRecipes:    []string{},                         // but not recipe
+	}
+	item := &entity.Item{
+		ItemType: "gourd",
+		Edible:   true,
+	}
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected discovery of new recipe")
+	}
+	if !char.KnowsRecipe("hollow-gourd") {
+		t.Error("Expected character to know hollow-gourd recipe")
 	}
 }

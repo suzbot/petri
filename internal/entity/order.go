@@ -1,5 +1,7 @@
 package entity
 
+import "strings"
+
 // OrderStatus represents the current state of an order
 type OrderStatus string
 
@@ -34,6 +36,10 @@ func (o *Order) DisplayName() string {
 	activity, ok := ActivityRegistry[o.ActivityID]
 	if !ok {
 		return o.ActivityID + " " + o.TargetType
+	}
+	// Craft activities: show "Craft vessel" (no target type)
+	if len(o.ActivityID) >= 5 && o.ActivityID[:5] == "craft" {
+		return "Craft " + strings.ToLower(activity.Name)
 	}
 	return activity.Name + " " + Pluralize(o.TargetType)
 }

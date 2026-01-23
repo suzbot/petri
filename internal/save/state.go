@@ -101,6 +101,7 @@ type CharacterSave struct {
 	Preferences     []PreferenceSave `json:"preferences"`
 	Knowledge       []KnowledgeSave  `json:"knowledge"`
 	KnownActivities []string         `json:"known_activities,omitempty"`
+	KnownRecipes    []string         `json:"known_recipes,omitempty"`
 
 	// Inventory
 	Carrying *ItemSave `json:"carrying,omitempty"` // Item being carried (nil if empty)
