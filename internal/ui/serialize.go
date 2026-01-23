@@ -93,6 +93,7 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 				Pattern:    string(c.Carrying.Pattern),
 				Texture:    string(c.Carrying.Texture),
 				Plant:      plantSave,
+				Container:  containerToSave(c.Carrying.Container),
 				Edible:     c.Carrying.Edible,
 				Poisonous:  c.Carrying.Poisonous,
 				Healing:    c.Carrying.Healing,
@@ -179,6 +180,27 @@ func knowledgeToSave(knowledge []entity.Knowledge) []save.KnowledgeSave {
 	return result
 }
 
+// containerToSave converts ContainerData to save format
+func containerToSave(container *entity.ContainerData) *save.ContainerDataSave {
+	if container == nil {
+		return nil
+	}
+	contents := make([]save.StackSave, len(container.Contents))
+	for i, stack := range container.Contents {
+		contents[i] = save.StackSave{
+			ItemType: stack.Variety.ItemType,
+			Color:    string(stack.Variety.Color),
+			Pattern:  string(stack.Variety.Pattern),
+			Texture:  string(stack.Variety.Texture),
+			Count:    stack.Count,
+		}
+	}
+	return &save.ContainerDataSave{
+		Capacity: container.Capacity,
+		Contents: contents,
+	}
+}
+
 // itemsToSave converts items to save format
 func itemsToSave(items []*entity.Item) []save.ItemSave {
 	result := make([]save.ItemSave, len(items))
@@ -199,6 +221,7 @@ func itemsToSave(items []*entity.Item) []save.ItemSave {
 			Pattern:    string(item.Pattern),
 			Texture:    string(item.Texture),
 			Plant:      plantSave,
+			Container:  containerToSave(item.Container),
 			Edible:     item.Edible,
 			Poisonous:  item.Poisonous,
 			Healing:    item.Healing,
@@ -252,7 +275,7 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 
 	// Restore characters (first pass - create all characters)
 	for _, cs := range state.Characters {
-		char := characterFromSave(cs)
+		char := characterFromSave(cs, registry)
 		m.gameMap.AddCharacter(char)
 		charByID[char.ID] = char
 	}
@@ -272,7 +295,7 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 
 	// Restore items (without auto-assigning IDs)
 	for _, is := range state.Items {
-		item := itemFromSave(is)
+		item := itemFromSave(is, registry)
 		m.gameMap.AddItemDirect(item)
 		if is.ID > maxItemID {
 			maxItemID = is.ID
@@ -347,7 +370,8 @@ func varietiesFromSave(varieties []save.VarietySave) *game.VarietyRegistry {
 }
 
 // characterFromSave converts a saved character back to an entity
-func characterFromSave(cs save.CharacterSave) *entity.Character {
+// registry is optional - only needed if carried item has container with contents
+func characterFromSave(cs save.CharacterSave, registry *game.VarietyRegistry) *entity.Character {
 	char := &entity.Character{
 		ID:   cs.ID,
 		Name: cs.Name,
@@ -396,7 +420,7 @@ func characterFromSave(cs save.CharacterSave) *entity.Character {
 
 	// Restore carried item if present
 	if cs.Carrying != nil {
-		char.Carrying = itemFromSave(*cs.Carrying)
+		char.Carrying = itemFromSave(*cs.Carrying, registry)
 	}
 
 	// Restore assigned order
@@ -435,8 +459,39 @@ func knowledgeFromSave(knowledge []save.KnowledgeSave) []entity.Knowledge {
 	return result
 }
 
+// containerFromSave converts saved ContainerData back to entity
+// registry is used to look up variety pointers for stacks
+func containerFromSave(cs *save.ContainerDataSave, registry *game.VarietyRegistry) *entity.ContainerData {
+	if cs == nil {
+		return nil
+	}
+	contents := make([]entity.Stack, len(cs.Contents))
+	for i, ss := range cs.Contents {
+		// Look up variety from registry by attributes
+		var variety *entity.ItemVariety
+		if registry != nil {
+			varietyID := entity.GenerateVarietyID(
+				ss.ItemType,
+				types.Color(ss.Color),
+				types.Pattern(ss.Pattern),
+				types.Texture(ss.Texture),
+			)
+			variety = registry.Get(varietyID)
+		}
+		contents[i] = entity.Stack{
+			Variety: variety,
+			Count:   ss.Count,
+		}
+	}
+	return &entity.ContainerData{
+		Capacity: cs.Capacity,
+		Contents: contents,
+	}
+}
+
 // itemFromSave converts a saved item back to an entity
-func itemFromSave(is save.ItemSave) *entity.Item {
+// registry is optional - only needed if item has container with contents
+func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item {
 	var plant *entity.PlantProperties
 	if is.Plant != nil {
 		plant = &entity.PlantProperties{
@@ -452,6 +507,7 @@ func itemFromSave(is save.ItemSave) *entity.Item {
 		Pattern:    types.Pattern(is.Pattern),
 		Texture:    types.Texture(is.Texture),
 		Plant:      plant,
+		Container:  containerFromSave(is.Container, registry),
 		Edible:     is.Edible,
 		Poisonous:  is.Poisonous,
 		Healing:    is.Healing,

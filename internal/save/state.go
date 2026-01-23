@@ -115,6 +115,22 @@ type PlantPropertiesSave struct {
 	SpawnTimer float64 `json:"spawn_timer"`
 }
 
+// StackSave represents a stack in a container for serialization
+type StackSave struct {
+	// Variety attributes (serialized by value, not pointer)
+	ItemType string `json:"item_type"`
+	Color    string `json:"color"`
+	Pattern  string `json:"pattern"`
+	Texture  string `json:"texture"`
+	Count    int    `json:"count"`
+}
+
+// ContainerDataSave represents container properties for serialization
+type ContainerDataSave struct {
+	Capacity int         `json:"capacity"`
+	Contents []StackSave `json:"contents,omitempty"`
+}
+
 // ItemSave represents an item for serialization
 type ItemSave struct {
 	ID       int    `json:"id"`
@@ -127,6 +143,9 @@ type ItemSave struct {
 
 	// Plant properties (nil for non-plants)
 	Plant *PlantPropertiesSave `json:"plant,omitempty"`
+
+	// Container properties (nil for non-containers)
+	Container *ContainerDataSave `json:"container,omitempty"`
 
 	Edible    bool `json:"edible"`
 	Poisonous bool `json:"poisonous"`

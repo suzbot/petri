@@ -11,6 +11,18 @@ type PlantProperties struct {
 	SpawnTimer float64 // Countdown until next spawn opportunity
 }
 
+// Stack represents a quantity of items of a single variety in a container
+type Stack struct {
+	Variety *ItemVariety // What variety this stack holds
+	Count   int          // How many items in the stack
+}
+
+// ContainerData contains properties specific to containers (vessels, etc.)
+type ContainerData struct {
+	Capacity int     // How many stacks this container can hold
+	Contents []Stack // Stacks currently in the container
+}
+
 // Item represents an item in the game world
 type Item struct {
 	BaseEntity
@@ -24,6 +36,9 @@ type Item struct {
 
 	// Plant properties (nil for non-plants like crafted items)
 	Plant *PlantProperties
+
+	// Container properties (nil for non-containers)
+	Container *ContainerData
 
 	// Functional attributes (not opinion-formable)
 	Edible    bool
