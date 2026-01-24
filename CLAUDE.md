@@ -89,8 +89,14 @@ internal/
 
 ## Collaboration
 
-TTD, Iterative Approach. Frequent discussion. Present options with trade-offs. Frequent human testing checkpoints. Update claude.md, REAMDE, and other documentation along the way.
+**Discussion → Implementation → Human Testing → Documentation**
 
+- **Discussion first**: Always discuss approach before writing code. Present options with trade-offs.
+- **TDD**: Write tests before implementation (see docs/testingProcess)
+- **Human testing required**: Do NOT mark features complete until user has manually tested
+- **Keep docs current**: Update claude.md, README, game-mechanics as part of feature work
+
+Process docs:
 - When starting a new Phase, always read docs/new-phase-process.md
 - When starting a new feature within a phase, always read docs/feature-dev-process.md
 

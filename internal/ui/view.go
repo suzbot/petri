@@ -776,7 +776,7 @@ func (m Model) renderDetails() string {
 		)
 		// Show Growing status for plants that can spread
 		if item.Plant != nil && item.Plant.IsGrowing {
-			lines = append(lines, " Growing")
+			lines = append(lines, " "+growingStyle.Render("Growing"))
 		}
 	} else if feature != nil {
 		lines = append(lines, " Type: Feature")

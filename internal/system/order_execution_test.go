@@ -880,3 +880,64 @@ func TestSelectOrderActivity_FullInventory_DropsOnPickup(t *testing.T) {
 		t.Errorf("Expected OrderAssigned, got %s", order.Status)
 	}
 }
+
+// =============================================================================
+// Harvest Filter - IsGrowing (Feature 3b)
+// =============================================================================
+
+func TestFindNearestItemByType_SkipsNonGrowingItems(t *testing.T) {
+	t.Parallel()
+
+	// Growing berry (should be targeted)
+	growingBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
+	// growingBerry.Plant.IsGrowing is true by default
+
+	// Non-growing berry (dropped - should be skipped)
+	droppedBerry := entity.NewBerry(3, 3, types.ColorBlue, false, false)
+	droppedBerry.Plant.IsGrowing = false
+
+	items := []*entity.Item{droppedBerry, growingBerry}
+
+	result := findNearestItemByType(0, 0, items, "berry")
+
+	if result != growingBerry {
+		t.Errorf("Expected growing berry, got %v", result)
+	}
+}
+
+func TestFindNearestItemByType_ReturnsNilWhenOnlyNonGrowingItems(t *testing.T) {
+	t.Parallel()
+
+	// Only non-growing items
+	droppedBerry := entity.NewBerry(3, 3, types.ColorRed, false, false)
+	droppedBerry.Plant.IsGrowing = false
+
+	items := []*entity.Item{droppedBerry}
+
+	result := findNearestItemByType(0, 0, items, "berry")
+
+	if result != nil {
+		t.Error("Should return nil when only non-growing items exist")
+	}
+}
+
+func TestFindNearestItemByType_SkipsItemsWithNilPlant(t *testing.T) {
+	t.Parallel()
+
+	// Vessel (no Plant property)
+	gourd := entity.NewGourd(3, 3, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	vessel := CreateVessel(gourd, recipe)
+	vessel.ItemType = "berry" // Artificially set type to test Plant filter
+
+	// Growing berry
+	growingBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
+
+	items := []*entity.Item{vessel, growingBerry}
+
+	result := findNearestItemByType(0, 0, items, "berry")
+
+	if result != growingBerry {
+		t.Errorf("Expected growing berry (not vessel), got %v", result)
+	}
+}

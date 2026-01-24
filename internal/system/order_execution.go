@@ -217,6 +217,10 @@ func findNearestItemByType(cx, cy int, items []*entity.Item, itemType string) *e
 		if item.ItemType != itemType {
 			continue
 		}
+		// Only consider growing items for harvest
+		if item.Plant == nil || !item.Plant.IsGrowing {
+			continue
+		}
 
 		ix, iy := item.Position()
 		dist := abs(cx-ix) + abs(cy-iy)

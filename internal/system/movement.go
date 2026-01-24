@@ -899,8 +899,11 @@ func findForageTarget(char *entity.Character, cx, cy int, items []*entity.Item) 
 	bestDist := int(^uint(0) >> 1)              // Max int for distance tiebreaker
 
 	for _, item := range items {
-		// Only consider edible items for foraging
+		// Only consider edible, growing items for foraging
 		if !item.Edible {
+			continue
+		}
+		if item.Plant == nil || !item.Plant.IsGrowing {
 			continue
 		}
 

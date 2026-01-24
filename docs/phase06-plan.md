@@ -298,8 +298,15 @@ Recipe time is in game time. Hollow gourd vessel recipe temporarily set to 10 se
 - [x] Randomize starting names from curated list
 - [ ] Remove single char mode from UI
 - [ ] Add flag for character count control
+- [ ] Make "Growing" text olive color in item details panel
+- [ ] Choose a color for order-related events in action log
+- [ ] Show speed in debug mode on character details panel
 
 ---
+
+## Bugs to Investigate
+
+- [ ] **World deletion log merge**: When deleting a world and creating a new one, old world logs may merge with newly generated world. Needs reproduction and investigation.
 
 ## Post-Phase 6 Considerations
 

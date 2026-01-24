@@ -1213,3 +1213,73 @@ func TestContinueIntent_ActionConsume_PreservesIntent(t *testing.T) {
 		t.Error("TargetItem should be preserved")
 	}
 }
+
+// =============================================================================
+// Foraging Filter - IsGrowing (Feature 3b)
+// =============================================================================
+
+func TestFindForageTarget_SkipsNonGrowingItems(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPosition(0, 0)
+
+	// Growing berry (should be targeted)
+	growingBerry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	// growingBerry.Plant.IsGrowing is true by default from constructor
+
+	// Non-growing berry (dropped item - should be skipped)
+	droppedBerry := entity.NewBerry(3, 3, types.ColorBlue, false, false)
+	droppedBerry.Plant.IsGrowing = false // Simulates picked up and dropped
+
+	items := []*entity.Item{droppedBerry, growingBerry}
+
+	result := findForageTarget(char, 0, 0, items)
+
+	if result != growingBerry {
+		t.Errorf("Expected growing berry, got %v", result)
+	}
+}
+
+func TestFindForageTarget_ReturnsNilWhenOnlyNonGrowingItems(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPosition(0, 0)
+
+	// Only non-growing items
+	droppedBerry := entity.NewBerry(3, 3, types.ColorRed, false, false)
+	droppedBerry.Plant.IsGrowing = false
+
+	items := []*entity.Item{droppedBerry}
+
+	result := findForageTarget(char, 0, 0, items)
+
+	if result != nil {
+		t.Error("Should return nil when only non-growing items exist")
+	}
+}
+
+func TestFindForageTarget_SkipsItemsWithNilPlant(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPosition(0, 0)
+
+	// Vessel (no Plant property, not forageable)
+	gourd := entity.NewGourd(3, 3, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	vessel := CreateVessel(gourd, recipe)
+	vessel.Edible = true // Artificially make edible to test Plant filter
+
+	// Growing berry
+	growingBerry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+
+	items := []*entity.Item{vessel, growingBerry}
+
+	result := findForageTarget(char, 0, 0, items)
+
+	if result != growingBerry {
+		t.Errorf("Expected growing berry (not vessel), got %v", result)
+	}
+}

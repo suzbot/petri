@@ -44,6 +44,9 @@ var (
 	waterStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))  // bright blue
 	leafStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("106")) // olive/leaf green
 
+	// Agricultural/plant status
+	growingStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("106")) // olive green
+
 	// UI highlight
 	highlightStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("45")) // cyan/teal
 
