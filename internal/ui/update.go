@@ -702,6 +702,15 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 						return
 					}
 
+					// Handle pickup failure (variety mismatch with carried vessel)
+					// This shouldn't happen with proper intent filtering, but handle gracefully
+					if result == system.PickupFailed {
+						char.Intent = nil
+						char.IdleCooldown = config.IdleCooldown
+						char.CurrentActivity = "Idle"
+						return
+					}
+
 					// PickupToInventory - inventory now full (one item)
 					// Check for harvest order completion
 					// Craft orders don't complete on pickup - they complete after crafting

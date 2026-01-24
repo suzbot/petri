@@ -1,0 +1,93 @@
+
+
+
+## 9A How To Discover More - Depends on Phase 5 
+ - Default order able activity: ponder. Pondering is spending x amount of time looking at any random object on the map. Pondering doubles their mood chances of making a discovery that depends on that item.
+
+## 9B Cultural Artifacts (Depends on containers, dye, needs more resources and skills)
+- items can be decorated with paint. Decorated items can impact mood/preferences
+- Characters can decorate self? (Future: washes way with water or rain)
+
+## 10. Relationships
+- as initial basis, give characters attribute of eye color. And hair color. And Skin color. Make this settable at character creation. Eyes can be any color but red or white. Hair and skin color are same as mushroom color options.
+-  Character starts with neutral tier perception of other (50)
+	- 0-20 Hates
+	- 20-40 Dislikes
+	- 40-60 Neutral
+	- 60-80 Likes
+	- 80-100 Loves
+- If character is in a good mood while doing activity with that person as target, it can raise perception, if in bad mood, can lower perception
+- If character notices an attribute of the other character that they like, then that raises their perception of them - noticing can be an outcome of interacting like learning something? Is it an opinion you form once? A short term memory “Len appreciated Hari’s blue eyes” — should that be able to happen again in the future? Or only if it has moved out of short term memory? We do not form opinions about skin color in this game.
+- should include any character decorations
+- If character already likes person, then talking/following etc can raise their mood. If already dislikes them, then can lower their mood.
+- What order should these be evaluated in? 
+
+
+## 11. Learning through observation - Depends on Phase 5 (Complete), maybe depends on relationships? If not, need to pull out relationship scope. What order does it make sense to do it in?
+Knew knowledge category:
+	⁃	Desire? Goals?
+	⁃	From talking, Hari can Transmit concept of Harvest to Len
+	⁃	Len can respond by 
+	⁃	Interested in Harvesting from Len
+	⁃	Doesn’t care about harvesting
+	⁃	Once has a learning goal, an idle possibility is observing Hari until Len completes a harvest during a follow period. That triggers Len learning to harvest
+	⁃	If Hari learns something (poisonous or healing) while Len is observing, then Len learns that from watching too, without having direct experience.
+	⁃	If/when have relationships, if Len doesn’t like Hari, he’s more likely to form ‘doesn’t care about harvesting’
+	⁃	If he talks to someone else and forms positive, it can clear not caring. If he talks to someone and forms positive again, it can form desire to learn from that person.
+	⁃	Relationships: if Hari doesn’t like Len, he might ‘shoo away Len’, interrupting Len’s follow, lowering Len’s feeling towards Hari, and making Len re-evaluate idle activity.
+	⁃	For activities with recipes
+	⁃	Once Len knows Craft Vessel, he can learn the Hollow Gourd recipe either by discovery OR by talking to someone else who knows Hollow Gourd recipe. That way he can learn about wood bucket or clay pot through 
+
+## 12. Building Shelter
+- grass hut, stick hut, brick hut features
+
+## 13. Threats
+- wolves
+- destruction (features have strength, 0 means not destroyable)
+
+
+## 14. TREES
+- as mountain is to dwarf fortress, so tree is to petri
+	- generate trees of random width on map. from 1-10 units wide. Any edge unit adjacent to the ‘outside’ on spawning is livewood. Any unit not touching any outside is ‘heartwood’ 
+	- some trees are generated hollow with an opening
+	- otherwise they have to dig into trees with stone axe (tool crafting needs to be discovered, stick and stone needs to be a resource)
+	- need door crafting
+	- then hollow tree can be an impenetrable home (except for durability of door)
+
+
+## Knowledge Transmission through writing (depends on more resources/crafting/discovery)
+	⁃	Diary: every time someone learns something, they write their knowledge in the diary
+	⁃	Community Cookbook: every time someone learns something in a category, they write it in the community tome, or tell it to a scribe who can write it in a tome.
+	⁃	Reading is a skill
+	⁃	Writing is a skill
+	⁃	Writing is discovered first, whoever discovers writing first gets both reading and writing
+	⁃	Writing idea is discovered from engaging with something that can directly be written on or with
+	⁃	Bark
+	⁃	Clay
+	⁃	Charcoal
+
+## ?? Population Growth: Stranger Comes to town
+Someone with a name of first name: random name list + last name: randomnames list + kin
+They can interact with anything, but can’t take orders. If they become joyful, they will talk to someone and ask to join. If that person likes them they will say yes. If they are neutral they will say ask someone else. Perhaps other attributes can affect how this goes
+
+
+## ?? Population Growth: Reproduction
+- ugh I don’t want to do this yet, need to figure out age, family relationships, etc. OR, just find babies under mushrooms? But then how do they inherit traits? Maybe whoever they imprint on until all their primary attributes are full?
+- Ok proposal: when a character is joyful and they are bonded with at least one person, then they have a chance of finding a mushroom baby. They have a cooldown period before they are eligible to find a mushroom baby again. They call a gathering of all the people who are bonded with them, and together they all name the baby and the baby imprints on all of them, getting a random combination of traits. 
+
+## ?? Naming:
+First name: 3-6 first letters from finders favorite person or item plus chance of 3-6 first letters from another favorite person or item 
+Last name: findername +kin
+
+Skin color will be from the mushroom they were found under. Everything else will be left until the naming ceremony.
+Ashmgour Ashmosskin has Ashmoss’s blue eyes.
+Ashmgour Ashmosskin has Gourgour’s purple hair.
+
+## ?? Ability to name the place
+When pondering, you might name the map, if you don’t already have a name for it. You might call this map Joy Glade. Then when you talk to someone, you share its name. If you both have a different name for something, then you’ll combine names and both agree on that. 
+
+Place Start names: Mushroom, Oak, Misty, Foggy, Flower, Dewy, Mossy, Spring, Green, Berry, Toadstool, Fey, Whisper, Shady, Soft, Gentle, Gourd, Joy, Briar, Thorn, Pumpkin, Squash, Sweet, Quiet, Rustling, Nut, Stick, Branch
+Place end names: Field, Grove, Glen, Vale, Dale, Lea, Meadow, Woods, Forest, Bottom, Dell, Valley, Hollow, Fen, Marsh, Glade, Bower, Garden, Thicket, Copse, Combe, Down, Grotto
+Later: Pond, Creek, Beck, Brook, Stream, Gully
+
+

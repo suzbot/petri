@@ -458,3 +458,192 @@ func TestPickup_ToInventory(t *testing.T) {
 		t.Error("Intent should be cleared")
 	}
 }
+
+// =============================================================================
+// CanVesselAccept Tests
+// =============================================================================
+
+func TestCanVesselAccept_EmptyVessel(t *testing.T) {
+	vessel := createTestVessel()
+	registry := createTestRegistry()
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+
+	if !CanVesselAccept(vessel, berry, registry) {
+		t.Error("Empty vessel should accept any item")
+	}
+}
+
+func TestCanVesselAccept_MatchingVariety(t *testing.T) {
+	vessel := createTestVessel()
+	registry := createTestRegistry()
+
+	// Add a red berry to vessel
+	berry1 := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	AddToVessel(vessel, berry1, registry)
+
+	// Same variety should be accepted
+	berry2 := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	if !CanVesselAccept(vessel, berry2, registry) {
+		t.Error("Vessel should accept matching variety")
+	}
+}
+
+func TestCanVesselAccept_DifferentVariety(t *testing.T) {
+	vessel := createTestVessel()
+	registry := createTestRegistry()
+
+	// Add a red berry to vessel
+	berry1 := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	AddToVessel(vessel, berry1, registry)
+
+	// Different variety should be rejected
+	berry2 := entity.NewBerry(0, 0, types.ColorBlue, false, false)
+	if CanVesselAccept(vessel, berry2, registry) {
+		t.Error("Vessel should reject different variety")
+	}
+}
+
+func TestCanVesselAccept_FullVessel(t *testing.T) {
+	vessel := createTestVessel()
+	registry := createTestRegistry()
+
+	// Fill vessel with gourds (stack size 1)
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	AddToVessel(vessel, gourd, registry)
+
+	// Same variety should be rejected when full
+	gourd2 := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	if CanVesselAccept(vessel, gourd2, registry) {
+		t.Error("Full vessel should reject items even if variety matches")
+	}
+}
+
+// =============================================================================
+// FindAvailableVessel Tests
+// =============================================================================
+
+func TestFindAvailableVessel_FindsEmptyVessel(t *testing.T) {
+	registry := createTestRegistry()
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	vessel := createTestVessel()
+	vessel.X = 3
+	vessel.Y = 3
+
+	items := []*entity.Item{berry, vessel}
+
+	found := FindAvailableVessel(0, 0, items, berry, registry)
+	if found != vessel {
+		t.Error("Should find empty vessel")
+	}
+}
+
+func TestFindAvailableVessel_FindsMatchingVessel(t *testing.T) {
+	registry := createTestRegistry()
+
+	// Berry to pick up
+	targetBerry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+
+	// Vessel with same variety
+	vessel := createTestVessel()
+	vessel.X = 3
+	vessel.Y = 3
+	existingBerry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	AddToVessel(vessel, existingBerry, registry)
+
+	items := []*entity.Item{targetBerry, vessel}
+
+	found := FindAvailableVessel(0, 0, items, targetBerry, registry)
+	if found != vessel {
+		t.Error("Should find vessel with matching variety")
+	}
+}
+
+func TestFindAvailableVessel_SkipsIncompatibleVessel(t *testing.T) {
+	registry := createTestRegistry()
+
+	// Berry to pick up
+	targetBerry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+
+	// Vessel with different variety
+	vessel := createTestVessel()
+	vessel.X = 3
+	vessel.Y = 3
+	blueBerry := entity.NewBerry(0, 0, types.ColorBlue, false, false)
+	AddToVessel(vessel, blueBerry, registry)
+
+	items := []*entity.Item{targetBerry, vessel}
+
+	found := FindAvailableVessel(0, 0, items, targetBerry, registry)
+	if found != nil {
+		t.Error("Should not find vessel with incompatible variety")
+	}
+}
+
+func TestFindAvailableVessel_FindsNearest(t *testing.T) {
+	registry := createTestRegistry()
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+
+	// Far vessel
+	farVessel := createTestVessel()
+	farVessel.X = 9
+	farVessel.Y = 9
+
+	// Near vessel
+	nearVessel := createTestVessel()
+	nearVessel.X = 1
+	nearVessel.Y = 1
+
+	items := []*entity.Item{berry, farVessel, nearVessel}
+
+	found := FindAvailableVessel(0, 0, items, berry, registry)
+	if found != nearVessel {
+		t.Error("Should find nearest available vessel")
+	}
+}
+
+// =============================================================================
+// findForageTarget with Vessel Tests
+// =============================================================================
+
+func TestFindForageTarget_FiltersToVesselVariety(t *testing.T) {
+	registry := createTestRegistry()
+	char := &entity.Character{ID: 1, Name: "Test"}
+
+	// Vessel with red berries
+	vessel := createTestVessel()
+	redBerry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	AddToVessel(vessel, redBerry, registry)
+
+	// Closer blue berry (should be skipped)
+	blueBerry := entity.NewBerry(1, 1, types.ColorBlue, false, false)
+	// Farther red berry (should be found)
+	targetBerry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+
+	items := []*entity.Item{blueBerry, targetBerry}
+
+	target := findForageTarget(char, 0, 0, items, vessel)
+
+	if target != targetBerry {
+		t.Error("Should find red berry matching vessel variety, not closer blue berry")
+	}
+}
+
+func TestFindForageTarget_NoFilterWhenVesselEmpty(t *testing.T) {
+	char := &entity.Character{ID: 1, Name: "Test"}
+
+	// Empty vessel
+	vessel := createTestVessel()
+
+	// Closer blue berry (should be found - no variety filter)
+	blueBerry := entity.NewBerry(1, 1, types.ColorBlue, false, false)
+	// Farther red berry
+	redBerry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+
+	items := []*entity.Item{blueBerry, redBerry}
+
+	target := findForageTarget(char, 0, 0, items, vessel)
+
+	if target != blueBerry {
+		t.Error("Empty vessel should not filter - should find closest edible item")
+	}
+}

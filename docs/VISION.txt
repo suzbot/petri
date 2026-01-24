@@ -31,15 +31,22 @@ the simulated community.
 
 DEVELOPMENT PHASES
 
-X   Phase I:    Character is driven by basic needs and simple preferences
-X   Phase II:   Multi-Character support
-X   Phase III:  Mood tracking and Preference formation
-X   Phase IV:   Basic Knowledge
-->  Phase V:    Inventory, Discovery, and simple job assignment
-    Phase VI:   Containers and Storage (hollow gourd)
-    Phase VII:  Basic Recipes and Crafting (flower dye)
-    Phase VIII: Simple Agriculture: seeds, water carrying, planting
+1. Character is driven by basic needs and simple preferences
+2. Multi-Character support
+3. Mood tracking and Preference formation
+4. Basic Knowledge
+5. Inventory, Discovery, and simple job assignment
+6. Containers and Storage (hollow gourd) [WE ARE HERE]
+7. Basic Recipes and Crafting (flower dye)
+8: Simple Agriculture: seeds, water carrying, planting
+9. Enhanced Discovery and Decoration
+10. Basic Character Attributes and Relationships
+11. Basic Shelter Construction
+12. Enhanced Learning: Recipe Sharing, Teaching, and Observation
+13. Basic Threats and Destruction (wolves)
+14. TREES are to Petri as mountains are to Dwarf Fortress - big trees to burrow into and live in
 
+See docs/Future Phase Brainstorming.txt for details on phases
 
 OTHER INTENDED FEATURES (Not yet prioritized)
 
@@ -49,15 +56,10 @@ OTHER INTENDED FEATURES (Not yet prioritized)
 - Time and Memory
 - Environmental interactions
     - Weather
-    - Predators
     - Other Animals
-- Shelter
 - Social interactions and relationships
 - Events and Character Memory
 - Writing and Character created documents
-- Training and knowledge transmission
-- Observation and imitation
-- Character physical attributes and relationship preferences
 - Personality Attribute (Lazy, Industrious, etc)
 - UI Panel Enhancements
 - Configurable Key bindings

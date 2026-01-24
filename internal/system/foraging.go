@@ -63,6 +63,37 @@ func CanPickUpMore(char *entity.Character, registry *game.VarietyRegistry) bool 
 	return false
 }
 
+// CanVesselAccept returns true if a vessel can accept a specific item.
+// True if: vessel is empty, OR vessel has same variety and space remaining.
+func CanVesselAccept(vessel, item *entity.Item, registry *game.VarietyRegistry) bool {
+	if vessel == nil || vessel.Container == nil || registry == nil {
+		return false
+	}
+
+	// Empty vessel can accept anything
+	if len(vessel.Container.Contents) == 0 {
+		return true
+	}
+
+	// Check if variety matches
+	stack := vessel.Container.Contents[0]
+	if stack.Variety == nil {
+		return false
+	}
+
+	// Must match variety
+	if item.ItemType != stack.Variety.ItemType ||
+		item.Color != stack.Variety.Color ||
+		item.Pattern != stack.Variety.Pattern ||
+		item.Texture != stack.Variety.Texture {
+		return false
+	}
+
+	// Check if stack has space
+	stackSize := config.GetStackSize(stack.Variety.ItemType)
+	return stack.Count < stackSize
+}
+
 // IsVesselFull returns true if the vessel cannot hold more items.
 // A vessel is full when its stack is at capacity for that item type.
 // Returns false if vessel has no container or is empty (can accept new items).
@@ -83,6 +114,39 @@ func IsVesselFull(vessel *entity.Item, registry *game.VarietyRegistry) bool {
 
 	stackSize := config.GetStackSize(stack.Variety.ItemType)
 	return stack.Count >= stackSize
+}
+
+// FindAvailableVessel finds the nearest vessel on the map that can accept a target item.
+// Returns nil if no suitable vessel is found.
+// A vessel is suitable if it's empty OR has matching variety with space.
+func FindAvailableVessel(cx, cy int, items []*entity.Item, targetItem *entity.Item, registry *game.VarietyRegistry) *entity.Item {
+	if targetItem == nil || registry == nil {
+		return nil
+	}
+
+	var nearest *entity.Item
+	nearestDist := int(^uint(0) >> 1) // Max int
+
+	for _, item := range items {
+		// Must be a vessel (has container)
+		if item.Container == nil {
+			continue
+		}
+
+		// Check if vessel can accept the target item
+		if !CanVesselAccept(item, targetItem, registry) {
+			continue
+		}
+
+		ix, iy := item.Position()
+		dist := abs(cx-ix) + abs(cy-iy)
+		if dist < nearestDist {
+			nearestDist = dist
+			nearest = item
+		}
+	}
+
+	return nearest
 }
 
 // Drop handles a character dropping an item from inventory
@@ -117,6 +181,8 @@ const (
 	PickupToInventory PickupResult = iota
 	// PickupToVessel - item was added to a carried vessel
 	PickupToVessel
+	// PickupFailed - could not pick up (vessel variety mismatch or full)
+	PickupFailed
 )
 
 // Pickup handles a character picking up an item (foraging/harvesting).
@@ -127,7 +193,7 @@ const (
 func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *ActionLog, registry *game.VarietyRegistry) PickupResult {
 	itemName := item.Description()
 
-	// Check if carrying a vessel with space
+	// Check if carrying a vessel
 	if char.Carrying != nil && char.Carrying.Container != nil {
 		if AddToVessel(char.Carrying, item, registry) {
 			// Successfully added to vessel
@@ -153,8 +219,9 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 			// DON'T clear intent - caller will decide if foraging continues
 			return PickupToVessel
 		}
-		// Vessel full or variety mismatch - can't pick up
-		// This shouldn't normally happen since we check before foraging
+		// Vessel full or variety mismatch - cannot pick up without dropping vessel
+		// Return failure so caller can decide whether to drop vessel or skip item
+		return PickupFailed
 	}
 
 	// Standard pickup to inventory
@@ -193,11 +260,60 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 // findForageIntent creates an intent to forage (pick up) an edible item.
 // Called by selectIdleActivity when foraging is selected.
 // Uses preference/distance scoring similar to eating but without hunger-based filtering.
-func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, log *ActionLog) *entity.Intent {
+// If not carrying a vessel, will look for one first before foraging.
+// If carrying a vessel with contents, only targets matching variety.
+func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, log *ActionLog, registry *game.VarietyRegistry) *entity.Intent {
+	// Get the vessel if carrying one (used for variety filtering)
+	var vessel *entity.Item
+	if char.Carrying != nil && char.Carrying.Container != nil {
+		vessel = char.Carrying
+	}
+
 	// Find best edible item using preference/distance gradient
-	target := findForageTarget(char, cx, cy, items)
+	// If carrying vessel with contents, only considers matching variety
+	target := findForageTarget(char, cx, cy, items, vessel)
 	if target == nil {
 		return nil
+	}
+
+	// If not carrying anything, look for available vessel first
+	if char.Carrying == nil {
+		availableVessel := FindAvailableVessel(cx, cy, items, target, registry)
+		if availableVessel != nil {
+			// Go pick up vessel first
+			vx, vy := availableVessel.Position()
+			if cx == vx && cy == vy {
+				newActivity := "Picking up vessel"
+				if char.CurrentActivity != newActivity {
+					char.CurrentActivity = newActivity
+					if log != nil {
+						log.Add(char.ID, char.Name, "activity", "Picking up vessel for foraging")
+					}
+				}
+				return &entity.Intent{
+					TargetX:    cx,
+					TargetY:    cy,
+					Action:     entity.ActionPickup,
+					TargetItem: availableVessel,
+				}
+			}
+			// Move toward vessel
+			nx, ny := NextStep(cx, cy, vx, vy)
+			newActivity := "Moving to pick up vessel"
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+				if log != nil {
+					log.Add(char.ID, char.Name, "activity", "Getting vessel for foraging")
+				}
+			}
+			return &entity.Intent{
+				TargetX:    nx,
+				TargetY:    ny,
+				Action:     entity.ActionPickup,
+				TargetItem: availableVessel,
+			}
+		}
+		// No vessel available - proceed to pick up target directly (single item)
 	}
 
 	tx, ty := target.Position()
@@ -241,9 +357,16 @@ func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, 
 
 // findForageTarget finds the best edible item for foraging using preference/distance scoring.
 // Uses moderate preference weight - foraging is idle activity, not urgent need.
-func findForageTarget(char *entity.Character, cx, cy int, items []*entity.Item) *entity.Item {
+// If vessel is provided and has contents, only returns items matching the vessel's variety.
+func findForageTarget(char *entity.Character, cx, cy int, items []*entity.Item, vessel *entity.Item) *entity.Item {
 	if len(items) == 0 {
 		return nil
+	}
+
+	// Get variety constraint from vessel if it has contents
+	var requiredVariety *entity.ItemVariety
+	if vessel != nil && vessel.Container != nil && len(vessel.Container.Contents) > 0 {
+		requiredVariety = vessel.Container.Contents[0].Variety
 	}
 
 	var bestItem *entity.Item
@@ -257,6 +380,16 @@ func findForageTarget(char *entity.Character, cx, cy int, items []*entity.Item) 
 		}
 		if item.Plant == nil || !item.Plant.IsGrowing {
 			continue
+		}
+
+		// If vessel has variety constraint, item must match
+		if requiredVariety != nil {
+			if item.ItemType != requiredVariety.ItemType ||
+				item.Color != requiredVariety.Color ||
+				item.Pattern != requiredVariety.Pattern ||
+				item.Texture != requiredVariety.Texture {
+				continue
+			}
 		}
 
 		netPref := char.NetPreference(item)

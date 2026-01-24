@@ -4,12 +4,13 @@ import (
 	"fmt"
 
 	"petri/internal/entity"
+	"petri/internal/game"
 )
 
 // selectOrderActivity checks if a character should work on an order instead of a random idle activity.
 // Returns an intent if the character takes or resumes an order, nil otherwise.
 // Handles order assignment, resumption, and abandonment.
-func selectOrderActivity(char *entity.Character, cx, cy int, items []*entity.Item, orders []*entity.Order, log *ActionLog) *entity.Intent {
+func selectOrderActivity(char *entity.Character, cx, cy int, items []*entity.Item, gameMap *game.Map, orders []*entity.Order, log *ActionLog) *entity.Intent {
 	if orders == nil {
 		return nil
 	}
@@ -25,7 +26,7 @@ func selectOrderActivity(char *entity.Character, cx, cy int, items []*entity.Ite
 					log.Add(char.ID, char.Name, "order", fmt.Sprintf("Resuming order: %s", order.DisplayName()))
 				}
 			}
-			if intent := findOrderIntent(char, cx, cy, items, order, log); intent != nil {
+			if intent := findOrderIntent(char, cx, cy, items, order, log, gameMap); intent != nil {
 				return intent
 			}
 			// Order cannot be fulfilled - abandon it
@@ -51,7 +52,7 @@ func selectOrderActivity(char *entity.Character, cx, cy int, items []*entity.Ite
 		log.Add(char.ID, char.Name, "order", fmt.Sprintf("Taking order: %s", order.DisplayName()))
 	}
 
-	if intent := findOrderIntent(char, cx, cy, items, order, log); intent != nil {
+	if intent := findOrderIntent(char, cx, cy, items, order, log, gameMap); intent != nil {
 		return intent
 	}
 
@@ -95,10 +96,10 @@ func canExecuteOrder(char *entity.Character, order *entity.Order) bool {
 
 // findOrderIntent creates an intent for executing an order based on its activity type.
 // Dispatches to activity-specific intent finding logic.
-func findOrderIntent(char *entity.Character, cx, cy int, items []*entity.Item, order *entity.Order, log *ActionLog) *entity.Intent {
+func findOrderIntent(char *entity.Character, cx, cy int, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
 	switch order.ActivityID {
 	case "harvest":
-		return findHarvestIntent(char, cx, cy, items, order, log)
+		return findHarvestIntent(char, cx, cy, items, order, log, gameMap)
 	case "craftVessel":
 		return findCraftVesselIntent(char, cx, cy, items, order, log)
 	default:
@@ -109,11 +110,92 @@ func findOrderIntent(char *entity.Character, cx, cy int, items []*entity.Item, o
 
 // findHarvestIntent creates an intent to harvest (pick up) a specific item type per order.
 // Returns nil if no matching items exist on the map.
-func findHarvestIntent(char *entity.Character, cx, cy int, items []*entity.Item, order *entity.Order, log *ActionLog) *entity.Intent {
+// Handles look-for-container (4d) and drop-when-blocked (4e) logic.
+func findHarvestIntent(char *entity.Character, cx, cy int, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
 	// Find nearest item matching the order's target type
 	target := findNearestItemByType(cx, cy, items, order.TargetType)
 	if target == nil {
 		return nil // No matching items - will trigger abandonment
+	}
+
+	registry := gameMap.Varieties()
+
+	// Check inventory state and handle vessel logic
+	if char.Carrying == nil {
+		// Not carrying anything - look for available vessel first (4d)
+		availableVessel := FindAvailableVessel(cx, cy, items, target, registry)
+		if availableVessel != nil {
+			// Go pick up vessel first
+			vx, vy := availableVessel.Position()
+			if cx == vx && cy == vy {
+				newActivity := "Picking up vessel"
+				if char.CurrentActivity != newActivity {
+					char.CurrentActivity = newActivity
+					if log != nil {
+						log.Add(char.ID, char.Name, "order", "Picking up vessel for harvesting")
+					}
+				}
+				return &entity.Intent{
+					TargetX:    cx,
+					TargetY:    cy,
+					Action:     entity.ActionPickup,
+					TargetItem: availableVessel,
+				}
+			}
+			// Move toward vessel
+			nx, ny := NextStep(cx, cy, vx, vy)
+			newActivity := "Moving to pick up vessel"
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+			}
+			return &entity.Intent{
+				TargetX:    nx,
+				TargetY:    ny,
+				Action:     entity.ActionPickup,
+				TargetItem: availableVessel,
+			}
+		}
+		// No vessel available - proceed to harvest directly (single item)
+	} else if char.Carrying.Container != nil {
+		// Carrying a vessel - check if it can accept the target
+		if !CanVesselAccept(char.Carrying, target, registry) {
+			// Vessel cannot accept target (full or variety mismatch)
+			// Drop vessel since order takes priority (4e)
+			Drop(char, gameMap, log)
+			// Now not carrying anything - look for compatible vessel
+			availableVessel := FindAvailableVessel(cx, cy, items, target, registry)
+			if availableVessel != nil {
+				vx, vy := availableVessel.Position()
+				if cx == vx && cy == vy {
+					newActivity := "Picking up vessel"
+					if char.CurrentActivity != newActivity {
+						char.CurrentActivity = newActivity
+					}
+					return &entity.Intent{
+						TargetX:    cx,
+						TargetY:    cy,
+						Action:     entity.ActionPickup,
+						TargetItem: availableVessel,
+					}
+				}
+				nx, ny := NextStep(cx, cy, vx, vy)
+				newActivity := "Moving to pick up vessel"
+				if char.CurrentActivity != newActivity {
+					char.CurrentActivity = newActivity
+				}
+				return &entity.Intent{
+					TargetX:    nx,
+					TargetY:    ny,
+					Action:     entity.ActionPickup,
+					TargetItem: availableVessel,
+				}
+			}
+			// No compatible vessel - proceed to harvest directly
+		}
+		// Vessel can accept target - proceed to harvest (will add to vessel)
+	} else {
+		// Carrying non-vessel item - this case is handled by update.go
+		// which drops items when on order before pickup
 	}
 
 	tx, ty := target.Position()

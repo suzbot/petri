@@ -16,7 +16,7 @@ func selectIdleActivity(char *entity.Character, cx, cy int, items []*entity.Item
 	// Priority: if character has an assigned order, always try to resume it (bypass cooldown)
 	// This ensures order work isn't blocked by idle cooldown when target changes
 	if char.AssignedOrderID != 0 {
-		if intent := selectOrderActivity(char, cx, cy, items, orders, log); intent != nil {
+		if intent := selectOrderActivity(char, cx, cy, items, gameMap, orders, log); intent != nil {
 			return intent
 		}
 		// Order couldn't find a target - fall through to idle activities
@@ -31,7 +31,7 @@ func selectIdleActivity(char *entity.Character, cx, cy int, items []*entity.Item
 	char.IdleCooldown = config.IdleCooldown
 
 	// Check for new order work (taking unassigned orders)
-	if intent := selectOrderActivity(char, cx, cy, items, orders, log); intent != nil {
+	if intent := selectOrderActivity(char, cx, cy, items, gameMap, orders, log); intent != nil {
 		return intent
 	}
 
@@ -49,7 +49,7 @@ func selectIdleActivity(char *entity.Character, cx, cy int, items []*entity.Item
 			return intent
 		}
 		if CanPickUpMore(char, gameMap.Varieties()) {
-			if intent := findForageIntent(char, cx, cy, items, log); intent != nil {
+			if intent := findForageIntent(char, cx, cy, items, log, gameMap.Varieties()); intent != nil {
 				return intent
 			}
 		}
@@ -63,14 +63,14 @@ func selectIdleActivity(char *entity.Character, cx, cy int, items []*entity.Item
 			return intent
 		}
 		if CanPickUpMore(char, gameMap.Varieties()) {
-			if intent := findForageIntent(char, cx, cy, items, log); intent != nil {
+			if intent := findForageIntent(char, cx, cy, items, log, gameMap.Varieties()); intent != nil {
 				return intent
 			}
 		}
 	case 2:
 		// Try foraging (only if can pick up more)
 		if CanPickUpMore(char, gameMap.Varieties()) {
-			if intent := findForageIntent(char, cx, cy, items, log); intent != nil {
+			if intent := findForageIntent(char, cx, cy, items, log, gameMap.Varieties()); intent != nil {
 				return intent
 			}
 		}

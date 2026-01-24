@@ -97,6 +97,7 @@ internal/
 - **Keep docs current**: Update claude.md, README, game-mechanics as part of feature work
 
 Process docs:
+
 - When starting a new Phase, always read docs/new-phase-process.md
 - When starting a new feature within a phase, always read docs/feature-dev-process.md
 
@@ -118,37 +119,30 @@ Phase 6: Containers and Storage (Feature 4 - Vessel Contents)
 See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 
 **Completed:**
-- Phase 6 Prep: PlantProperties struct, ContainerData struct, Stack struct
-- Feature 1: Item placement (IsGrowing tracking)
-- Feature 2: Crafting foundation (recipes, discovery)
-- Feature 3: Hollow gourd vessel (crafting, drop mechanics)
-- Feature 3b: IsGrowing filter for foraging/harvesting
+
+- Phase 6 Phases 1-3
 
 **In Progress:**
-- Feature 4: Vessel contents (stacking, filling)
 
-**Remaining:**
-- Feature 4: Vessel contents (stacking, filling)
-- Feature 5: Eating from vessels
-- Feature 6: UI updates
+- Phase 6 Feature 4: Vessel contents (stacking, filling)
 
-**Quick Wins (Parallel):**
-- Remove single char mode from UI
-- Flag for character count control
+**Up Next:**
 
-**Post-Feature 4 Check:**
-- Evaluate pickup code unification (see futureEnhancements.md) - if harvesting vessel logic duplicates foraging, consider `picking.go` refactor
+- Phase 6 Features 5-6, Clean up and close out tasks
+- Evaluation of 'random ideas' and 'future enhancements' for any applicable quick wins
+- Full code and testing audit looking to 
+	- reduce duplicate code
+	- improve concern separation
+	- reduce touchpoint when adding new actions, orders, recipes and items
+	- ensure tests are functionally relevant and not flaky or brittle
+	- evaluate that existing patterns make sense to support future phases (see vision.txt, futureEnhancements.md and future enhancement brainstorming.txt)
+- Evaluation of 'random ideas' and 'future enhancements' against future phases to prioritize anything opportunistically within or before upcoming phase
+- Phase 7 planning
+
 
 ### Deferred Enhancements & Trigger Points
 
-Technical items analyzed and consciously deferred until trigger conditions are met. See docs/futureEnancements.md for more.
-
-| Enhancement                     | Triggers (implement when ANY is met)                                        |
-| ------------------------------- | --------------------------------------------------------------------------- |
-| **Parallel Intent Calculation** | Character count ≥ 16; Intent calc exceeds ~1ms/char; Tick time exceeds 50ms |
-| **EventType for ActionLog**     | Event filtering in UI; Event-driven behavior (Phase III); Event persistence |
-| **Performance optimizations**   | Noticeable lag; Profiling shows bottlenecks                                 |
-| **Testify test package**        | Test complexity warrants it; Current assertion patterns become unwieldy     |
+Technical items analyzed and consciously deferred until trigger conditions are met. See docs/futureEnhancements.md for more.
 
 ## Reference Documents
 
@@ -159,5 +153,4 @@ Technical items analyzed and consciously deferred until trigger conditions are m
 | [docs/game-mechanics.md](docs/game-mechanics.md)       | Detailed stat thresholds, rates, systems      |
 | [docs/futureEnancements.md](docs/futureEnancements.md) | Deferred items with triggers, balance tuning  |
 | [docs/failed-approaches.md](docs/failed-approaches.md) | Approaches tried and abandoned                |
-| [docs/phase05-plan.md](docs/phase05-plan.md)           | Phase 5 implementation plan                   |
 | [docs/phase06-plan.md](docs/phase06-plan.md)           | Phase 6 implementation plan                   |

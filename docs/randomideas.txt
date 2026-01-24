@@ -8,16 +8,15 @@ When items are completed OR documented as part of a roadmap, requirement, or pla
 then they can be removed from this list.
 
 #Ready Ideas
+- Make drinking from spring happen while adjacent to tile instead of on tile, to stop issue where chars are blocked from drinking by idle chars hanging out
 - Game Mechanics a little disorganized, inconsistant about what level of detail it share. Clean up.
 - Put character names in their own special file so its super easy for users/me to add more names.
     - Names to remember to add next: Bog, Log, Fen, Pod, Bough, Toady, Tarn, Weir,
     - Bine, Brome, Brume, Cress, Daub, Nook, Fir, Frond, Furl,
     - Muld, Grue, Gnarl, Peat, Pad, Sod, Sprout
-- Natural language item descriptions: When selecting an item, show descriptive text like "This is a hollow gourd. It is a vessel that can be used to carry things. It is warty and green." Attributes present for preference/mood effects, description provides flavor text.
-- Re-evaluate how characters eat carried items:
-    - they definitely shouldn't eat a carried item they know is poison, right?
-    - Should they eat a carried disliked item instead of a liked nearby item? How does need tier play in?
-    - How do we keep characters from getting stuck carrying around poisoned items they won't eat? Will future plans for item handling take care of that naturally? (see future brainstorming rtf)
+
+- Remove single char mode from UI
+- Flag for character count control
 - ability to edit name of existing character on map
 - sticks and nuts spawn randomly, but do not grow, they are "placed" on the ground by falling from the canopy.
 - make background of map green

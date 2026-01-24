@@ -1234,7 +1234,7 @@ func TestFindForageTarget_SkipsNonGrowingItems(t *testing.T) {
 
 	items := []*entity.Item{droppedBerry, growingBerry}
 
-	result := findForageTarget(char, 0, 0, items)
+	result := findForageTarget(char, 0, 0, items, nil) // nil vessel = no variety filter
 
 	if result != growingBerry {
 		t.Errorf("Expected growing berry, got %v", result)
@@ -1253,7 +1253,7 @@ func TestFindForageTarget_ReturnsNilWhenOnlyNonGrowingItems(t *testing.T) {
 
 	items := []*entity.Item{droppedBerry}
 
-	result := findForageTarget(char, 0, 0, items)
+	result := findForageTarget(char, 0, 0, items, nil) // nil vessel = no variety filter
 
 	if result != nil {
 		t.Error("Should return nil when only non-growing items exist")
@@ -1277,7 +1277,7 @@ func TestFindForageTarget_SkipsItemsWithNilPlant(t *testing.T) {
 
 	items := []*entity.Item{vessel, growingBerry}
 
-	result := findForageTarget(char, 0, 0, items)
+	result := findForageTarget(char, 0, 0, items, nil) // nil vessel = no variety filter
 
 	if result != growingBerry {
 		t.Errorf("Expected growing berry (not vessel), got %v", result)

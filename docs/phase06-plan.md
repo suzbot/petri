@@ -46,10 +46,12 @@ Characters can craft containers and store things in them. Items can be placed on
 ### Design Decisions (Prep)
 
 **Fields staying on Item** (broader applicability):
+
 - `Edible`, `Poisonous`, `Healing` - future crafted consumables
 - `DeathTimer` - future spoiling/degrading items
 
 **Deferred fields** (not needed for Phase 6):
+
 - `IsPortable` on ContainerData - all items currently carriable
 - `IsWatertight` on ContainerData - all vessels are watertight
 - `LockedVariety` on ContainerData - future vessel restriction
@@ -61,17 +63,21 @@ Characters can craft containers and store things in them. Items can be placed on
 **Addresses:** OQ-A (picked plants don't respawn)
 
 ### Already Complete (from Prep Stage 1)
+
 - `IsGrowing = false` set on pickup (foraging.go)
 - Spawning correctly skips `IsGrowing = false` items (lifecycle.go)
 - Existing pickup logic works for any item on map
 
 ### Scope Decision
+
 Drop action deferred until Feature 2/3 when crafting logic needs it. No player-initiated drops - characters decide when to drop based on simulation needs.
 
 ### Tasks
+
 - [x] Show "Growing" status in item details panel for growing plants
 
 ### Deferred to Feature 2/3
+
 - Implement `Drop` function:
   - Remove item from `char.Carrying`
   - Place item on map at character's position
@@ -88,6 +94,7 @@ Drop action deferred until Feature 2/3 when crafting logic needs it. No player-i
 **Addresses:** Req A.1 (discovery), A.2 (orderable), OQ-B (crafting know-how structure)
 
 ### Requirements
+
 - Req A.1.i: Discovery when engaging in gourd interaction (looking, picking up, consuming)
 - Req A.1.ii: Discovery when engaging in spring interaction (drinking)
 - Req A.2: Orderable via Craft option in task menu
@@ -96,11 +103,13 @@ Drop action deferred until Feature 2/3 when crafting logic needs it. No player-i
 ### Design Decisions
 
 **Know-how structure:**
+
 - Activity-level: `craftVessel` in `KnownActivities` (like `harvest`)
 - Recipe-level: `KnownRecipes []string` on Character (e.g., `["hollow-gourd"]`)
 - UI groups all `craft*` activities under a "Craft" menu header (presentation convention)
 
 **Recipe struct** (`entity/recipe.go`):
+
 ```go
 type Recipe struct {
     ID                string             // "hollow-gourd"
@@ -114,23 +123,28 @@ type Recipe struct {
 ```
 
 **Discovery triggers - two patterns:**
+
 - **Direct activity discovery** (e.g., harvest): Triggers on Activity, grants activity only
 - **Recipe-based discovery** (e.g., craftVessel): Triggers on Recipe, grants activity + recipe
 
 For craftVessel:
+
 - Activity has no DiscoveryTriggers (discovered via recipes)
 - hollow-gourd recipe has triggers: gourd interaction (look, pickup, consume), drinking (ActionDrink)
 - Discovery grants: `craftVessel` activity + `hollow-gourd` recipe together
 
 **Orders:**
+
 - Order: `{ActivityID: "craftVessel", TargetType: ""}` (no target - recipe determines output)
 - Character selects recipe based on known recipes for that activity + available materials
 
 **Knowledge transfer (talking):**
+
 - Can only receive a recipe if you already know the corresponding activity
 - e.g., must know `craftVessel` to receive a vessel recipe
 
 ### Tasks
+
 - [x] Create `entity/recipe.go` with Recipe struct (including DiscoveryTriggers) and RecipeRegistry
 - [x] Add `KnownRecipes []string` to Character
 - [x] Add `craftVessel` activity to ActivityRegistry (no discovery triggers - discovered via recipes)
@@ -152,6 +166,7 @@ For craftVessel:
 **Addresses:** Req A.3 (recipe), B.1 (post-craft inventory)
 
 ### Requirements
+
 - Req A.3: Recipe is 1 gourd for 2 minutes game time
 - Req A.3.i: If gourd in inventory, begin crafting
 - Req A.3.ii: If no gourd, target gourd to pick up; drop current item if inventory full
@@ -160,6 +175,7 @@ For craftVessel:
 ### Design Decisions
 
 **Recipe definition:** (already in RecipeRegistry from Feature 2)
+
 - ID: `"hollow-gourd"`
 - ActivityID: `"craftVessel"`
 - Input: 1 gourd (any variety)
@@ -167,22 +183,26 @@ For craftVessel:
 - Duration: 10 seconds (temporary - see Recipe Timing Note)
 
 **Crafting state:**
+
 - Use existing `ActionProgress` pattern (same as eat, drink, look, pickup)
 - Add `ActionCraft` to entity actions
 - When `ActionProgress >= Recipe.Duration`, craft completes
 - Pause/resume uses existing `OrderPaused` mechanism
 
 **Vessel appearance:**
+
 - Item already has `Color`, `Pattern`, `Texture` fields
 - Vessel inherits appearance from input gourd
 - Crafted items use Item.Name for display (supports future painting feature)
 - Display name: "Hollow Gourd" (from recipe.Name via Item.Name field)
 
 **Naming:**
+
 - Recipe: "Hollow Gourd"
 - Created item: ItemType "vessel", Name "Hollow Gourd", display "Hollow Gourd"
 
 ### Tasks
+
 - [x] Add `Name` field to Item for crafted item display names
 - [x] Update `Description()` to return Name if set
 - [x] Update Item serialization for Name field
@@ -205,6 +225,7 @@ For craftVessel:
 Dropped (non-growing) items should only be eligible for looking and eating, not foraging and harvesting. Foraging and harvesting should only target growing plants.
 
 ### Tasks
+
 - [x] `findForageTarget`: filter for `Plant != nil && Plant.IsGrowing`
 - [x] `findNearestItemByType` (harvest): filter for `Plant != nil && Plant.IsGrowing`
 - [x] Tests for filter behavior
@@ -219,6 +240,7 @@ Dropped (non-growing) items should only be eligible for looking and eating, not 
 **Addresses:** Req B.2 (filling vessel), B.3 (look for container), B.4 (drop when blocked)
 
 ### Requirements
+
 - Req B.2.i: Stack sizes - Mushrooms: 10, Berries: 20, Gourds: 1, Flowers: 10
 - Req B.2.ii: Once variety added to a Stack, only that variety can be added to that Stack
 - Req B.2.iii: Foraging fills vessel before stopping
@@ -227,13 +249,16 @@ Dropped (non-growing) items should only be eligible for looking and eating, not 
 - Req B.4: Drop container when it blocks action
 
 ### Design Decision: Stack Slice
+
 Contents tracked via `Contents []Stack` where each Stack has `Variety` + `Count`:
+
 - Adding item: if empty, append new Stack; if same variety, increment count
 - Eating: decrement count; remove Stack when count hits 0
 - Vessel variety-lock: enforced because `Capacity == 1` means only one Stack allowed
 - Future containers with larger capacity could hold multiple Stacks of different varieties
 
 ### Clarifications
+
 - **Variety lock is on the Stack**, not the vessel. Any item can go in an empty vessel. Subsequent items must match the first item's variety.
 - **Completion condition** for foraging/harvesting: vessel full, OR inventory full (no vessel case), OR no eligible items remaining.
 - **Both foraging and harvesting** continue until one of the completion conditions is met.
@@ -284,21 +309,42 @@ Pickup logic is split across multiple files (see `architecture.md`). For Phase 6
 
 ### Stage 4d: Look-for-Container (Req B.3)
 
-- [ ] When starting forage/harvest without a container:
-  - First look for empty vessel on map, or partially-filled vessel with matching variety
-  - Pick up vessel, then continue to forage/harvest target
-- [ ] Implement `findAvailableVessel(targetVariety)` helper
-- [ ] Tests for look-for-container behavior
+**Design:**
+
+- When starting forage/harvest, check if current inventory can accept target item
+- If not carrying anything OR carrying incompatible item, look for available vessel first
+- Available vessel = empty OR partially-filled with matching variety and space
+- Pick up vessel first, then continue to forage/harvest target
+
+**Tasks:**
+
+- [x] Add `PickupFailed` result to handle variety mismatch bug
+- [x] Fix `Pickup()` to return `PickupFailed` instead of overwriting vessel
+- [x] Add `CanVesselAccept(vessel, item, registry)` helper
+- [x] Add `FindAvailableVessel(cx, cy, items, targetItem, registry)` function
+- [x] Update `findForageIntent` - look for vessel first if not carrying one, filter targets by vessel variety
+- [x] Update `findHarvestIntent` - look for vessel first if not carrying one
+- [x] Tests for look-for-container behavior (8 new tests)
 
 **Test checkpoint 4d:** Manually test - character without vessel finds and picks up vessel before foraging/harvesting
 
 ### Stage 4e: Drop-when-Blocked (Req B.4)
 
-- [ ] If carrying a container that blocks an action (e.g., need to pick up something else), drop the container
-- [ ] This uses existing `Drop()` function
-- [ ] Tests for drop-when-blocked scenarios
+**Design:**
 
-**Test checkpoint 4e:** Manually test - character drops vessel when it blocks their intended action
+- If character's vessel has variety mismatch with target item:
+  - For orders (harvesting): drop vessel and pick up item directly
+  - For idle foraging: skip target (don't lose vessel contents for casual pickup)
+- Uses existing `Drop()` function
+
+**Tasks:**
+
+- [x] Update `findForageIntent` - skip target if carrying incompatible vessel (filters via `findForageTarget`)
+- [x] Update `findHarvestIntent` - drop vessel if it blocks harvest (order takes priority)
+- [x] Update callers to handle `PickupFailed` result (update.go)
+- [x] Tests for drop-when-blocked scenarios (3 harvest tests)
+
+**Test checkpoint 4e:** Manually test - character drops vessel when it blocks their harvest order
 
 ---
 
@@ -307,14 +353,25 @@ Pickup logic is split across multiple files (see `architecture.md`). For Phase 6
 **Addresses:** Req B.5 (eating from vessel)
 
 ### Requirements
+
 - Req B.5: Vessel contents count as carried item for eating when hungry
 - Eating decrements Stack count by 1
 - When Stack empty, vessel accepts any variety again
 - Characters can also eat from dropped vessels on the ground
 
+### Open Design Questions
+
+1. **Priority:** Loose carried item vs carried vessel vs dropped vessel - what order?
+2. **Poison avoidance:** Should characters refuse to eat known-poison items from vessels?
+3. **Dropped vessel interaction:** Should eating from dropped vessel require being adjacent, or on same tile?
+4. - Re-evaluate how characters eat carried items:
+    - they definitely shouldn't eat a carried item they know is poison, right?
+    - Should they eat a carried disliked item instead of a liked nearby item? How does need tier play in?
+    - How do we keep characters from getting stuck carrying around poisoned items they won't eat? 
+    - Will future plans for item handling take care of that naturally? (see future brainstorming rtf)
+
 ### Tasks
 
-#### Stage 5a: Eating from Carried Vessel
 - [ ] Update hunger intent to check carried vessel `Contents` for edible Stacks
 - [ ] Implement eating from carried vessel (decrement count, apply effects from variety)
 - [ ] Handle Stack removal when count = 0
@@ -323,70 +380,40 @@ Pickup logic is split across multiple files (see `architecture.md`). For Phase 6
 
 **Test checkpoint 5a:** Character eats from carried vessel when hungry
 
-#### Stage 5b: Eating from Dropped Vessel
 - [ ] Update food search to find dropped vessels with edible contents
 - [ ] Character moves to dropped vessel and eats from it (without picking it up)
 - [ ] Same decrement/removal logic as carried vessel
 - [ ] Tests for eating from dropped vessel
 
-**Test checkpoint 5b:** Character finds and eats from dropped vessel on ground
+** Human Test checkpoint 5b:** Character finds and eats from dropped vessel on ground when hungry
 
-### Open Design Questions
-1. **Priority:** Loose carried item vs carried vessel vs dropped vessel - what order?
-2. **Poison avoidance:** Should characters refuse to eat known-poison items from vessels?
-3. **Dropped vessel interaction:** Should eating from dropped vessel require being adjacent, or on same tile?
+- [ ] Update README, Game Mechanics, claude.md, and architecture docs as applicable, for changes since last doc updates.
 
 ---
 
 ## Feature 6: UI Updates
 
-**Addresses:** Req C.1 (inventory panel), C.2 (map symbol)
-
-### Requirements
-- Req C.1: Carried vessels listed in inventory panel, showing contents
-- Req C.2: Dropped vessels appear on map (symbol TBD)
-
-### Tasks
-- [ ] Update inventory panel rendering for vessels
-- [ ] Choose and implement map symbol for dropped vessels
-- [ ] Update item detail view for vessel contents
-
-**Test checkpoint:** Verify all vessel states display correctly
-
----
-
-## Recipe Timing Note
-
-**Addresses:** Req D
-
-Recipe time is in game time. Hollow gourd vessel recipe temporarily set to 10 seconds (was 120 for 2 minutes) to allow testing without hunger interruptions. Will be adjusted during Post-Phase 6 time config reset.
-
----
-
-## Quick Wins (Parallel Work)
-
-- [x] Randomize starting names from curated list
-- [ ] Remove single char mode from UI
-- [ ] Add flag for character count control
-- [x] Make "Growing" text olive color in item details panel
 - [ ] Choose a color for order-related events in action log
-- [ ] Show speed in debug mode on character details panel
+- [ ] (Needs more discussion) Natural language item descriptions: When selecting an item, show descriptive text such as:
+	- "This is a hollow gourd. It is a vessel that can be used to carry things. It is warty and green." 
+	- Attributes present for preference/mood effects, description provides flavor text.
+- [ ] Update README, Game Mechanics, claude.md, and architecture docs as applicable, for changes since last doc updates.
+
+
+---
+
+## Phase Clean-up and Close-out
+
+After each of the below items, Update README, Game Mechanics, claude.md, and architecture docs as applicable, for changes since last doc updates.
+
+
+- revisit container and plant structures, consider 'edible' structure that contains healing/poison (currently details when viewing dropper containers shows these values, when they are irrelevant)
+- Evaluate pickup code unification (see futureEnhancements.md) - if harvesting vessel logic duplicates foraging, consider `picking.go` refactor
+- **Time config reset:** Adjust so "world day" = 2 game minutes, ( .5 game seconds = ~6 "world minutes"
+- **Save/Load:** Verify nested item serialization works correctly
 
 ---
 
 ## Bugs to Investigate
 
 - [ ] **World deletion log merge**: When deleting a world and creating a new one, old world logs may merge with newly generated world. Needs reproduction and investigation.
-
-## Post-Phase 6 Considerations
-
-- **Time config reset:** Adjust so "day" = 2 game minutes
-- **Carried item eating logic:** Re-evaluate with vessel context
-- **Save/Load:** Verify nested item serialization works correctly
-
----
-
-## Architecture Audit Points
-
-1. **After Prep completion:** Review category system design before building on it
-2. **After Phase 6 completion:** Full audit of new systems, test coverage review

@@ -29,7 +29,7 @@ func TestSelectOrderActivity_AssignsOpenOrder(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, orders, nil)
+	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent to be returned, got nil")
@@ -76,7 +76,7 @@ func TestSelectOrderActivity_ResumesAssignedOrder(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, orders, nil)
+	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent to be returned for resume, got nil")
@@ -107,7 +107,7 @@ func TestSelectOrderActivity_ResumesPausedOrder(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, orders, nil)
+	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent to be returned for paused resume, got nil")
@@ -134,7 +134,7 @@ func TestSelectOrderActivity_RequiresKnowHow(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, orders, nil)
+	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
 
 	if intent != nil {
 		t.Error("Expected nil intent for character without know-how")
@@ -161,7 +161,7 @@ func TestSelectOrderActivity_FullInventoryCanTakeNew(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, orders, nil)
+	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
 
 	// Characters can now take orders with full inventory - will drop during execution
 	if intent == nil {
@@ -190,7 +190,7 @@ func TestSelectOrderActivity_AbandonsWhenNoItems(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, orders, nil)
+	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
 
 	if intent != nil {
 		t.Error("Expected nil intent when no items to harvest")
@@ -229,7 +229,7 @@ func TestSelectOrderActivity_OrderIDMustBeNonZero(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	_ = selectOrderActivity(char, 5, 5, items, orders, nil)
+	_ = selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
 
 	// After assignment, char.AssignedOrderID = order.ID = 0
 	// This looks like "no order assigned" because we check AssignedOrderID != 0
@@ -267,7 +267,7 @@ func TestSelectOrderActivity_ValidatesAssignmentBidirectional(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, orders, nil)
+	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent, got nil")
@@ -317,7 +317,7 @@ func TestFindHarvestIntent_FindsNearestItem(t *testing.T) {
 	order := entity.NewOrder(1, "harvest", "berry")
 	items := gameMap.Items()
 
-	intent := findHarvestIntent(char, 5, 5, items, order, nil)
+	intent := findHarvestIntent(char, 5, 5, items, order, nil, gameMap)
 
 	if intent == nil {
 		t.Fatal("Expected intent, got nil")
@@ -344,7 +344,7 @@ func TestFindHarvestIntent_MatchesTargetType(t *testing.T) {
 	order := entity.NewOrder(1, "harvest", "berry")
 	items := gameMap.Items()
 
-	intent := findHarvestIntent(char, 5, 5, items, order, nil)
+	intent := findHarvestIntent(char, 5, 5, items, order, nil, gameMap)
 
 	if intent == nil {
 		t.Fatal("Expected intent, got nil")
@@ -369,10 +369,185 @@ func TestFindHarvestIntent_ReturnsNilWhenNoMatchingItems(t *testing.T) {
 	order := entity.NewOrder(1, "harvest", "berry")
 	items := gameMap.Items()
 
-	intent := findHarvestIntent(char, 5, 5, items, order, nil)
+	intent := findHarvestIntent(char, 5, 5, items, order, nil, gameMap)
 
 	if intent != nil {
 		t.Error("Expected nil intent when no matching items")
+	}
+}
+
+// =============================================================================
+// findHarvestIntent with Vessel Logic (4d/4e)
+// =============================================================================
+
+func TestFindHarvestIntent_LooksForVesselFirst(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+
+	// Set up variety registry so FindAvailableVessel works
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   true,
+	})
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Berry to harvest
+	berry := entity.NewBerry(8, 8, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	// Empty vessel closer than berry
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	vessel.SetPosition(6, 5)
+	gameMap.AddItem(vessel)
+
+	order := entity.NewOrder(1, "harvest", "berry")
+	items := gameMap.Items()
+
+	intent := findHarvestIntent(char, 5, 5, items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected intent, got nil")
+	}
+
+	// Should target vessel first, not berry
+	if intent.TargetItem != vessel {
+		t.Errorf("Should target vessel first. Got: %v", intent.TargetItem)
+	}
+}
+
+func TestFindHarvestIntent_DropsIncompatibleVessel(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+
+	// Set up variety registry
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   true,
+	})
+	registry.Register(&entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("mushroom", types.ColorBrown, types.PatternSpotted, types.TextureSlimy),
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureSlimy,
+		Edible:   true,
+	})
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Character is carrying vessel with mushrooms
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{{
+				Variety: registry.Get(entity.GenerateVarietyID("mushroom", types.ColorBrown, types.PatternSpotted, types.TextureSlimy)),
+				Count:   5,
+			}},
+		},
+	}
+	char.Carrying = vessel
+
+	// Berry to harvest (incompatible with vessel contents)
+	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	order := entity.NewOrder(1, "harvest", "berry")
+	items := gameMap.Items()
+
+	// This should drop the vessel
+	intent := findHarvestIntent(char, 5, 5, items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected intent, got nil")
+	}
+
+	// Vessel should have been dropped
+	if char.Carrying != nil {
+		t.Error("Vessel should have been dropped due to variety mismatch")
+	}
+
+	// Vessel should be on the map at character's position
+	droppedVessel := gameMap.ItemAt(5, 5)
+	if droppedVessel == nil || droppedVessel.Container == nil {
+		t.Error("Dropped vessel should be on map at character position")
+	}
+}
+
+func TestFindHarvestIntent_UsesCompatibleVessel(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+
+	// Set up variety registry
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   true,
+	})
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Character is carrying vessel with red berries (compatible)
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{{
+				Variety: registry.Get(entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone)),
+				Count:   5,
+			}},
+		},
+	}
+	char.Carrying = vessel
+
+	// Red berry to harvest (compatible with vessel contents)
+	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	order := entity.NewOrder(1, "harvest", "berry")
+	items := gameMap.Items()
+
+	intent := findHarvestIntent(char, 5, 5, items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected intent, got nil")
+	}
+
+	// Vessel should NOT be dropped (it's compatible)
+	if char.Carrying != vessel {
+		t.Error("Compatible vessel should not be dropped")
+	}
+
+	// Should target the berry
+	if intent.TargetItem != berry {
+		t.Errorf("Should target berry. Got: %v", intent.TargetItem)
 	}
 }
 
@@ -863,7 +1038,7 @@ func TestSelectOrderActivity_FullInventory_DropsOnPickup(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, orders, nil)
+	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
 
 	// Should get pickup intent even with full inventory
 	if intent == nil {
