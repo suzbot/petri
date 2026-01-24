@@ -31,7 +31,7 @@ var RecipeRegistry = map[string]*Recipe{
 		Name:       "Hollow Gourd",
 		Inputs:     []RecipeInput{{ItemType: "gourd", Count: 1}},
 		Output:     RecipeOutput{ItemType: "vessel", ContainerCapacity: 1},
-		Duration:   120, // 2 minutes in game seconds
+		Duration:   10, // Temporary: reduced until time refactor (was 120 for 2 minutes)
 		DiscoveryTriggers: []DiscoveryTrigger{
 			{Action: ActionLook, ItemType: "gourd"},    // looking at gourd
 			{Action: ActionPickup, ItemType: "gourd"},  // picking up gourd

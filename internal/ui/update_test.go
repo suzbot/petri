@@ -201,3 +201,64 @@ func TestApplyIntent_ActionConsume_VerifiesTargetMatchesCarrying(t *testing.T) {
 		t.Error("Expected item to NOT be consumed when target doesn't match carrying")
 	}
 }
+
+// =============================================================================
+// Craft Order Tests
+// =============================================================================
+
+func TestApplyIntent_CraftOrderNotCompletedOnPickup(t *testing.T) {
+	t.Parallel()
+
+	// Setup: character with craftVessel order, at position with gourd
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftVessel"}
+	char.KnownRecipes = []string{"hollow-gourd"}
+	gameMap.AddCharacter(char)
+
+	// Add gourd at character's position
+	gourd := entity.NewGourd(5, 5, types.ColorGreen, types.PatternNone, types.TextureNone)
+	gameMap.AddItem(gourd)
+
+	// Create craft order and assign to character
+	order := entity.NewOrder(1, "craftVessel", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	// Set pickup intent for gourd
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionPickup,
+		TargetX:    5,
+		TargetY:    5,
+		TargetItem: gourd,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	// Act: apply intent with enough time to complete pickup
+	for i := 0; i < 20; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Assert: character should now be carrying the gourd
+	if char.Carrying == nil {
+		t.Fatal("Expected character to be carrying gourd after pickup")
+	}
+	if char.Carrying.ItemType != "gourd" {
+		t.Errorf("Expected carrying gourd, got %s", char.Carrying.ItemType)
+	}
+
+	// Assert: order should NOT be completed - should still be assigned
+	if order.Status != entity.OrderAssigned {
+		t.Errorf("Craft order should still be Assigned after pickup, got %s", order.Status)
+	}
+	if char.AssignedOrderID == 0 {
+		t.Error("Character should still have order assigned after picking up craft input")
+	}
+}

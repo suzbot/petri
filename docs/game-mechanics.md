@@ -387,8 +387,57 @@ Press `I` in select mode to toggle the Inventory panel (replaces action log). Sh
 
 When an item is picked up:
 - Item is removed from the map
+- IsGrowing set to false (picked items don't spawn new items)
 - Spawn/death timers are cleared (carried items are static)
-- Item remains in inventory until consumed or dropped (future feature)
+- Item remains in inventory until consumed or dropped
+
+### Dropping Items
+
+Characters drop items when:
+- Working on an order that requires picking up a different item
+- Inventory is full and they need to pick up something else for an order
+
+Dropped items:
+- Remain where dropped (at character's position)
+- Keep IsGrowing = false (don't spawn new items)
+- Can be picked up again, eaten, or looked at
+
+## Crafting
+
+Characters can craft items from materials using recipes.
+
+### Recipes
+
+Recipes define what can be crafted:
+- **hollow-gourd**: 1 gourd → 1 vessel (container with capacity 1)
+  - Duration: 10 seconds (temporary - full duration 120 seconds)
+  - Vessel inherits gourd's appearance (color, pattern, texture)
+  - Vessel is not edible
+
+### Discovery
+
+Crafting know-how and recipes are discovered together:
+- **craftVessel + hollow-gourd recipe**: Discovered via gourd interaction (look, pickup, eat) or drinking at a spring
+
+Discovery chance depends on mood (same as other know-how discovery).
+
+### Craft Orders
+
+To craft items:
+1. Player creates a Craft order (Orders panel → + → Craft → Vessel)
+2. Character with craftVessel know-how takes the order
+3. If carrying a gourd: begin crafting immediately
+4. If not carrying a gourd: move to pick one up (dropping current item if needed)
+5. Crafting takes recipe duration (uses ActionProgress like eating/drinking)
+6. On completion: vessel goes to inventory, order completed
+
+### Crafted Items
+
+Crafted items differ from natural items:
+- Have a display name (e.g., "Hollow Gourd") instead of attribute-based description
+- Are not edible (vessel Edible = false)
+- Don't spawn new items (Plant = nil)
+- May have container storage (vessel has Capacity 1)
 
 ## Idle Activities
 

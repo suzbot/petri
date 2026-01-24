@@ -15,6 +15,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Wandering activity**                 | More idle activities needed; Looking feels repetitive; Want more organic movement |
 | **ItemType constants**                 | Adding new item types; Want compile-time safety for item type checks              |
 | **Activity enum**                      | Need to enumerate/filter activities; Activity-based game logic beyond display     |
+| **Order completion criteria refactor** | Adding new order types; Completion logic scattered across update.go becomes unwieldy |
 | **Feature capability derivation**      | Adding new feature types; DrinkSource/Bed bools become redundant                  |
 | **Action log retention policy**        | Implementing character memory; May need world time vs real time consideration     |
 | **UI color style map**                 | Adding new colors frequently; Switch statement maintenance becomes tedious        |

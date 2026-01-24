@@ -37,10 +37,7 @@ func selectOrderActivity(char *entity.Character, cx, cy int, items []*entity.Ite
 	}
 
 	// Second priority: take a new order if one is available and character can execute it
-	if char.IsInventoryFull() {
-		return nil // Can't take orders with full inventory
-	}
-
+	// Orders can be taken with full inventory - will drop current item if needed during execution
 	order := findAvailableOrder(char, orders)
 	if order == nil {
 		return nil
@@ -102,6 +99,8 @@ func findOrderIntent(char *entity.Character, cx, cy int, items []*entity.Item, o
 	switch order.ActivityID {
 	case "harvest":
 		return findHarvestIntent(char, cx, cy, items, order, log)
+	case "craftVessel":
+		return findCraftVesselIntent(char, cx, cy, items, order, log)
 	default:
 		// Unknown activity type - cannot create intent
 		return nil
@@ -138,6 +137,61 @@ func findHarvestIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 	nx, ny := NextStep(cx, cy, tx, ty)
 
 	newActivity := "Moving to harvest " + target.Description()
+	if char.CurrentActivity != newActivity {
+		char.CurrentActivity = newActivity
+	}
+
+	return &entity.Intent{
+		TargetX:    nx,
+		TargetY:    ny,
+		Action:     entity.ActionPickup,
+		TargetItem: target,
+	}
+}
+
+// findCraftVesselIntent creates an intent to craft a vessel.
+// If carrying a gourd, returns ActionCraft. Otherwise returns ActionPickup for a gourd.
+func findCraftVesselIntent(char *entity.Character, cx, cy int, items []*entity.Item, order *entity.Order, log *ActionLog) *entity.Intent {
+	// Check if already carrying a gourd - ready to craft
+	if char.Carrying != nil && char.Carrying.ItemType == "gourd" {
+		newActivity := "Crafting vessel"
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+		}
+		return &entity.Intent{
+			TargetX:    cx,
+			TargetY:    cy,
+			Action:     entity.ActionCraft,
+			TargetItem: char.Carrying, // The gourd being used
+		}
+	}
+
+	// Need to find a gourd to pick up
+	target := findNearestItemByType(cx, cy, items, "gourd")
+	if target == nil {
+		return nil // No gourds available - will trigger abandonment
+	}
+
+	tx, ty := target.Position()
+
+	// Check if already at target
+	if cx == tx && cy == ty {
+		newActivity := "Picking up " + target.Description()
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+		}
+		return &entity.Intent{
+			TargetX:    cx,
+			TargetY:    cy,
+			Action:     entity.ActionPickup,
+			TargetItem: target,
+		}
+	}
+
+	// Move toward target
+	nx, ny := NextStep(cx, cy, tx, ty)
+
+	newActivity := "Moving to pick up " + target.Description()
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
 	}

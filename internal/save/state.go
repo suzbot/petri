@@ -137,6 +137,7 @@ type ItemSave struct {
 	ID       int    `json:"id"`
 	X        int    `json:"x"`
 	Y        int    `json:"y"`
+	Name     string `json:"name,omitempty"` // Display name for crafted items
 	ItemType string `json:"item_type"`
 	Color    string `json:"color"`
 	Pattern  string `json:"pattern"`

@@ -20,6 +20,7 @@ const (
 	CharMushroom = '♠'
 	CharFlower   = '✿'
 	CharGourd    = 'G'
+	CharVessel   = 'U'
 	CharSpring   = '☉'
 	CharLeafPile = '#'
 	CharSleeping = 'z'

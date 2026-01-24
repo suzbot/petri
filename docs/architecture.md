@@ -34,18 +34,29 @@ This separation is important for the preference/opinion system - characters form
 
 ```go
 type Item struct {
+    // Display name (crafted items override Description())
+    Name      string         // "Hollow Gourd" for crafted items, empty for natural items
+
     // Descriptive attributes (opinion-formable)
-    ItemType  string         // "berry", "mushroom", "gourd", "flower"
+    ItemType  string         // "berry", "mushroom", "gourd", "flower", "vessel"
     Color     types.Color
-    Pattern   types.Pattern  // mushrooms, gourds
-    Texture   types.Texture  // mushrooms, gourds
+    Pattern   types.Pattern  // mushrooms, gourds, vessels
+    Texture   types.Texture  // mushrooms, gourds, vessels
 
     // Functional attributes (not opinion-formable)
     Edible    bool
     Poisonous bool
     Healing   bool
+
+    // Optional properties (nil if not applicable)
+    Plant     *PlantProperties  // Growing/spawning behavior (nil for crafted items)
+    Container *ContainerData    // Storage capacity (nil for non-containers)
 }
 ```
+
+**PlantProperties** controls spawning behavior - items with `Plant.IsGrowing = true` can spawn new items of their variety. When picked up, `IsGrowing` is set to false.
+
+**ContainerData** enables storage - vessels have `Capacity: 1` (one stack). Contents tracked as `[]Stack` where each Stack has a Variety pointer and count.
 
 ### Adding New Plant Types
 
@@ -58,12 +69,20 @@ When adding a new plant type (like gourd was added in Phase 5):
 
 Note: `spawnItem()` in `lifecycle.go` is generic - copies parent properties, no changes needed.
 
+### Crafted Items
+
+Crafted items (like vessels) differ from natural items:
+- Have `Name` set (e.g., "Hollow Gourd") which overrides `Description()`
+- Have `Plant = nil` (don't spawn/reproduce)
+- Inherit appearance (Color, Pattern, Texture) from input materials
+- May have `Container` for storage capability
+
 ### Future Extensions
 
-When adding new item types (tools, materials, crafted items):
-- Add `Category` field if needed for organization
+When adding new item types (tools, materials):
 - Add new functional flags as needed (Craftable, Wearable, Drinkable)
 - Descriptive attributes remain the basis for preference formation
+- Use `Name` field for crafted item display names
 
 ## Memory & Knowledge Model
 
@@ -123,7 +142,7 @@ Orders (player-directed tasks) and idle activities share physical actions but ha
 
 | Concept | Description | Example |
 |---------|-------------|---------|
-| **ActionType** | Physical action being performed | `ActionPickup` - move to item, pick it up |
+| **ActionType** | Physical action being performed | `ActionPickup`, `ActionCraft` |
 | **Order/Activity Context** | Why the action is being performed | Foraging (idle) vs Harvest (order) |
 | **Completion Criteria** | When the task is done | Foraging: after one pickup; Harvest: when inventory full |
 

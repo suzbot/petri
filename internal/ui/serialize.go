@@ -88,6 +88,7 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 				ID:         c.Carrying.ID,
 				X:          c.Carrying.X,
 				Y:          c.Carrying.Y,
+				Name:       c.Carrying.Name,
 				ItemType:   c.Carrying.ItemType,
 				Color:      string(c.Carrying.Color),
 				Pattern:    string(c.Carrying.Pattern),
@@ -217,6 +218,7 @@ func itemsToSave(items []*entity.Item) []save.ItemSave {
 			ID:         item.ID,
 			X:          item.X,
 			Y:          item.Y,
+			Name:       item.Name,
 			ItemType:   item.ItemType,
 			Color:      string(item.Color),
 			Pattern:    string(item.Pattern),
@@ -504,6 +506,7 @@ func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item
 
 	item := &entity.Item{
 		ID:         is.ID,
+		Name:       is.Name,
 		ItemType:   is.ItemType,
 		Color:      types.Color(is.Color),
 		Pattern:    types.Pattern(is.Pattern),
@@ -529,6 +532,8 @@ func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item
 		item.Sym = config.CharFlower
 	case "gourd":
 		item.Sym = config.CharGourd
+	case "vessel":
+		item.Sym = config.CharVessel
 	}
 
 	return item

@@ -1,6 +1,6 @@
 # Phase 6: Containers and Storage - Implementation Plan
 
-**Status:** Feature 2 Complete - Ready for Feature 3
+**Status:** Feature 3 Complete - Ready for Feature 3b
 **Requirements:** [docs/phase06reqs.txt](phase06reqs.txt)
 
 ---
@@ -131,22 +131,23 @@ For craftVessel:
 - e.g., must know `craftVessel` to receive a vessel recipe
 
 ### Tasks
-- [ ] Create `entity/recipe.go` with Recipe struct (including DiscoveryTriggers) and RecipeRegistry
-- [ ] Add `KnownRecipes []string` to Character
-- [ ] Add `craftVessel` activity to ActivityRegistry (no discovery triggers - discovered via recipes)
-- [ ] Update discovery system to also check recipe triggers
-- [ ] Update discovery system to handle ActionDrink (item can be nil)
-- [ ] Recipe discovery grants activity + recipe together
-- [ ] UI: Group craft* activities under "Craft" menu header
-- [ ] UI: Craft activities skip target selection step
-- [ ] Update serialization for KnownRecipes
-- [ ] Tests for recipe system, discovery
+- [x] Create `entity/recipe.go` with Recipe struct (including DiscoveryTriggers) and RecipeRegistry
+- [x] Add `KnownRecipes []string` to Character
+- [x] Add `craftVessel` activity to ActivityRegistry (no discovery triggers - discovered via recipes)
+- [x] Update discovery system to also check recipe triggers
+- [x] Update discovery system to handle ActionDrink (item can be nil)
+- [x] Recipe discovery grants activity + recipe together
+- [x] UI: Two-step order selection (Craft → Vessel)
+- [x] UI: Knowledge panel shows "Craft: Vessel" and Recipes section
+- [x] UI: Order list shows "Craft vessel [status]"
+- [x] Update serialization for KnownRecipes
+- [x] Tests for recipe system, discovery
 
-**Test checkpoint:** Character discovers craftVessel via gourd/spring interaction, Craft > Vessel appears in order menu
+**Test checkpoint:** Character discovers craftVessel via gourd/spring interaction, Craft > Vessel appears in order menu ✓
 
 ---
 
-## Feature 3: Hollow Gourd Vessel
+## Feature 3: Hollow Gourd Vessel ✓
 
 **Addresses:** Req A.3 (recipe), B.1 (post-craft inventory)
 
@@ -158,30 +159,57 @@ For craftVessel:
 
 ### Design Decisions
 
-**Recipe definition:**
+**Recipe definition:** (already in RecipeRegistry from Feature 2)
 - ID: `"hollow-gourd"`
 - ActivityID: `"craftVessel"`
 - Input: 1 gourd (any variety)
 - Output: vessel item with `Container = &ContainerData{Capacity: 1}`
-- Duration: 2 minutes game time
-- Vessel variety inherits color/pattern/texture from input gourd
+- Duration: 10 seconds (temporary - see Recipe Timing Note)
+
+**Crafting state:**
+- Use existing `ActionProgress` pattern (same as eat, drink, look, pickup)
+- Add `ActionCraft` to entity actions
+- When `ActionProgress >= Recipe.Duration`, craft completes
+- Pause/resume uses existing `OrderPaused` mechanism
+
+**Vessel appearance:**
+- Item already has `Color`, `Pattern`, `Texture` fields
+- Vessel inherits appearance from input gourd
+- Crafted items use Item.Name for display (supports future painting feature)
+- Display name: "Hollow Gourd" (from recipe.Name via Item.Name field)
 
 **Naming:**
 - Recipe: "Hollow Gourd"
-- Created item: ItemType "vessel", description includes variety (e.g., "spotted red vessel")
+- Created item: ItemType "vessel", Name "Hollow Gourd", display "Hollow Gourd"
 
 ### Tasks
-- [ ] Add `hollow-gourd` recipe to RecipeRegistry
-- [ ] Implement vessel item creation (ItemType "vessel" + ContainerData)
-- [ ] Implement Drop function (deferred from Feature 1):
-  - Remove item from `char.Carrying`
-  - Place item on map at character's position
-  - Item retains `IsGrowing = false`
-- [ ] Craft execution: check inventory, acquire gourd if needed, drop if blocked
-- [ ] Post-craft: add to inventory or drop
-- [ ] Tests for craft flow, inventory handling, drop mechanics
+- [x] Add `Name` field to Item for crafted item display names
+- [x] Update `Description()` to return Name if set
+- [x] Update Item serialization for Name field
+- [x] Add ActionCraft to entity actions
+- [x] Implement vessel item creation (`CreateVessel` in system/crafting.go)
+- [x] Implement Drop function (system/foraging.go)
+- [x] Craft intent/execution: acquire gourd, drop if blocked, craft duration
+- [x] Post-craft: vessel goes to inventory
+- [x] Tests for craft flow, vessel creation, vessel not edible
+- [x] Bug fix: ActionMove was eating non-edible items (look intents triggered eating)
 
-**Test checkpoint:** Order craft vessel, watch character acquire gourd, craft, and hold/drop result
+**Test checkpoint:** Order craft vessel, watch character acquire gourd, craft, and hold result ✓
+
+---
+
+## Feature 3b: IsGrowing Filter for Foraging/Harvesting
+
+**Addresses:** Bug - dropped items shouldn't be targeted by foraging/harvesting
+
+Dropped (non-growing) items should only be eligible for looking and eating, not foraging and harvesting. Foraging and harvesting should only target growing plants.
+
+### Tasks
+- [ ] `findForageTarget`: filter for `Plant != nil && Plant.IsGrowing`
+- [ ] `findNearestItemByType` (harvest): filter for `Plant != nil && Plant.IsGrowing`
+- [ ] Tests for filter behavior
+
+**Test checkpoint:** Drop an item, verify characters don't forage/harvest it but can still eat/look at it
 
 ---
 
@@ -261,7 +289,7 @@ Contents tracked via `Contents []Stack` where each Stack has `Variety` + `Count`
 
 **Addresses:** Req D
 
-Recipe time (2 minutes for hollow gourd vessel) is in game time. May revisit timing values after initial implementation.
+Recipe time is in game time. Hollow gourd vessel recipe temporarily set to 10 seconds (was 120 for 2 minutes) to allow testing without hunger interruptions. Will be adjusted during Post-Phase 6 time config reset.
 
 ---
 

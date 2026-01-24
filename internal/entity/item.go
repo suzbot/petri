@@ -28,6 +28,9 @@ type Item struct {
 	BaseEntity
 	ID int // Unique identifier for save/load
 
+	// Display name (if set, used instead of Description() for crafted items)
+	Name string
+
 	// Descriptive attributes (opinion-formable)
 	ItemType string        // "berry", "mushroom", "gourd", etc.
 	Color    types.Color   // all items have color
@@ -126,9 +129,15 @@ func NewGourd(x, y int, color types.Color, pattern types.Pattern, texture types.
 }
 
 // Description returns a human-readable item description
-// Format: [texture] [pattern] [color] [itemType]
+// If Name is set (crafted items), returns Name.
+// Otherwise returns format: [texture] [pattern] [color] [itemType]
 // e.g., "slimy spotted red mushroom", "red berry", "purple flower"
 func (i *Item) Description() string {
+	// Crafted items use their Name
+	if i.Name != "" {
+		return i.Name
+	}
+
 	var parts []string
 
 	if i.Texture != types.TextureNone {

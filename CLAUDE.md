@@ -4,7 +4,7 @@ Guidance for Claude Code when working with code in this repo.
 
 Petri is a Dwarf Fortress-inspired simulation exploring emergent culture development.
 
-**Current features:** Character creation, world generation with items (berries, mushrooms, gourds, flowers) and features, multi-stat survival, dynamic preference system, knowledge system (learning poison/healing, knowledge-driven behavior, knowledge transmission via talking), social behavior (talking between idle characters), inventory system (foraging to pick up items), orders system (player-directed harvesting), know-how discovery, urgency-based AI with stat fallback and frustration mechanics, view modes, and action logging.
+**Current features:** Character creation, world generation with items (berries, mushrooms, gourds, flowers, vessels) and features, multi-stat survival, dynamic preference system, knowledge system (learning poison/healing, knowledge-driven behavior, knowledge transmission via talking), social behavior (talking between idle characters), inventory system (foraging to pick up items, dropping items), orders system (player-directed harvesting and crafting), crafting system (hollow gourd vessels), know-how discovery, urgency-based AI with stat fallback and frustration mechanics, view modes, and action logging.
 
 **Vision:** Complex roguelike simulation world with complex interactions between characters, items, and attributes. History exists only in character memories and created artifacts. As characters die, their knowledge dies with them except what they've communicated or created. See [docs/VISION.txt](docs/VISION.txt).
 
@@ -57,6 +57,7 @@ internal/
 - `internal/entity/preference.go` - Preference struct, matching logic
 - `internal/entity/knowledge.go` - Knowledge struct, learning from experience
 - `internal/entity/activity.go` - Activity struct, ActivityRegistry, know-how discovery triggers
+- `internal/entity/recipe.go` - Recipe struct, RecipeRegistry, crafting definitions
 - `internal/entity/order.go` - Order struct for player-directed tasks
 
 **Core Systems**
@@ -67,6 +68,8 @@ internal/
 - `internal/system/preference.go` - Preference formation on eat/look
 - `internal/system/talking.go` - Idle activity selection, talking state, knowledge transmission (LearnKnowledgeWithEffects)
 - `internal/system/order_execution.go` - Order assignment, intent finding, completion/abandonment
+- `internal/system/crafting.go` - CreateVessel, crafted item creation
+- `internal/system/foraging.go` - Pickup, Drop, foraging intent
 
 **World & Generation**
 
@@ -102,15 +105,25 @@ TTD, Iterative Approach. Frequent discussion. Present options with trade-offs. F
 
 ### Current Work
 
-Phase 6: Containers and Storage (Planning)
+Phase 6: Containers and Storage (Feature 3b - IsGrowing filter)
 
 ### Near-Term Roadmap
 
 See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 
-**Phase 6 Prep:** PlantProperties struct, ContainerData struct, Stack struct, remove Category string
+**Completed:**
+- Phase 6 Prep: PlantProperties struct, ContainerData struct, Stack struct
+- Feature 1: Item placement (IsGrowing tracking)
+- Feature 2: Crafting foundation (recipes, discovery)
+- Feature 3: Hollow gourd vessel (crafting, drop mechanics)
 
-**Phase 6 Features:** Item placement, crafting foundation, hollow gourd vessel, vessel contents, eating from vessels, UI updates
+**In Progress:**
+- Feature 3b: IsGrowing filter for foraging/harvesting
+
+**Remaining:**
+- Feature 4: Vessel contents (stacking, filling)
+- Feature 5: Eating from vessels
+- Feature 6: UI updates
 
 **Quick Wins (Parallel):**
 - Remove single char mode from UI

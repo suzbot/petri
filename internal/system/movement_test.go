@@ -467,6 +467,46 @@ func TestFindFoodTarget_ReturnsNilForNoEdibleItems(t *testing.T) {
 	}
 }
 
+func TestFindFoodTarget_VesselNotEdible(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 95 // Crisis - would eat anything edible
+
+	// Vessel is not edible (crafted from gourd)
+	gourd := entity.NewGourd(5, 5, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	vessel := CreateVessel(gourd, recipe)
+
+	items := []*entity.Item{vessel}
+
+	result := findFoodTarget(char, items)
+
+	if result.Item != nil {
+		t.Error("Vessel should not be edible - got a food target when none expected")
+	}
+}
+
+func TestFindFoodIntent_CarriedVesselNotEaten(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 95 // Crisis - would eat anything edible from inventory
+
+	// Character is carrying a vessel (not edible)
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	vessel := CreateVessel(gourd, recipe)
+	char.Carrying = vessel
+
+	cx, cy := char.Position()
+	intent := findFoodIntent(char, cx, cy, nil, entity.TierCrisis, nil)
+
+	if intent != nil {
+		t.Error("Should not create eat intent for non-edible carried vessel")
+	}
+}
+
 // =============================================================================
 // Healing Bonus in Food Selection (Sub-phase F)
 // =============================================================================

@@ -145,7 +145,7 @@ func TestSelectOrderActivity_RequiresKnowHow(t *testing.T) {
 	}
 }
 
-func TestSelectOrderActivity_FullInventoryCannotTakeNew(t *testing.T) {
+func TestSelectOrderActivity_FullInventoryCanTakeNew(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(10, 10)
@@ -163,12 +163,13 @@ func TestSelectOrderActivity_FullInventoryCannotTakeNew(t *testing.T) {
 	items := gameMap.Items()
 	intent := selectOrderActivity(char, 5, 5, items, orders, nil)
 
-	if intent != nil {
-		t.Error("Expected nil intent for character with full inventory")
+	// Characters can now take orders with full inventory - will drop during execution
+	if intent == nil {
+		t.Error("Expected intent - characters can take orders with full inventory")
 	}
 
-	if order.Status != entity.OrderOpen {
-		t.Errorf("Order should remain Open, got %s", order.Status)
+	if order.Status != entity.OrderAssigned {
+		t.Errorf("Order should be Assigned, got %s", order.Status)
 	}
 }
 
@@ -705,5 +706,177 @@ func TestOrderLifecycle_ResumesAfterTargetTaken(t *testing.T) {
 	// Order should still be assigned
 	if order.Status != entity.OrderAssigned {
 		t.Errorf("Order should still be Assigned, got %s", order.Status)
+	}
+}
+
+// =============================================================================
+// findCraftVesselIntent
+// =============================================================================
+
+func TestFindCraftVesselIntent_WithGourdInInventory(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftVessel"}
+	char.Carrying = entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone)
+	gameMap.AddCharacter(char)
+
+	order := entity.NewOrder(1, "craftVessel", "")
+
+	items := gameMap.Items()
+	intent := findCraftVesselIntent(char, 5, 5, items, order, nil)
+
+	if intent == nil {
+		t.Fatal("Expected craft intent")
+	}
+	if intent.Action != entity.ActionCraft {
+		t.Errorf("Expected ActionCraft, got %d", intent.Action)
+	}
+	if intent.TargetItem != char.Carrying {
+		t.Error("Expected TargetItem to be the carried gourd")
+	}
+}
+
+func TestFindCraftVesselIntent_WithoutGourd_FindsGourdOnMap(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftVessel"}
+	// Not carrying anything
+	gameMap.AddCharacter(char)
+
+	gourd := entity.NewGourd(7, 5, types.ColorGreen, types.PatternNone, types.TextureNone)
+	gameMap.AddItem(gourd)
+
+	order := entity.NewOrder(1, "craftVessel", "")
+
+	items := gameMap.Items()
+	intent := findCraftVesselIntent(char, 5, 5, items, order, nil)
+
+	if intent == nil {
+		t.Fatal("Expected pickup intent for gourd")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Expected ActionPickup, got %d", intent.Action)
+	}
+	if intent.TargetItem != gourd {
+		t.Error("Expected TargetItem to be the gourd on map")
+	}
+}
+
+func TestFindCraftVesselIntent_NoGourdsAvailable(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftVessel"}
+	gameMap.AddCharacter(char)
+
+	// No gourds on map
+	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	order := entity.NewOrder(1, "craftVessel", "")
+
+	items := gameMap.Items()
+	intent := findCraftVesselIntent(char, 5, 5, items, order, nil)
+
+	if intent != nil {
+		t.Error("Expected nil intent when no gourds available")
+	}
+}
+
+func TestFindCraftVesselIntent_CarryingNonGourd_FindsGourd(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftVessel"}
+	char.Carrying = entity.NewBerry(0, 0, types.ColorRed, false, false) // carrying berry, not gourd
+	gameMap.AddCharacter(char)
+
+	gourd := entity.NewGourd(7, 5, types.ColorGreen, types.PatternNone, types.TextureNone)
+	gameMap.AddItem(gourd)
+
+	order := entity.NewOrder(1, "craftVessel", "")
+
+	items := gameMap.Items()
+	intent := findCraftVesselIntent(char, 5, 5, items, order, nil)
+
+	if intent == nil {
+		t.Fatal("Expected pickup intent for gourd")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Expected ActionPickup, got %d", intent.Action)
+	}
+	if intent.TargetItem != gourd {
+		t.Error("Expected TargetItem to be the gourd on map")
+	}
+}
+
+// =============================================================================
+// Drop behavior during order execution
+// =============================================================================
+
+func TestDrop_RemovesFromInventoryAndPlacesOnMap(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.Carrying = berry
+	gameMap.AddCharacter(char)
+
+	Drop(char, gameMap, nil)
+
+	if char.Carrying != nil {
+		t.Error("Expected inventory to be empty after drop")
+	}
+
+	// Item should be on map at character's position
+	droppedItem := gameMap.ItemAt(5, 5)
+	if droppedItem != berry {
+		t.Error("Expected dropped item at character position")
+	}
+}
+
+func TestSelectOrderActivity_FullInventory_DropsOnPickup(t *testing.T) {
+	// This tests the full flow: character with full inventory takes order,
+	// then during execution drops current item to pick up target.
+	// The drop happens in update.go during ActionPickup execution,
+	// so here we just verify the intent is created correctly.
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"harvest"}
+	existingBerry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.Carrying = existingBerry // inventory full
+	gameMap.AddCharacter(char)
+
+	targetBerry := entity.NewBerry(5, 5, types.ColorBlue, false, false) // at same position
+	gameMap.AddItem(targetBerry)
+
+	order := entity.NewOrder(1, "harvest", "berry")
+	orders := []*entity.Order{order}
+
+	items := gameMap.Items()
+	intent := selectOrderActivity(char, 5, 5, items, orders, nil)
+
+	// Should get pickup intent even with full inventory
+	if intent == nil {
+		t.Fatal("Expected pickup intent")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Expected ActionPickup, got %d", intent.Action)
+	}
+	if intent.TargetItem != targetBerry {
+		t.Error("Expected target to be the berry on map")
+	}
+	// Order should be assigned
+	if order.Status != entity.OrderAssigned {
+		t.Errorf("Expected OrderAssigned, got %s", order.Status)
 	}
 }

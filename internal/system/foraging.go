@@ -8,6 +8,30 @@ import (
 	"petri/internal/game"
 )
 
+// Drop handles a character dropping an item from inventory
+func Drop(char *entity.Character, gameMap *game.Map, log *ActionLog) {
+	if char.Carrying == nil {
+		return // Nothing to drop
+	}
+
+	item := char.Carrying
+	itemName := item.Description()
+
+	// Place item on map at character's position
+	item.X = char.X
+	item.Y = char.Y
+	gameMap.AddItem(item)
+
+	// Clear from inventory
+	char.Carrying = nil
+
+	// Log drop
+	if log != nil {
+		log.Add(char.ID, char.Name, "activity",
+			fmt.Sprintf("Dropped %s", itemName))
+	}
+}
+
 // Pickup handles a character picking up an item (foraging)
 func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *ActionLog) {
 	itemName := item.Description()

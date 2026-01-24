@@ -508,8 +508,10 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		cx, cy := char.Position()
 		tx, ty := char.Intent.TargetX, char.Intent.TargetY
 
-		// Check if at target item - eating takes duration
-		if char.Intent.TargetItem != nil {
+		// Check if at target item for eating - only if driven by hunger and item is edible
+		if char.Intent.TargetItem != nil &&
+			char.Intent.DrivingStat == types.StatHunger &&
+			char.Intent.TargetItem.Edible {
 			ix, iy := char.Intent.TargetItem.Position()
 			if cx == ix && cy == iy {
 				// At target item - eating in progress
@@ -662,13 +664,22 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			if char.ActionProgress >= config.ActionDuration {
 				char.ActionProgress = 0
 				if item := m.gameMap.ItemAt(cx, cy); item == char.Intent.TargetItem {
+					// If on an order and inventory full, drop current item first
+					// (If carrying a recipe input, we'd have ActionCraft intent instead)
+					if char.AssignedOrderID != 0 && char.IsInventoryFull() {
+						system.Drop(char, m.gameMap, m.actionLog)
+					}
 					system.Pickup(char, item, m.gameMap, m.actionLog)
 
-					// Check for order completion (inventory now full while on an order)
+					// Check for harvest order completion (inventory now full while on harvest order)
+					// Craft orders don't complete on pickup - they complete after crafting
+					// TODO: Refactor so completion criteria are organized within each order type
 					if char.IsInventoryFull() && char.AssignedOrderID != 0 {
 						if order := m.findOrderByID(char.AssignedOrderID); order != nil {
-							system.CompleteOrder(char, order, m.actionLog)
-							m.removeOrder(order.ID)
+							if order.ActivityID == "harvest" {
+								system.CompleteOrder(char, order, m.actionLog)
+								m.removeOrder(order.ID)
+							}
 						}
 					}
 				}
@@ -710,6 +721,47 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			if char.Carrying == char.Intent.TargetItem {
 				system.ConsumeFromInventory(char, char.Carrying, m.actionLog)
 			}
+		}
+
+	case entity.ActionCraft:
+		// Crafting - uses recipe duration
+		if char.Carrying == nil || char.Carrying.ItemType != "gourd" {
+			// No gourd to craft with - clear intent
+			char.Intent = nil
+			return
+		}
+
+		// Get recipe duration (hollow-gourd recipe)
+		recipe := entity.RecipeRegistry["hollow-gourd"]
+		if recipe == nil {
+			char.Intent = nil
+			return
+		}
+
+		char.ActionProgress += delta
+		if char.ActionProgress >= recipe.Duration {
+			char.ActionProgress = 0
+
+			// Complete the craft
+			gourd := char.Carrying
+			vessel := system.CreateVessel(gourd, recipe)
+			char.Carrying = vessel
+
+			// Log the craft
+			if m.actionLog != nil {
+				m.actionLog.Add(char.ID, char.Name, "activity", "Crafted "+recipe.Name)
+			}
+
+			// Complete the order
+			if char.AssignedOrderID != 0 {
+				if order := m.findOrderByID(char.AssignedOrderID); order != nil {
+					system.CompleteOrder(char, order, m.actionLog)
+					m.removeOrder(order.ID)
+				}
+			}
+
+			char.CurrentActivity = "Idle"
+			char.Intent = nil
 		}
 	}
 }
