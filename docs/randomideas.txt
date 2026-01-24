@@ -8,6 +8,7 @@ When items are completed OR documented as part of a roadmap, requirement, or pla
 then they can be removed from this list.
 
 #Ready Ideas
+- Game Mechanics a little disorganized, inconsistant about what level of detail it share. Clean up.
 - Put character names in their own special file so its super easy for users/me to add more names.
     - Names to remember to add next: Bog, Log, Fen, Pod, Bough, Toady, Tarn, Weir,
     - Bine, Brome, Brume, Cress, Daub, Nook, Fir, Frond, Furl,

@@ -665,16 +665,47 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 				char.ActionProgress = 0
 				if item := m.gameMap.ItemAt(cx, cy); item == char.Intent.TargetItem {
 					// If on an order and inventory full, drop current item first
+					// BUT don't drop if carrying a vessel with space (can add to it)
 					// (If carrying a recipe input, we'd have ActionCraft intent instead)
 					if char.AssignedOrderID != 0 && char.IsInventoryFull() {
-						system.Drop(char, m.gameMap, m.actionLog)
+						// Check if carrying vessel with space - don't drop, will add to it
+						canAddToVessel := char.Carrying != nil &&
+							char.Carrying.Container != nil &&
+							!system.IsVesselFull(char.Carrying, m.gameMap.Varieties())
+						if !canAddToVessel {
+							system.Drop(char, m.gameMap, m.actionLog)
+						}
 					}
-					system.Pickup(char, item, m.gameMap, m.actionLog)
+					result := system.Pickup(char, item, m.gameMap, m.actionLog, m.gameMap.Varieties())
 
-					// Check for harvest order completion (inventory now full while on harvest order)
+					// Handle vessel filling continuation
+					if result == system.PickupToVessel {
+						// Item was added to vessel - check if we should continue
+						if nextIntent := system.FindNextVesselTarget(char, cx, cy, m.gameMap.Items(), m.gameMap.Varieties()); nextIntent != nil {
+							char.Intent = nextIntent
+							return
+						}
+						// Vessel full or no more matching targets - stop
+						char.Intent = nil
+						char.IdleCooldown = config.IdleCooldown
+						char.CurrentActivity = "Idle"
+
+						// Check for harvest order completion (vessel full or no matching items)
+						if char.AssignedOrderID != 0 {
+							if order := m.findOrderByID(char.AssignedOrderID); order != nil {
+								if order.ActivityID == "harvest" {
+									system.CompleteOrder(char, order, m.actionLog)
+									m.removeOrder(order.ID)
+								}
+							}
+						}
+						return
+					}
+
+					// PickupToInventory - inventory now full (one item)
+					// Check for harvest order completion
 					// Craft orders don't complete on pickup - they complete after crafting
-					// TODO: Refactor so completion criteria are organized within each order type
-					if char.IsInventoryFull() && char.AssignedOrderID != 0 {
+					if char.AssignedOrderID != 0 {
 						if order := m.findOrderByID(char.AssignedOrderID); order != nil {
 							if order.ActivityID == "harvest" {
 								system.CompleteOrder(char, order, m.actionLog)

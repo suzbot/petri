@@ -2,6 +2,7 @@ package game
 
 import (
 	"petri/internal/entity"
+	"petri/internal/types"
 )
 
 // VarietyRegistry stores all item varieties that exist in a world.
@@ -62,4 +63,11 @@ func (r *VarietyRegistry) EdibleVarieties() []*entity.ItemVariety {
 // Count returns the total number of registered varieties
 func (r *VarietyRegistry) Count() int {
 	return len(r.varieties)
+}
+
+// GetByAttributes looks up a variety by item attributes.
+// Returns nil if no matching variety is registered.
+func (r *VarietyRegistry) GetByAttributes(itemType string, color types.Color, pattern types.Pattern, texture types.Texture) *entity.ItemVariety {
+	id := entity.GenerateVarietyID(itemType, color, pattern, texture)
+	return r.varieties[id]
 }

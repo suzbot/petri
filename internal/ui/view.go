@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
+	"petri/internal/config"
 	"petri/internal/entity"
 	"petri/internal/game"
 	"petri/internal/system"
@@ -771,6 +772,22 @@ func (m Model) renderDetails() string {
 		if item.Plant != nil && item.Plant.IsGrowing {
 			lines = append(lines, " "+growingStyle.Render("Growing"))
 		}
+		// Show vessel contents if this is a container
+		if item.Container != nil {
+			lines = append(lines, "")
+			if len(item.Container.Contents) == 0 {
+				lines = append(lines, " Contents: (empty)")
+			} else {
+				lines = append(lines, " Contents:")
+				for _, stack := range item.Container.Contents {
+					if stack.Variety != nil {
+						stackSize := config.GetStackSize(stack.Variety.ItemType)
+						lines = append(lines, fmt.Sprintf("   %s: %d/%d",
+							stack.Variety.Description(), stack.Count, stackSize))
+					}
+				}
+			}
+		}
 	} else if feature != nil {
 		lines = append(lines, " Type: Feature")
 		if m.testCfg.Debug {
@@ -1090,6 +1107,21 @@ func (m Model) renderInventoryPanel() string {
 		if char, ok := e.(*entity.Character); ok {
 			if char.Carrying != nil {
 				lines = append(lines, " Carrying: "+char.Carrying.Description())
+
+				// Show vessel contents if carrying a vessel
+				if char.Carrying.Container != nil {
+					if len(char.Carrying.Container.Contents) == 0 {
+						lines = append(lines, "   (empty)")
+					} else {
+						for _, stack := range char.Carrying.Container.Contents {
+							if stack.Variety != nil {
+								stackSize := config.GetStackSize(stack.Variety.ItemType)
+								lines = append(lines, fmt.Sprintf("   %s: %d/%d",
+									stack.Variety.Description(), stack.Count, stackSize))
+							}
+						}
+					}
+				}
 			} else {
 				lines = append(lines, " Carrying: nothing")
 			}

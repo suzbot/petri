@@ -136,6 +136,9 @@ See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 - Remove single char mode from UI
 - Flag for character count control
 
+**Post-Feature 4 Check:**
+- Evaluate pickup code unification (see futureEnhancements.md) - if harvesting vessel logic duplicates foraging, consider `picking.go` refactor
+
 ### Deferred Enhancements & Trigger Points
 
 Technical items analyzed and consciously deferred until trigger conditions are met. See docs/futureEnancements.md for more.

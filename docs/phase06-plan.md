@@ -220,7 +220,7 @@ Dropped (non-growing) items should only be eligible for looking and eating, not 
 
 ### Requirements
 - Req B.2.i: Stack sizes - Mushrooms: 10, Berries: 20, Gourds: 1, Flowers: 10
-- Req B.2.ii: Once variety added, only that variety can be added (vessel-specific)
+- Req B.2.ii: Once variety added to a Stack, only that variety can be added to that Stack
 - Req B.2.iii: Foraging fills vessel before stopping
 - Req B.2.iv: Harvesting complete when vessel full OR no matching varieties
 - Req B.3: If not carrying container, look for empty/matching vessel first
@@ -231,17 +231,74 @@ Contents tracked via `Contents []Stack` where each Stack has `Variety` + `Count`
 - Adding item: if empty, append new Stack; if same variety, increment count
 - Eating: decrement count; remove Stack when count hits 0
 - Vessel variety-lock: enforced because `Capacity == 1` means only one Stack allowed
+- Future containers with larger capacity could hold multiple Stacks of different varieties
 
-### Tasks
-- [ ] Add StackSize to item type definitions (config)
-- [ ] Implement add-to-vessel logic (variety lock, count increment)
-- [ ] Update foraging to fill vessel before stopping
-- [ ] Update harvesting order completion logic
-- [ ] Implement look-for-container behavior (Req B.3)
-- [ ] Implement drop-when-blocked behavior (Req B.4)
-- [ ] Tests for stacking, variety lock, forage/harvest with vessel
+### Clarifications
+- **Variety lock is on the Stack**, not the vessel. Any item can go in an empty vessel. Subsequent items must match the first item's variety.
+- **Completion condition** for foraging/harvesting: vessel full, OR inventory full (no vessel case), OR no eligible items remaining.
+- **Both foraging and harvesting** continue until one of the completion conditions is met.
 
-**Test checkpoint:** Forage with vessel, verify stacking and variety lock
+### Stage 4a: StackSize and Add-to-Vessel ✓
+
+- [x] Add `StackSize` map to config (berry: 20, mushroom: 10, gourd: 1, flower: 10)
+- [x] Add `GetStackSize(itemType string) int` helper
+- [x] Add `GetByAttributes` helper to VarietyRegistry for looking up variety by item attributes
+- [x] Implement `AddToVessel(vessel, item *Item, registry) bool` function
+- [x] Implement `IsVesselFull(vessel, registry) bool` helper
+- [x] Tests for add-to-vessel logic, variety lock, stack size limits (12 tests)
+
+**Test checkpoint 4a:** Unit tests pass ✓
+
+### Code Organization (Option A) ✓
+
+Pickup logic is split across multiple files (see `architecture.md`). For Phase 6, relocated `findForageIntent`/`findForageTarget` from `movement.go` to `foraging.go` to consolidate foraging logic. Deferring full unification to `picking.go` until after Feature 4 testing (see `futureEnhancements.md` for triggers).
+
+- [x] Move `findForageIntent` and `findForageTarget` from `movement.go` to `foraging.go`
+
+### Stage 4b: Foraging with Vessel
+
+- [x] Modify `Pickup()` to detect when carrying a vessel
+  - If carrying vessel with space: call `AddToVessel`, returns `PickupToVessel`
+  - Intent NOT cleared when adding to vessel (caller handles continuation)
+- [x] Add `FindNextVesselTarget()` for vessel filling continuation
+  - Finds next growing item matching vessel's variety
+- [x] Update `applyIntent` in update.go to continue foraging after `PickupToVessel`
+  - Calls `FindNextVesselTarget`, sets new intent if found
+  - Stops when: vessel full, or no eligible items remaining
+- [x] If not carrying vessel, current behavior applies (pick up one item)
+- [x] Tests for foraging with vessel (16 tests for vessel logic)
+- [x] Fix: Add `CanPickUpMore()` helper - foraging was blocked when carrying vessel because `IsInventoryFull()` returned true
+- [x] Update `selectIdleActivity` to use `CanPickUpMore` instead of `!IsInventoryFull()`
+
+**Test checkpoint 4b:** Manually test foraging with vessel - verify items stack, variety locks, foraging continues until full
+
+### Stage 4c: Harvesting with Vessel
+
+- [x] Update harvesting order completion logic
+  - `PickupToVessel`: order completes when `FindNextVesselTarget` returns nil (vessel full or no matching items)
+  - `PickupToInventory`: order completes immediately (inventory full)
+- [x] Fix: Don't drop vessel when on order if vessel has space (was dropping before adding)
+- [x] Tests for harvesting with vessel (3 tests)
+
+**Test checkpoint 4c:** Manually test harvesting with vessel - verify order continues until vessel full or map empty
+
+### Stage 4d: Look-for-Container (Req B.3)
+
+- [ ] When starting forage/harvest without a container:
+  - First look for empty vessel on map, or partially-filled vessel with matching variety
+  - Pick up vessel, then continue to forage/harvest target
+- [ ] Implement `findAvailableVessel(targetVariety)` helper
+- [ ] Tests for look-for-container behavior
+
+**Test checkpoint 4d:** Manually test - character without vessel finds and picks up vessel before foraging/harvesting
+
+### Stage 4e: Drop-when-Blocked (Req B.4)
+
+- [ ] If carrying a container that blocks an action (e.g., need to pick up something else), drop the container
+- [ ] This uses existing `Drop()` function
+- [ ] Tests for drop-when-blocked scenarios
+
+**Test checkpoint 4e:** Manually test - character drops vessel when it blocks their intended action
 
 ---
 
@@ -253,19 +310,31 @@ Contents tracked via `Contents []Stack` where each Stack has `Variety` + `Count`
 - Req B.5: Vessel contents count as carried item for eating when hungry
 - Eating decrements Stack count by 1
 - When Stack empty, vessel accepts any variety again
+- Characters can also eat from dropped vessels on the ground
 
 ### Tasks
-- [ ] Update hunger intent to check vessel `Contents` for edible Stacks
-- [ ] Implement eating from vessel (decrement count, apply effects from variety)
+
+#### Stage 5a: Eating from Carried Vessel
+- [ ] Update hunger intent to check carried vessel `Contents` for edible Stacks
+- [ ] Implement eating from carried vessel (decrement count, apply effects from variety)
 - [ ] Handle Stack removal when count = 0
 - [ ] Apply poison/healing knowledge to vessel contents
-- [ ] Tests for eating from vessel, knowledge application
+- [ ] Tests for eating from carried vessel
+
+**Test checkpoint 5a:** Character eats from carried vessel when hungry
+
+#### Stage 5b: Eating from Dropped Vessel
+- [ ] Update food search to find dropped vessels with edible contents
+- [ ] Character moves to dropped vessel and eats from it (without picking it up)
+- [ ] Same decrement/removal logic as carried vessel
+- [ ] Tests for eating from dropped vessel
+
+**Test checkpoint 5b:** Character finds and eats from dropped vessel on ground
 
 ### Open Design Questions
-1. **Priority:** Loose carried item vs item in vessel - which eaten first?
+1. **Priority:** Loose carried item vs carried vessel vs dropped vessel - what order?
 2. **Poison avoidance:** Should characters refuse to eat known-poison items from vessels?
-
-**Test checkpoint:** Character eats from vessel when hungry
+3. **Dropped vessel interaction:** Should eating from dropped vessel require being adjacent, or on same tile?
 
 ---
 

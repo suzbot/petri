@@ -163,7 +163,7 @@ func applyPickupIntent(char *entity.Character, gameMap *game.Map, delta float64,
 		if char.ActionProgress >= config.ActionDuration {
 			char.ActionProgress = 0
 			if item := gameMap.ItemAt(cx, cy); item == char.Intent.TargetItem {
-				system.Pickup(char, item, gameMap, actionLog)
+				system.Pickup(char, item, gameMap, actionLog, gameMap.Varieties())
 			}
 		}
 		return

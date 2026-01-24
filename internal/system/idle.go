@@ -48,7 +48,7 @@ func selectIdleActivity(char *entity.Character, cx, cy int, items []*entity.Item
 		if intent := findTalkIntent(char, cx, cy, gameMap, log); intent != nil {
 			return intent
 		}
-		if !char.IsInventoryFull() {
+		if CanPickUpMore(char, gameMap.Varieties()) {
 			if intent := findForageIntent(char, cx, cy, items, log); intent != nil {
 				return intent
 			}
@@ -62,14 +62,14 @@ func selectIdleActivity(char *entity.Character, cx, cy int, items []*entity.Item
 		if intent := findLookIntent(char, cx, cy, items, gameMap, log); intent != nil {
 			return intent
 		}
-		if !char.IsInventoryFull() {
+		if CanPickUpMore(char, gameMap.Varieties()) {
 			if intent := findForageIntent(char, cx, cy, items, log); intent != nil {
 				return intent
 			}
 		}
 	case 2:
-		// Try foraging (only if inventory not full)
-		if !char.IsInventoryFull() {
+		// Try foraging (only if can pick up more)
+		if CanPickUpMore(char, gameMap.Varieties()) {
 			if intent := findForageIntent(char, cx, cy, items, log); intent != nil {
 				return intent
 			}

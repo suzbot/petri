@@ -129,3 +129,19 @@ var ItemLifecycle = map[string]LifecycleConfig{
 	"flower":   {SpawnInterval: 3.0, DeathInterval: 8.0}, // dies after ~6-10 min
 	"gourd":    {SpawnInterval: 3.0, DeathInterval: 0},   // immortal until eaten
 }
+
+// StackSize maps item types to how many fit in one stack (for vessel storage)
+var StackSize = map[string]int{
+	"berry":    20,
+	"mushroom": 10,
+	"flower":   10,
+	"gourd":    1,
+}
+
+// GetStackSize returns the stack size for an item type, defaulting to 1 if not defined
+func GetStackSize(itemType string) int {
+	if size, ok := StackSize[itemType]; ok {
+		return size
+	}
+	return 1
+}

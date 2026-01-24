@@ -176,6 +176,20 @@ if char.IsInventoryFull() && char.AssignedOrderID != 0 {
 - `order_execution.go` - Order selection, assignment, intent finding, completion logic
 - Order eligibility is generic: checks activity's `Availability` requirement against character's known activities
 
+## Pickup Activity Code Organization
+
+Picking up items is shared across multiple activities (foraging, harvesting) with different target selection and completion criteria. All use `ActionPickup` but have different triggering contexts.
+
+| File | Contents | Responsibility |
+|------|----------|----------------|
+| `foraging.go` | `Pickup()`, `Drop()`, `AddToVessel()`, `IsVesselFull()` | Physical pickup action, vessel logic |
+| `movement.go` | `findForageIntent()`, `findForageTarget()` | Foraging target selection (preference/distance) |
+| `order_execution.go` | `findHarvestIntent()`, `findNearestItemByType()` | Harvesting target selection (by item type) |
+| `idle.go` | `selectIdleActivity()` | Calls foraging as one idle option |
+| `update.go` | `applyIntent()` ActionPickup case | Executes pickup, handles vessel continuation |
+
+Note: `findForageIntent` is in `movement.go` for historical reasons; could be relocated to `foraging.go` for clarity.
+
 ## Common Implementation Pitfalls
 
 **Game time vs wall clock**: UI indicators that should work when paused (like "Saved" message) need wall clock time (`time.Now()`), not game time which only advances when unpaused.

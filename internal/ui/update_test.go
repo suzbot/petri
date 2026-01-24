@@ -262,3 +262,227 @@ func TestApplyIntent_CraftOrderNotCompletedOnPickup(t *testing.T) {
 		t.Error("Character should still have order assigned after picking up craft input")
 	}
 }
+
+// =============================================================================
+// Harvest Order with Vessel Tests
+// =============================================================================
+
+// createTestVesselWithRegistry creates a vessel and registry for testing
+func createTestVesselWithRegistry() (*entity.Item, *game.VarietyRegistry) {
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   true,
+	})
+	registry.Register(&entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("berry", types.ColorBlue, types.PatternNone, types.TextureNone),
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+		Edible:   true,
+	})
+
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	return vessel, registry
+}
+
+func TestApplyIntent_HarvestOrderWithVessel_ContinuesUntilFull(t *testing.T) {
+	t.Parallel()
+
+	// Setup
+	gameMap := game.NewMap(20, 20)
+	vessel, registry := createTestVesselWithRegistry()
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"harvest"}
+	char.Carrying = vessel
+	gameMap.AddCharacter(char)
+
+	// Add multiple red berries at character's position
+	berry1 := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	berry2 := entity.NewBerry(5, 6, types.ColorRed, false, false) // Nearby
+	gameMap.AddItem(berry1)
+	gameMap.AddItem(berry2)
+
+	// Create harvest order
+	order := entity.NewOrder(1, "harvest", "berry")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	// Set pickup intent for first berry
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionPickup,
+		TargetX:    5,
+		TargetY:    5,
+		TargetItem: berry1,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	// Act: apply intent with enough time to complete first pickup
+	for i := 0; i < 20; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Assert: berry should be in vessel
+	if len(vessel.Container.Contents) == 0 {
+		t.Fatal("Expected berry to be added to vessel")
+	}
+	if vessel.Container.Contents[0].Count != 1 {
+		t.Errorf("Expected vessel to have 1 berry, got %d", vessel.Container.Contents[0].Count)
+	}
+
+	// Assert: order should NOT be completed yet (vessel not full, more berries exist)
+	if order.Status != entity.OrderAssigned {
+		t.Errorf("Harvest order should still be Assigned, got %v", order.Status)
+	}
+
+	// Assert: character should have new intent to get next berry
+	if char.Intent == nil {
+		t.Error("Character should have intent to continue harvesting")
+	}
+}
+
+func TestApplyIntent_HarvestOrderWithVessel_CompletesWhenFull(t *testing.T) {
+	t.Parallel()
+
+	// Setup: vessel with gourd (stack size 1 = full after one item)
+	gameMap := game.NewMap(20, 20)
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("gourd", types.ColorGreen, types.PatternStriped, types.TextureWarty),
+		ItemType: "gourd",
+		Color:    types.ColorGreen,
+		Pattern:  types.PatternStriped,
+		Texture:  types.TextureWarty,
+		Edible:   true,
+	})
+	gameMap.SetVarieties(registry)
+
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "gourd", types.ColorGreen)
+	char.KnownActivities = []string{"harvest"}
+	char.Carrying = vessel
+	gameMap.AddCharacter(char)
+
+	// Add gourd at character's position
+	gourd := entity.NewGourd(5, 5, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	gameMap.AddItem(gourd)
+
+	// Create harvest order
+	order := entity.NewOrder(1, "harvest", "gourd")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionPickup,
+		TargetX:    5,
+		TargetY:    5,
+		TargetItem: gourd,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	// Act: apply intent
+	for i := 0; i < 20; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Assert: vessel should be full (1 gourd = full)
+	if len(vessel.Container.Contents) == 0 {
+		t.Fatal("Expected gourd to be added to vessel")
+	}
+
+	// Assert: order should be completed (vessel full)
+	if char.AssignedOrderID != 0 {
+		t.Error("Character should have no assigned order after vessel is full")
+	}
+}
+
+func TestApplyIntent_HarvestOrderWithoutVessel_CompletesAfterOneItem(t *testing.T) {
+	t.Parallel()
+
+	// Setup: no vessel, just picking up to inventory
+	gameMap := game.NewMap(20, 20)
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   true,
+	})
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"harvest"}
+	char.Carrying = nil // No vessel
+	gameMap.AddCharacter(char)
+
+	// Add berry at character's position
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	// Create harvest order
+	order := entity.NewOrder(1, "harvest", "berry")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionPickup,
+		TargetX:    5,
+		TargetY:    5,
+		TargetItem: berry,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	// Act: apply intent
+	for i := 0; i < 20; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Assert: character should be carrying berry
+	if char.Carrying != berry {
+		t.Error("Character should be carrying berry")
+	}
+
+	// Assert: order should be completed (inventory full after one item)
+	if char.AssignedOrderID != 0 {
+		t.Error("Character should have no assigned order after inventory full")
+	}
+}
