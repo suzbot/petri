@@ -748,27 +748,20 @@ func (m Model) renderDetails() string {
 		if m.testCfg.Debug {
 			lines = append(lines, fmt.Sprintf(" Pos: (%d, %d)", m.cursorX, m.cursorY))
 		}
+		// Show Name for crafted items
+		if item.Name != "" {
+			lines = append(lines, fmt.Sprintf(" Name: %s", item.Name))
+		}
 		lines = append(lines,
 			fmt.Sprintf(" Kind: %s", item.ItemType),
 			fmt.Sprintf(" Color: %s", item.Color),
 		)
-		// Show Pattern/Texture for item types that can have them
-		configs := game.GetItemTypeConfigs()
-		if cfg, ok := configs[item.ItemType]; ok {
-			if cfg.Patterns != nil {
-				pattern := "none"
-				if item.Pattern != "" {
-					pattern = string(item.Pattern)
-				}
-				lines = append(lines, fmt.Sprintf(" Pattern: %s", pattern))
-			}
-			if cfg.Textures != nil {
-				texture := "none"
-				if item.Texture != "" {
-					texture = string(item.Texture)
-				}
-				lines = append(lines, fmt.Sprintf(" Texture: %s", texture))
-			}
+		// Show Pattern/Texture if item has them (works for both natural and crafted items)
+		if item.Pattern != "" {
+			lines = append(lines, fmt.Sprintf(" Pattern: %s", item.Pattern))
+		}
+		if item.Texture != "" {
+			lines = append(lines, fmt.Sprintf(" Texture: %s", item.Texture))
 		}
 		lines = append(lines,
 			fmt.Sprintf(" Poisonous: %s", poison),
