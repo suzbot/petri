@@ -111,7 +111,7 @@ Process docs:
 
 ### Current Work
 
-Phase 6: Containers and Storage (Feature 3b - IsGrowing filter)
+Phase 6: Containers and Storage (Feature 4 - Vessel Contents)
 
 ### Near-Term Roadmap
 
@@ -122,9 +122,10 @@ See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 - Feature 1: Item placement (IsGrowing tracking)
 - Feature 2: Crafting foundation (recipes, discovery)
 - Feature 3: Hollow gourd vessel (crafting, drop mechanics)
+- Feature 3b: IsGrowing filter for foraging/harvesting
 
 **In Progress:**
-- Feature 3b: IsGrowing filter for foraging/harvesting
+- Feature 4: Vessel contents (stacking, filling)
 
 **Remaining:**
 - Feature 4: Vessel contents (stacking, filling)

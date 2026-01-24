@@ -1,6 +1,6 @@
 # Phase 6: Containers and Storage - Implementation Plan
 
-**Status:** Feature 3 Complete - Ready for Feature 3b
+**Status:** Feature 3b Complete - Ready for Feature 4
 **Requirements:** [docs/phase06reqs.txt](phase06reqs.txt)
 
 ---
@@ -198,18 +198,19 @@ For craftVessel:
 
 ---
 
-## Feature 3b: IsGrowing Filter for Foraging/Harvesting
+## Feature 3b: IsGrowing Filter for Foraging/Harvesting ✓
 
 **Addresses:** Bug - dropped items shouldn't be targeted by foraging/harvesting
 
 Dropped (non-growing) items should only be eligible for looking and eating, not foraging and harvesting. Foraging and harvesting should only target growing plants.
 
 ### Tasks
-- [ ] `findForageTarget`: filter for `Plant != nil && Plant.IsGrowing`
-- [ ] `findNearestItemByType` (harvest): filter for `Plant != nil && Plant.IsGrowing`
-- [ ] Tests for filter behavior
+- [x] `findForageTarget`: filter for `Plant != nil && Plant.IsGrowing`
+- [x] `findNearestItemByType` (harvest): filter for `Plant != nil && Plant.IsGrowing`
+- [x] Tests for filter behavior
+- [x] Item details panel: show Name and Pattern/Texture for all items (including crafted)
 
-**Test checkpoint:** Drop an item, verify characters don't forage/harvest it but can still eat/look at it
+**Test checkpoint:** Drop an item, verify characters don't forage/harvest it but can still eat/look at it ✓
 
 ---
 
@@ -298,7 +299,7 @@ Recipe time is in game time. Hollow gourd vessel recipe temporarily set to 10 se
 - [x] Randomize starting names from curated list
 - [ ] Remove single char mode from UI
 - [ ] Add flag for character count control
-- [ ] Make "Growing" text olive color in item details panel
+- [x] Make "Growing" text olive color in item details panel
 - [ ] Choose a color for order-related events in action log
 - [ ] Show speed in debug mode on character details panel
 
