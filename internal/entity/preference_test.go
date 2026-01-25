@@ -648,3 +648,156 @@ func TestPluralize(t *testing.T) {
 		}
 	}
 }
+
+// =============================================================================
+// Variety Matching (for vessel contents)
+// =============================================================================
+
+func TestPreference_MatchesVariety_ItemTypeOnly(t *testing.T) {
+	t.Parallel()
+
+	pref := NewPositivePreference("berry", "")
+
+	redBerryVariety := &ItemVariety{ItemType: "berry", Color: types.ColorRed}
+	blueBerryVariety := &ItemVariety{ItemType: "berry", Color: types.ColorBlue}
+	redMushroomVariety := &ItemVariety{ItemType: "mushroom", Color: types.ColorRed}
+
+	if !pref.MatchesVariety(redBerryVariety) {
+		t.Error("ItemType preference should match red berry variety")
+	}
+	if !pref.MatchesVariety(blueBerryVariety) {
+		t.Error("ItemType preference should match blue berry variety")
+	}
+	if pref.MatchesVariety(redMushroomVariety) {
+		t.Error("ItemType preference should not match mushroom variety")
+	}
+}
+
+func TestPreference_MatchesVariety_ColorOnly(t *testing.T) {
+	t.Parallel()
+
+	pref := NewPositivePreference("", types.ColorRed)
+
+	redBerryVariety := &ItemVariety{ItemType: "berry", Color: types.ColorRed}
+	redMushroomVariety := &ItemVariety{ItemType: "mushroom", Color: types.ColorRed}
+	blueBerryVariety := &ItemVariety{ItemType: "berry", Color: types.ColorBlue}
+
+	if !pref.MatchesVariety(redBerryVariety) {
+		t.Error("Color preference should match red berry variety")
+	}
+	if !pref.MatchesVariety(redMushroomVariety) {
+		t.Error("Color preference should match red mushroom variety")
+	}
+	if pref.MatchesVariety(blueBerryVariety) {
+		t.Error("Color preference should not match blue berry variety")
+	}
+}
+
+func TestPreference_MatchesVariety_Combo(t *testing.T) {
+	t.Parallel()
+
+	pref := NewPositivePreference("berry", types.ColorRed)
+
+	redBerryVariety := &ItemVariety{ItemType: "berry", Color: types.ColorRed}
+	blueBerryVariety := &ItemVariety{ItemType: "berry", Color: types.ColorBlue}
+	redMushroomVariety := &ItemVariety{ItemType: "mushroom", Color: types.ColorRed}
+
+	if !pref.MatchesVariety(redBerryVariety) {
+		t.Error("Combo preference should match red berry variety")
+	}
+	if pref.MatchesVariety(blueBerryVariety) {
+		t.Error("Combo preference should not match blue berry variety (wrong color)")
+	}
+	if pref.MatchesVariety(redMushroomVariety) {
+		t.Error("Combo preference should not match red mushroom variety (wrong type)")
+	}
+}
+
+func TestPreference_MatchesVariety_PatternTexture(t *testing.T) {
+	t.Parallel()
+
+	// Preference for spotted slimy mushrooms
+	pref := Preference{
+		Valence:  1,
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureSlimy,
+	}
+
+	matchingVariety := &ItemVariety{
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureSlimy,
+	}
+	wrongPatternVariety := &ItemVariety{
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+		Pattern:  types.PatternNone,
+		Texture:  types.TextureSlimy,
+	}
+
+	if !pref.MatchesVariety(matchingVariety) {
+		t.Error("Should match variety with all attributes")
+	}
+	if pref.MatchesVariety(wrongPatternVariety) {
+		t.Error("Should not match variety with wrong pattern")
+	}
+}
+
+func TestPreference_MatchesVariety_EmptyPreference(t *testing.T) {
+	t.Parallel()
+
+	pref := Preference{Valence: 1} // No attributes set
+	variety := &ItemVariety{ItemType: "berry", Color: types.ColorRed}
+
+	if pref.MatchesVariety(variety) {
+		t.Error("Empty preference should not match any variety")
+	}
+}
+
+func TestPreference_MatchScoreVariety(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		pref     Preference
+		variety  *ItemVariety
+		expected int
+	}{
+		{
+			name:     "positive single attribute match",
+			pref:     NewPositivePreference("berry", ""),
+			variety:  &ItemVariety{ItemType: "berry", Color: types.ColorRed},
+			expected: 1,
+		},
+		{
+			name:     "positive combo match",
+			pref:     NewPositivePreference("berry", types.ColorRed),
+			variety:  &ItemVariety{ItemType: "berry", Color: types.ColorRed},
+			expected: 2,
+		},
+		{
+			name:     "negative match",
+			pref:     NewNegativePreference("berry", types.ColorRed),
+			variety:  &ItemVariety{ItemType: "berry", Color: types.ColorRed},
+			expected: -2,
+		},
+		{
+			name:     "no match",
+			pref:     NewPositivePreference("berry", ""),
+			variety:  &ItemVariety{ItemType: "mushroom", Color: types.ColorRed},
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.pref.MatchScoreVariety(tt.variety)
+			if got != tt.expected {
+				t.Errorf("MatchScoreVariety(): got %d, want %d", got, tt.expected)
+			}
+		})
+	}
+}

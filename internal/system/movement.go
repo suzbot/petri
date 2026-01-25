@@ -447,15 +447,28 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 }
 
 // findFoodIntent finds food based on hunger priority
-// Checks inventory first - carried edible items are always "closer" than map items
+// Uses unified scoring for both carried and map items (carried items have distance=0)
 func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, tier int, log *ActionLog) *entity.Intent {
-	// Check inventory first - carried edible item is always preferred (distance=-1 equivalent)
-	if char.Carrying != nil && char.Carrying.Edible {
+	result := findFoodTarget(char, items)
+	if result.Item == nil {
+		if char.CurrentActivity != "Idle" {
+			char.CurrentActivity = "Idle"
+			if log != nil {
+				log.Add(char.ID, char.Name, "activity", "Idle (no suitable food)")
+			}
+		}
+		return nil
+	}
+
+	// Check if best food is the carried item
+	if result.Item == char.Carrying {
 		newActivity := "Eating carried " + char.Carrying.Description()
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
 			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Eating from inventory")
+				log.Add(char.ID, char.Name, "activity",
+					fmt.Sprintf("Eating from inventory (pref:%d score:%.0f)",
+						result.NetPreference, result.GradientScore))
 			}
 		}
 		return &entity.Intent{
@@ -468,17 +481,7 @@ func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, ti
 		}
 	}
 
-	result := findFoodTarget(char, items)
-	if result.Item == nil {
-		if char.CurrentActivity != "Idle" {
-			char.CurrentActivity = "Idle"
-			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Idle (no suitable food)")
-			}
-		}
-		return nil
-	}
-
+	// Best food is on map - move to it
 	tx, ty := result.Item.Position()
 	nx, ny := NextStep(cx, cy, tx, ty)
 
@@ -486,7 +489,6 @@ func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, ti
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
 		if log != nil {
-			// Include scores in parentheses (stripped in non-debug mode)
 			log.Add(char.ID, char.Name, "movement",
 				fmt.Sprintf("Started moving to %s (pref:%d score:%.0f)",
 					result.Item.Description(), result.NetPreference, result.GradientScore))
@@ -632,8 +634,9 @@ type FoodTargetResult struct {
 	GradientScore float64
 }
 
-// findFoodTarget finds the best item for a character based on hunger level
+// findFoodTarget finds the best food for a character based on hunger level
 // Uses gradient scoring: Score = (NetPreference × PrefWeight) - (Distance × DistWeight) + HealingBonus
+// Considers both carried items (distance=0) and map items using the same scoring.
 // Hunger tier affects both the preference weight and which items are considered:
 // - Moderate (50-74): High pref weight, only NetPreference >= 0 items considered
 // - Severe (75-89): Medium pref weight, all items considered
@@ -641,10 +644,6 @@ type FoodTargetResult struct {
 // Healing bonus: When health tier >= Moderate and character knows item is healing,
 // adds bonus to score (larger bonus at worse health tiers)
 func findFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResult {
-	if len(items) == 0 {
-		return FoodTargetResult{}
-	}
-
 	cx, cy := char.Position()
 
 	// Determine hunger tier and corresponding weights/filters
@@ -686,21 +685,18 @@ func findFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 	bestScore := float64(int(^uint(0)>>1)) * -1 // Negative max float
 	bestDist := int(^uint(0) >> 1)              // Max int for distance tiebreaker
 
-	for _, item := range items {
-		// Skip non-edible items (e.g., flowers)
+	// Helper to score and potentially update best candidate
+	scoreCandidate := func(item *entity.Item, dist int) {
 		if !item.Edible {
-			continue
+			return
 		}
 
 		netPref := char.NetPreference(item)
 
 		// At Moderate hunger, filter out disliked items (NetPreference < 0)
 		if filterDisliked && netPref < 0 {
-			continue
+			return
 		}
-
-		ix, iy := item.Position()
-		dist := abs(cx-ix) + abs(cy-iy)
 
 		// Calculate gradient score
 		score := float64(netPref)*prefWeight - float64(dist)*config.FoodSeekDistWeight
@@ -716,6 +712,71 @@ func findFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 			bestNetPref = netPref
 			bestScore = score
 			bestDist = dist
+		}
+	}
+
+	// Score carried item first (distance = 0)
+	if char.Carrying != nil {
+		// Check if carrying a vessel with edible contents
+		if char.Carrying.Container != nil && len(char.Carrying.Container.Contents) > 0 {
+			variety := char.Carrying.Container.Contents[0].Variety
+			if variety.Edible {
+				netPref := char.NetPreferenceForVariety(variety)
+
+				// At Moderate hunger, filter out disliked items
+				if !filterDisliked || netPref >= 0 {
+					score := float64(netPref)*prefWeight - 0*config.FoodSeekDistWeight // distance = 0
+
+					// Apply healing bonus if character knows this variety is healing
+					if healingBonus > 0 && char.KnowsVarietyIsHealing(variety) {
+						score += healingBonus
+					}
+
+					if score > bestScore || (score == bestScore && 0 < bestDist) {
+						bestItem = char.Carrying // Return vessel, not the variety
+						bestNetPref = netPref
+						bestScore = score
+						bestDist = 0
+					}
+				}
+			}
+		} else {
+			// Carrying a loose item - score it directly
+			scoreCandidate(char.Carrying, 0)
+		}
+	}
+
+	// Score map items (including dropped vessels with edible contents)
+	for _, item := range items {
+		ix, iy := item.Position()
+		dist := abs(cx-ix) + abs(cy-iy)
+
+		// Check if item is a vessel with edible contents
+		if item.Container != nil && len(item.Container.Contents) > 0 {
+			variety := item.Container.Contents[0].Variety
+			if variety.Edible {
+				netPref := char.NetPreferenceForVariety(variety)
+
+				// At Moderate hunger, filter out disliked items
+				if !filterDisliked || netPref >= 0 {
+					score := float64(netPref)*prefWeight - float64(dist)*config.FoodSeekDistWeight
+
+					// Apply healing bonus if character knows this variety is healing
+					if healingBonus > 0 && char.KnowsVarietyIsHealing(variety) {
+						score += healingBonus
+					}
+
+					if score > bestScore || (score == bestScore && dist < bestDist) {
+						bestItem = item // Return vessel
+						bestNetPref = netPref
+						bestScore = score
+						bestDist = dist
+					}
+				}
+			}
+		} else {
+			// Regular edible item
+			scoreCandidate(item, dist)
 		}
 	}
 

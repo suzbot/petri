@@ -172,7 +172,11 @@ Examples:
 
 ### Food Selection by Hunger Tier
 
-Uses gradient scoring: `Score = (NetPreference × PrefWeight) - (Distance × DistWeight)`
+Uses gradient scoring for all food sources (map items, carried items, vessel contents):
+
+`Score = (NetPreference × PrefWeight) - (Distance × DistWeight) + HealingBonus`
+
+Carried items and vessel contents have distance = 0; map items use Manhattan distance.
 
 Higher hunger = lower preference weight + willingness to eat disliked items:
 - **Moderate (50-74)**: High PrefWeight, only considers NetPreference >= 0 items (filters disliked)
@@ -489,6 +493,27 @@ When starting to forage or harvest without carrying a vessel:
 If a character's vessel cannot accept the target item (full or wrong variety):
 - **For orders (harvesting)**: Drop the vessel and pick up the item directly (order takes priority)
 - **For idle foraging**: Skip the incompatible item (don't lose vessel contents for casual activity)
+
+### Eating from Vessels
+
+Hungry characters can eat from vessel contents (carried or dropped on the ground):
+
+**Unified food selection**: All food sources use the same scoring system:
+- Carried loose item: distance = 0
+- Carried vessel contents: distance = 0
+- Dropped vessel contents: distance = Manhattan distance to vessel
+- Map items: distance = Manhattan distance
+
+Score formula: `Score = (NetPreference × PrefWeight) - (Distance × DistWeight) + HealingBonus`
+
+This means:
+- At Moderate hunger: carried disliked items are filtered; character may seek better food on map
+- At Severe hunger: carried food has distance advantage but preferences still influence choice
+- At Crisis hunger: closest food wins (carried food at distance=0 almost always wins)
+
+**Effects from vessel contents**: When eating from a vessel, effects (poison, healing) come from the item variety stored in the stack. Knowledge and preferences are formed/applied based on the variety.
+
+**Stack decrement**: Each time a character eats from a vessel, the stack count decreases by 1. When empty, the vessel can accept any variety again.
 
 ### Viewing Vessel Contents
 

@@ -312,3 +312,130 @@ func StartSleep(char *entity.Character, atBed bool, log *ActionLog) {
 	}
 }
 
+// ConsumeFromVessel handles eating from a vessel's contents.
+// Decrements the stack count and removes the stack when empty.
+// The vessel remains in the character's inventory.
+func ConsumeFromVessel(char *entity.Character, vessel *entity.Item, log *ActionLog) {
+	if vessel.Container == nil || len(vessel.Container.Contents) == 0 {
+		return // Nothing to eat
+	}
+
+	// Get the first stack
+	stack := &vessel.Container.Contents[0]
+	variety := stack.Variety
+	varietyName := variety.Description()
+	oldHunger := char.Hunger
+
+	// Update activity
+	char.CurrentActivity = "Consuming " + varietyName + " from vessel"
+
+	// Reduce hunger
+	char.Hunger -= config.FoodHungerReduction
+	if char.Hunger < 0 {
+		char.Hunger = 0
+	}
+
+	// Set cooldown and boost mood when fully satisfied
+	if char.Hunger == 0 {
+		char.HungerCooldown = config.SatisfactionCooldown
+		prevTier := char.MoodTier()
+		char.Mood += config.MoodBoostOnConsumption
+		if char.Mood > 100 {
+			char.Mood = 100
+		}
+		if log != nil && char.MoodTier() != prevTier {
+			log.Add(char.ID, char.Name, "mood", fmt.Sprintf("Feeling %s", char.MoodLevel()))
+		}
+	}
+
+	// Mood adjustment from preferences
+	netPref := char.NetPreferenceForVariety(variety)
+	if netPref != 0 {
+		oldMood := char.Mood
+		prevTier := char.MoodTier()
+		char.Mood += float64(netPref) * config.MoodPreferenceModifier
+		if char.Mood > 100 {
+			char.Mood = 100
+		}
+		if char.Mood < 0 {
+			char.Mood = 0
+		}
+		if log != nil {
+			moodChange := "Improved Mood"
+			if netPref < 0 {
+				moodChange = "Worsened Mood"
+			}
+			log.Add(char.ID, char.Name, "mood",
+				fmt.Sprintf("Eating %s %s (mood %d→%d)", varietyName, moodChange, int(oldMood), int(char.Mood)))
+		}
+		if log != nil && char.MoodTier() != prevTier {
+			log.Add(char.ID, char.Name, "mood", fmt.Sprintf("Feeling %s", char.MoodLevel()))
+		}
+	}
+
+	// Log consumption
+	if log != nil {
+		log.Add(char.ID, char.Name, "consumption",
+			fmt.Sprintf("Ate %s from vessel (hunger %d→%d, %d remaining)",
+				varietyName, int(oldHunger), int(char.Hunger), stack.Count-1))
+	}
+
+	// Apply poison effect
+	if variety.Poisonous {
+		char.Poisoned = true
+		char.PoisonTimer = config.PoisonDuration
+
+		if log != nil {
+			log.Add(char.ID, char.Name, "poison",
+				fmt.Sprintf("Became poisoned! (duration: %ds)", int(config.PoisonDuration)))
+		}
+
+		// Learn poison knowledge
+		knowledge := entity.NewKnowledgeFromVariety(variety, entity.KnowledgePoisonous)
+		LearnKnowledgeWithEffects(char, knowledge, log)
+	}
+
+	// Apply healing effect
+	if variety.Healing {
+		oldHealth := char.Health
+		prevTier := char.HealthTier()
+		char.Health += config.HealAmount
+		if char.Health > 100 {
+			char.Health = 100
+		}
+
+		if char.Health > oldHealth {
+			if log != nil {
+				log.Add(char.ID, char.Name, "health",
+					fmt.Sprintf("Eating %s impacted health (%d→%d)", varietyName, int(oldHealth), int(char.Health)))
+			}
+
+			// Learn healing knowledge
+			knowledge := entity.NewKnowledgeFromVariety(variety, entity.KnowledgeHealing)
+			LearnKnowledgeWithEffects(char, knowledge, log)
+		}
+
+		// Boost mood when fully healed
+		if char.Health == 100 {
+			char.Mood += config.MoodBoostOnConsumption
+			if char.Mood > 100 {
+				char.Mood = 100
+			}
+		}
+
+		if log != nil && char.HealthTier() != prevTier {
+			log.Add(char.ID, char.Name, "health", fmt.Sprintf("%s", char.HealthLevel()))
+		}
+	}
+
+	// Decrement stack count
+	stack.Count--
+
+	// Remove stack if empty
+	if stack.Count <= 0 {
+		vessel.Container.Contents = vessel.Container.Contents[1:]
+	}
+
+	// Note: We don't clear char.Carrying - vessel stays in inventory
+}
+

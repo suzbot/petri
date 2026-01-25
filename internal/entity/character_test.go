@@ -1177,3 +1177,178 @@ func TestKnownHealingItems_KnowledgeMustMatchExactly(t *testing.T) {
 		t.Error("KnownHealingItems() should only return exactly matching item")
 	}
 }
+
+// =============================================================================
+// Variety-based Methods (for vessel contents)
+// =============================================================================
+
+// TestNetPreferenceForVariety_NoPreferences verifies empty preferences returns 0
+func TestNetPreferenceForVariety_NoPreferences(t *testing.T) {
+	t.Parallel()
+
+	c := &Character{Preferences: []Preference{}}
+	variety := &ItemVariety{ItemType: "berry", Color: types.ColorRed}
+
+	got := c.NetPreferenceForVariety(variety)
+	if got != 0 {
+		t.Errorf("NetPreferenceForVariety() with no preferences: got %d, want 0", got)
+	}
+}
+
+// TestNetPreferenceForVariety_SingleMatch verifies single matching preference
+func TestNetPreferenceForVariety_SingleMatch(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		pref     Preference
+		variety  *ItemVariety
+		expected int
+	}{
+		{
+			name:     "positive itemType match",
+			pref:     NewPositivePreference("berry", ""),
+			variety:  &ItemVariety{ItemType: "berry", Color: types.ColorRed},
+			expected: 1,
+		},
+		{
+			name:     "positive color match",
+			pref:     NewPositivePreference("", types.ColorRed),
+			variety:  &ItemVariety{ItemType: "berry", Color: types.ColorRed},
+			expected: 1,
+		},
+		{
+			name:     "negative itemType match",
+			pref:     NewNegativePreference("berry", ""),
+			variety:  &ItemVariety{ItemType: "berry", Color: types.ColorRed},
+			expected: -1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Character{Preferences: []Preference{tt.pref}}
+			got := c.NetPreferenceForVariety(tt.variety)
+			if got != tt.expected {
+				t.Errorf("NetPreferenceForVariety(): got %d, want %d", got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestNetPreferenceForVariety_MultipleMatches verifies multiple matches sum correctly
+func TestNetPreferenceForVariety_MultipleMatches(t *testing.T) {
+	t.Parallel()
+
+	// Likes berries (+1) and likes red (+1), so red berry = +2
+	c := &Character{
+		Preferences: []Preference{
+			NewPositivePreference("berry", ""),
+			NewPositivePreference("", types.ColorRed),
+		},
+	}
+	redBerry := &ItemVariety{ItemType: "berry", Color: types.ColorRed}
+
+	got := c.NetPreferenceForVariety(redBerry)
+	if got != 2 {
+		t.Errorf("NetPreferenceForVariety() with two matches: got %d, want 2", got)
+	}
+
+	// Blue berry only matches berry preference = +1
+	blueBerry := &ItemVariety{ItemType: "berry", Color: types.ColorBlue}
+	got = c.NetPreferenceForVariety(blueBerry)
+	if got != 1 {
+		t.Errorf("NetPreferenceForVariety() with one match: got %d, want 1", got)
+	}
+}
+
+// TestNetPreferenceForVariety_MushroomWithPatternTexture verifies complex variety matching
+func TestNetPreferenceForVariety_MushroomWithPatternTexture(t *testing.T) {
+	t.Parallel()
+
+	// Dislikes spotted things and slimy things
+	c := &Character{
+		Preferences: []Preference{
+			{Valence: -1, Pattern: types.PatternSpotted},
+			{Valence: -1, Texture: types.TextureSlimy},
+		},
+	}
+
+	slimySpotted := &ItemVariety{
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureSlimy,
+	}
+
+	got := c.NetPreferenceForVariety(slimySpotted)
+	if got != -2 {
+		t.Errorf("NetPreferenceForVariety() for slimy spotted: got %d, want -2", got)
+	}
+}
+
+// TestKnowsVarietyIsHealing verifies healing knowledge check for varieties
+func TestKnowsVarietyIsHealing(t *testing.T) {
+	t.Parallel()
+
+	healingKnowledge := Knowledge{
+		Category: KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+	c := &Character{Knowledge: []Knowledge{healingKnowledge}}
+
+	blueVariety := &ItemVariety{ItemType: "berry", Color: types.ColorBlue}
+	redVariety := &ItemVariety{ItemType: "berry", Color: types.ColorRed}
+
+	if !c.KnowsVarietyIsHealing(blueVariety) {
+		t.Error("KnowsVarietyIsHealing() should return true for known healing variety")
+	}
+	if c.KnowsVarietyIsHealing(redVariety) {
+		t.Error("KnowsVarietyIsHealing() should return false for unknown variety")
+	}
+}
+
+// TestKnowsVarietyIsHealing_NoKnowledge verifies false when no knowledge
+func TestKnowsVarietyIsHealing_NoKnowledge(t *testing.T) {
+	t.Parallel()
+
+	c := &Character{Knowledge: []Knowledge{}}
+	variety := &ItemVariety{ItemType: "berry", Color: types.ColorBlue, Healing: true}
+
+	if c.KnowsVarietyIsHealing(variety) {
+		t.Error("KnowsVarietyIsHealing() should return false when no knowledge")
+	}
+}
+
+// TestKnowsVarietyIsHealing_MustMatchExactly verifies exact variety matching
+func TestKnowsVarietyIsHealing_MustMatchExactly(t *testing.T) {
+	t.Parallel()
+
+	// Knows spotted red mushrooms are healing
+	healingKnowledge := Knowledge{
+		Category: KnowledgeHealing,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternSpotted,
+	}
+	c := &Character{Knowledge: []Knowledge{healingKnowledge}}
+
+	spottedRed := &ItemVariety{
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternSpotted,
+	}
+	plainRed := &ItemVariety{
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternNone,
+	}
+
+	if !c.KnowsVarietyIsHealing(spottedRed) {
+		t.Error("Should know spotted red mushroom is healing")
+	}
+	if c.KnowsVarietyIsHealing(plainRed) {
+		t.Error("Should not know plain red mushroom is healing (different pattern)")
+	}
+}

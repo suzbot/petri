@@ -348,7 +348,7 @@ Pickup logic is split across multiple files (see `architecture.md`). For Phase 6
 
 ---
 
-## Feature 5: Eating from Vessels
+## Feature 5: Eating from Vessels ✓
 
 **Addresses:** Req B.5 (eating from vessel)
 
@@ -359,35 +359,98 @@ Pickup logic is split across multiple files (see `architecture.md`). For Phase 6
 - When Stack empty, vessel accepts any variety again
 - Characters can also eat from dropped vessels on the ground
 
-### Open Design Questions
+### Design Decisions
 
-1. **Priority:** Loose carried item vs carried vessel vs dropped vessel - what order?
-2. **Poison avoidance:** Should characters refuse to eat known-poison items from vessels?
-3. **Dropped vessel interaction:** Should eating from dropped vessel require being adjacent, or on same tile?
-4. - Re-evaluate how characters eat carried items:
-    - they definitely shouldn't eat a carried item they know is poison, right?
-    - Should they eat a carried disliked item instead of a liked nearby item? How does need tier play in?
-    - How do we keep characters from getting stuck carrying around poisoned items they won't eat? 
-    - Will future plans for item handling take care of that naturally? (see future brainstorming rtf)
+**Unified Food Selection (Option D):** All food sources use the same proximity-based scoring system. This also addresses the deferred enhancement of applying preference/poison logic to carried items.
 
-### Tasks
+**Food sources with distances:**
+- Carried loose item: distance = 0
+- Carried vessel contents: distance = 0
+- Dropped vessel (same tile): distance = 0
+- Dropped vessel (nearby): distance = Manhattan distance
+- Map item: distance = Manhattan distance
 
-- [ ] Update hunger intent to check carried vessel `Contents` for edible Stacks
-- [ ] Implement eating from carried vessel (decrement count, apply effects from variety)
-- [ ] Handle Stack removal when count = 0
-- [ ] Apply poison/healing knowledge to vessel contents
-- [ ] Tests for eating from carried vessel
+**Scoring formula (unchanged from current map food):**
+```
+Score = (NetPreference × PrefWeight) - (Distance × DistWeight) + HealingBonus
+```
 
-**Test checkpoint 5a:** Character eats from carried vessel when hungry
+**Hunger tier behavior (unchanged):**
+- Moderate (50-74): Filter disliked (NetPreference < 0), high preference weight
+- Severe (75-89): Allow all, medium preference weight
+- Crisis (90+): Allow all, distance only (no preference weight)
 
-- [ ] Update food search to find dropped vessels with edible contents
-- [ ] Character moves to dropped vessel and eats from it (without picking it up)
-- [ ] Same decrement/removal logic as carried vessel
-- [ ] Tests for eating from dropped vessel
+**Key behavior changes:**
+- Carried disliked item filtered at Moderate hunger → character seeks better food
+- At Severe+, carried food still has distance advantage but doesn't auto-win
+- At Crisis, carried food wins on distance (as before, but now explicit)
+- Poison knowledge creates dislike preference → filtered at Moderate
 
-** Human Test checkpoint 5b:** Character finds and eats from dropped vessel on ground when hungry
+**Dropped vessel interaction:** Same tile required (consistent with eating map items).
 
-- [ ] Update README, Game Mechanics, claude.md, and architecture docs as applicable, for changes since last doc updates.
+**Intent handling:** Infer food source from context in applyIntent:
+- ActionConsume: if Carrying is vessel with contents → eat from contents
+- ActionMove arriving at target: if TargetItem is vessel with contents → eat from contents
+
+### Stage 5a: Variety-based Methods ✓
+
+Add methods to check preferences/knowledge against ItemVariety (for vessel Stack contents):
+
+- [x] `Preference.MatchesVariety(v *ItemVariety) bool`
+- [x] `Preference.MatchScoreVariety(v *ItemVariety) int`
+- [x] `Knowledge.MatchesVariety(v *ItemVariety) bool`
+- [x] `Character.NetPreferenceForVariety(v *ItemVariety) int`
+- [x] `Character.KnowsVarietyIsHealing(v *ItemVariety) bool`
+- [x] `NewKnowledgeFromVariety(v *ItemVariety, category) Knowledge`
+- [x] Tests for variety-based methods (19 tests)
+
+**Test checkpoint 5a:** Unit tests pass for variety methods ✓
+
+### Stage 5b: Unified Food Selection ✓
+
+Refactor findFoodIntent/findFoodTarget to use unified candidate scoring:
+
+- [x] Modify `findFoodTarget` to include carried items with distance=0
+- [x] Modify `findFoodTarget` to score carried vessel contents by variety
+- [x] Update `findFoodIntent` to check if result is carried item → ActionConsume
+- [x] Tests for unified food selection (5 new tests)
+
+**Note:** Simplified implementation - no FoodCandidate struct needed. Context inference (Option C) allows existing return type to work.
+
+**Test checkpoint 5b:** Unit tests verify carried disliked item filtered at Moderate hunger ✓
+
+### Stage 5c: Eating from Carried Vessel ✓
+
+- [x] Update ActionConsume handling: detect vessel with contents, eat from contents
+- [x] Implement `ConsumeFromVessel()`: decrement stack, remove when empty, apply effects
+- [x] Effects come from Variety (poisonous, healing attributes)
+- [x] Knowledge formation from vessel contents via `NewKnowledgeFromVariety`
+- [x] Mood adjustment via `NetPreferenceForVariety`
+- [x] Tests for eating from carried vessel (7 tests)
+
+**Human test checkpoint 5c:** Character with carried vessel eats from contents when hungry ✓
+
+### Stage 5d: Eating from Dropped Vessel ✓
+
+- [x] Include dropped vessels with edible contents in `findFoodTarget` scoring
+- [x] Update arrival handling in update.go: if TargetItem is vessel with contents → eat from contents
+- [x] Same `ConsumeFromVessel()` logic as carried vessel
+- [x] Tests for eating from dropped vessel (4 tests)
+
+**Human test checkpoint 5d:** Character finds and eats from dropped vessel on ground ✓
+
+### Bug Fix: VarietySave Missing Edible Field
+
+During human testing, discovered that `VarietySave` was missing the `Edible` field. When loading saved games, variety `Edible` defaulted to `false`, so dropped vessel contents weren't recognized as food.
+
+- [x] Add `Edible` field to `VarietySave` in `internal/save/state.go`
+- [x] Update `varietiesToSave()` to include Edible
+- [x] Update `varietiesFromSave()` to restore Edible
+
+### Stage 5e: Documentation ✓
+
+- [x] Update README, Game Mechanics, claude.md, and architecture docs
+- [x] Document test world creation process in feature-dev-process.md
 
 ---
 
@@ -395,9 +458,17 @@ Pickup logic is split across multiple files (see `architecture.md`). For Phase 6
 
 - [ ] Choose a color for order-related events in action log
 - [ ] (Needs more discussion) Natural language item descriptions: When selecting an item, show descriptive text such as:
-	- "This is a hollow gourd. It is a vessel that can be used to carry things. It is warty and green." 
+	- "This is a hollow gourd. It is a vessel that can be used to carry things. It is warty and green."
 	- Attributes present for preference/mood effects, description provides flavor text.
+- [ ] Keypress 'b' for back when cycling through selected characters
+- [ ] Move preferences list to lower panel (viewable with keypress 'p'), make lower panel scrollable
+- [ ] UI capitalization consistency clean-up
+- [ ] Keypress options for faster order selection, ability to keep adding orders in add mode
 - [ ] Update README, Game Mechanics, claude.md, and architecture docs as applicable, for changes since last doc updates.
+
+### Questions to Investigate
+
+- [ ] Can mood be impacted by looking at a dropped hollow gourd, based on its attributes? Characters already look at them - verify mood impacts work.
 
 
 ---

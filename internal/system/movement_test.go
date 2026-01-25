@@ -1283,3 +1283,344 @@ func TestFindForageTarget_SkipsItemsWithNilPlant(t *testing.T) {
 		t.Errorf("Expected growing berry (not vessel), got %v", result)
 	}
 }
+
+// =============================================================================
+// Unified Food Selection (Stage 5b) - Carried items use same scoring as map items
+// =============================================================================
+
+func TestFindFoodIntent_CarriedDislikedItem_FilteredAtModerate(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berries and red
+	char.Hunger = 60           // Moderate
+	char.SetPosition(5, 5)
+
+	// Add dislike for mushrooms
+	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
+
+	// Carrying a disliked mushroom
+	carriedMushroom := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+	char.Carrying = carriedMushroom
+
+	// Liked berry on map
+	mapBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
+	items := []*entity.Item{mapBerry}
+
+	intent := findFoodIntent(char, 5, 5, items, entity.TierModerate, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent when map has liked food")
+	}
+	// Should seek map food, not eat disliked carried item
+	if intent.Action == entity.ActionConsume {
+		t.Error("Should not eat disliked carried item at Moderate hunger")
+	}
+	if intent.TargetItem != mapBerry {
+		t.Error("Should target liked map berry instead of disliked carried mushroom")
+	}
+}
+
+func TestFindFoodIntent_CarriedDislikedItem_EatenAtCrisis(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 95 // Crisis
+	char.SetPosition(5, 5)
+
+	// Add dislike for mushrooms
+	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
+
+	// Carrying a disliked mushroom
+	carriedMushroom := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+	char.Carrying = carriedMushroom
+
+	// Liked berry far away on map
+	mapBerry := entity.NewBerry(15, 15, types.ColorRed, false, false)
+	items := []*entity.Item{mapBerry}
+
+	intent := findFoodIntent(char, 5, 5, items, entity.TierCrisis, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent at Crisis hunger")
+	}
+	// At Crisis, distance wins - should eat carried item despite dislike
+	if intent.Action != entity.ActionConsume {
+		t.Error("Should eat carried item at Crisis hunger (distance=0 wins)")
+	}
+	if intent.TargetItem != carriedMushroom {
+		t.Error("Should eat carried mushroom at Crisis (distance advantage)")
+	}
+}
+
+func TestFindFoodIntent_CarriedLikedItem_WinsOverFarLikedItem(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berries and red
+	char.Hunger = 60           // Moderate
+	char.SetPosition(5, 5)
+
+	// Carrying a liked red berry
+	carriedBerry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.Carrying = carriedBerry
+
+	// Another liked red berry far away
+	mapBerry := entity.NewBerry(15, 15, types.ColorRed, false, false)
+	items := []*entity.Item{mapBerry}
+
+	intent := findFoodIntent(char, 5, 5, items, entity.TierModerate, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent when carrying food")
+	}
+	// Carried berry should win due to distance=0
+	// Score(carried) = 20*2 - 0 = 40
+	// Score(map at 15,15) = 20*2 - 20 = 20
+	if intent.Action != entity.ActionConsume {
+		t.Error("Should eat carried liked item (distance advantage)")
+	}
+	if intent.TargetItem != carriedBerry {
+		t.Error("Should target carried berry")
+	}
+}
+
+func TestFindFoodIntent_CarriedNeutralItem_FilteredWhenLikedAvailable(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berries and red
+	char.Hunger = 60           // Moderate
+	char.SetPosition(5, 5)
+
+	// Carrying a neutral item (brown mushroom - no preference match)
+	carriedMushroom := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+	char.Carrying = carriedMushroom
+
+	// Liked red berry nearby
+	mapBerry := entity.NewBerry(7, 7, types.ColorRed, false, false)
+	items := []*entity.Item{mapBerry}
+
+	intent := findFoodIntent(char, 5, 5, items, entity.TierModerate, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent")
+	}
+	// Score(carried neutral) = 20*0 - 0 = 0
+	// Score(liked berry at 7,7) = 20*2 - 4 = 36
+	// Liked berry should win
+	if intent.Action == entity.ActionConsume {
+		t.Error("Should prefer liked map berry over neutral carried item")
+	}
+	if intent.TargetItem != mapBerry {
+		t.Error("Should target liked map berry")
+	}
+}
+
+func TestFindFoodIntent_NoFood_ReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 60 // Moderate
+	char.SetPosition(5, 5)
+
+	// Add dislike for mushrooms
+	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
+
+	// Only carrying disliked food, no map food
+	carriedMushroom := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+	char.Carrying = carriedMushroom
+
+	items := []*entity.Item{} // No map food
+
+	intent := findFoodIntent(char, 5, 5, items, entity.TierModerate, nil)
+
+	// At Moderate, disliked carried item should be filtered, no alternatives
+	if intent != nil {
+		t.Error("Should return nil when only disliked carried food and no map food")
+	}
+}
+
+func TestFindFoodIntent_VesselContents_RecognizedAsFood(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berries and red
+	char.Hunger = 60           // Moderate
+	char.SetPosition(5, 5)
+
+	// Create vessel with red berries (liked)
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone)
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	vessel := CreateVessel(gourd, recipe)
+	variety := &entity.ItemVariety{
+		ID:       "berry-red",
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   true,
+	}
+	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
+	char.Carrying = vessel
+
+	items := []*entity.Item{} // No map food
+
+	intent := findFoodIntent(char, 5, 5, items, entity.TierModerate, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent when carrying vessel with edible contents")
+	}
+	if intent.Action != entity.ActionConsume {
+		t.Errorf("Expected ActionConsume, got %d", intent.Action)
+	}
+	if intent.TargetItem != vessel {
+		t.Error("TargetItem should be the vessel")
+	}
+}
+
+func TestFindFoodIntent_VesselWithDislikedContents_FilteredAtModerate(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 60 // Moderate
+	char.SetPosition(5, 5)
+
+	// Add dislike for mushrooms
+	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
+
+	// Create vessel with disliked mushrooms
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone)
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	vessel := CreateVessel(gourd, recipe)
+	variety := &entity.ItemVariety{
+		ID:       "mushroom-brown",
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+		Edible:   true,
+	}
+	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
+	char.Carrying = vessel
+
+	// Liked berry on map
+	mapBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
+	items := []*entity.Item{mapBerry}
+
+	intent := findFoodIntent(char, 5, 5, items, entity.TierModerate, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent")
+	}
+	// Should seek map food, not eat disliked vessel contents
+	if intent.Action == entity.ActionConsume {
+		t.Error("Should not eat disliked vessel contents at Moderate hunger")
+	}
+	if intent.TargetItem != mapBerry {
+		t.Error("Should target liked map berry")
+	}
+}
+
+func TestFindFoodIntent_DroppedVessel_RecognizedAsFood(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berries and red
+	char.Hunger = 60           // Moderate
+	char.SetPosition(5, 5)
+	char.Carrying = nil // Not carrying anything
+
+	// Create dropped vessel with red berries (liked)
+	gourd := entity.NewGourd(7, 7, types.ColorGreen, types.PatternNone, types.TextureNone)
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	vessel := CreateVessel(gourd, recipe)
+	vessel.SetPosition(7, 7)
+	variety := &entity.ItemVariety{
+		ID:       "berry-red",
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   true,
+	}
+	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
+
+	items := []*entity.Item{vessel}
+
+	intent := findFoodIntent(char, 5, 5, items, entity.TierModerate, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent when dropped vessel has edible contents")
+	}
+	if intent.Action != entity.ActionMove {
+		t.Errorf("Expected ActionMove to vessel, got %d", intent.Action)
+	}
+	if intent.TargetItem != vessel {
+		t.Error("TargetItem should be the dropped vessel")
+	}
+}
+
+func TestFindFoodIntent_DroppedVesselWithDislikedContents_FilteredAtModerate(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 60 // Moderate
+	char.SetPosition(5, 5)
+	char.Carrying = nil
+
+	// Add dislike for mushrooms
+	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
+
+	// Create dropped vessel with disliked mushrooms
+	gourd := entity.NewGourd(7, 7, types.ColorGreen, types.PatternNone, types.TextureNone)
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	vessel := CreateVessel(gourd, recipe)
+	vessel.SetPosition(7, 7)
+	variety := &entity.ItemVariety{
+		ID:       "mushroom-brown",
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+		Edible:   true,
+	}
+	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
+
+	// Liked berry farther away
+	mapBerry := entity.NewBerry(15, 15, types.ColorRed, false, false)
+	items := []*entity.Item{vessel, mapBerry}
+
+	intent := findFoodIntent(char, 5, 5, items, entity.TierModerate, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent")
+	}
+	// Should prefer liked berry over disliked vessel contents
+	if intent.TargetItem != mapBerry {
+		t.Error("Should target liked map berry, not vessel with disliked contents")
+	}
+}
+
+func TestFindFoodIntent_DroppedVesselCloser_WinsOverFarFood(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berries and red
+	char.Hunger = 95           // Crisis - distance wins
+	char.SetPosition(5, 5)
+	char.Carrying = nil
+
+	// Create dropped vessel nearby with berries
+	gourd := entity.NewGourd(6, 6, types.ColorGreen, types.PatternNone, types.TextureNone)
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	vessel := CreateVessel(gourd, recipe)
+	vessel.SetPosition(6, 6)
+	variety := &entity.ItemVariety{
+		ID:       "berry-blue",
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+		Edible:   true,
+	}
+	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
+
+	// Red berry far away (more liked but farther)
+	mapBerry := entity.NewBerry(20, 20, types.ColorRed, false, false)
+	items := []*entity.Item{vessel, mapBerry}
+
+	intent := findFoodIntent(char, 5, 5, items, entity.TierCrisis, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent")
+	}
+	// At Crisis, distance wins - should target closer vessel
+	if intent.TargetItem != vessel {
+		t.Error("At Crisis hunger, should target closer dropped vessel")
+	}
+}

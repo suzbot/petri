@@ -215,6 +215,7 @@ Callers handle continuation differently based on result and context (foraging vs
 | `FindAvailableVessel()` | Find nearest vessel on ground that can hold target item |
 | `FindNextVesselTarget()` | Find next growing item matching vessel's variety |
 | `CanPickUpMore()` | Check if character can pick up more (has room or has vessel with space) |
+| `ConsumeFromVessel()` | Eat from vessel contents, decrement stack, apply effects from variety |
 
 ### Look-for-Container Pattern
 

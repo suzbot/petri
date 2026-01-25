@@ -131,6 +131,16 @@ func (c *Character) NetPreference(item *Item) int {
 	return sum
 }
 
+// NetPreferenceForVariety returns the total preference score for a variety.
+// Used for checking preferences against vessel contents (which are Stacks of Varieties).
+func (c *Character) NetPreferenceForVariety(v *ItemVariety) int {
+	sum := 0
+	for _, pref := range c.Preferences {
+		sum += pref.MatchScoreVariety(v)
+	}
+	return sum
+}
+
 // HasKnowledge returns true if the character already has this knowledge
 func (c *Character) HasKnowledge(k Knowledge) bool {
 	for _, existing := range c.Knowledge {
@@ -170,6 +180,17 @@ func (c *Character) KnownHealingItems(items []*Item) []*Item {
 func (c *Character) KnowsItemIsHealing(item *Item) bool {
 	for _, k := range c.Knowledge {
 		if k.Category == KnowledgeHealing && k.Matches(item) {
+			return true
+		}
+	}
+	return false
+}
+
+// KnowsVarietyIsHealing returns true if the character has knowledge that this variety is healing.
+// Used for checking knowledge against vessel contents (which are Stacks of Varieties).
+func (c *Character) KnowsVarietyIsHealing(v *ItemVariety) bool {
+	for _, k := range c.Knowledge {
+		if k.Category == KnowledgeHealing && k.MatchesVariety(v) {
 			return true
 		}
 	}

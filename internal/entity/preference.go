@@ -45,6 +45,33 @@ func (p Preference) Matches(item *Item) bool {
 	return true
 }
 
+// MatchesVariety returns true if the variety matches all set attributes of this preference.
+// An empty preference (no attributes set) matches nothing.
+// Used for checking preferences against vessel contents (which are Stacks of Varieties).
+func (p Preference) MatchesVariety(v *ItemVariety) bool {
+	if p.ItemType == "" && p.Color == "" && p.Pattern == "" && p.Texture == "" {
+		return false // Empty preference matches nothing
+	}
+
+	if p.ItemType != "" && p.ItemType != v.ItemType {
+		return false
+	}
+
+	if p.Color != "" && p.Color != v.Color {
+		return false
+	}
+
+	if p.Pattern != "" && p.Pattern != v.Pattern {
+		return false
+	}
+
+	if p.Texture != "" && p.Texture != v.Texture {
+		return false
+	}
+
+	return true
+}
+
 // AttributeCount returns the number of attributes specified in this preference.
 func (p Preference) AttributeCount() int {
 	count := 0
@@ -69,6 +96,17 @@ func (p Preference) AttributeCount() int {
 // preferences (combos) contribute proportionally more to the net preference.
 func (p Preference) MatchScore(item *Item) int {
 	if !p.Matches(item) {
+		return 0
+	}
+	return p.Valence * p.AttributeCount()
+}
+
+// MatchScoreVariety returns the preference score for a variety.
+// Returns 0 if the preference doesn't match the variety.
+// Otherwise returns Valence × AttributeCount.
+// Used for checking preferences against vessel contents.
+func (p Preference) MatchScoreVariety(v *ItemVariety) int {
+	if !p.MatchesVariety(v) {
 		return 0
 	}
 	return p.Valence * p.AttributeCount()

@@ -58,6 +58,7 @@ func varietiesToSave(registry *game.VarietyRegistry) []save.VarietySave {
 			Color:     string(v.Color),
 			Pattern:   string(v.Pattern),
 			Texture:   string(v.Texture),
+			Edible:    v.Edible,
 			Poisonous: v.Poisonous,
 			Healing:   v.Healing,
 		}
@@ -364,6 +365,7 @@ func varietiesFromSave(varieties []save.VarietySave) *game.VarietyRegistry {
 			Color:     types.Color(vs.Color),
 			Pattern:   types.Pattern(vs.Pattern),
 			Texture:   types.Texture(vs.Texture),
+			Edible:    vs.Edible,
 			Poisonous: vs.Poisonous,
 			Healing:   vs.Healing,
 		}

@@ -917,3 +917,165 @@ func TestConsumeFromInventory_LearnsKnowledge(t *testing.T) {
 		t.Errorf("Expected poison knowledge, got %s", char.Knowledge[0].Category)
 	}
 }
+
+// =============================================================================
+// Eating from Vessel (Stage 5c)
+// =============================================================================
+
+func TestConsumeFromVessel_ReducesHunger(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+
+	// Create vessel with berries
+	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, false)
+	char.Carrying = vessel
+
+	ConsumeFromVessel(char, vessel, nil)
+
+	expected := 80 - config.FoodHungerReduction
+	if char.Hunger != expected {
+		t.Errorf("Hunger: got %.2f, want %.2f", char.Hunger, expected)
+	}
+}
+
+func TestConsumeFromVessel_DecrementsStackCount(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+
+	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, false)
+	char.Carrying = vessel
+
+	ConsumeFromVessel(char, vessel, nil)
+
+	if len(vessel.Container.Contents) != 1 {
+		t.Fatalf("Expected 1 stack, got %d", len(vessel.Container.Contents))
+	}
+	if vessel.Container.Contents[0].Count != 4 {
+		t.Errorf("Stack count: got %d, want 4", vessel.Container.Contents[0].Count)
+	}
+}
+
+func TestConsumeFromVessel_RemovesEmptyStack(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+
+	vessel := createTestVesselWithContents("berry", types.ColorRed, 1, false, false)
+	char.Carrying = vessel
+
+	ConsumeFromVessel(char, vessel, nil)
+
+	if len(vessel.Container.Contents) != 0 {
+		t.Errorf("Expected empty contents after eating last item, got %d stacks", len(vessel.Container.Contents))
+	}
+}
+
+func TestConsumeFromVessel_VesselStaysInInventory(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+
+	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, false)
+	char.Carrying = vessel
+
+	ConsumeFromVessel(char, vessel, nil)
+
+	if char.Carrying != vessel {
+		t.Error("Vessel should remain in inventory after eating from it")
+	}
+}
+
+func TestConsumeFromVessel_AppliesPoisonFromVariety(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+	char.Knowledge = []entity.Knowledge{}
+
+	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, true, false) // Poisonous
+	char.Carrying = vessel
+
+	ConsumeFromVessel(char, vessel, nil)
+
+	if !char.Poisoned {
+		t.Error("Character should be poisoned after eating poisonous variety from vessel")
+	}
+	// Should learn poison knowledge
+	if len(char.Knowledge) != 1 || char.Knowledge[0].Category != entity.KnowledgePoisonous {
+		t.Error("Should learn poison knowledge from eating poisonous variety")
+	}
+}
+
+func TestConsumeFromVessel_AppliesHealingFromVariety(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+	char.Health = 50 // Hurt
+	char.Knowledge = []entity.Knowledge{}
+
+	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, true) // Healing
+	char.Carrying = vessel
+
+	ConsumeFromVessel(char, vessel, nil)
+
+	expectedHealth := 50 + config.HealAmount
+	if char.Health != expectedHealth {
+		t.Errorf("Health: got %.2f, want %.2f", char.Health, expectedHealth)
+	}
+	// Should learn healing knowledge
+	if len(char.Knowledge) != 1 || char.Knowledge[0].Category != entity.KnowledgeHealing {
+		t.Error("Should learn healing knowledge from eating healing variety")
+	}
+}
+
+func TestConsumeFromVessel_MoodAdjustedByPreference(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berries and red
+	char.Hunger = 80
+	char.Mood = 50
+
+	// Red berry matches both preferences: NetPreference = +2
+	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, false)
+	char.Carrying = vessel
+
+	ConsumeFromVessel(char, vessel, nil)
+
+	// Mood should increase by NetPreference(+2) * MoodPreferenceModifier
+	expectedMood := 50 + 2*config.MoodPreferenceModifier
+	if char.Mood != expectedMood {
+		t.Errorf("Mood: got %.2f, want %.2f", char.Mood, expectedMood)
+	}
+}
+
+// Helper to create a test vessel with contents
+func createTestVesselWithContents(itemType string, color types.Color, count int, poisonous, healing bool) *entity.Item {
+	// Create a gourd and craft it into a vessel
+	gourd := entity.NewGourd(0, 0, color, types.PatternNone, types.TextureNone)
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	vessel := CreateVessel(gourd, recipe)
+
+	// Create a variety for the contents
+	variety := &entity.ItemVariety{
+		ID:        entity.GenerateVarietyID(itemType, color, types.PatternNone, types.TextureNone),
+		ItemType:  itemType,
+		Color:     color,
+		Edible:    true,
+		Poisonous: poisonous,
+		Healing:   healing,
+	}
+
+	// Add contents to vessel
+	vessel.Container.Contents = []entity.Stack{
+		{Variety: variety, Count: count},
+	}
+
+	return vessel
+}

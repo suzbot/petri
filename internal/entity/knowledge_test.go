@@ -213,3 +213,98 @@ func TestNewKnowledgeFromItem(t *testing.T) {
 		t.Errorf("expected texture slimy, got %s", k.Texture)
 	}
 }
+
+// =============================================================================
+// Variety Matching (for vessel contents)
+// =============================================================================
+
+func TestKnowledge_MatchesVariety(t *testing.T) {
+	knowledge := Knowledge{
+		Category: KnowledgePoisonous,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureSlimy,
+	}
+
+	tests := []struct {
+		name     string
+		variety  *ItemVariety
+		expected bool
+	}{
+		{
+			name: "exact match",
+			variety: &ItemVariety{
+				ItemType: "mushroom",
+				Color:    types.ColorRed,
+				Pattern:  types.PatternSpotted,
+				Texture:  types.TextureSlimy,
+			},
+			expected: true,
+		},
+		{
+			name: "different color",
+			variety: &ItemVariety{
+				ItemType: "mushroom",
+				Color:    types.ColorBlue,
+				Pattern:  types.PatternSpotted,
+				Texture:  types.TextureSlimy,
+			},
+			expected: false,
+		},
+		{
+			name: "different item type",
+			variety: &ItemVariety{
+				ItemType: "berry",
+				Color:    types.ColorRed,
+			},
+			expected: false,
+		},
+		{
+			name: "different pattern",
+			variety: &ItemVariety{
+				ItemType: "mushroom",
+				Color:    types.ColorRed,
+				Pattern:  types.PatternNone,
+				Texture:  types.TextureSlimy,
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := knowledge.MatchesVariety(tt.variety)
+			if got != tt.expected {
+				t.Errorf("MatchesVariety() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestKnowledge_MatchesVariety_Berry(t *testing.T) {
+	// Berry knowledge has no pattern/texture
+	knowledge := Knowledge{
+		Category: KnowledgeHealing,
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+
+	matchingVariety := &ItemVariety{
+		ItemType: "berry",
+		Color:    types.ColorBlue,
+	}
+
+	nonMatchingVariety := &ItemVariety{
+		ItemType: "berry",
+		Color:    types.ColorRed,
+	}
+
+	if !knowledge.MatchesVariety(matchingVariety) {
+		t.Error("expected berry knowledge to match blue berry variety")
+	}
+
+	if knowledge.MatchesVariety(nonMatchingVariety) {
+		t.Error("expected berry knowledge to not match red berry variety")
+	}
+}

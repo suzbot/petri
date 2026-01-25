@@ -190,6 +190,7 @@ type VarietySave struct {
 	Color     string `json:"color"`
 	Pattern   string `json:"pattern"`
 	Texture   string `json:"texture"`
+	Edible    bool   `json:"edible"`
 	Poisonous bool   `json:"poisonous"`
 	Healing   bool   `json:"healing"`
 }

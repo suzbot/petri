@@ -24,6 +24,13 @@ When the user is ready to start a new feature within a phase:
 - At test checkpoints, pause for user to rebuild and manually test
 - Wait for user confirmation before updating documentation as "complete"
 
+**Test World Creation**: For behaviors that are difficult to observe naturally, create a dedicated test world with preconditions conducive to the behavior:
+- Create a world directory in `~/.petri/worlds/world-test-<feature>/`
+- Write `state.json` with specific setup (positioned characters, items, stat levels)
+- Write `meta.json` with world metadata
+- User loads this world to observe the specific behavior directly
+- Delete test worlds after verification if no longer needed
+
 ### 5. Documentation
 - Update README, CLAUDE.md, game-mechanics as needed
 - Only mark tasks complete in phase plan after human testing confirms success

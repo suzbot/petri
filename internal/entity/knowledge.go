@@ -33,6 +33,18 @@ func NewKnowledgeFromItem(item *Item, category KnowledgeCategory) Knowledge {
 	}
 }
 
+// NewKnowledgeFromVariety creates a Knowledge entry from a variety.
+// Used when learning from vessel contents.
+func NewKnowledgeFromVariety(v *ItemVariety, category KnowledgeCategory) Knowledge {
+	return Knowledge{
+		Category: category,
+		ItemType: v.ItemType,
+		Color:    v.Color,
+		Pattern:  v.Pattern,
+		Texture:  v.Texture,
+	}
+}
+
 // Description returns a human-readable description of this knowledge
 // Format: "[Texture] [pattern] [color] [itemType]s are [category]"
 // First letter is capitalized
@@ -73,6 +85,24 @@ func (k Knowledge) Matches(item *Item) bool {
 		return false
 	}
 	if k.Texture != item.Texture {
+		return false
+	}
+	return true
+}
+
+// MatchesVariety returns true if this knowledge applies to the given variety.
+// Used for checking knowledge against vessel contents (which are Stacks of Varieties).
+func (k Knowledge) MatchesVariety(v *ItemVariety) bool {
+	if k.ItemType != v.ItemType {
+		return false
+	}
+	if k.Color != v.Color {
+		return false
+	}
+	if k.Pattern != v.Pattern {
+		return false
+	}
+	if k.Texture != v.Texture {
 		return false
 	}
 	return true

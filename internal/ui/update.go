@@ -514,21 +514,32 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		cx, cy := char.Position()
 		tx, ty := char.Intent.TargetX, char.Intent.TargetY
 
-		// Check if at target item for eating - only if driven by hunger and item is edible
-		if char.Intent.TargetItem != nil &&
-			char.Intent.DrivingStat == types.StatHunger &&
-			char.Intent.TargetItem.Edible {
-			ix, iy := char.Intent.TargetItem.Position()
-			if cx == ix && cy == iy {
-				// At target item - eating in progress
-				char.ActionProgress += delta
-				if char.ActionProgress >= config.ActionDuration {
-					char.ActionProgress = 0
-					if item := m.gameMap.ItemAt(cx, cy); item == char.Intent.TargetItem {
-						system.Consume(char, item, m.gameMap, m.actionLog)
+		// Check if at target item for eating - only if driven by hunger
+		// Item can be edible directly OR be a vessel with edible contents
+		if char.Intent.TargetItem != nil && char.Intent.DrivingStat == types.StatHunger {
+			targetItem := char.Intent.TargetItem
+			isEdible := targetItem.Edible
+			isVesselWithFood := targetItem.Container != nil && len(targetItem.Container.Contents) > 0
+
+			if isEdible || isVesselWithFood {
+				ix, iy := targetItem.Position()
+				if cx == ix && cy == iy {
+					// At target item - eating in progress
+					char.ActionProgress += delta
+					if char.ActionProgress >= config.ActionDuration {
+						char.ActionProgress = 0
+						if item := m.gameMap.ItemAt(cx, cy); item == targetItem {
+							if isVesselWithFood {
+								// Eat from vessel contents (vessel stays on map)
+								system.ConsumeFromVessel(char, item, m.actionLog)
+							} else {
+								// Eat the item directly (removes from map)
+								system.Consume(char, item, m.gameMap, m.actionLog)
+							}
+						}
 					}
+					return
 				}
-				return
 			}
 		}
 
@@ -764,8 +775,12 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		char.ActionProgress += delta
 		if char.ActionProgress >= config.ActionDuration {
 			char.ActionProgress = 0
-			// Verify target item matches what we're carrying
-			if char.Carrying == char.Intent.TargetItem {
+			// Check if carrying a vessel with edible contents
+			if char.Carrying != nil && char.Carrying.Container != nil && len(char.Carrying.Container.Contents) > 0 {
+				// Eat from vessel contents
+				system.ConsumeFromVessel(char, char.Carrying, m.actionLog)
+			} else if char.Carrying == char.Intent.TargetItem {
+				// Eat the carried item directly
 				system.ConsumeFromInventory(char, char.Carrying, m.actionLog)
 			}
 		}
