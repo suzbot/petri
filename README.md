@@ -64,7 +64,7 @@ go run ./cmd/petri
 - `.` - Step forward one tick (while paused)
 - Arrow keys - Move cursor
 - `F` - Follow/unfollow character
-- `N` - Cycle to next character
+- `N` / `B` - Cycle next/previous character
 - `I` - Toggle inventory panel (select mode)
 - `K` - Toggle knowledge panel (select mode)
 - `O` - Toggle orders panel (+: add, c: cancel, x: expand)

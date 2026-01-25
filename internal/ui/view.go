@@ -470,7 +470,7 @@ func (m Model) viewGame() string {
 	} else {
 		hints = append(hints, "a=all activity")
 	}
-	hints = append(hints, "n=next", "o=orders")
+	hints = append(hints, "b/n=back/next", "o=orders")
 
 	// Cursor movement (not available in orders add/cancel mode)
 	inOrdersInput := m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode)

@@ -275,6 +275,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "n":
 			// Cycle to next alive character
 			m.cycleToNextCharacter()
+		case "b", "B":
+			// Cycle to previous alive character
+			m.cycleToPreviousCharacter()
 		case "up":
 			if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
 				// Handle orders panel navigation inline
@@ -885,6 +888,45 @@ func (m *Model) cycleToNextCharacter() {
 
 	m.following = next
 	m.cursorX, m.cursorY = next.Position()
+	m.logScrollOffset = 0
+}
+
+// cycleToPreviousCharacter moves cursor and follow to the previous alive character
+func (m *Model) cycleToPreviousCharacter() {
+	chars := m.gameMap.Characters()
+	if len(chars) == 0 {
+		return
+	}
+
+	// Build list of alive characters
+	var alive []*entity.Character
+	for _, c := range chars {
+		if !c.IsDead {
+			alive = append(alive, c)
+		}
+	}
+	if len(alive) == 0 {
+		return
+	}
+
+	// Find current index
+	currentIdx := -1
+	for i, c := range alive {
+		if c == m.following {
+			currentIdx = i
+			break
+		}
+	}
+
+	// Move to previous (wrap around)
+	prevIdx := currentIdx - 1
+	if prevIdx < 0 {
+		prevIdx = len(alive) - 1
+	}
+	prev := alive[prevIdx]
+
+	m.following = prev
+	m.cursorX, m.cursorY = prev.Position()
 	m.logScrollOffset = 0
 }
 

@@ -467,7 +467,7 @@ During human testing, discovered that `VarietySave` was missing the `Edible` fie
 
 ### Stage 6b: Quick Wins
 
-- [ ] Keypress 'b' for back when cycling through selected characters
+- [x] Keypress 'b' for back when cycling through selected characters
 - [ ] UI capitalization consistency clean-up
 
 ### Stage 6c: Natural Language Item Descriptions
