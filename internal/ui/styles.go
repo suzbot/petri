@@ -22,10 +22,13 @@ var (
 	crisisStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("196")) // red
 
 	// Effect wore off color
-	woreOffStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("117")) // light blue
+	woreOffStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("45")) // cyan
 
 	// Learning color
 	learnedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("33")) // darker blue
+
+	// Order-related color
+	orderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("174")) // dusty rose
 
 	// Item colors
 	redStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
@@ -47,8 +50,8 @@ var (
 	// Agricultural/plant status
 	growingStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("106")) // olive green
 
-	// UI highlight
-	highlightStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("45")) // cyan/teal
+	// UI highlight (background)
+	highlightStyle = lipgloss.NewStyle().Background(lipgloss.Color("23")).Foreground(lipgloss.Color("255")) // dark cyan bg, white text
 
 	// Title style
 	titleStyle = lipgloss.NewStyle().Bold(true)

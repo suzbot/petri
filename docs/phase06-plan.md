@@ -456,15 +456,42 @@ During human testing, discovered that `VarietySave` was missing the `Edible` fie
 
 ## Feature 6: UI Updates
 
-- [ ] Choose a color for order-related events in action log
-- [ ] (Needs more discussion) Natural language item descriptions: When selecting an item, show descriptive text such as:
-	- "This is a hollow gourd. It is a vessel that can be used to carry things. It is warty and green."
-	- Attributes present for preference/mood effects, description provides flavor text.
+**Prioritization:** Quick wins first, then items needing more design discussion.
+
+### Stage 6a: Action Log Colors ✓
+
+- [x] Order-related events: dusty rose (174), keyword `"order:"`
+- [x] Recovery events: changed from light blue (117) to cyan (45)
+- [x] Sleep events: fixed keyword from "Falling asleep" to `"asleep"`
+- [x] Highlight style: changed from cyan text to dark cyan background (23) with white text
+
+### Stage 6b: Quick Wins
+
 - [ ] Keypress 'b' for back when cycling through selected characters
-- [ ] Move preferences list to lower panel (viewable with keypress 'p'), make lower panel scrollable
 - [ ] UI capitalization consistency clean-up
-- [ ] Keypress options for faster order selection, ability to keep adding orders in add mode
-- [ ] Update README, Game Mechanics, claude.md, and architecture docs as applicable, for changes since last doc updates.
+
+### Stage 6c: Natural Language Item Descriptions
+
+Replace details view in regular mode, supplement in debug mode.
+- Key words shown in relevant color (color text is color, poison red, healing green, growing olive) and bolded
+- Everything non-null/non-false reflected in a sentence
+- Design must easily expand as new attribute types added
+- Example: "This is a hollow gourd. It is a vessel that can be used to carry things. It is warty and green."
+
+### Stage 6d: Preferences Panel Restructure
+
+- [ ] Move preferences list to lower panel (viewable with keypress 'p')
+- [ ] Make lower panel scrollable
+
+### Stage 6e: Order Selection UX
+
+Pain point: Scrolling through list every time, reopening menu for multiple orders.
+- [ ] Single keypress selection (underlined unique letter or numbered list)
+- [ ] Stay in add mode after adding an order (don't close menu)
+
+### Stage 6f: Documentation
+
+- [ ] Update README, Game Mechanics, claude.md, and architecture docs
 
 ### Questions to Investigate
 

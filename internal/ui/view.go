@@ -43,7 +43,7 @@ func colorLogMessage(line, message string) string {
 		return learnedStyle.Render(line)
 	}
 
-	// Effect wore off messages (light blue)
+	// Effect wore off / recovery messages (cyan)
 	woreOffKeywords := []string{"Calmed down", "Woke up", "Poison wore off"}
 	for _, kw := range woreOffKeywords {
 		if strings.Contains(message, kw) {
@@ -77,11 +77,13 @@ func colorLogMessage(line, message string) string {
 	}
 
 	// Sleeping messages (purple)
-	sleepKeywords := []string{"sleeping", "Falling asleep"}
-	for _, kw := range sleepKeywords {
-		if strings.Contains(message, kw) {
-			return sleepingStyle.Render(line)
-		}
+	if strings.Contains(message, "asleep") {
+		return sleepingStyle.Render(line)
+	}
+
+	// Order-related messages (coral/salmon)
+	if strings.Contains(message, "order:") {
+		return orderStyle.Render(line)
 	}
 
 	// Poison messages (green)
