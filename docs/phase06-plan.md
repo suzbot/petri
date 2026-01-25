@@ -1,6 +1,6 @@
 # Phase 6: Containers and Storage - Implementation Plan
 
-**Status:** Feature 3b Complete - Ready for Feature 4
+**Status:** Feature 4 Complete - Ready for Feature 5
 **Requirements:** [docs/phase06reqs.txt](phase06reqs.txt)
 
 ---
@@ -235,7 +235,7 @@ Dropped (non-growing) items should only be eligible for looking and eating, not 
 
 ---
 
-## Feature 4: Vessel Contents
+## Feature 4: Vessel Contents ✓
 
 **Addresses:** Req B.2 (filling vessel), B.3 (look for container), B.4 (drop when blocked)
 
@@ -280,7 +280,7 @@ Pickup logic is split across multiple files (see `architecture.md`). For Phase 6
 
 - [x] Move `findForageIntent` and `findForageTarget` from `movement.go` to `foraging.go`
 
-### Stage 4b: Foraging with Vessel
+### Stage 4b: Foraging with Vessel ✓
 
 - [x] Modify `Pickup()` to detect when carrying a vessel
   - If carrying vessel with space: call `AddToVessel`, returns `PickupToVessel`
@@ -295,9 +295,9 @@ Pickup logic is split across multiple files (see `architecture.md`). For Phase 6
 - [x] Fix: Add `CanPickUpMore()` helper - foraging was blocked when carrying vessel because `IsInventoryFull()` returned true
 - [x] Update `selectIdleActivity` to use `CanPickUpMore` instead of `!IsInventoryFull()`
 
-**Test checkpoint 4b:** Manually test foraging with vessel - verify items stack, variety locks, foraging continues until full
+**Test checkpoint 4b:** Manually test foraging with vessel - verify items stack, variety locks, foraging continues until full ✓
 
-### Stage 4c: Harvesting with Vessel
+### Stage 4c: Harvesting with Vessel ✓
 
 - [x] Update harvesting order completion logic
   - `PickupToVessel`: order completes when `FindNextVesselTarget` returns nil (vessel full or no matching items)
@@ -305,9 +305,9 @@ Pickup logic is split across multiple files (see `architecture.md`). For Phase 6
 - [x] Fix: Don't drop vessel when on order if vessel has space (was dropping before adding)
 - [x] Tests for harvesting with vessel (3 tests)
 
-**Test checkpoint 4c:** Manually test harvesting with vessel - verify order continues until vessel full or map empty
+**Test checkpoint 4c:** Manually test harvesting with vessel - verify order continues until vessel full or map empty ✓
 
-### Stage 4d: Look-for-Container (Req B.3)
+### Stage 4d: Look-for-Container (Req B.3) ✓
 
 **Design:**
 
@@ -326,9 +326,9 @@ Pickup logic is split across multiple files (see `architecture.md`). For Phase 6
 - [x] Update `findHarvestIntent` - look for vessel first if not carrying one
 - [x] Tests for look-for-container behavior (8 new tests)
 
-**Test checkpoint 4d:** Manually test - character without vessel finds and picks up vessel before foraging/harvesting
+**Test checkpoint 4d:** Manually test - character without vessel finds and picks up vessel before foraging/harvesting ✓
 
-### Stage 4e: Drop-when-Blocked (Req B.4)
+### Stage 4e: Drop-when-Blocked (Req B.4) ✓
 
 **Design:**
 
@@ -344,7 +344,7 @@ Pickup logic is split across multiple files (see `architecture.md`). For Phase 6
 - [x] Update callers to handle `PickupFailed` result (update.go)
 - [x] Tests for drop-when-blocked scenarios (3 harvest tests)
 
-**Test checkpoint 4e:** Manually test - character drops vessel when it blocks their harvest order
+**Test checkpoint 4e:** Manually test - character drops vessel when it blocks their harvest order ✓
 
 ---
 

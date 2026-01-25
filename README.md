@@ -8,17 +8,17 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Latest Updates
 
+- **Vessel Contents**: Vessels hold stacks of items. Characters automatically seek out vessels when foraging or harvesting, filling them until full.
 - **Crafting System**: Characters can craft vessels from gourds. Discover crafting by interacting with gourds or drinking. Order crafting via Orders panel (Craft > Vessel).
 - **Orders System**: Press 'O' to add Harvest or Craft orders. Characters with know-how automatically take and complete orders.
 - **Know-how Discovery**: Characters discover skills through actions. Discovery chance depends on mood (Joyful > Happy > none).
-- **Inventory & Foraging**: Characters carry items, forage as an idle activity, and drop items when needed for orders.
 
 ## Features
 
 - **Save/Load**: Auto-saves on pause/quit, multiple worlds, create or delete from title screen
 - **Multi-character simulation** with character creation (names, food/color preferences)
 - **Multi-stat survival**: hunger, thirst, energy, health, mood with urgency-based AI
-- **Inventory system**: Characters carry items, forage as idle activity, drop items when needed. View with I key
+- **Inventory system**: Characters carry items or vessels, forage as idle activity, drop items when needed. Vessels hold stacks of same-variety items. View with I key
 - **Crafting system**: Characters craft vessels from gourds, inheriting appearance. Crafted items have display names
 - **Orders system**: Direct characters to harvest or craft via Orders panel (O key)
 - **Social behavior**: Characters talk with each other when idle, transmitting knowledge

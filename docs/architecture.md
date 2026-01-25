@@ -154,13 +154,22 @@ Orders (player-directed tasks) and idle activities share physical actions but ha
 
 ```go
 // After ActionPickup completes:
-system.Pickup(char, item, gameMap, actionLog)
+result := system.Pickup(char, item, gameMap, actionLog)
 
-// Check if this was order-driven
-if char.IsInventoryFull() && char.AssignedOrderID != 0 {
-    // Complete the harvest order
-    order := findOrderByID(char.AssignedOrderID)
-    CompleteOrder(char, order, actionLog)
+// Handle based on result and context
+switch result {
+case PickupToVessel:
+    // Continue filling vessel until full or no targets
+    if nextTarget := FindNextVesselTarget(...); nextTarget != nil {
+        char.Intent = newIntentFor(nextTarget)
+    } else if char.AssignedOrderID != 0 {
+        CompleteOrder(char, order, actionLog)
+    }
+case PickupToInventory:
+    // Inventory full - complete order if on one
+    if char.AssignedOrderID != 0 && !isVessel(char.Carrying) {
+        CompleteOrder(char, order, actionLog)
+    }
 }
 ```
 
@@ -182,13 +191,38 @@ Picking up items is shared across multiple activities (foraging, harvesting) wit
 
 | File | Contents | Responsibility |
 |------|----------|----------------|
-| `foraging.go` | `Pickup()`, `Drop()`, `AddToVessel()`, `IsVesselFull()` | Physical pickup action, vessel logic |
-| `movement.go` | `findForageIntent()`, `findForageTarget()` | Foraging target selection (preference/distance) |
+| `foraging.go` | `Pickup()`, `Drop()`, vessel helpers, foraging intent | Physical pickup, vessel logic, foraging targeting |
 | `order_execution.go` | `findHarvestIntent()`, `findNearestItemByType()` | Harvesting target selection (by item type) |
 | `idle.go` | `selectIdleActivity()` | Calls foraging as one idle option |
 | `update.go` | `applyIntent()` ActionPickup case | Executes pickup, handles vessel continuation |
 
-Note: `findForageIntent` is in `movement.go` for historical reasons; could be relocated to `foraging.go` for clarity.
+### Pickup Result Pattern
+
+`Pickup()` returns a `PickupResult` to distinguish outcomes:
+- `PickupToInventory` - Item picked up directly (inventory was empty)
+- `PickupToVessel` - Item added to carried vessel's stack
+- `PickupFailed` - Could not pick up (variety mismatch with vessel)
+
+Callers handle continuation differently based on result and context (foraging vs harvesting).
+
+### Vessel Helper Functions
+
+| Function | Purpose |
+|----------|---------|
+| `AddToVessel()` | Add item to vessel stack, returns false if can't fit |
+| `IsVesselFull()` | Check if vessel stack at max capacity |
+| `CanVesselAccept()` | Check if vessel can accept specific item (empty or matching variety) |
+| `FindAvailableVessel()` | Find nearest vessel on ground that can hold target item |
+| `FindNextVesselTarget()` | Find next growing item matching vessel's variety |
+| `CanPickUpMore()` | Check if character can pick up more (has room or has vessel with space) |
+
+### Look-for-Container Pattern
+
+When foraging or harvesting without a vessel:
+1. `FindAvailableVessel()` searches for empty or compatible vessel on ground
+2. If found, intent targets vessel first
+3. After vessel pickup, continues to harvest/forage into vessel
+4. If no vessel, picks up item directly to inventory
 
 ## Common Implementation Pitfalls
 

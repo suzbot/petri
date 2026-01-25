@@ -4,7 +4,7 @@ Guidance for Claude Code when working with code in this repo.
 
 Petri is a Dwarf Fortress-inspired simulation exploring emergent culture development.
 
-**Current features:** Character creation, world generation with items (berries, mushrooms, gourds, flowers, vessels) and features, multi-stat survival, dynamic preference system, knowledge system (learning poison/healing, knowledge-driven behavior, knowledge transmission via talking), social behavior (talking between idle characters), inventory system (foraging to pick up items, dropping items), orders system (player-directed harvesting and crafting), crafting system (hollow gourd vessels), know-how discovery, urgency-based AI with stat fallback and frustration mechanics, view modes, and action logging.
+**Current features:** Character creation, world generation with items (berries, mushrooms, gourds, flowers, vessels) and features, multi-stat survival, dynamic preference system, knowledge system (learning poison/healing, knowledge-driven behavior, knowledge transmission via talking), social behavior (talking between idle characters), inventory system (foraging to pick up items, dropping items), orders system (player-directed harvesting and crafting), crafting system (hollow gourd vessels), vessel contents (item stacking, variety locking, automatic vessel seeking), know-how discovery, urgency-based AI with stat fallback and frustration mechanics, view modes, and action logging.
 
 **Vision:** Complex roguelike simulation world with complex interactions between characters, items, and attributes. History exists only in character memories and created artifacts. As characters die, their knowledge dies with them except what they've communicated or created. See [docs/VISION.txt](docs/VISION.txt).
 
@@ -112,7 +112,7 @@ Process docs:
 
 ### Current Work
 
-Phase 6: Containers and Storage (Feature 4 - Vessel Contents)
+Phase 6: Containers and Storage (Feature 5 - Eating from Vessels)
 
 ### Near-Term Roadmap
 
@@ -120,15 +120,16 @@ See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 
 **Completed:**
 
-- Phase 6 Phases 1-3
+- Phase 6 Features 1-4 (Item placement, crafting foundation, hollow gourd vessel, vessel contents)
 
 **In Progress:**
 
-- Phase 6 Feature 4: Vessel contents (stacking, filling)
+- Phase 6 Feature 5: Eating from vessels
 
 **Up Next:**
 
-- Phase 6 Features 5-6, Clean up and close out tasks
+- Phase 6 Feature 6: UI updates
+- Phase 6 Clean-up and close-out tasks
 - Evaluation of 'random ideas' and 'future enhancements' for any applicable quick wins
 - Full code and testing audit looking to 
 	- reduce duplicate code

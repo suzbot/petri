@@ -345,9 +345,11 @@ Orders can only be created for activities that at least one living character kno
 When a character becomes eligible for an idle activity and has relevant know-how:
 
 1. **Assignment**: Character takes the first available open order (first-come-first-served)
-2. **Seeking**: Character moves toward nearest item matching the order's target type
-3. **Pickup**: Character picks up the item (same action as foraging)
-4. **Completion**: When inventory is full, order is completed and removed
+2. **Vessel Search**: If not carrying a vessel, looks for one that can hold target items
+3. **Seeking**: Character moves toward nearest item matching the order's target type
+4. **Pickup**: Character picks up the item into vessel (if carrying one) or inventory
+5. **Continuation**: If carrying a vessel with space, continues harvesting more items
+6. **Completion**: When vessel is full OR no matching items remain, order is completed
 
 ### Order Interruption and Resumption
 
@@ -381,7 +383,7 @@ Current inventory capacity: 1 item. Characters can carry one item at a time.
 
 ### Viewing Inventory
 
-Press `I` in select mode to toggle the Inventory panel (replaces action log). Shows "Carrying: [item description]" or "Carrying: nothing". Press `I` again to return to action log.
+Press `I` in select mode to toggle the Inventory panel (replaces action log). Shows "Carrying: [item description]" or "Carrying: nothing". If carrying a vessel, also shows the vessel's contents with stack count and capacity. Press `I` again to return to action log.
 
 ### Carried Item Properties
 
@@ -439,6 +441,60 @@ Crafted items differ from natural items:
 - Don't spawn new items (Plant = nil)
 - May have container storage (vessel has Capacity 1)
 
+## Vessels & Containers
+
+Vessels are containers that can hold stacks of items. Currently, vessels are crafted from gourds.
+
+### Stack Sizes
+
+Different item types stack to different limits within a vessel:
+- **Berries**: 20 per stack
+- **Mushrooms**: 10 per stack
+- **Flowers**: 10 per stack
+- **Gourds**: 1 per stack
+
+### Variety Lock
+
+When an item is added to an empty vessel, the vessel becomes "variety locked":
+- Only items of the exact same variety (type + color + pattern + texture) can be added
+- When the vessel is emptied, it accepts any variety again
+- Hollow gourd vessels have capacity 1 (one stack)
+
+### Foraging with Vessels
+
+When a character carrying a vessel forages:
+- Items are added to the vessel's stack instead of filling inventory
+- Foraging continues automatically until:
+  - Vessel is full (stack reached max size)
+  - No more matching items exist on the map
+- If the vessel is variety-locked and no matching items exist, foraging stops
+- Foraging skips items incompatible with the carried vessel
+
+### Harvesting with Vessels
+
+When working on a harvest order with a vessel:
+- Items are added to the vessel until full or no targets remain
+- Order completes when vessel is full OR no matching items exist
+
+### Look-for-Container
+
+When starting to forage or harvest without carrying a vessel:
+- Character first looks for an available vessel on the ground
+- Available = empty OR partially filled with compatible variety AND has space
+- Character picks up the vessel, then continues to forage/harvest into it
+- If no suitable vessel found, picks up items directly (single item to inventory)
+
+### Drop-when-Blocked
+
+If a character's vessel cannot accept the target item (full or wrong variety):
+- **For orders (harvesting)**: Drop the vessel and pick up the item directly (order takes priority)
+- **For idle foraging**: Skip the incompatible item (don't lose vessel contents for casual activity)
+
+### Viewing Vessel Contents
+
+- When carrying a vessel: Inventory panel shows contents with count and max stack size
+- When selecting a dropped vessel: Details panel shows contents
+
 ## Idle Activities
 
 When characters have no urgent needs (all stats below Moderate tier), they select from idle activities:
@@ -474,10 +530,12 @@ Characters seek out other characters doing idle activities (Idle, Looking, Talki
 ### Foraging
 
 Characters pick up edible items to carry in inventory:
-- Only available when inventory is not full
+- Only available when inventory has room (not full, or carrying a vessel with space)
 - Uses preference/distance scoring (same weights as moderate hunger eating)
 - Character moves to item, then picks it up (takes ActionDuration to complete)
-- Picked up item is removed from map and placed in inventory
+- Picked up item is removed from map and placed in inventory or vessel
+- If not carrying a vessel, looks for one on the ground first (see Vessels & Containers)
+- When carrying a vessel, continues foraging until vessel full or no matching items
 - Logs "Foraging for [item type]" when starting, "Picked up [item]" on completion
 
 Idle activities are interruptible by any Moderate or higher tier need that can be fulfilled.
