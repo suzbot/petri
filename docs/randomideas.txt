@@ -1,20 +1,19 @@
-This is a document where I'm dumping my random ideas as I have them, that haven't been added to
-the roadmap or other docs yet.
+This is a document where I'm dumping my random ideas as I have them,
+that haven't been added to the roadmap or other docs yet.
 
-Goal of this document is that it can be automatically reviewed when roadmap planning to see if any
-of these smaller items make sense to incorporate into the plan as we go along.
+Goal of this document is that it can be automatically reviewed when roadmap planning
+to see if any of these smaller items make sense to incorporate into the plan as we go along.
 
 When items are completed OR documented as part of a roadmap, requirement, or plan elsewhere,
 then they can be removed from this list.
 
 #Ready Ideas
 - Make drinking from spring happen while adjacent to tile instead of on tile, to stop issue where chars are blocked from drinking by idle chars hanging out
-- Game Mechanics a little disorganized, inconsistant about what level of detail it share. Clean up.
+- Game Mechanics a little disorganized, inconsistent about what level of detail it share. Clean up.
 - Put character names in their own special file so its super easy for users/me to add more names.
     - Names to remember to add next: Bog, Log, Fen, Pod, Bough, Toady, Tarn, Weir,
-    - Bine, Brome, Brume, Cress, Daub, Nook, Fir, Frond, Furl,
+    - Bine, Brome, Brume, Cress, Daub, Nook, Fir, Frond, Furl, Rye
     - Muld, Grue, Gnarl, Peat, Pad, Sod, Sprout
-
 - Remove single char mode from UI
 - Flag for character count control
 - ability to edit name of existing character on map

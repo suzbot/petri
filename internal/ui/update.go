@@ -437,6 +437,12 @@ func (m Model) updateGame(now time.Time) (Model, tea.Cmd) {
 	m.lastUpdate = now
 	m.elapsedGameTime += delta
 
+	// Warn if delta is suspiciously small (time not advancing)
+	if delta <= 0.001 {
+		save.LogWarning("Tick delta very small (%.6fs) - time may not be advancing properly. lastUpdate=%v, now=%v, elapsedGameTime=%.2f",
+			delta, m.lastUpdate, now, m.elapsedGameTime)
+	}
+
 	// Update action log with current game time
 	m.actionLog.SetGameTime(m.elapsedGameTime)
 
@@ -714,7 +720,8 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 					// PickupToInventory - inventory now full (one item)
 					// Check for harvest order completion
 					// Craft orders don't complete on pickup - they complete after crafting
-					if char.AssignedOrderID != 0 {
+					// If picked up a vessel, continue harvesting into it (don't complete order)
+					if char.AssignedOrderID != 0 && (char.Carrying == nil || char.Carrying.Container == nil) {
 						if order := m.findOrderByID(char.AssignedOrderID); order != nil {
 							if order.ActivityID == "harvest" {
 								system.CompleteOrder(char, order, m.actionLog)

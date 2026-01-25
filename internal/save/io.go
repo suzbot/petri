@@ -11,6 +11,24 @@ import (
 // baseDirOverride allows tests to use a temporary directory
 var baseDirOverride string
 
+// LogWarning writes a warning message to the debug log file in ~/.petri/debug.log
+// Use this for diagnostic messages that shouldn't interrupt gameplay.
+func LogWarning(format string, args ...interface{}) {
+	baseDir, err := BaseDir()
+	if err != nil {
+		return // Silently fail if we can't get base dir
+	}
+	logPath := filepath.Join(baseDir, "debug.log")
+	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	msg := fmt.Sprintf(format, args...)
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	fmt.Fprintf(f, "[%s] WARNING: %s\n", timestamp, msg)
+}
+
 // SetBaseDir sets a custom base directory (for testing)
 func SetBaseDir(dir string) {
 	baseDirOverride = dir
