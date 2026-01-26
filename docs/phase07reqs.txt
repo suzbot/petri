@@ -1,0 +1,67 @@
+PHASE 7 - Enhanced Recipes and Crafting
+
+Story: Characters can ponder to try and discover things. They can disover how to collect flowers in a vessel and turn them into pigment. The pigment can then be used to decorate items, and even a characters own appearance. 
+
+1. Foundational Updates:
+	- Expand eligible 'Harvest' targets to include all growing items (including flowers)
+	- Add new color: Indigo; add Indigo to list of flower colors
+	- Give character 2 inventory slots. Each slot can be filled with either a container or a loose item. 
+	- Ensure Activities are structured for easy addition before we add the three new ones in this body of work
+
+2. New Activity: Pondering
+ 	- Default, like foraging, it doesn't need to be explicitly discovered 
+ 	- a pondering character will choose a random item from their inventory or map to look at. While pondering, the baseline chance of making any discovery is doubled.
+ 	- Does this make more sense to be orderable, idle, or can it be both? 
+
+
+3. New Activity: Craft Pigment
+	- Orderable, Discoverable
+	- Recipe: Flower Pigment
+	- Recipe Components: 1 vessel containing a flower variety (flower must be in vessel)
+	- Recipe Discovery Triggers: looking at recipe component (way to make this extendible automatocally as more recipes for this itemtype are added?)
+	- Activity: 
+		- is orderable
+		- if character does not already have components in their inventory, they will collect the components
+			- either by picking up an existing component-ful vessel on the map (weighted by color preference and distance) 
+			- or by picking up an empty vessel and then engaging in activity (harvest) to produce a component (flower) stack
+				- target flower based on distance/color preference
+				- they can keep going until harvesting would normally be complete by full stack or no more flowers available)
+		- once character has the components, they will continue their intent perform the 'Craft Pigment' activity for 10 seconds (placeholder time until time rebalancing)
+		- As with all orders, it can be paused and resumed to allow character to meet needs, and it can be abandoned if there are no eligible components
+	- Output: the vessel now holds a stack of pigment
+		- pigment stack size = number of flowers that were in the initial flower stack
+		- pigment inherits the color of the flower
+		- pigment is not edible, not a plant, not a container
+		- display will show [color][itemType], ie 'blue pigment'
+		- the vessel full of pigment will stay in character inventory or be dropped from inventory per existing crafting logic
+	- Note: that other activities in the future will likely follow the same pattern of doing what is required to procure components before enagaging in the primary activity
+	- Note: pigments may have other recipes in the future, such as charcoal pigment or mineral pigment
+
+4. New Activity: Decorate Item
+	- Does this make more sense to be orderable, idle, or can it be both? 
+	- Discoverable
+	- Based on requirements and notes below, should it have a recipe, or should it be flexible based on item properties?
+	- Components: Character who wants to decorate finds a 'Decoratable' item and a 'Decoration' item and gets them both in their inventory. A Decoration within a container (such as pigment in a vessel) counts as being in the inventory.
+		- Decoratable Items:
+			- vessels
+		- Decoration Items:
+			- pigments
+	- Discovery Trigger: learn automatically after crafting a 'decoration' item, chance to learn if looking at a 'decoration' item someone else has made
+	- Per existing logic: If this is an order, they will drop other items to seek components to achieve this. If it is an idle activity, they will not engage in the activity if they are holding an incompatible combination of components, but will seek compatible components if they have space. Both items can be sought based on preference/distance calculations.
+	- Once they have the 'Decoratable' object and a 'Decoration' object, then they can start 'decorating'
+	- Action: Character is "Decorating" After 5 seconds (placeholder time until time rebalancing), the activity is complete
+	- Outcome: 'Decoration' item is either removed from map (if loose) or stack is decremented (if stacked). The 'Decoratable' item gains new properties based on what it was decorated with.
+		- When decorating, pigment can either add/change item color (to the color of the pigment) OR
+		- it can apply a Pattern (any pattern) to the item (selection weighted by any pattern preference of the character) in the color of the pigment (e.g. blue spots)
+		- If the item already had a color, the new color from decoration overwrites it
+		- If the item already had a pattern, the new pattern from decoration overwrites it
+		- the updated color and pattern of the item should influence mood consistent with existing logic
+	- Note: in future, many kinds of crafted items may be decoratable. There also may be other kinds of decorations (spikes, braids) that could be used to modify other attributes of items (texture)
+
+5. New Activity: Face Painting
+	- Does this make more sense to be orderable, idle, or can it be both?
+	- Discovery: looking at a vessel containing pigment
+	- Components: Character who is painting themselves needs pigment in a vessel. They will only select this idle activity if they have pigment in their inventory or if it available on the map.
+	- Action: Character is 'face painting' for 5 seconds 
+	- Outcome: Pigment is decremented. Character now has a pattern (weighted by their preferece) in the color of the pigment (e.g. "Their face is painted with yellow stripes."). If the facepaint they applied interacts with one or more preferences, it should adjust their mood accordingly at the time of face painting completion.
+	- TBD: once their face is painted, should they still paint their face as an idle activity? or should they only select that activity if their face is unpainted?

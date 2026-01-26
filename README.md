@@ -1,6 +1,8 @@
 # Petri Project
 
-A simulation game inspired by Dwarf Fortress, to explore the emergent development of culture within a community.
+A simulation game inspired by Dwarf Fortress, as a project to explore the emergent development of culture within a community.
+
+Currently, players can observe and interact with a cozy forest world. Watch as characters form opinions about the things around them, and as they try to stay happy while managing their basic survival needs.
 
 Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
@@ -11,23 +13,20 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 - **Eating from Vessels**: Hungry characters eat from vessel contents (carried or dropped). Food selection uses unified scoring: preferences, distance, and healing knowledge all factor in.
 - **Vessel Contents**: Vessels hold stacks of items. Characters automatically seek out vessels when foraging or harvesting, filling them until full.
 - **Crafting System**: Characters can craft vessels from gourds. Discover crafting by interacting with gourds or drinking. Order crafting via Orders panel (Craft > Vessel).
-- **Orders System**: Press 'O' to add Harvest or Craft orders. Characters with know-how automatically take and complete orders.
-- **Know-how Discovery**: Characters discover skills through actions. Discovery chance depends on mood (Joyful > Happy > none).
 
-## Features
+## How It Works
 
-- **Save/Load**: Auto-saves on pause/quit, multiple worlds, create or delete from title screen
-- **Multi-character simulation** with character creation (names, food/color preferences)
-- **Multi-stat survival**: hunger, thirst, energy, health, mood with urgency-based AI
-- **Inventory system**: Characters carry items or vessels, forage as idle activity, drop items when needed. Vessels hold stacks of same-variety items; characters eat from vessel contents when hungry. View with I key
-- **Crafting system**: Characters craft vessels from gourds, inheriting appearance. Crafted items have display names
-- **Orders system**: Direct characters to harvest or craft via Orders panel (O key)
-- **Social behavior**: Characters talk with each other when idle, transmitting knowledge
-- **Knowledge system**: Learn facts (poison/healing) through experience, discover know-how (skills) through actions. Facts transmit via talking; know-how does not. View with K key
-- **Dynamic preferences**: Characters form opinions about items based on mood and attributes
-- **Item variety**: Berries, mushrooms, gourds (with patterns/textures), flowers, and crafted vessels
-- **World dynamics**: Item spawning, springs, leaf piles, poison and healing effects
-- **View modes**: Select mode (examine entities) and All Activity mode (combined log)
+1. Create characters with names and preferences, then start the simulation
+2. The world contains edible items (berries, mushrooms, gourds), decorative flowers, springs for water, and leaf piles for sleep
+3. Characters manage needs (hunger, thirst, energy, health) prioritized by urgency
+4. Mood reflects emotional state, affected by need urgency and preferences
+5. Characters form preferences based on their mood when interacting with items
+6. When idle, characters may look at items, talk with each other, or forage (pick up items to carry)
+7. Characters learn from experience: eating poison/healing items creates knowledge that affects future behavior
+8. Characters discover crafting know-how through interacting with gourds or drinking at springs
+9. Player can issue orders (harvest, craft) that characters with relevant know-how will complete
+
+For detailed mechanics, see [docs/game-mechanics.md](docs/game-mechanics.md). For configuration values, see `internal/config/config.go`.
 
 ## Running the Game
 
@@ -73,19 +72,6 @@ go run ./cmd/petri
 - `ESC` - Save and return to world selection
 - `Q` - Save and quit
 
-## How It Works
-
-1. Create characters with names and preferences, then start the simulation
-2. Characters manage needs (hunger, thirst, energy, health) prioritized by urgency
-3. The world contains edible items (berries, mushrooms, gourds), decorative flowers, springs for water, and leaf piles for sleep
-4. When idle, characters may look at items, talk with each other, or forage (pick up items to carry)
-5. Characters learn from experience: eating poison/healing items creates knowledge that affects future behavior
-6. Characters discover crafting know-how through interacting with gourds or drinking at springs
-7. Player can issue orders (harvest, craft) that characters with relevant know-how will complete
-8. Characters form preferences based on their mood when interacting with items
-9. Mood reflects emotional state, affected by need urgency and preferences
-
-For detailed mechanics, see [docs/game-mechanics.md](docs/game-mechanics.md). For configuration values, see `internal/config/config.go`.
 
 ## Debug Mode
 

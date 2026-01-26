@@ -468,35 +468,6 @@ During human testing, discovered that `VarietySave` was missing the `Edible` fie
 ### Stage 6b: Quick Wins
 
 - [x] Keypress 'b' for back when cycling through selected characters
-- [ ] UI capitalization consistency clean-up
-
-### Stage 6c: Natural Language Item Descriptions
-
-Replace details view in regular mode, supplement in debug mode.
-- Key words shown in relevant color (color text is color, poison red, healing green, growing olive) and bolded
-- Everything non-null/non-false reflected in a sentence
-- Design must easily expand as new attribute types added
-- Example: "This is a hollow gourd. It is a vessel that can be used to carry things. It is warty and green."
-
-### Stage 6d: Preferences Panel Restructure
-
-- [ ] Move preferences list to lower panel (viewable with keypress 'p')
-- [ ] Make lower panel scrollable
-
-### Stage 6e: Order Selection UX
-
-Pain point: Scrolling through list every time, reopening menu for multiple orders.
-- [ ] Single keypress selection (underlined unique letter or numbered list)
-- [ ] Stay in add mode after adding an order (don't close menu)
-
-### Stage 6f: Documentation
-
-- [ ] Update README, Game Mechanics, claude.md, and architecture docs
-
-### Questions to Investigate
-
-- [ ] Can mood be impacted by looking at a dropped hollow gourd, based on its attributes? Characters already look at them - verify mood impacts work.
-
 
 ---
 
@@ -504,14 +475,8 @@ Pain point: Scrolling through list every time, reopening menu for multiple order
 
 After each of the below items, Update README, Game Mechanics, claude.md, and architecture docs as applicable, for changes since last doc updates.
 
-
-- revisit container and plant structures, consider 'edible' structure that contains healing/poison (currently details when viewing dropper containers shows these values, when they are irrelevant)
-- Evaluate pickup code unification (see futureEnhancements.md) - if harvesting vessel logic duplicates foraging, consider `picking.go` refactor
-- **Time config reset:** Adjust so "world day" = 2 game minutes, ( .5 game seconds = ~6 "world minutes"
-- **Save/Load:** Verify nested item serialization works correctly
-
----
-
-## Bugs to Investigate
-
-- [ ] **World deletion log merge**: When deleting a world and creating a new one, old world logs may merge with newly generated world. Needs reproduction and investigation.
+[ ] **Investigate** Can mood be impacted by looking at a dropped hollow gourd, based on its attributes? Characters already look at them - verify mood impacts work.
+[ ] **revisit container and plant structures**, consider 'edible' structure that contains healing/poison (currently details when viewing dropper containers shows these values, when they are irrelevant)
+[ ] **Evaluate pickup code unification** (see futureEnhancements.md) - if harvesting vessel logic duplicates foraging, consider `picking.go` refactor
+[ ] **Time config reset:** Adjust so "world day" = 2 game minutes, ( .5 game seconds = ~6 "world minutes"
+[ ] **Save/Load:** Verify nested item serialization works correctly

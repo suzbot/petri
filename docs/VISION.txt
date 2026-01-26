@@ -1,27 +1,27 @@
-PETRI PROJECT - VISION STATEMENT
+**PETRI PROJECT - VISION STATEMENT**
 
 The Petri Project is a simulation game inspired by Dwarf Fortress exploring the emergent development of culture
 within a community.
 
-CORE CONCEPT
+# CORE CONCEPT
 At its heart, Petri simulates how culture arises from the ground up - not as a
 predetermined set of traits, but as an emergent property of individual personalities,
 preferences, and environmental constraints. Each civilization begins with founding
 individuals whose unique attributes and values shape the initial cultural seeds.
 
-THE SIMULATION
-Culture evolves through the interaction of:
+# THE SIMULATION
+Culture will evolve through the interaction of:
 - Individual attributes, moods, preferences, and memories of community members
 - Available environmental resources and constraints
 - Material properties and technological possibilities
-- Social interactions and shared experiences over generations
+- Social interactions, relationships, and shared experiences over generations
 - Creation of cultural artifacts and transfer of knowledge
 
-AUDIENCE
+# AUDIENCE
 Petri is built for players who appreciate deep simulation systems - those who find joy
 in watching complex behaviors emerge from simple rules, and seeing how their interventions shape what grows.
 
-BUILD CONCEPT
+# BUILD CONCEPT
 Instead of an omniscient log of everything that has ever happened in the world,
 the history of the world is kept in the memories events within individuals, and the
 writings and cultural artifacts that they create. As characters die, their knowledge of
@@ -29,27 +29,26 @@ technology and events also dies, except in what they have created or communicate
 way, the structure of the game data itself will be isomorphic with the cultural history of
 the simulated community.
 
-DEVELOPMENT PHASES
+# DEVELOPMENT PHASES (for initial release)
 
 1. Character is driven by basic needs and simple preferences
 2. Multi-Character support
 3. Mood tracking and Preference formation
 4. Basic Knowledge
 5. Inventory, Discovery, and simple job assignment
-6. Containers and Storage (hollow gourd) [WE ARE HERE]
-7. Basic Recipes and Crafting (flower dye)
-8: Simple Agriculture: seeds, water carrying, planting
-9. Enhanced Discovery and Decoration
-10. Basic Character Attributes and Relationships
-11. Basic Shelter Construction
-12. Enhanced Learning: Recipe Sharing, Teaching, and Observation
-13. Basic Threats and Destruction (wolves)
-14. TREES are to Petri as mountains are to Dwarf Fortress - big trees to burrow into and live in
+6. Containers and Storage (hollow gourd) 
+7. Enhanced Discovery and Decoration **[UP NEXT]**
+- Simple Agriculture: seeds, water carrying, planting
+- Basic Character Attributes and Relationships
+- Basic Shelter Construction
+- Enhanced Learning: Recipe Sharing, Teaching, and Observation
+- Basic Threats and Destruction (wolves)
 
-See docs/Future Phase Brainstorming.txt for details on phases
+See docs/future-phase-brainstorming.txt for details on phases
 
-OTHER INTENDED FEATURES (Not yet prioritized)
+# OTHER INTENDED FEATURES (Not yet prioritized)
 
+- TREES are to Petri as mountains are to Dwarf Fortress - big trees to burrow into and live in
 - Technology Tree (see: [https://excalidraw.com/#room=af752eff85705227aadc,Rp231_kxGiowAr7Oh8g2Aw] )
 - Job Preference, Urgency, and assigned areas
 - Work Stations
@@ -63,3 +62,4 @@ OTHER INTENDED FEATURES (Not yet prioritized)
 - Personality Attribute (Lazy, Industrious, etc)
 - UI Panel Enhancements
 - Configurable Key bindings
+- Singing, Dancing, and other social bonding activities

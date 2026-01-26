@@ -108,27 +108,20 @@ Process docs:
 - No tests needed for UI rendering, Bubble Tea integration, brittle log wording, configuration constants
 - Headless simulation tests for measuring game balance. Located in `internal/simulation/observation_test.go`.
 
-## Development
-
-### Current Work
-
-Phase 6: Containers and Storage (Feature 5 - Eating from Vessels)
-
-### Near-Term Roadmap
+## Development Roadmap
 
 See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 
 **Completed:**
 
-- Phase 6 Features 1-4 (Item placement, crafting foundation, hollow gourd vessel, vessel contents)
+- Phase 6 Features 1-6
 
 **In Progress:**
 
-- Phase 6 Feature 5: Eating from vessels
+- 
 
 **Up Next:**
 
-- Phase 6 Feature 6: UI updates
 - Phase 6 Clean-up and close-out tasks
 - Evaluation of 'random ideas' and 'future enhancements' for any applicable quick wins
 - Full code and testing audit looking to 
@@ -137,21 +130,15 @@ See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 	- reduce touchpoint when adding new actions, orders, recipes and items
 	- ensure tests are functionally relevant and not flaky or brittle
 	- evaluate that existing patterns make sense to support future phases (see vision.txt, futureEnhancements.md and future enhancement brainstorming.txt)
-- Evaluation of 'random ideas' and 'future enhancements' against future phases to prioritize anything opportunistically within or before upcoming phase
+- Evaluation of docs/randomideas.txt and docs/triggered-enhancements against future phases to prioritize anything opportunistically within or before upcoming phase
 - Phase 7 planning
 
-
-### Deferred Enhancements & Trigger Points
-
-Technical items analyzed and consciously deferred until trigger conditions are met. See docs/futureEnhancements.md for more.
-
-## Reference Documents
+## Reference and Planning Documents
 
 | Document                                               | Purpose                                       |
 | ------------------------------------------------------ | --------------------------------------------- |
 | [docs/VISION.txt](docs/VISION.txt)                     | Project vision and phases                     |
 | [docs/architecture.md](docs/architecture.md)           | Design patterns, data flow, item/memory model |
 | [docs/game-mechanics.md](docs/game-mechanics.md)       | Detailed stat thresholds, rates, systems      |
-| [docs/futureEnancements.md](docs/futureEnancements.md) | Deferred items with triggers, balance tuning  |
+| [docs/futureEnancements.md](docs/triggered-enhancements.md) | Deferred items with triggers, balance tuning  |
 | [docs/failed-approaches.md](docs/failed-approaches.md) | Approaches tried and abandoned                |
-| [docs/phase06-plan.md](docs/phase06-plan.md)           | Phase 6 implementation plan                   |
