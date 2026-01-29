@@ -1,0 +1,42 @@
+Learning-Reqs.txt
+
+- Enhanced Learning: Discovery, Recipe Sharing, Teaching, and Observation
+- Depends on: Basic Construction
+
+
+ New Activity: Pondering
+ 	- Orderable
+ 	- Default, like foraging, it doesn't need to be explicitly discovered 
+ 	- a pondering character will choose a random item from their inventory or map to look at. While pondering, the baseline chance of making any discovery is doubled. 
+ 	- Duration: Medium
+
+ New Edible Item Attribute: isInspiring
+ 	- At world creation, one mushroom will have a property of 'Inspiring'
+ 		- this can overlap with healing or poison, not mutually exclusive with any other mushroom property
+ 	- They get a new 'Inspired' status with flashing * icon
+ 		- during inspired status, their Mood will not decay, even due to other needs
+ 	- Near term: it causes them to unassign themselves from their current job, if any, and randomly selects whether they will either:
+ 		- go into Pondering activity
+ 		- go into Sitting activity (this is just like Idle, but doesn't trigger Idle activity selection)
+ 		- Medium Duration, NOT interruptable by needs when in Inspired state
+ 	- Long Term: may have random chance to do other Inspired activities
+
+ New Talking Outcome: Recipe Sharing
+ 	- If the receiving character has the overarching know-how, then they are eligible to receive a recipe for that know-how from someone who is talking to them, if they don't know it already.
+ 	- Use Basic Construction Recipes to test this, since they all have multiple recipes.
+
+ ? New Idle Activity: Observe
+  - an idle character follows arround a character performing know-how that they don't know how to do
+  - if they are able to remain adjacent to them for [minimum duration], then they learn that know-how
+
+ New Activity: Teach
+ - Discoverable when pondering any item
+ - Orderable
+ - User can select the know-how to be taught
+ - A character who has teaching know-how will attract all idle characters to themself
+ - once one or more idle characters is adjacent to them, they will begin teaching
+ - after medium duration, they will have transferred one of their know-hows to any adjacent character who had been in their proximity for some minimum duration, who did not already have that know-how
+ - if they are interrupted by needs, they will start over in their attempt to attract/teach
+ 	
+
+ 	

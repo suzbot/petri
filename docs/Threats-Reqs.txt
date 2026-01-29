@@ -1,0 +1,16 @@
+Threats-Reqs
+REQUIREMENTS: Threats
+
+Basic Idea: Characters need to grow and store resources for the survival and growth of their community. One of the conflicts of the simulation will be creatures that want to steal these items. Characters will need to be able to build structures that can resist these creatures.
+- Creatures are like characters, with the same need stats. When thirsty they go to water just the same. when hungry, they look for their preferred food. When 'idle' they just wander. If they hit the edge of the map, they will be removed from the map, to respawn coming in from the map edge after a cool-down period. 
+- Rabbits eat growing items, preferring items in gardens. 
+- Foxes steal vessels, taking them off the map
+- Bears destroy structures and containers, and eating their contents. They will eat anything, but they prefer berries.
+- Every item has a durability. The higher the durability, the more time it takes for it to be destoryed.
+- Constructed items break down into 50% of the items used to create it, scattered to nearest available tiles
+-Leaf beds break down into leaf items (if we can reconstruct beds)
+-items with 0 durability (like springs) cannot be destroyed
+
+How to characters respond to nearby creatures? are they interrupted by them? will they scare them off? does it vary by creature?
+
+Dependencies: Gardening and Building

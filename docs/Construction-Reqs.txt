@@ -1,0 +1,62 @@
+Construction-Reqs.txt
+
+This is a work in progress.
+
+New Item: Tall Grass
+	- Spawns at world creation (2x as many as other plant types)
+	- Pale Green
+	- Growing, reproduces like other plants
+	- Bears seeds in the same manner as flowers that can be picked up by foraging
+	- As a plant, should show up on the harvest list
+	- Harvested grass CANNOT be placed in a vessel (too large, may fit in future containers), but can be carried or dropped as a stack
+	- A stack of grass is called a bundle. A bundle of grass can have up to 6 pieces in it.
+	- a picked up stack can be added to until it has max pieces
+
+
+New Activity: Gather > Sticks
+	- Orderable
+	- Appears on order list by default, does not need discovery
+	- Gathered sticks CANNOT be placed in a vessel (too large, may fit in future containers), but can be carried or dropped as a stack
+	- A stack of sticks is called a bundle. A bundle of sticks can have up to 6 pieces in it.
+	- a picked up stack can be added to until it has max pieces
+
+New Feature: Clay
+	- on world generation, 6-10 tiles on the map are 'clay' tiles (reddish brown pattern)
+	- tiles must be adjacent to a water tile
+	- tiles must be adjacent to at least one other clay tile
+	- are passable
+
+New Action: Gather > Clay
+	- loose in hand pick up 1 clay from clay tile (clay tile is infinite source like water source)
+	- available by default, does not require know-how
+	- orderable
+
+New Activity: Craft > Bricks
+	- orderable
+	- discoverable chance by picking up or looking at clay
+	- user selects number of bricks to craft
+
+New Activity: Construct > Fence
+	Recipe: Thatch Fence - 1 bundle of 6 per tile
+	Recipe: Stick Fence - 1 bundle of 6 per tile
+	Recipe: Brick Fence - 6 bricks per tile
+
+Material Durability
+
+Preference Formation:
+ - Characters can look at Construction
+ - Characters can form a like/dislike materials in the construction they look at
+ 	- Thatch
+ 	- Sticks
+ 	- Bricks
+
+New Activity: Construct > Hut
+	Recipe: Thatch Hut - 2 full bundles per tile x 16 tiles
+	Recipe: Stick Hut - 2 full bundles per tile x 16 tiles
+	Recipe: Brick Hut - 12 bricks per tile x 16 tiles
+	Action - marked tiles for construction get all their supplies dropped on them and then each tile with all its supplies is worked for a duration before worker moves to start next tile
+	Outcome - 4x4 outline of tiles around 3x3 opening inside; tiles are not passable except one tile which is a door (only passable by chars)
+
+New Concept: Incomplete Order? Or Occupation? How do we handle supply chain issues when a construction task can't be finished? or is it assigned forever until done? but that blocks other orders they could do in the meanntime?
+
+

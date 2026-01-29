@@ -1,10 +1,11 @@
 
 
 
-## 9A How To Discover More - Depends on Phase 5 
+Pondering- Depends on Phase 5 
  - Default order able activity: ponder. Pondering is spending x amount of time looking at any random object on the map. Pondering doubles their mood chances of making a discovery that depends on that item.
+ - Magic Mushrooms?
 
-## 9B Cultural Artifacts (Depends on containers, dye, needs more resources and skills)
+Pigment - Cultural Artifacts (Depends on containers, dye, needs more resources and skills)
 - items can be decorated with paint. Decorated items can impact mood/preferences
 - Characters can decorate self? (Future: washes way with water or rain)
 
@@ -40,10 +41,7 @@ Knew knowledge category:
 
 ## 12. Building Shelter
 - grass hut, stick hut, brick hut features
-
-## 13. Threats
-- wolves
-- destruction (features have strength, 0 means not destroyable)
+- fences
 
 
 ## 14. TREES

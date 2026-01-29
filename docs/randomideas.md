@@ -16,7 +16,7 @@ then they can be removed from this list.
     a. Make it a markdown file with headers
     b. Reorganize, clean up, summarize where makes sense, 
     c. Put table of contents at top
-3. **Blocked Spring Issue:** character hanging out idle on spring blocks it from others. Make the spring impassible. Make drinking from spring happen while adjacent to tile instead of on tile. Then, multiple characters can drink from spring at the same time.
+3. **Blocked Spring Issue:** character hanging out idle on spring blocks it from others. Make the spring impassible. Make drinking from spring happen while adjacent to tile instead of on tile. Then, multiple characters can drink from spring at the same time. (resolve before gardening phase)
 
 ## UI Improvements
 
@@ -45,17 +45,26 @@ then they can be removed from this list.
 ## Small Features
 
 1. Ability to edit name of existing character on map 
-2. Remove single char mode from UI, streamline flow.
-    - Adjust start screen title and start keys (low)
+2. Remove single char mode from UI, streamline flow: 
+    - Adjust start screen title and start keys
     - === Petri ===
     - R to start with Random Characters
     - C to create Characters
-3. sticks and nuts spawn randomly, but do not grow, they are "placed" on the ground by falling from the canopy.
-4. generate streams and/or ponds at world creatuib (drinkable feature)
-5. generate clay pit?? Maybe later for clay crafting
+3. sticks spawn randomly, but do not grow, they are "dropped" on the ground by falling from the canopy (required for construction)
+4. generate ponds at world creation (drinkable feature - required for gardening requirements)
+5. generate clay pit?? (required for construction)
 6. Fire for cooking
     - Pumpkin Pie recipe to use those hollow gourds that contain 1 gourd
+    - Porridge! made out of tall grass seeds or nuts or berries + water
+    - Soup! made out of mushrooms + water
     - feed fire with fuel?
+    - food quality for mood
+    - satiety of food items
+7. Add word 'favorite' to character creation screen 
+9. Edible Nuts drop from canopy
+10. Streams and Bridges (requires construction)
+11. Use moss, feathers, and leaves to make beds
+12. Baskets, Bags, and Bins
 
 # Ideas that aren't ready yet:
 - hello world loading screen

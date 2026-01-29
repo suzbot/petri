@@ -1,18 +1,10 @@
-PHASE 7 - Enhanced Recipes and Crafting
+Pigment, Decoration, and Face Painting
 
-Story: Characters can ponder to try and discover things. They can disover how to collect flowers in a vessel and turn them into pigment. The pigment can then be used to decorate items, and even a characters own appearance. 
+Story: Characterscan disover how to collect flowers in a vessel and turn them into pigment. The pigment can then be used to decorate items, and even a characters own appearance. 
 
 1. Foundational Updates:
 	- Expand eligible 'Harvest' targets to include all growing items (including flowers)
 	- Add new color: Indigo; add Indigo to list of flower colors
-	- Give character 2 inventory slots. Each slot can be filled with either a container or a loose item. 
-	- Ensure Activities are structured for easy addition before we add the three new ones in this body of work
-
-2. New Activity: Pondering
- 	- Default, like foraging, it doesn't need to be explicitly discovered 
- 	- a pondering character will choose a random item from their inventory or map to look at. While pondering, the baseline chance of making any discovery is doubled.
- 	- Does this make more sense to be orderable, idle, or can it be both? 
-
 
 3. New Activity: Craft Pigment
 	- Orderable, Discoverable
@@ -46,17 +38,22 @@ Story: Characters can ponder to try and discover things. They can disover how to
 			- vessels
 		- Decoration Items:
 			- pigments
+			- shells
 	- Discovery Trigger: learn automatically after crafting a 'decoration' item, chance to learn if looking at a 'decoration' item someone else has made
 	- Per existing logic: If this is an order, they will drop other items to seek components to achieve this. If it is an idle activity, they will not engage in the activity if they are holding an incompatible combination of components, but will seek compatible components if they have space. Both items can be sought based on preference/distance calculations.
 	- Once they have the 'Decoratable' object and a 'Decoration' object, then they can start 'decorating'
 	- Action: Character is "Decorating" After 5 seconds (placeholder time until time rebalancing), the activity is complete
 	- Outcome: 'Decoration' item is either removed from map (if loose) or stack is decremented (if stacked). The 'Decoratable' item gains new properties based on what it was decorated with.
-		- When decorating, pigment can either add/change item color (to the color of the pigment) OR
-		- it can apply a Pattern (any pattern) to the item (selection weighted by any pattern preference of the character) in the color of the pigment (e.g. blue spots)
-		- If the item already had a color, the new color from decoration overwrites it
-		- If the item already had a pattern, the new pattern from decoration overwrites it
+		- Pigement Decoration
+			- When decorating, pigment can either add/change item color (to the color of the pigment) OR
+			- it can apply a Pattern (any pattern) to the item (selection weighted by any pattern preference of the character) in the color of the pigment (e.g. blue spots)
+			- If the item already had a color, the new color from decoration overwrites it
+			- If the item already had a pattern, the new pattern from decoration overwrites it
+		- Shell Decoration
+			- Decorated with pieces of [color] shell	
 		- the updated color and pattern of the item should influence mood consistent with existing logic
-	- Note: in future, many kinds of crafted items may be decoratable. There also may be other kinds of decorations (spikes, braids) that could be used to modify other attributes of items (texture)
+		- if there is a preference around the shell color or the shell item then that should also contribute to the mood impact calculation
+	- Note: in future, many kinds of crafted items may be decoratable. There also may be other kinds of decorations (spikes, braids, tassels, feathers) that could be used to modify other attributes of items (texture, bangle)
 
 5. New Activity: Face Painting
 	- Does this make more sense to be orderable, idle, or can it be both?

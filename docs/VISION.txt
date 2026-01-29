@@ -31,20 +31,21 @@ the simulated community.
 
 # DEVELOPMENT PHASES (for initial release)
 
+Complete:
 1. Character is driven by basic needs and simple preferences
 2. Multi-Character support
 3. Mood tracking and Preference formation
 4. Basic Knowledge
 5. Inventory, Discovery, and simple job assignment
 6. Containers and Storage (hollow gourd) 
-7. Enhanced Discovery and Decoration **[UP NEXT]**
-- Simple Agriculture: seeds, water carrying, planting
-- Basic Character Attributes and Relationships
-- Basic Shelter Construction
-- Enhanced Learning: Recipe Sharing, Teaching, and Observation
-- Basic Threats and Destruction (wolves)
 
-See docs/future-phase-brainstorming.txt for details on phases
+Upcoming:
+- Simple Gardening: seeds, water carrying, planting (docs/Gardening-Reqs.txt)
+- Basic Construction (docs/Construction-Reqs.txt)
+- Creatures, Theft, and Destruction (docs/Threats-Reqs.txt)
+- Enhanced Learning: Discovery, Recipe Sharing, Teaching, and Observation (docs/Learning-Reqs.txt)
+- Pigment, Decoration, and Face Painting (docs/Pigment-Reqs.txt)
+- Basic Character Attributes and Relationships
 
 # OTHER INTENDED FEATURES (Not yet prioritized)
 
@@ -56,10 +57,11 @@ See docs/future-phase-brainstorming.txt for details on phases
 - Environmental interactions
     - Weather
     - Other Animals
-- Social interactions and relationships
+- Social interactions and complex relationships
 - Events and Character Memory
 - Writing and Character created documents
-- Personality Attribute (Lazy, Industrious, etc)
-- UI Panel Enhancements
-- Configurable Key bindings
+- Personality Attribute (Lazy, Industrious, etc) and opinions
 - Singing, Dancing, and other social bonding activities
+- Honey Bees
+- Occupations
+

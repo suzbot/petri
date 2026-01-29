@@ -1,0 +1,119 @@
+REQUIREMENTS: GARDENING
+
+General Idea: Characters can prepare ground for a garden and then plant seeds and mushrooms in it, which grow at a faster rate than in the wild. This will allow the community to grow and thrive without running out of food.
+
+PART I: Gardening Preparation
+
+Prerequisites:
+	- Give character 2 inventory slots. Each slot can be filled with either a container or a loose item. 
+	- Ensure Activities are structured for easy addition based on this initiative, as well as planned activities for Pigment-Reqs and Construction-Reqs initiatves.
+		Side Note: Provide a text template to better define requirements for future activities based on the defined structure
+
+New Feature: Ponds
+	- on world generation, a random number of ponds (1-5) will generate on the map
+	- they should be contiguous blob shaped clusters of water tiles in size from 4-16 tiles
+	- water tiles are not passable
+	- they can be drank from, when standing in an adjacent tile
+
+Shells
+ 	- a shell item will occasionally spawn adjacent to a water tile '<'
+ 	- shells can have colors of: white, pale pink, tan, pale yellow, silver, gray, lavender
+
+Sticks
+	- A stick will ocasionally spawn on the map, as though being 'dropped' from the canopy above. they can fall onto any unoccupied tile.
+
+New Activity: Craft Hoe
+	- Orderable
+	- Discoverable (from looking at or picking up component items)
+	- Components: 1 stick + 1 shell
+	- Actions: On order assignment, character will first check it has recipe components. If not, it will drop non-recipe components, and go pick-up nearest components (targeted by preference/distance). Once has components, can begin the activity. If there are not components available, the task will be abandoned
+		- Note this basic pattern of checking inventory for components, dropping, targetting components or abandoning, picking up, then beginning to craft is the same pattern as craft vessel and this pattern will be reused for EVERY recipe activity introduced in the future, and maybe even similar to starting non recipe activitis. Consider most efficient way to set this up in code for easy extensibility to quickly add activities in future. See Pigment-Reqs for other planned examples.
+	- Duration: Medium
+	- Outcome: creates 'Hoe' item
+	- Cannot go in a vessel (may go in larger containers in the future)
+	- On creation, either goes into open inventory slot or is dropped on ground
+
+New Activity: Garden > Till Soil
+	- Orderable
+	- Discoverable (chance from picking up or looking at required item)
+	- No Recipe Knowledge needed (similar to harvest)
+	- Required Item: Hoe
+		- Must ensure hoe is procured upon order being assigned
+	- Ordering UI: Area Selection
+		- Till Soil option appears if character has Till Soil know-how
+		- When Till Soil option is selected, then user is directed to use keyboard to highlight an area on the map to be Tilled
+		- Tiles with features (springs, leaf piles) will not be highlighted even if they were within the otherwise selected area
+		- Tiles that are already tilled are not selectable
+		- Tiles that have been previously selected for tilling, but are not yet tilled, show up as pre-highlighted on the map
+		- highlighted tiles are marked for tilling
+			- marked for tilling can be shown on the details screen in select view
+		- user indicates when they are done highlighting
+	- Action: 
+		- Character who accepts order will perform the Tilling action on one of the selected tiles, taking Medium duration. 
+		- When they are finished with the activity on the first tile, then the tile gets the 'Growing' style (olive color) background color. 
+		- When they are finished with the activity on the first tile, then they move to the next nearest tile that was marked for tilling
+		- any growing items on the tile are destroyed as a result of tilling
+		- any non-growing items on the tile are displaced to an adjacent tile as a result of tilling
+	- Completion: when all marked tiles have been tilled
+	- Multiple Assignments:
+		- If more than one order for tilling is accepted on the order list, then both characters will work on whatever marked for tilling tiles need to be tilled until completion, so that more workers can get the project done faster (assuming there are enough hoes for everyone)
+
+PART II: Seeds, Planting, and Watering
+
+New ItemType: Seed
+	- Eating a gourd creates 1 gourd variety seed
+	- Foraging allows characters including flowers in preference targetting. Foraging a flower produces 1 flower variety seed without removing the flower.
+	- just like with any other item being picked up:
+		- goes into matching container if character holding container with matching variety
+		- goes into empty container if character has empty container
+		- goes as loose item into inventory slot if character has open inventory slot
+		- otherwise, is dropped on ground
+	- All seed types have a max stack size of 20
+	- A seed carries the variety of the item it came from
+		- warty green gourd seeds will grow a warty green gourd
+		- blue flower seed will grow a blue flower
+		- Only seeds of the same variety can stack together
+
+New Item Attribute: Plantable
+	- All seeds are plantable
+	- When growing berries are picked, they become plantable
+	- When growing mushrooms are picked, they become plantable
+
+New Activity: Plant 
+	- Discoverable Know-How
+		- Trigger chance when looking at or picking up the activity component [in this case, plantable items]
+	- Orderable
+	- No Recipe Needed (similar to harvest)
+	- Garden > Plant > Select Plantable ItemType (gourd seeds, flower seeds, mushrooms, berries, future: nuts)
+	- Activity: An assigned Character will plant a variety of the selected plantable item
+		- if plantable item of selected type is in inventory or in carried container, they will start planting that variety
+		- if no carried plantable item, then will pick up plantable items or containers based on preference/distance
+		- if no plantable item avaiable, will abandon task
+		- planted item becomes a growing 'sprout' of that variety
+	- Completion: Once they have established what specific variety they are planting, they will keep planting until that specific variety of plantable item is no longer available OR until there are no more unplanted tilled soil items
+	- More than one character can be planting at once, each with their own chosen plantable variety of the selected plantable item
+
+New Idle Activity: Fetch Water
+	- Characters can now choose to fill an empty vessel with water as an idle activity option. 
+	- Should this be a variation of forage? Or its own activity?
+	- same vessel logic as foraging 
+	- They can then drink from the carried vessel instead of having to move to a water source to drink when thirsty.
+	- consider that drinking from carried vessel can be triggered earlier than walking to spring?
+	- a dropped water vessel can be targeted for drinking
+	- a full vessel has 4 'drinks'/units of water in it
+
+New Activity: Water Garden
+	- REQS TO DO
+
+Enhanced Logic: Garden Plant Growth and Reproduction
+	- planted item becomes a gorwing sprout of that variety
+	- sprout eventually becomes a full grown version of the plant variety [duration 6 mins]
+	- extend normal plant reproduction to have sprout phase with baseline duration
+	- being in tilled ground makes it grow and reproduce a little faster
+	- being watered makes it grow and reproduce a little faster
+
+Food Turning
+- Different edible items have a different satiation amount
+- Different growing items have different lifecycle times
+
+
