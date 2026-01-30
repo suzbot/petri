@@ -375,7 +375,7 @@ func findForageTarget(char *entity.Character, cx, cy int, items []*entity.Item, 
 
 	for _, item := range items {
 		// Only consider edible, growing items for foraging
-		if !item.Edible {
+		if !item.IsEdible() {
 			continue
 		}
 		if item.Plant == nil || !item.Plant.IsGrowing {

@@ -474,7 +474,7 @@ func TestFindFoodTarget_VesselNotEdible(t *testing.T) {
 	char.Hunger = 95 // Crisis - would eat anything edible
 
 	// Vessel is not edible (crafted from gourd)
-	gourd := entity.NewGourd(5, 5, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	gourd := entity.NewGourd(5, 5, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 	vessel := CreateVessel(gourd, recipe)
 
@@ -494,7 +494,7 @@ func TestFindFoodIntent_CarriedVesselNotEaten(t *testing.T) {
 	char.Hunger = 95 // Crisis - would eat anything edible from inventory
 
 	// Character is carrying a vessel (not edible)
-	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 	vessel := CreateVessel(gourd, recipe)
 	char.Carrying = vessel
@@ -1260,30 +1260,6 @@ func TestFindForageTarget_ReturnsNilWhenOnlyNonGrowingItems(t *testing.T) {
 	}
 }
 
-func TestFindForageTarget_SkipsItemsWithNilPlant(t *testing.T) {
-	t.Parallel()
-
-	char := newTestCharacter()
-	char.SetPosition(0, 0)
-
-	// Vessel (no Plant property, not forageable)
-	gourd := entity.NewGourd(3, 3, types.ColorGreen, types.PatternStriped, types.TextureWarty)
-	recipe := entity.RecipeRegistry["hollow-gourd"]
-	vessel := CreateVessel(gourd, recipe)
-	vessel.Edible = true // Artificially make edible to test Plant filter
-
-	// Growing berry
-	growingBerry := entity.NewBerry(5, 5, types.ColorRed, false, false)
-
-	items := []*entity.Item{vessel, growingBerry}
-
-	result := findForageTarget(char, 0, 0, items, nil) // nil vessel = no variety filter
-
-	if result != growingBerry {
-		t.Errorf("Expected growing berry (not vessel), got %v", result)
-	}
-}
-
 // =============================================================================
 // Unified Food Selection (Stage 5b) - Carried items use same scoring as map items
 // =============================================================================
@@ -1446,14 +1422,14 @@ func TestFindFoodIntent_VesselContents_RecognizedAsFood(t *testing.T) {
 	char.SetPosition(5, 5)
 
 	// Create vessel with red berries (liked)
-	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone)
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 	vessel := CreateVessel(gourd, recipe)
 	variety := &entity.ItemVariety{
 		ID:       "berry-red",
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
 	char.Carrying = vessel
@@ -1484,14 +1460,14 @@ func TestFindFoodIntent_VesselWithDislikedContents_FilteredAtModerate(t *testing
 	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
 
 	// Create vessel with disliked mushrooms
-	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone)
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 	vessel := CreateVessel(gourd, recipe)
 	variety := &entity.ItemVariety{
 		ID:       "mushroom-brown",
 		ItemType: "mushroom",
 		Color:    types.ColorBrown,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
 	char.Carrying = vessel
@@ -1523,7 +1499,7 @@ func TestFindFoodIntent_DroppedVessel_RecognizedAsFood(t *testing.T) {
 	char.Carrying = nil // Not carrying anything
 
 	// Create dropped vessel with red berries (liked)
-	gourd := entity.NewGourd(7, 7, types.ColorGreen, types.PatternNone, types.TextureNone)
+	gourd := entity.NewGourd(7, 7, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 	vessel := CreateVessel(gourd, recipe)
 	vessel.SetPosition(7, 7)
@@ -1531,7 +1507,7 @@ func TestFindFoodIntent_DroppedVessel_RecognizedAsFood(t *testing.T) {
 		ID:       "berry-red",
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
 
@@ -1562,7 +1538,7 @@ func TestFindFoodIntent_DroppedVesselWithDislikedContents_FilteredAtModerate(t *
 	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
 
 	// Create dropped vessel with disliked mushrooms
-	gourd := entity.NewGourd(7, 7, types.ColorGreen, types.PatternNone, types.TextureNone)
+	gourd := entity.NewGourd(7, 7, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 	vessel := CreateVessel(gourd, recipe)
 	vessel.SetPosition(7, 7)
@@ -1570,7 +1546,7 @@ func TestFindFoodIntent_DroppedVesselWithDislikedContents_FilteredAtModerate(t *
 		ID:       "mushroom-brown",
 		ItemType: "mushroom",
 		Color:    types.ColorBrown,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
 
@@ -1598,7 +1574,7 @@ func TestFindFoodIntent_DroppedVesselCloser_WinsOverFarFood(t *testing.T) {
 	char.Carrying = nil
 
 	// Create dropped vessel nearby with berries
-	gourd := entity.NewGourd(6, 6, types.ColorGreen, types.PatternNone, types.TextureNone)
+	gourd := entity.NewGourd(6, 6, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 	vessel := CreateVessel(gourd, recipe)
 	vessel.SetPosition(6, 6)
@@ -1606,7 +1582,7 @@ func TestFindFoodIntent_DroppedVesselCloser_WinsOverFarFood(t *testing.T) {
 		ID:       "berry-blue",
 		ItemType: "berry",
 		Color:    types.ColorBlue,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
 

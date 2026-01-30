@@ -391,7 +391,7 @@ func TestFindHarvestIntent_LooksForVesselFirst(t *testing.T) {
 		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	})
 	gameMap.SetVarieties(registry)
 
@@ -440,7 +440,7 @@ func TestFindHarvestIntent_DropsIncompatibleVessel(t *testing.T) {
 		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	})
 	registry.Register(&entity.ItemVariety{
 		ID:       entity.GenerateVarietyID("mushroom", types.ColorBrown, types.PatternSpotted, types.TextureSlimy),
@@ -448,7 +448,7 @@ func TestFindHarvestIntent_DropsIncompatibleVessel(t *testing.T) {
 		Color:    types.ColorBrown,
 		Pattern:  types.PatternSpotted,
 		Texture:  types.TextureSlimy,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	})
 	gameMap.SetVarieties(registry)
 
@@ -506,7 +506,7 @@ func TestFindHarvestIntent_UsesCompatibleVessel(t *testing.T) {
 		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	})
 	gameMap.SetVarieties(registry)
 
@@ -894,7 +894,7 @@ func TestFindCraftVesselIntent_WithGourdInInventory(t *testing.T) {
 	gameMap := game.NewMap(10, 10)
 	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
 	char.KnownActivities = []string{"craftVessel"}
-	char.Carrying = entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone)
+	char.Carrying = entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
 	gameMap.AddCharacter(char)
 
 	order := entity.NewOrder(1, "craftVessel", "")
@@ -922,7 +922,7 @@ func TestFindCraftVesselIntent_WithoutGourd_FindsGourdOnMap(t *testing.T) {
 	// Not carrying anything
 	gameMap.AddCharacter(char)
 
-	gourd := entity.NewGourd(7, 5, types.ColorGreen, types.PatternNone, types.TextureNone)
+	gourd := entity.NewGourd(7, 5, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
 	gameMap.AddItem(gourd)
 
 	order := entity.NewOrder(1, "craftVessel", "")
@@ -972,7 +972,7 @@ func TestFindCraftVesselIntent_CarryingNonGourd_FindsGourd(t *testing.T) {
 	char.Carrying = entity.NewBerry(0, 0, types.ColorRed, false, false) // carrying berry, not gourd
 	gameMap.AddCharacter(char)
 
-	gourd := entity.NewGourd(7, 5, types.ColorGreen, types.PatternNone, types.TextureNone)
+	gourd := entity.NewGourd(7, 5, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
 	gameMap.AddItem(gourd)
 
 	order := entity.NewOrder(1, "craftVessel", "")
@@ -1100,7 +1100,7 @@ func TestFindNearestItemByType_SkipsItemsWithNilPlant(t *testing.T) {
 	t.Parallel()
 
 	// Vessel (no Plant property)
-	gourd := entity.NewGourd(3, 3, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	gourd := entity.NewGourd(3, 3, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 	vessel := CreateVessel(gourd, recipe)
 	vessel.ItemType = "berry" // Artificially set type to test Plant filter

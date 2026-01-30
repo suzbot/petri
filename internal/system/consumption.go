@@ -70,7 +70,7 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 	}
 
 	// Apply poison effect
-	if item.Poisonous {
+	if item.IsPoisonous() {
 		char.Poisoned = true
 		char.PoisonTimer = config.PoisonDuration
 
@@ -85,7 +85,7 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 	}
 
 	// Apply healing effect
-	if item.Healing {
+	if item.IsHealing() {
 		oldHealth := char.Health
 		prevTier := char.HealthTier()
 		char.Health += config.HealAmount
@@ -193,7 +193,7 @@ func ConsumeFromInventory(char *entity.Character, item *entity.Item, log *Action
 	}
 
 	// Apply poison effect
-	if item.Poisonous {
+	if item.IsPoisonous() {
 		char.Poisoned = true
 		char.PoisonTimer = config.PoisonDuration
 
@@ -208,7 +208,7 @@ func ConsumeFromInventory(char *entity.Character, item *entity.Item, log *Action
 	}
 
 	// Apply healing effect
-	if item.Healing {
+	if item.IsHealing() {
 		oldHealth := char.Health
 		prevTier := char.HealthTier()
 		char.Health += config.HealAmount
@@ -381,7 +381,7 @@ func ConsumeFromVessel(char *entity.Character, vessel *entity.Item, log *ActionL
 	}
 
 	// Apply poison effect
-	if variety.Poisonous {
+	if variety.IsPoisonous() {
 		char.Poisoned = true
 		char.PoisonTimer = config.PoisonDuration
 
@@ -396,7 +396,7 @@ func ConsumeFromVessel(char *entity.Character, vessel *entity.Item, log *ActionL
 	}
 
 	// Apply healing effect
-	if variety.Healing {
+	if variety.IsHealing() {
 		oldHealth := char.Health
 		prevTier := char.HealthTier()
 		char.Health += config.HealAmount

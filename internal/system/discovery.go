@@ -131,7 +131,7 @@ func triggerMatches(trigger entity.DiscoveryTrigger, action entity.ActionType, i
 
 	// Check edible requirement (only if item exists)
 	if trigger.RequiresEdible {
-		if item == nil || !item.Edible {
+		if item == nil || !item.IsEdible() {
 			return false
 		}
 	}

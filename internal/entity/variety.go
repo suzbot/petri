@@ -18,13 +18,26 @@ type ItemVariety struct {
 	Pattern  types.Pattern // zero value if not applicable to this item type
 	Texture  types.Texture // zero value if not applicable to this item type
 
-	// Functional attributes (not opinion-formable)
-	Edible    bool
-	Poisonous bool
-	Healing   bool
+	// Edible properties (nil for non-edible varieties like flowers)
+	Edible *EdibleProperties
 
 	// Display
 	Sym rune // symbol for rendering
+}
+
+// IsEdible returns true if this variety can be consumed
+func (v *ItemVariety) IsEdible() bool {
+	return v.Edible != nil
+}
+
+// IsPoisonous returns true if this variety is edible and poisonous
+func (v *ItemVariety) IsPoisonous() bool {
+	return v.Edible != nil && v.Edible.Poisonous
+}
+
+// IsHealing returns true if this variety is edible and healing
+func (v *ItemVariety) IsHealing() bool {
+	return v.Edible != nil && v.Edible.Healing
 }
 
 // Description returns a human-readable description like "slimy spotted red mushroom"

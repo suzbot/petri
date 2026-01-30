@@ -89,13 +89,13 @@ func TestGenerateVarieties_FlowersAreNotEdible(t *testing.T) {
 	flowers := registry.VarietiesOfType("flower")
 
 	for _, f := range flowers {
-		if f.Edible {
+		if f.IsEdible() {
 			t.Errorf("Flower variety %q should not be edible", f.ID)
 		}
-		if f.Poisonous {
+		if f.IsPoisonous() {
 			t.Errorf("Flower variety %q should not be poisonous", f.ID)
 		}
-		if f.Healing {
+		if f.IsHealing() {
 			t.Errorf("Flower variety %q should not be healing", f.ID)
 		}
 	}
@@ -111,14 +111,14 @@ func TestGenerateVarieties_PoisonAndHealingAssigned(t *testing.T) {
 
 	var poisonCount, healingCount int
 	for _, v := range edible {
-		if v.Poisonous {
+		if v.IsPoisonous() {
 			poisonCount++
 		}
-		if v.Healing {
+		if v.IsHealing() {
 			healingCount++
 		}
 		// Check no variety is both poisonous and healing
-		if v.Poisonous && v.Healing {
+		if v.IsPoisonous() && v.IsHealing() {
 			t.Errorf("Variety %q is both poisonous and healing", v.ID)
 		}
 	}

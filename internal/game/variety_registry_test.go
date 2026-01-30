@@ -14,7 +14,7 @@ func TestVarietyRegistry_RegisterAndGet(t *testing.T) {
 		ID:       "berry-red",
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible:   true,
+		Edible:   &entity.EdibleProperties{},
 	}
 
 	reg.Register(v)
@@ -59,9 +59,9 @@ func TestVarietyRegistry_VarietiesOfType(t *testing.T) {
 func TestVarietyRegistry_EdibleVarieties(t *testing.T) {
 	reg := NewVarietyRegistry()
 
-	reg.Register(&entity.ItemVariety{ID: "berry-red", ItemType: "berry", Edible: true})
-	reg.Register(&entity.ItemVariety{ID: "mushroom-brown", ItemType: "mushroom", Edible: true})
-	reg.Register(&entity.ItemVariety{ID: "flower-purple", ItemType: "flower", Edible: false})
+	reg.Register(&entity.ItemVariety{ID: "berry-red", ItemType: "berry", Edible: &entity.EdibleProperties{}})
+	reg.Register(&entity.ItemVariety{ID: "mushroom-brown", ItemType: "mushroom", Edible: &entity.EdibleProperties{}})
+	reg.Register(&entity.ItemVariety{ID: "flower-purple", ItemType: "flower"}) // Edible is nil - flowers not edible
 
 	edible := reg.EdibleVarieties()
 	if len(edible) != 2 {
@@ -69,7 +69,7 @@ func TestVarietyRegistry_EdibleVarieties(t *testing.T) {
 	}
 
 	for _, v := range edible {
-		if !v.Edible {
+		if !v.IsEdible() {
 			t.Errorf("EdibleVarieties() returned non-edible variety %q", v.ID)
 		}
 	}

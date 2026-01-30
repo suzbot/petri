@@ -53,7 +53,7 @@ func (r *VarietyRegistry) AllVarieties() []*entity.ItemVariety {
 func (r *VarietyRegistry) EdibleVarieties() []*entity.ItemVariety {
 	var result []*entity.ItemVariety
 	for _, v := range r.varieties {
-		if v.Edible {
+		if v.IsEdible() {
 			result = append(result, v)
 		}
 	}

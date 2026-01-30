@@ -14,7 +14,7 @@ func TestTryDiscoverKnowHow_DiscoverHarvestOnPickup(t *testing.T) {
 	}
 	item := &entity.Item{
 		ItemType: "berry",
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 
 	// With 100% chance, should always discover
@@ -35,7 +35,7 @@ func TestTryDiscoverKnowHow_DiscoverHarvestOnConsume(t *testing.T) {
 	}
 	item := &entity.Item{
 		ItemType: "mushroom",
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 
 	discovered := TryDiscoverKnowHow(char, entity.ActionConsume, item, nil, 1.0)
@@ -55,7 +55,7 @@ func TestTryDiscoverKnowHow_DiscoverHarvestOnLook(t *testing.T) {
 	}
 	item := &entity.Item{
 		ItemType: "gourd",
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 
 	discovered := TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
@@ -75,7 +75,7 @@ func TestTryDiscoverKnowHow_NoDiscoverOnNonEdible(t *testing.T) {
 	}
 	item := &entity.Item{
 		ItemType: "flower",
-		Edible:   false, // flowers are not edible
+		// Edible is nil - flowers are not edible
 	}
 
 	// Even with 100% chance, should not discover because item is not edible
@@ -96,7 +96,7 @@ func TestTryDiscoverKnowHow_NoDiscoverWhenAlreadyKnown(t *testing.T) {
 	}
 	item := &entity.Item{
 		ItemType: "berry",
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 
 	// Should return false because already known
@@ -114,7 +114,7 @@ func TestTryDiscoverKnowHow_NoDiscoverWithZeroChance(t *testing.T) {
 	}
 	item := &entity.Item{
 		ItemType: "berry",
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 
 	// With 0% chance, should never discover
@@ -133,7 +133,7 @@ func TestTryDiscoverKnowHow_NoHarvestDiscoverOnDrink(t *testing.T) {
 	}
 	item := &entity.Item{
 		ItemType: "berry",
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 
 	// Drinking is not a trigger for harvest discovery
@@ -203,7 +203,7 @@ func TestTryDiscoverKnowHow_LogsDiscovery(t *testing.T) {
 	}
 	item := &entity.Item{
 		ItemType: "berry",
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 		Color:    types.ColorRed,
 	}
 	log := NewActionLog(100)
@@ -233,7 +233,7 @@ func TestTryDiscoverKnowHow_DiscoverRecipeOnGourdLook(t *testing.T) {
 	}
 	item := &entity.Item{
 		ItemType: "gourd",
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 
 	discovered := TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
@@ -258,7 +258,7 @@ func TestTryDiscoverKnowHow_DiscoverRecipeOnGourdPickup(t *testing.T) {
 	}
 	item := &entity.Item{
 		ItemType: "gourd",
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 
 	discovered := TryDiscoverKnowHow(char, entity.ActionPickup, item, nil, 1.0)
@@ -282,7 +282,7 @@ func TestTryDiscoverKnowHow_DiscoverRecipeOnGourdConsume(t *testing.T) {
 	}
 	item := &entity.Item{
 		ItemType: "gourd",
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 
 	discovered := TryDiscoverKnowHow(char, entity.ActionConsume, item, nil, 1.0)
@@ -327,7 +327,7 @@ func TestTryDiscoverKnowHow_NoRecipeDiscoverOnNonGourd(t *testing.T) {
 	}
 	item := &entity.Item{
 		ItemType: "berry", // not a gourd
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 
 	// Looking at a berry should discover harvest, not craftVessel
@@ -353,7 +353,7 @@ func TestTryDiscoverKnowHow_NoRecipeDiscoverWhenAlreadyKnown(t *testing.T) {
 	}
 	item := &entity.Item{
 		ItemType: "gourd",
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 
 	// Should return false because everything already known
@@ -372,7 +372,7 @@ func TestTryDiscoverKnowHow_ActivityAlreadyKnownButNotRecipe(t *testing.T) {
 	}
 	item := &entity.Item{
 		ItemType: "gourd",
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	}
 
 	discovered := TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)

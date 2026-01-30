@@ -235,11 +235,11 @@ func TestSpawnItem_InheritsParentProperties(t *testing.T) {
 	if spawned.Color != parent.Color {
 		t.Errorf("Color: got %s, want %s", spawned.Color, parent.Color)
 	}
-	if spawned.Poisonous != parent.Poisonous {
-		t.Errorf("Poisonous: got %v, want %v", spawned.Poisonous, parent.Poisonous)
+	if spawned.IsPoisonous() != parent.IsPoisonous() {
+		t.Errorf("IsPoisonous: got %v, want %v", spawned.IsPoisonous(), parent.IsPoisonous())
 	}
-	if spawned.Healing != parent.Healing {
-		t.Errorf("Healing: got %v, want %v", spawned.Healing, parent.Healing)
+	if spawned.IsHealing() != parent.IsHealing() {
+		t.Errorf("IsHealing: got %v, want %v", spawned.IsHealing(), parent.IsHealing())
 	}
 
 	// Verify position

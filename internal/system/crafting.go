@@ -22,7 +22,7 @@ func CreateVessel(input *entity.Item, recipe *entity.Recipe) *entity.Item {
 		Color:    input.Color,
 		Pattern:  input.Pattern,
 		Texture:  input.Texture,
-		Edible:   false,
+		// Edible is nil - vessels are not edible
 		Container: &entity.ContainerData{
 			Capacity: 1,
 			Contents: []entity.Stack{},

@@ -23,8 +23,8 @@ func TestNewBerry_Properties(t *testing.T) {
 	if item.Color != types.ColorRed {
 		t.Errorf("NewBerry Color: got %q, want %q", item.Color, types.ColorRed)
 	}
-	if item.Poisonous != false {
-		t.Error("NewBerry Poisonous: got true, want false")
+	if item.IsPoisonous() {
+		t.Error("NewBerry IsPoisonous: got true, want false")
 	}
 	if item.Symbol() != config.CharBerry {
 		t.Errorf("NewBerry Symbol(): got %q, want %q", item.Symbol(), config.CharBerry)
@@ -39,8 +39,8 @@ func TestNewBerry_Poisonous(t *testing.T) {
 	t.Parallel()
 
 	item := NewBerry(0, 0, types.ColorWhite, true, false)
-	if !item.Poisonous {
-		t.Error("NewBerry with poisonous=true: got Poisonous=false")
+	if !item.IsPoisonous() {
+		t.Error("NewBerry with poisonous=true: got IsPoisonous()=false")
 	}
 }
 
@@ -60,8 +60,8 @@ func TestNewMushroom_Properties(t *testing.T) {
 	if item.Color != types.ColorBrown {
 		t.Errorf("NewMushroom Color: got %q, want %q", item.Color, types.ColorBrown)
 	}
-	if item.Poisonous != false {
-		t.Error("NewMushroom Poisonous: got true, want false")
+	if item.IsPoisonous() {
+		t.Error("NewMushroom IsPoisonous: got true, want false")
 	}
 	if item.Symbol() != config.CharMushroom {
 		t.Errorf("NewMushroom Symbol(): got %q, want %q", item.Symbol(), config.CharMushroom)
@@ -76,8 +76,8 @@ func TestNewMushroom_Poisonous(t *testing.T) {
 	t.Parallel()
 
 	item := NewMushroom(0, 0, types.ColorBlue, types.PatternNone, types.TextureNone, true, false)
-	if !item.Poisonous {
-		t.Error("NewMushroom with poisonous=true: got Poisonous=false")
+	if !item.IsPoisonous() {
+		t.Error("NewMushroom with poisonous=true: got IsPoisonous()=false")
 	}
 }
 

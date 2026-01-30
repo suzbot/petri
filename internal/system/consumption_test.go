@@ -1058,18 +1058,16 @@ func TestConsumeFromVessel_MoodAdjustedByPreference(t *testing.T) {
 // Helper to create a test vessel with contents
 func createTestVesselWithContents(itemType string, color types.Color, count int, poisonous, healing bool) *entity.Item {
 	// Create a gourd and craft it into a vessel
-	gourd := entity.NewGourd(0, 0, color, types.PatternNone, types.TextureNone)
+	gourd := entity.NewGourd(0, 0, color, types.PatternNone, types.TextureNone, false, false)
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 	vessel := CreateVessel(gourd, recipe)
 
 	// Create a variety for the contents
 	variety := &entity.ItemVariety{
-		ID:        entity.GenerateVarietyID(itemType, color, types.PatternNone, types.TextureNone),
-		ItemType:  itemType,
-		Color:     color,
-		Edible:    true,
-		Poisonous: poisonous,
-		Healing:   healing,
+		ID:       entity.GenerateVarietyID(itemType, color, types.PatternNone, types.TextureNone),
+		ItemType: itemType,
+		Color:    color,
+		Edible:   &entity.EdibleProperties{Poisonous: poisonous, Healing: healing},
 	}
 
 	// Add contents to vessel

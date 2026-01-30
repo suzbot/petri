@@ -475,8 +475,19 @@ During human testing, discovered that `VarietySave` was missing the `Edible` fie
 
 After each of the below items, Update README, Game Mechanics, claude.md, and architecture docs as applicable, for changes since last doc updates.
 
-[ ] **Investigate** Can mood be impacted by looking at a dropped hollow gourd, based on its attributes? Characters already look at them - verify mood impacts work.
-[ ] **revisit container and plant structures**, consider 'edible' structure that contains healing/poison (currently details when viewing dropper containers shows these values, when they are irrelevant)
-[ ] **Evaluate pickup code unification** (see futureEnhancements.md) - if harvesting vessel logic duplicates foraging, consider `picking.go` refactor
-[ ] **Time config reset:** Adjust so "world day" = 2 game minutes, ( .5 game seconds = ~6 "world minutes"
-[ ] **Save/Load:** Verify nested item serialization works correctly
+### Clean-up 1: Verification Tasks ✓
+
+- [x] **Investigate mood from looking at hollow gourds** - Verified: preferences CAN form for vessels (itemType + color). Pattern/texture not available (mushroom-only). Limitation: preferences are for "vessel" category, not specific recipe like "hollow-gourd". Kind field enhancement deferred (see triggered-enhancements.md).
+- [x] **Verify nested item serialization** - Verified with tests: `TestFromSaveState_RestoresVesselWithContents` and `TestFromSaveState_RestoresCarriedVesselWithContents` both pass.
+
+### Clean-up 2: Structure Refactor ✓
+
+- [x] **Revisit container and plant structures** - Created `EdibleProperties` struct with `Poisonous` and `Healing` fields. `Item` and `ItemVariety` now use `*EdibleProperties` (nil for non-edible items). Added `IsEdible()`, `IsPoisonous()`, `IsHealing()` helper methods. UI only shows Poisonous/Healing for edible items. Also updated `NewGourd` to accept poisonous/healing parameters for future flexibility.
+
+### Clean-up 3: Code Unification ✓
+
+- [x] **Evaluate pickup code unification** - Evaluated: duplication exists (~30 lines vessel-seeking pattern) plus mixed concerns (foraging.go has generic pickup functions, update.go has order-specific completion logic). Refactor deferred until adding another pickup-based order/activity. Detailed guidance added to triggered-enhancements.md.
+
+### Clean-up 4: Balance Tuning
+
+- [ ] **Time config reset:** Adjust so "world day" = 2 game minutes (0.5 game seconds = ~6 "world minutes")

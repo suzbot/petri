@@ -1314,7 +1314,7 @@ func TestKnowsVarietyIsHealing_NoKnowledge(t *testing.T) {
 	t.Parallel()
 
 	c := &Character{Knowledge: []Knowledge{}}
-	variety := &ItemVariety{ItemType: "berry", Color: types.ColorBlue, Healing: true}
+	variety := &ItemVariety{ItemType: "berry", Color: types.ColorBlue, Edible: &EdibleProperties{Healing: true}}
 
 	if c.KnowsVarietyIsHealing(variety) {
 		t.Error("KnowsVarietyIsHealing() should return false when no knowledge")

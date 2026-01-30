@@ -521,7 +521,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		// Item can be edible directly OR be a vessel with edible contents
 		if char.Intent.TargetItem != nil && char.Intent.DrivingStat == types.StatHunger {
 			targetItem := char.Intent.TargetItem
-			isEdible := targetItem.Edible
+			isEdible := targetItem.IsEdible()
 			isVesselWithFood := targetItem.Container != nil && len(targetItem.Container.Contents) > 0
 
 			if isEdible || isVesselWithFood {

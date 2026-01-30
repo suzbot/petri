@@ -739,14 +739,6 @@ func (m Model) renderDetails() string {
 		lines = append(lines, " Press I for Inventory")
 
 	} else if item != nil {
-		poison := "No"
-		if item.Poisonous {
-			poison = redStyle.Render("Yes")
-		}
-		healing := "No"
-		if item.Healing {
-			healing = optimalStyle.Render("Yes")
-		}
 		lines = append(lines, " Type: Item")
 		if m.testCfg.Debug {
 			lines = append(lines, fmt.Sprintf(" Pos: (%d, %d)", m.cursorX, m.cursorY))
@@ -766,10 +758,21 @@ func (m Model) renderDetails() string {
 		if item.Texture != "" {
 			lines = append(lines, fmt.Sprintf(" Texture: %s", item.Texture))
 		}
-		lines = append(lines,
-			fmt.Sprintf(" Poisonous: %s", poison),
-			fmt.Sprintf(" Healing: %s", healing),
-		)
+		// Show Poisonous/Healing only for edible items
+		if item.IsEdible() {
+			poison := "No"
+			if item.IsPoisonous() {
+				poison = redStyle.Render("Yes")
+			}
+			healing := "No"
+			if item.IsHealing() {
+				healing = optimalStyle.Render("Yes")
+			}
+			lines = append(lines,
+				fmt.Sprintf(" Poisonous: %s", poison),
+				fmt.Sprintf(" Healing: %s", healing),
+			)
+		}
 		// Show Growing status for plants that can spread
 		if item.Plant != nil && item.Plant.IsGrowing {
 			lines = append(lines, " "+growingStyle.Render("Growing"))

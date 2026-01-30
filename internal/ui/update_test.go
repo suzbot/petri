@@ -217,7 +217,7 @@ func TestApplyIntent_CraftOrderNotCompletedOnPickup(t *testing.T) {
 	gameMap.AddCharacter(char)
 
 	// Add gourd at character's position
-	gourd := entity.NewGourd(5, 5, types.ColorGreen, types.PatternNone, types.TextureNone)
+	gourd := entity.NewGourd(5, 5, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
 	gameMap.AddItem(gourd)
 
 	// Create craft order and assign to character
@@ -274,13 +274,13 @@ func createTestVesselWithRegistry() (*entity.Item, *game.VarietyRegistry) {
 		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	})
 	registry.Register(&entity.ItemVariety{
 		ID:       entity.GenerateVarietyID("berry", types.ColorBlue, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorBlue,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	})
 
 	vessel := &entity.Item{
@@ -370,7 +370,7 @@ func TestApplyIntent_HarvestOrderWithVessel_CompletesWhenFull(t *testing.T) {
 		Color:    types.ColorGreen,
 		Pattern:  types.PatternStriped,
 		Texture:  types.TextureWarty,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	})
 	gameMap.SetVarieties(registry)
 
@@ -389,7 +389,7 @@ func TestApplyIntent_HarvestOrderWithVessel_CompletesWhenFull(t *testing.T) {
 	gameMap.AddCharacter(char)
 
 	// Add gourd at character's position
-	gourd := entity.NewGourd(5, 5, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	gourd := entity.NewGourd(5, 5, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	gameMap.AddItem(gourd)
 
 	// Create harvest order
@@ -438,7 +438,7 @@ func TestApplyIntent_HarvestOrderWithoutVessel_CompletesAfterOneItem(t *testing.
 		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	})
 	gameMap.SetVarieties(registry)
 

@@ -28,13 +28,13 @@ func createTestRegistry() *game.VarietyRegistry {
 		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	})
 	reg.Register(&entity.ItemVariety{
 		ID:       entity.GenerateVarietyID("berry", types.ColorBlue, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorBlue,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	})
 	reg.Register(&entity.ItemVariety{
 		ID:       entity.GenerateVarietyID("mushroom", types.ColorBrown, types.PatternSpotted, types.TextureSlimy),
@@ -42,7 +42,7 @@ func createTestRegistry() *game.VarietyRegistry {
 		Color:    types.ColorBrown,
 		Pattern:  types.PatternSpotted,
 		Texture:  types.TextureSlimy,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	})
 	reg.Register(&entity.ItemVariety{
 		ID:       entity.GenerateVarietyID("gourd", types.ColorGreen, types.PatternStriped, types.TextureWarty),
@@ -50,7 +50,7 @@ func createTestRegistry() *game.VarietyRegistry {
 		Color:    types.ColorGreen,
 		Pattern:  types.PatternStriped,
 		Texture:  types.TextureWarty,
-		Edible:   true,
+		Edible: &entity.EdibleProperties{},
 	})
 	return reg
 }
@@ -158,7 +158,7 @@ func TestAddToVessel_GourdStackSize(t *testing.T) {
 	registry := createTestRegistry()
 
 	// Gourds have stack size of 1
-	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	added := AddToVessel(vessel, gourd, registry)
 
 	if !added {
@@ -166,7 +166,7 @@ func TestAddToVessel_GourdStackSize(t *testing.T) {
 	}
 
 	// Try to add second gourd - should fail (stack size is 1)
-	gourd2 := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	gourd2 := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	added = AddToVessel(vessel, gourd2, registry)
 
 	if added {
@@ -251,7 +251,7 @@ func TestIsVesselFull_GourdStack(t *testing.T) {
 	registry := createTestRegistry()
 
 	// Add one gourd (stack size 1)
-	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	AddToVessel(vessel, gourd, registry)
 
 	if !IsVesselFull(vessel, registry) {
@@ -297,7 +297,7 @@ func TestCanPickUpMore_CarryingFullVessel(t *testing.T) {
 	vessel := createTestVessel()
 
 	// Fill with gourd (stack size 1)
-	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	AddToVessel(vessel, gourd, registry)
 
 	char := &entity.Character{Carrying: vessel}
@@ -380,13 +380,13 @@ func TestFindNextVesselTarget_VesselFull(t *testing.T) {
 	registry := createTestRegistry()
 
 	// Fill vessel with gourds (stack size 1)
-	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	AddToVessel(vessel, gourd, registry)
 
 	char := &entity.Character{Carrying: vessel}
 
 	// Another gourd on map
-	gourd2 := entity.NewGourd(5, 5, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	gourd2 := entity.NewGourd(5, 5, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	items := []*entity.Item{gourd2}
 
 	intent := FindNextVesselTarget(char, 0, 0, items, registry)
@@ -508,11 +508,11 @@ func TestCanVesselAccept_FullVessel(t *testing.T) {
 	registry := createTestRegistry()
 
 	// Fill vessel with gourds (stack size 1)
-	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	AddToVessel(vessel, gourd, registry)
 
 	// Same variety should be rejected when full
-	gourd2 := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty)
+	gourd2 := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	if CanVesselAccept(vessel, gourd2, registry) {
 		t.Error("Full vessel should reject items even if variety matches")
 	}

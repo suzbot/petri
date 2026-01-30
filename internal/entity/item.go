@@ -23,6 +23,12 @@ type ContainerData struct {
 	Contents []Stack // Stacks currently in the container
 }
 
+// EdibleProperties contains properties specific to consumable items
+type EdibleProperties struct {
+	Poisonous bool
+	Healing   bool
+}
+
 // Item represents an item in the game world
 type Item struct {
 	BaseEntity
@@ -43,13 +49,26 @@ type Item struct {
 	// Container properties (nil for non-containers)
 	Container *ContainerData
 
-	// Functional attributes (not opinion-formable)
-	Edible    bool
-	Poisonous bool
-	Healing   bool
+	// Edible properties (nil for non-edible items like vessels, flowers)
+	Edible *EdibleProperties
 
 	// Lifecycle
 	DeathTimer float64 // countdown until death (0 = immortal)
+}
+
+// IsEdible returns true if this item can be consumed
+func (i *Item) IsEdible() bool {
+	return i.Edible != nil
+}
+
+// IsPoisonous returns true if this item is edible and poisonous
+func (i *Item) IsPoisonous() bool {
+	return i.Edible != nil && i.Edible.Poisonous
+}
+
+// IsHealing returns true if this item is edible and healing
+func (i *Item) IsHealing() bool {
+	return i.Edible != nil && i.Edible.Healing
 }
 
 // NewBerry creates a new berry item
@@ -61,12 +80,10 @@ func NewBerry(x, y int, color types.Color, poisonous, healing bool) *Item {
 			Sym:   config.CharBerry,
 			EType: TypeItem,
 		},
-		ItemType:  "berry",
-		Color:     color,
-		Plant:     &PlantProperties{IsGrowing: true},
-		Edible:    true,
-		Poisonous: poisonous,
-		Healing:   healing,
+		ItemType: "berry",
+		Color:    color,
+		Plant:    &PlantProperties{IsGrowing: true},
+		Edible:   &EdibleProperties{Poisonous: poisonous, Healing: healing},
 	}
 }
 
@@ -79,14 +96,12 @@ func NewMushroom(x, y int, color types.Color, pattern types.Pattern, texture typ
 			Sym:   config.CharMushroom,
 			EType: TypeItem,
 		},
-		ItemType:  "mushroom",
-		Color:     color,
-		Pattern:   pattern,
-		Texture:   texture,
-		Plant:     &PlantProperties{IsGrowing: true},
-		Edible:    true,
-		Poisonous: poisonous,
-		Healing:   healing,
+		ItemType: "mushroom",
+		Color:    color,
+		Pattern:  pattern,
+		Texture:  texture,
+		Plant:    &PlantProperties{IsGrowing: true},
+		Edible:   &EdibleProperties{Poisonous: poisonous, Healing: healing},
 	}
 }
 
@@ -99,17 +114,15 @@ func NewFlower(x, y int, color types.Color) *Item {
 			Sym:   config.CharFlower,
 			EType: TypeItem,
 		},
-		ItemType:  "flower",
-		Color:     color,
-		Plant:     &PlantProperties{IsGrowing: true},
-		Edible:    false,
-		Poisonous: false,
-		Healing:   false,
+		ItemType: "flower",
+		Color:    color,
+		Plant:    &PlantProperties{IsGrowing: true},
+		// Edible is nil - flowers are not edible
 	}
 }
 
-// NewGourd creates a new gourd item (edible, never poisonous or healing)
-func NewGourd(x, y int, color types.Color, pattern types.Pattern, texture types.Texture) *Item {
+// NewGourd creates a new gourd item
+func NewGourd(x, y int, color types.Color, pattern types.Pattern, texture types.Texture, poisonous, healing bool) *Item {
 	return &Item{
 		BaseEntity: BaseEntity{
 			X:     x,
@@ -117,14 +130,12 @@ func NewGourd(x, y int, color types.Color, pattern types.Pattern, texture types.
 			Sym:   config.CharGourd,
 			EType: TypeItem,
 		},
-		ItemType:  "gourd",
-		Color:     color,
-		Pattern:   pattern,
-		Texture:   texture,
-		Plant:     &PlantProperties{IsGrowing: true},
-		Edible:    true,
-		Poisonous: false,
-		Healing:   false,
+		ItemType: "gourd",
+		Color:    color,
+		Pattern:  pattern,
+		Texture:  texture,
+		Plant:    &PlantProperties{IsGrowing: true},
+		Edible:   &EdibleProperties{Poisonous: poisonous, Healing: healing},
 	}
 }
 

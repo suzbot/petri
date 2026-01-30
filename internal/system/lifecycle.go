@@ -147,6 +147,15 @@ func findEmptyAdjacent(x, y int, gameMap *game.Map) (int, int, bool) {
 // spawnItem creates a new item matching the parent's properties
 // Uses generic copying so new plant types don't require code changes here
 func spawnItem(gameMap *game.Map, parent *entity.Item, x, y int, initialItemCount int) {
+	// Copy edible properties if parent is edible
+	var edible *entity.EdibleProperties
+	if parent.Edible != nil {
+		edible = &entity.EdibleProperties{
+			Poisonous: parent.Edible.Poisonous,
+			Healing:   parent.Edible.Healing,
+		}
+	}
+
 	newItem := &entity.Item{
 		BaseEntity: entity.BaseEntity{
 			X:     x,
@@ -154,17 +163,15 @@ func spawnItem(gameMap *game.Map, parent *entity.Item, x, y int, initialItemCoun
 			Sym:   parent.Sym,
 			EType: entity.TypeItem,
 		},
-		ItemType:  parent.ItemType,
-		Color:     parent.Color,
-		Pattern:   parent.Pattern,
-		Texture:   parent.Texture,
+		ItemType: parent.ItemType,
+		Color:    parent.Color,
+		Pattern:  parent.Pattern,
+		Texture:  parent.Texture,
 		Plant: &entity.PlantProperties{
 			IsGrowing:  true,
 			SpawnTimer: CalculateSpawnInterval(parent.ItemType, initialItemCount),
 		},
-		Edible:    parent.Edible,
-		Poisonous: parent.Poisonous,
-		Healing:   parent.Healing,
+		Edible: edible,
 	}
 
 	// Set death timer for mortal items

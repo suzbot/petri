@@ -113,7 +113,7 @@ func TestFromSaveState_RestoresItems(t *testing.T) {
 	if found.Pattern != types.PatternSpotted {
 		t.Errorf("Expected spotted pattern, got %s", found.Pattern)
 	}
-	if !found.Poisonous {
+	if !found.IsPoisonous() {
 		t.Error("Expected item to be poisonous")
 	}
 }
@@ -329,6 +329,192 @@ func TestFromSaveState_RestoresEntitySymbols(t *testing.T) {
 		if feature.Symbol() == 0 {
 			t.Errorf("Feature at (%d,%d) has unset symbol after restore", feature.X, feature.Y)
 		}
+	}
+}
+
+func TestFromSaveState_RestoresVesselWithContents(t *testing.T) {
+	m := createTestModel()
+
+	// Create a gourd to make vessel from
+	gourd := entity.NewGourd(20, 20, types.ColorOrange, types.PatternStriped, types.TextureWarty, false, false)
+
+	// Create vessel from gourd
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	vessel := &entity.Item{
+		ID:       999,
+		Name:     recipe.Name,
+		ItemType: "vessel",
+		Color:   gourd.Color,
+		Pattern: gourd.Pattern,
+		Texture: gourd.Texture,
+		// Edible is nil - vessels are not edible
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	vessel.X = 20
+	vessel.Y = 20
+	vessel.EType = entity.TypeItem
+
+	// Create a variety for the contents and register it
+	berryVariety := &entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternNone,
+		Texture:  types.TextureNone,
+		Edible:   &entity.EdibleProperties{Healing: true},
+	}
+	m.gameMap.Varieties().Register(berryVariety)
+
+	// Add contents to vessel
+	vessel.Container.Contents = []entity.Stack{
+		{Variety: berryVariety, Count: 5},
+	}
+
+	m.gameMap.AddItemDirect(vessel)
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Find the vessel
+	var restoredVessel *entity.Item
+	for _, item := range restored.gameMap.Items() {
+		if item.X == 20 && item.Y == 20 && item.ItemType == "vessel" {
+			restoredVessel = item
+			break
+		}
+	}
+
+	if restoredVessel == nil {
+		t.Fatal("Expected to find vessel at (20,20)")
+	}
+
+	// Verify vessel attributes
+	if restoredVessel.Name != "Hollow Gourd" {
+		t.Errorf("Expected name 'Hollow Gourd', got '%s'", restoredVessel.Name)
+	}
+	if restoredVessel.Color != types.ColorOrange {
+		t.Errorf("Expected orange color, got %s", restoredVessel.Color)
+	}
+	if restoredVessel.Pattern != types.PatternStriped {
+		t.Errorf("Expected striped pattern, got %s", restoredVessel.Pattern)
+	}
+	if restoredVessel.Texture != types.TextureWarty {
+		t.Errorf("Expected warty texture, got %s", restoredVessel.Texture)
+	}
+
+	// Verify container exists
+	if restoredVessel.Container == nil {
+		t.Fatal("Expected vessel to have Container")
+	}
+	if restoredVessel.Container.Capacity != 1 {
+		t.Errorf("Expected capacity 1, got %d", restoredVessel.Container.Capacity)
+	}
+
+	// Verify contents
+	if len(restoredVessel.Container.Contents) != 1 {
+		t.Fatalf("Expected 1 stack in contents, got %d", len(restoredVessel.Container.Contents))
+	}
+
+	stack := restoredVessel.Container.Contents[0]
+	if stack.Count != 5 {
+		t.Errorf("Expected count 5, got %d", stack.Count)
+	}
+	if stack.Variety == nil {
+		t.Fatal("Expected stack to have Variety")
+	}
+	if stack.Variety.ItemType != "berry" {
+		t.Errorf("Expected variety item type 'berry', got '%s'", stack.Variety.ItemType)
+	}
+	if stack.Variety.Color != types.ColorRed {
+		t.Errorf("Expected variety color red, got %s", stack.Variety.Color)
+	}
+	if !stack.Variety.IsEdible() {
+		t.Error("Expected variety to be edible")
+	}
+	if !stack.Variety.IsHealing() {
+		t.Error("Expected variety to be healing")
+	}
+}
+
+func TestFromSaveState_RestoresCarriedVesselWithContents(t *testing.T) {
+	m := createTestModel()
+	chars := m.gameMap.Characters()
+	if len(chars) == 0 {
+		t.Fatal("Need at least 1 character")
+	}
+
+	// Create a variety for the contents
+	mushroomVariety := &entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("mushroom", types.ColorBlue, types.PatternSpotted, types.TextureSlimy),
+		ItemType: "mushroom",
+		Color:    types.ColorBlue,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureSlimy,
+		Edible:   &entity.EdibleProperties{Poisonous: true},
+	}
+	m.gameMap.Varieties().Register(mushroomVariety)
+
+	// Create vessel with contents
+	vessel := &entity.Item{
+		ID:       888,
+		Name:     "Hollow Gourd",
+		ItemType: "vessel",
+		Color:   types.ColorGreen,
+		Pattern: types.PatternNone,
+		Texture: types.TextureWaxy,
+		// Edible is nil - vessels are not edible
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{
+				{Variety: mushroomVariety, Count: 7},
+			},
+		},
+	}
+	vessel.EType = entity.TypeItem
+
+	// Give vessel to character
+	chars[0].Carrying = vessel
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Get restored character
+	restoredChar := restored.gameMap.Characters()[0]
+
+	if restoredChar.Carrying == nil {
+		t.Fatal("Expected character to be carrying vessel")
+	}
+
+	carriedVessel := restoredChar.Carrying
+	if carriedVessel.ItemType != "vessel" {
+		t.Errorf("Expected item type 'vessel', got '%s'", carriedVessel.ItemType)
+	}
+	if carriedVessel.Container == nil {
+		t.Fatal("Expected carried vessel to have Container")
+	}
+
+	// Verify contents
+	if len(carriedVessel.Container.Contents) != 1 {
+		t.Fatalf("Expected 1 stack, got %d", len(carriedVessel.Container.Contents))
+	}
+
+	stack := carriedVessel.Container.Contents[0]
+	if stack.Count != 7 {
+		t.Errorf("Expected count 7, got %d", stack.Count)
+	}
+	if stack.Variety == nil {
+		t.Fatal("Expected stack to have Variety")
+	}
+	if stack.Variety.ItemType != "mushroom" {
+		t.Errorf("Expected 'mushroom', got '%s'", stack.Variety.ItemType)
+	}
+	if !stack.Variety.IsPoisonous() {
+		t.Error("Expected variety to be poisonous")
 	}
 }
 

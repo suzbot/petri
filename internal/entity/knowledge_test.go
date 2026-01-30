@@ -188,11 +188,11 @@ func TestKnowledge_Equals(t *testing.T) {
 
 func TestNewKnowledgeFromItem(t *testing.T) {
 	item := &Item{
-		ItemType:  "mushroom",
-		Color:     types.ColorRed,
-		Pattern:   types.PatternSpotted,
-		Texture:   types.TextureSlimy,
-		Poisonous: true,
+		ItemType: "mushroom",
+		Color:    types.ColorRed,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureSlimy,
+		Edible:   &EdibleProperties{Poisonous: true},
 	}
 
 	k := NewKnowledgeFromItem(item, KnowledgePoisonous)

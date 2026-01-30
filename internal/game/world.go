@@ -69,11 +69,11 @@ func spawnItemsOfType(m *Map, registry *VarietyRegistry, itemType string, count 
 func createItemFromVariety(v *entity.ItemVariety, x, y int) *entity.Item {
 	switch v.ItemType {
 	case "berry":
-		return entity.NewBerry(x, y, v.Color, v.Poisonous, v.Healing)
+		return entity.NewBerry(x, y, v.Color, v.IsPoisonous(), v.IsHealing())
 	case "mushroom":
-		return entity.NewMushroom(x, y, v.Color, v.Pattern, v.Texture, v.Poisonous, v.Healing)
+		return entity.NewMushroom(x, y, v.Color, v.Pattern, v.Texture, v.IsPoisonous(), v.IsHealing())
 	case "gourd":
-		return entity.NewGourd(x, y, v.Color, v.Pattern, v.Texture)
+		return entity.NewGourd(x, y, v.Color, v.Pattern, v.Texture, v.IsPoisonous(), v.IsHealing())
 	case "flower":
 		return entity.NewFlower(x, y, v.Color)
 	default:

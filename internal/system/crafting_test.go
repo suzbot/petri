@@ -65,13 +65,13 @@ func TestCreateVessel_NotEdible(t *testing.T) {
 
 	gourd := &entity.Item{
 		ItemType: "gourd",
-		Edible:   true, // gourd is edible
+		Edible:   &entity.EdibleProperties{}, // gourd is edible
 	}
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 
 	vessel := CreateVessel(gourd, recipe)
 
-	if vessel.Edible {
+	if vessel.IsEdible() {
 		t.Error("Vessel should not be edible")
 	}
 }

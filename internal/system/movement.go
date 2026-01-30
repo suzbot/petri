@@ -687,7 +687,7 @@ func findFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 
 	// Helper to score and potentially update best candidate
 	scoreCandidate := func(item *entity.Item, dist int) {
-		if !item.Edible {
+		if !item.IsEdible() {
 			return
 		}
 
@@ -720,7 +720,7 @@ func findFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 		// Check if carrying a vessel with edible contents
 		if char.Carrying.Container != nil && len(char.Carrying.Container.Contents) > 0 {
 			variety := char.Carrying.Container.Contents[0].Variety
-			if variety.Edible {
+			if variety.IsEdible() {
 				netPref := char.NetPreferenceForVariety(variety)
 
 				// At Moderate hunger, filter out disliked items
@@ -754,7 +754,7 @@ func findFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 		// Check if item is a vessel with edible contents
 		if item.Container != nil && len(item.Container.Contents) > 0 {
 			variety := item.Container.Contents[0].Variety
-			if variety.Edible {
+			if variety.IsEdible() {
 				netPref := char.NetPreferenceForVariety(variety)
 
 				// At Moderate hunger, filter out disliked items

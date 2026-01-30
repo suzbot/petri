@@ -119,13 +119,17 @@ func generateVarietiesForType(itemType string, cfg ItemTypeConfig) []*entity.Ite
 		}
 		seen[id] = true
 
+		var edible *entity.EdibleProperties
+		if cfg.Edible {
+			edible = &entity.EdibleProperties{}
+		}
 		variety := &entity.ItemVariety{
 			ID:       id,
 			ItemType: itemType,
 			Color:    color,
 			Pattern:  pattern,
 			Texture:  texture,
-			Edible:   cfg.Edible,
+			Edible:   edible,
 			Sym:      cfg.Sym,
 		}
 		varieties = append(varieties, variety)
@@ -176,11 +180,11 @@ func assignPoisonAndHealing(registry *VarietyRegistry) {
 
 	// Assign poison to first N
 	for i := 0; i < poisonCount; i++ {
-		eligible[i].Poisonous = true
+		eligible[i].Edible.Poisonous = true
 	}
 
 	// Assign healing to next N (no overlap with poison)
 	for i := poisonCount; i < poisonCount+healingCount; i++ {
-		eligible[i].Healing = true
+		eligible[i].Edible.Healing = true
 	}
 }
