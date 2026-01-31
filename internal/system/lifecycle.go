@@ -48,8 +48,8 @@ func UpdateSpawnTimers(gameMap *game.Map, initialItemCount int, delta float64) {
 			}
 
 			// Try to find empty adjacent tile
-			ix, iy := item.Position()
-			adjX, adjY, found := findEmptyAdjacent(ix, iy, gameMap)
+			ipos := item.Pos()
+			adjX, adjY, found := findEmptyAdjacent(ipos.X, ipos.Y, gameMap)
 			if !found {
 				continue
 			}

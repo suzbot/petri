@@ -12,9 +12,9 @@ func TestNewSpring_Properties(t *testing.T) {
 
 	f := NewSpring(10, 15)
 
-	x, y := f.Position()
-	if x != 10 || y != 15 {
-		t.Errorf("NewSpring Position(): got (%d, %d), want (10, 15)", x, y)
+	pos := f.Pos()
+	if pos.X != 10 || pos.Y != 15 {
+		t.Errorf("NewSpring Pos(): got (%d, %d), want (10, 15)", pos.X, pos.Y)
 	}
 	if f.FType != FeatureSpring {
 		t.Errorf("NewSpring FType: got %d, want %d", f.FType, FeatureSpring)
@@ -39,9 +39,9 @@ func TestNewLeafPile_Properties(t *testing.T) {
 
 	f := NewLeafPile(20, 25)
 
-	x, y := f.Position()
-	if x != 20 || y != 25 {
-		t.Errorf("NewLeafPile Position(): got (%d, %d), want (20, 25)", x, y)
+	pos := f.Pos()
+	if pos.X != 20 || pos.Y != 25 {
+		t.Errorf("NewLeafPile Pos(): got (%d, %d), want (20, 25)", pos.X, pos.Y)
 	}
 	if f.FType != FeatureLeafPile {
 		t.Errorf("NewLeafPile FType: got %d, want %d", f.FType, FeatureLeafPile)

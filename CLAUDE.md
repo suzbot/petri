@@ -112,6 +112,7 @@ Process docs:
 
 **Up Next:**
 
+- Position struct refactor (see [docs/position-refactor.md](docs/position-refactor.md))
 - Add "Fav" to character creation labels (Food → Fav Food, Color → Fav Color)
 - Show character speed in debug mode details view
 - Add `-characters=N` flag for character count control

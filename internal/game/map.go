@@ -2,6 +2,7 @@ package game
 
 import (
 	"petri/internal/entity"
+	"petri/internal/types"
 )
 
 // Pos represents a 2D position on the map
@@ -99,7 +100,7 @@ func (m *Map) MoveEntity(fromX, fromY, toX, toY int) {
 	pos := Pos{fromX, fromY}
 	if e, ok := m.entities[pos]; ok {
 		delete(m.entities, pos)
-		e.SetPosition(toX, toY)
+		e.SetPos(types.Position{X: toX, Y: toY})
 		m.entities[Pos{toX, toY}] = e
 	}
 }
@@ -107,8 +108,8 @@ func (m *Map) MoveEntity(fromX, fromY, toX, toY int) {
 // MoveCharacter moves a character to a new position, updating the position index
 // Returns true if the move succeeded, false if blocked (position already occupied or impassable feature)
 func (m *Map) MoveCharacter(char *entity.Character, toX, toY int) bool {
-	oldX, oldY := char.Position()
-	oldPos := Pos{oldX, oldY}
+	oldPos := char.Pos()
+	oldMapPos := Pos{oldPos.X, oldPos.Y}
 	newPos := Pos{toX, toY}
 
 	// Refuse move if target is occupied by another character
@@ -122,12 +123,12 @@ func (m *Map) MoveCharacter(char *entity.Character, toX, toY int) bool {
 	}
 
 	// Remove from old position - but verify it's actually this character
-	if m.characterByPos[oldPos] == char {
-		delete(m.characterByPos, oldPos)
+	if m.characterByPos[oldMapPos] == char {
+		delete(m.characterByPos, oldMapPos)
 	}
 
 	// Update character position
-	char.SetPosition(toX, toY)
+	char.SetPos(types.Position{X: toX, Y: toY})
 
 	// Add to new position
 	m.characterByPos[newPos] = char
@@ -183,8 +184,8 @@ func (m *Map) Items() []*entity.Item {
 // Searches the items slice directly
 func (m *Map) ItemAt(x, y int) *entity.Item {
 	for _, item := range m.items {
-		ix, iy := item.Position()
-		if ix == x && iy == y {
+		pos := item.Pos()
+		if pos.X == x && pos.Y == y {
 			return item
 		}
 	}
@@ -215,8 +216,8 @@ func (m *Map) Features() []*entity.Feature {
 // FeatureAt returns the feature at the given position, or nil
 func (m *Map) FeatureAt(x, y int) *entity.Feature {
 	for _, f := range m.features {
-		fx, fy := f.Position()
-		if fx == x && fy == y {
+		pos := f.Pos()
+		if pos.X == x && pos.Y == y {
 			return f
 		}
 	}
@@ -256,12 +257,12 @@ func (m *Map) FindNearestDrinkSource(x, y int) *entity.Feature {
 		if !f.IsDrinkSource() {
 			continue
 		}
-		fx, fy := f.Position()
+		fpos := f.Pos()
 
 		// Check if any cardinal-adjacent tile is available
 		hasAvailableTile := false
 		for _, dir := range cardinalDirs {
-			ax, ay := fx+dir[0], fy+dir[1]
+			ax, ay := fpos.X+dir[0], fpos.Y+dir[1]
 			if !m.IsValid(ax, ay) {
 				continue
 			}
@@ -281,7 +282,7 @@ func (m *Map) FindNearestDrinkSource(x, y int) *entity.Feature {
 			continue
 		}
 
-		dist := abs(x-fx) + abs(y-fy)
+		dist := abs(x-fpos.X) + abs(y-fpos.Y)
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = f
@@ -301,15 +302,15 @@ func (m *Map) FindNearestBed(x, y int) *entity.Feature {
 		if !f.IsBed() {
 			continue
 		}
-		fx, fy := f.Position()
+		fpos := f.Pos()
 
 		// Skip beds occupied by another character
-		occupant := m.characterByPos[Pos{fx, fy}]
+		occupant := m.characterByPos[Pos{fpos.X, fpos.Y}]
 		if occupant != nil && occupant != requestingChar {
 			continue
 		}
 
-		dist := abs(x-fx) + abs(y-fy)
+		dist := abs(x-fpos.X) + abs(y-fpos.Y)
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = f

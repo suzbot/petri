@@ -411,7 +411,7 @@ func TestFindHarvestIntent_LooksForVesselFirst(t *testing.T) {
 			Contents: []entity.Stack{},
 		},
 	}
-	vessel.SetPosition(6, 5)
+	vessel.SetPos(types.Position{X: 6, Y: 5})
 	gameMap.AddItem(vessel)
 
 	order := entity.NewOrder(1, "harvest", "berry")

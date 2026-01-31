@@ -490,13 +490,13 @@ func (m Model) viewGame() string {
 	if m.testCfg.Debug {
 		var charInfo []string
 		for _, c := range m.gameMap.Characters() {
-			x, y := c.Position()
-			found := m.gameMap.CharacterAt(x, y)
+			pos := c.Pos()
+			found := m.gameMap.CharacterAt(pos.X, pos.Y)
 			marker := "✓"
 			if found != c {
 				marker = "✗"
 			}
-			charInfo = append(charInfo, fmt.Sprintf("%s(%d,%d)%s", c.Name, x, y, marker))
+			charInfo = append(charInfo, fmt.Sprintf("%s(%d,%d)%s", c.Name, pos.X, pos.Y, marker))
 		}
 		debugLine = fmt.Sprintf("\nChars: %v", charInfo)
 	}

@@ -138,8 +138,8 @@ func FindAvailableVessel(cx, cy int, items []*entity.Item, targetItem *entity.It
 			continue
 		}
 
-		ix, iy := item.Position()
-		dist := abs(cx-ix) + abs(cy-iy)
+		ipos := item.Pos()
+		dist := abs(cx-ipos.X) + abs(cy-ipos.Y)
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = item
@@ -281,7 +281,8 @@ func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, 
 		availableVessel := FindAvailableVessel(cx, cy, items, target, registry)
 		if availableVessel != nil {
 			// Go pick up vessel first
-			vx, vy := availableVessel.Position()
+			vpos := availableVessel.Pos()
+			vx, vy := vpos.X, vpos.Y
 			if cx == vx && cy == vy {
 				newActivity := "Picking up vessel"
 				if char.CurrentActivity != newActivity {
@@ -320,7 +321,8 @@ func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, 
 		// No vessel available - proceed to pick up target directly (single item)
 	}
 
-	tx, ty := target.Position()
+	tpos := target.Pos()
+	tx, ty := tpos.X, tpos.Y
 
 	// Check if already at target
 	if cx == tx && cy == ty {
@@ -401,8 +403,8 @@ func findForageTarget(char *entity.Character, cx, cy int, items []*entity.Item, 
 		}
 
 		netPref := char.NetPreference(item)
-		ix, iy := item.Position()
-		dist := abs(cx-ix) + abs(cy-iy)
+		ipos := item.Pos()
+		dist := abs(cx-ipos.X) + abs(cy-ipos.Y)
 
 		// Calculate gradient score (same weights as moderate hunger eating)
 		score := float64(netPref)*config.FoodSeekPrefWeightModerate - float64(dist)*config.FoodSeekDistWeight
@@ -454,8 +456,8 @@ func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.It
 			continue
 		}
 
-		ix, iy := item.Position()
-		dist := abs(cx-ix) + abs(cy-iy)
+		ipos := item.Pos()
+		dist := abs(cx-ipos.X) + abs(cy-ipos.Y)
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = item
@@ -466,7 +468,8 @@ func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.It
 		return nil
 	}
 
-	tx, ty := nearest.Position()
+	npos := nearest.Pos()
+	tx, ty := npos.X, npos.Y
 	if cx == tx && cy == ty {
 		// Already at target
 		char.CurrentActivity = "Foraging " + nearest.Description()

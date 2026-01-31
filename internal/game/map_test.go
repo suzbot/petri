@@ -130,9 +130,9 @@ func TestMoveCharacter_ToEmptyPosition(t *testing.T) {
 	}
 
 	// Character's position should be updated
-	x, y := c.Position()
-	if x != 6 || y != 5 {
-		t.Errorf("Character position should be (6,5), got (%d,%d)", x, y)
+	pos := c.Pos()
+	if pos.X != 6 || pos.Y != 5 {
+		t.Errorf("Character position should be (6,5), got (%d,%d)", pos.X, pos.Y)
 	}
 }
 
@@ -448,9 +448,9 @@ func TestMoveCharacter_BlockedByImpassableFeature(t *testing.T) {
 	}
 
 	// Character should remain at original position
-	x, y := c.Position()
-	if x != 5 || y != 5 {
-		t.Errorf("Character position should be (5,5), got (%d,%d)", x, y)
+	pos := c.Pos()
+	if pos.X != 5 || pos.Y != 5 {
+		t.Errorf("Character position should be (5,5), got (%d,%d)", pos.X, pos.Y)
 	}
 }
 
@@ -471,9 +471,9 @@ func TestMoveCharacter_AllowedOntoPassableFeature(t *testing.T) {
 	}
 
 	// Character should be at new position
-	x, y := c.Position()
-	if x != 6 || y != 5 {
-		t.Errorf("Character position should be (6,5), got (%d,%d)", x, y)
+	pos := c.Pos()
+	if pos.X != 6 || pos.Y != 5 {
+		t.Errorf("Character position should be (6,5), got (%d,%d)", pos.X, pos.Y)
 	}
 }
 

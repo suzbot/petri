@@ -27,7 +27,8 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 		return nil
 	}
 
-	cx, cy := char.Position()
+	cpos := char.Pos()
+	cx, cy := cpos.X, cpos.Y
 
 	// Cache tier values (calculated once, reused throughout)
 	hungerTier := char.HungerTier()
@@ -292,8 +293,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 
 	// Check if target item still exists at expected position (O(1) instead of O(n))
 	if intent.TargetItem != nil {
-		ix, iy := intent.TargetItem.Position()
-		if gameMap.ItemAt(ix, iy) != intent.TargetItem {
+		ipos := intent.TargetItem.Pos()
+		if gameMap.ItemAt(ipos.X, ipos.Y) != intent.TargetItem {
 			return nil // Target consumed by someone else
 		}
 	}
@@ -301,14 +302,14 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	// Check if target feature is still available
 	if intent.TargetFeature != nil {
 		feature := intent.TargetFeature
-		fx, fy := feature.Position()
+		fpos := feature.Pos()
 
 		// For drink sources (impassable), check if any cardinal tile is available
 		if feature.IsDrinkSource() {
 			hasAvailableTile := false
 			cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
 			for _, dir := range cardinalDirs {
-				ax, ay := fx+dir[0], fy+dir[1]
+				ax, ay := fpos.X+dir[0], fpos.Y+dir[1]
 				if !gameMap.IsValid(ax, ay) {
 					continue
 				}
@@ -327,7 +328,7 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 			}
 		} else {
 			// For passable features (beds), check if occupied by another character
-			occupant := gameMap.CharacterAt(fx, fy)
+			occupant := gameMap.CharacterAt(fpos.X, fpos.Y)
 			if occupant != nil && occupant != char {
 				return nil // Target occupied by someone else, find new target
 			}
@@ -337,11 +338,14 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	// Recalculate next step toward target
 	var tx, ty int
 	if intent.TargetItem != nil {
-		tx, ty = intent.TargetItem.Position()
+		tpos := intent.TargetItem.Pos()
+		tx, ty = tpos.X, tpos.Y
 	} else if intent.TargetFeature != nil {
-		tx, ty = intent.TargetFeature.Position()
+		tpos := intent.TargetFeature.Pos()
+		tx, ty = tpos.X, tpos.Y
 	} else if intent.TargetCharacter != nil {
-		tx, ty = intent.TargetCharacter.Position()
+		tpos := intent.TargetCharacter.Pos()
+		tx, ty = tpos.X, tpos.Y
 	} else {
 		tx, ty = intent.TargetX, intent.TargetY
 	}
@@ -459,7 +463,8 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 		return nil
 	}
 
-	tx, ty := spring.Position()
+	spos := spring.Pos()
+	tx, ty := spos.X, spos.Y
 
 	// Already cardinally adjacent to spring - drink from current position
 	if isCardinallyAdjacent(cx, cy, tx, ty) {
@@ -555,7 +560,8 @@ func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, ti
 	}
 
 	// Best food is on map - move to it
-	tx, ty := result.Item.Position()
+	ipos := result.Item.Pos()
+	tx, ty := ipos.X, ipos.Y
 	nx, ny := NextStep(cx, cy, tx, ty)
 
 	newActivity := "Moving to " + result.Item.Description()
@@ -601,8 +607,8 @@ func findHealingIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 	nearestDist := int(^uint(0) >> 1) // Max int
 
 	for _, item := range knownHealing {
-		ix, iy := item.Position()
-		dist := abs(cx-ix) + abs(cy-iy)
+		ipos := item.Pos()
+		dist := abs(cx-ipos.X) + abs(cy-ipos.Y)
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = item
@@ -613,7 +619,8 @@ func findHealingIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 		return nil
 	}
 
-	tx, ty := nearest.Position()
+	npos := nearest.Pos()
+	tx, ty := npos.X, npos.Y
 	nx, ny := NextStep(cx, cy, tx, ty)
 
 	newActivity := "Moving to " + nearest.Description() + " (healing)"
@@ -668,7 +675,8 @@ func findSleepIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 		return nil
 	}
 
-	tx, ty := bed.Position()
+	bpos := bed.Pos()
+	tx, ty := bpos.X, bpos.Y
 
 	// Already at bed - sleep
 	if cx == tx && cy == ty {
@@ -727,7 +735,8 @@ type FoodTargetResult struct {
 // Healing bonus: When health tier >= Moderate and character knows item is healing,
 // adds bonus to score (larger bonus at worse health tiers)
 func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResult {
-	cx, cy := char.Position()
+	cpos := char.Pos()
+	cx, cy := cpos.X, cpos.Y
 
 	// Determine hunger tier and corresponding weights/filters
 	var prefWeight float64
@@ -831,8 +840,8 @@ func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 
 	// Score map items (including dropped vessels with edible contents)
 	for _, item := range items {
-		ix, iy := item.Position()
-		dist := abs(cx-ix) + abs(cy-iy)
+		ipos := item.Pos()
+		dist := abs(cx-ipos.X) + abs(cy-ipos.Y)
 
 		// Check if item is a vessel with edible contents
 		if item.Container != nil && len(item.Container.Contents) > 0 {
@@ -937,7 +946,8 @@ func findLookIntent(char *entity.Character, cx, cy int, items []*entity.Item, ga
 		return nil
 	}
 
-	tx, ty := target.Position()
+	tpos := target.Pos()
+	tx, ty := tpos.X, tpos.Y
 
 	// Check if already adjacent to target
 	if isAdjacent(cx, cy, tx, ty) {
@@ -1001,14 +1011,14 @@ func findNearestItemExcluding(cx, cy int, items []*entity.Item, excludeX, exclud
 	nearestDist := int(^uint(0) >> 1)
 
 	for _, item := range items {
-		ix, iy := item.Position()
+		ipos := item.Pos()
 
 		// Skip excluded position
-		if hasExclude && ix == excludeX && iy == excludeY {
+		if hasExclude && ipos.X == excludeX && ipos.Y == excludeY {
 			continue
 		}
 
-		dist := abs(cx-ix) + abs(cy-iy)
+		dist := abs(cx-ipos.X) + abs(cy-ipos.Y)
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = item

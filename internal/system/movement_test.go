@@ -263,7 +263,7 @@ func TestFindFoodTarget_CrisisPicksNearest(t *testing.T) {
 
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 95           // Crisis
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	// Disliked but close vs liked but far
 	// Add a dislike preference for mushrooms
@@ -287,7 +287,7 @@ func TestFindFoodTarget_SevereUsesGradientScoring(t *testing.T) {
 
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 80           // Severe
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	// Liked item far away vs neutral item close
 	// Score(redBerry) = 5*2 - 20 = -10
@@ -328,7 +328,7 @@ func TestFindFoodTarget_SeverePrefersLikedOverDisliked(t *testing.T) {
 
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 80           // Severe
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 	// Add dislike for mushrooms
 	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
 
@@ -353,7 +353,7 @@ func TestFindFoodTarget_ModerateUsesGradientScoring(t *testing.T) {
 
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 60           // Moderate
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	// Perfect match far vs partial match close
 	// Score(redBerry at 10,10) = 20*2 - 20 = 20
@@ -412,7 +412,7 @@ func TestFindFoodTarget_ModeratePrefersLikedOverNeutral(t *testing.T) {
 
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 60           // Moderate
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	// Liked item same distance as neutral
 	// Score(blueBerry at 5,5) = 20*1 - 10 = 10
@@ -435,7 +435,7 @@ func TestFindFoodTarget_DistanceTiebreaker(t *testing.T) {
 
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 60           // Moderate
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	// Two items with same NetPreference at different distances
 	nearRedBerry := entity.NewBerry(2, 2, types.ColorRed, false, false)
@@ -499,8 +499,8 @@ func TestFindFoodIntent_CarriedVesselNotEaten(t *testing.T) {
 	vessel := CreateVessel(gourd, recipe)
 	char.Carrying = vessel
 
-	cx, cy := char.Position()
-	intent := findFoodIntent(char, cx, cy, nil, entity.TierCrisis, nil)
+	cpos := char.Pos()
+	intent := findFoodIntent(char, cpos.X, cpos.Y, nil, entity.TierCrisis, nil)
 
 	if intent != nil {
 		t.Error("Should not create eat intent for non-edible carried vessel")
@@ -517,7 +517,7 @@ func TestFindFoodTarget_HealingBonus_OnlyWhenKnown(t *testing.T) {
 	char := newTestCharacter()
 	char.Hunger = 60        // Moderate hunger
 	char.Health = 50        // Moderate health (hurt)
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 	// No healing knowledge
 
 	// Healing item vs regular item at same distance
@@ -542,7 +542,7 @@ func TestFindFoodTarget_HealingBonus_OnlyWhenHurt(t *testing.T) {
 	char := newTestCharacter()
 	char.Hunger = 60    // Moderate hunger
 	char.Health = 100   // Full health (not hurt)
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	// Give character healing knowledge for blue berries
 	char.Knowledge = append(char.Knowledge, entity.Knowledge{
@@ -571,7 +571,7 @@ func TestFindFoodTarget_HealingBonus_PrefersKnownHealingWhenHurt(t *testing.T) {
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 60           // Moderate hunger
 	char.Health = 50           // Moderate health tier (hurt)
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	// Give character healing knowledge for blue berries
 	char.Knowledge = append(char.Knowledge, entity.Knowledge{
@@ -625,7 +625,7 @@ func TestFindFoodTarget_HealingBonus_ScalesWithHealthTier(t *testing.T) {
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 60           // Moderate hunger
 	char.Health = 10           // Crisis health tier
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	// Give character healing knowledge for blue berries
 	char.Knowledge = append(char.Knowledge, entity.Knowledge{
@@ -661,7 +661,7 @@ func TestContinueIntent_ContinuesIfTargetItemExists(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	item := entity.NewBerry(5, 5, types.ColorRed, false, false)
@@ -687,7 +687,7 @@ func TestContinueIntent_AbandonsIfTargetItemConsumed(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	item := entity.NewBerry(5, 5, types.ColorRed, false, false)
@@ -713,7 +713,7 @@ func TestContinueIntent_AbandonsIfAllSpringAdjacentTilesBlocked(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	spring := entity.NewSpring(5, 5)
@@ -745,7 +745,7 @@ func TestContinueIntent_AbandonsIfTargetBedOccupied(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	bed := entity.NewLeafPile(5, 5)
@@ -775,7 +775,7 @@ func TestContinueIntent_OwnPositionDoesNotAbandon(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	spring := entity.NewSpring(5, 5)
@@ -805,7 +805,7 @@ func TestContinueIntent_PickupNotConvertedToLook(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.SetPosition(4, 5) // Adjacent to item at (5,5)
+	char.SetPos(types.Position{X: 4, Y: 5}) // Adjacent to item at (5,5)
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	item := entity.NewBerry(5, 5, types.ColorRed, false, false)
@@ -834,7 +834,7 @@ func TestContinueIntent_PickupContinuesToItem(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.SetPosition(0, 0) // Not adjacent to item at (5,5)
+	char.SetPos(types.Position{X: 0, Y: 0}) // Not adjacent to item at (5,5)
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	item := entity.NewBerry(5, 5, types.ColorRed, false, false)
@@ -869,7 +869,7 @@ func TestFindHealingIntent_NoKnowledge_ReturnsNil(t *testing.T) {
 
 	char := newTestCharacter()
 	char.Knowledge = []entity.Knowledge{} // No healing knowledge
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	items := []*entity.Item{
 		entity.NewBerry(5, 5, types.ColorBlue, false, true), // Healing but unknown
@@ -893,7 +893,7 @@ func TestFindHealingIntent_HasKnowledge_FindsNearestKnown(t *testing.T) {
 		Color:    types.ColorBlue,
 	}
 	char.Knowledge = []entity.Knowledge{healingKnowledge}
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	blueBerryNear := entity.NewBerry(2, 2, types.ColorBlue, false, true)
 	blueBerryFar := entity.NewBerry(10, 10, types.ColorBlue, false, true)
@@ -924,7 +924,7 @@ func TestFindHealingIntent_NoMatchingItems_ReturnsNil(t *testing.T) {
 		Color:    types.ColorBlue,
 	}
 	char.Knowledge = []entity.Knowledge{healingKnowledge}
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	// Only red berries available (not known healing)
 	items := []*entity.Item{
@@ -948,7 +948,7 @@ func TestFindHealingIntent_EmptyItemList_ReturnsNil(t *testing.T) {
 		Color:    types.ColorBlue,
 	}
 	char.Knowledge = []entity.Knowledge{healingKnowledge}
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	intent := findHealingIntent(char, 0, 0, []*entity.Item{}, entity.TierModerate, nil)
 
@@ -1098,7 +1098,7 @@ func TestFindFoodIntent_ReturnsConsumeIntent_WhenCarryingEdibleItem(t *testing.T
 
 	char := newTestCharacter()
 	char.Hunger = 60 // Moderate tier - should trigger food seeking
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 
 	// Character is carrying an edible item
 	carriedBerry := entity.NewBerry(0, 0, types.ColorRed, false, false)
@@ -1129,7 +1129,7 @@ func TestFindFoodIntent_IgnoresCarriedItem_WhenNotEdible(t *testing.T) {
 
 	char := newTestCharacter()
 	char.Hunger = 60
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 
 	// Character is carrying a non-edible item (flower)
 	carriedFlower := entity.NewFlower(0, 0, types.ColorRed)
@@ -1158,7 +1158,7 @@ func TestFindFoodIntent_FallsBackToMapItems_WhenNotCarrying(t *testing.T) {
 
 	char := newTestCharacter()
 	char.Hunger = 60
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 	char.Carrying = nil // Not carrying anything
 
 	mapBerry := entity.NewBerry(6, 6, types.ColorRed, false, false)
@@ -1184,7 +1184,7 @@ func TestContinueIntent_ActionConsume_PreservesIntent(t *testing.T) {
 	// because the carried item isn't on the map (it's in inventory)
 	char := newTestCharacter()
 	char.Hunger = 60
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 
 	carriedItem := entity.NewBerry(0, 0, types.ColorRed, false, false)
 	char.Carrying = carriedItem
@@ -1224,7 +1224,7 @@ func TestFindForageTarget_SkipsNonGrowingItems(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	// Growing berry (should be targeted)
 	growingBerry := entity.NewBerry(5, 5, types.ColorRed, false, false)
@@ -1247,7 +1247,7 @@ func TestFindForageTarget_ReturnsNilWhenOnlyNonGrowingItems(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.SetPosition(0, 0)
+	char.SetPos(types.Position{X: 0, Y: 0})
 
 	// Only non-growing items
 	droppedBerry := entity.NewBerry(3, 3, types.ColorRed, false, false)
@@ -1271,7 +1271,7 @@ func TestFindFoodIntent_CarriedDislikedItem_FilteredAtModerate(t *testing.T) {
 
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 60           // Moderate
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 
 	// Add dislike for mushrooms
 	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
@@ -1303,7 +1303,7 @@ func TestFindFoodIntent_CarriedDislikedItem_EatenAtCrisis(t *testing.T) {
 
 	char := newTestCharacter()
 	char.Hunger = 95 // Crisis
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 
 	// Add dislike for mushrooms
 	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
@@ -1335,7 +1335,7 @@ func TestFindFoodIntent_CarriedLikedItem_WinsOverFarLikedItem(t *testing.T) {
 
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 60           // Moderate
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 
 	// Carrying a liked red berry
 	carriedBerry := entity.NewBerry(0, 0, types.ColorRed, false, false)
@@ -1366,7 +1366,7 @@ func TestFindFoodIntent_CarriedNeutralItem_FilteredWhenLikedAvailable(t *testing
 
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 60           // Moderate
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 
 	// Carrying a neutral item (brown mushroom - no preference match)
 	carriedMushroom := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
@@ -1397,7 +1397,7 @@ func TestFindFoodIntent_NoFood_ReturnsNil(t *testing.T) {
 
 	char := newTestCharacter()
 	char.Hunger = 60 // Moderate
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 
 	// Add dislike for mushrooms
 	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
@@ -1421,7 +1421,7 @@ func TestFindFoodIntent_VesselContents_RecognizedAsFood(t *testing.T) {
 
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 60           // Moderate
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 
 	// Create vessel with red berries (liked)
 	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
@@ -1456,7 +1456,7 @@ func TestFindFoodIntent_VesselWithDislikedContents_FilteredAtModerate(t *testing
 
 	char := newTestCharacter()
 	char.Hunger = 60 // Moderate
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 
 	// Add dislike for mushrooms
 	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
@@ -1497,14 +1497,14 @@ func TestFindFoodIntent_DroppedVessel_RecognizedAsFood(t *testing.T) {
 
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 60           // Moderate
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 	char.Carrying = nil // Not carrying anything
 
 	// Create dropped vessel with red berries (liked)
 	gourd := entity.NewGourd(7, 7, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 	vessel := CreateVessel(gourd, recipe)
-	vessel.SetPosition(7, 7)
+	vessel.SetPos(types.Position{X: 7, Y: 7})
 	variety := &entity.ItemVariety{
 		ID:       "berry-red",
 		ItemType: "berry",
@@ -1533,7 +1533,7 @@ func TestFindFoodIntent_DroppedVesselWithDislikedContents_FilteredAtModerate(t *
 
 	char := newTestCharacter()
 	char.Hunger = 60 // Moderate
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 	char.Carrying = nil
 
 	// Add dislike for mushrooms
@@ -1543,7 +1543,7 @@ func TestFindFoodIntent_DroppedVesselWithDislikedContents_FilteredAtModerate(t *
 	gourd := entity.NewGourd(7, 7, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 	vessel := CreateVessel(gourd, recipe)
-	vessel.SetPosition(7, 7)
+	vessel.SetPos(types.Position{X: 7, Y: 7})
 	variety := &entity.ItemVariety{
 		ID:       "mushroom-brown",
 		ItemType: "mushroom",
@@ -1572,14 +1572,14 @@ func TestFindFoodIntent_DroppedVesselCloser_WinsOverFarFood(t *testing.T) {
 
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 95           // Crisis - distance wins
-	char.SetPosition(5, 5)
+	char.SetPos(types.Position{X: 5, Y: 5})
 	char.Carrying = nil
 
 	// Create dropped vessel nearby with berries
 	gourd := entity.NewGourd(6, 6, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 	vessel := CreateVessel(gourd, recipe)
-	vessel.SetPosition(6, 6)
+	vessel.SetPos(types.Position{X: 6, Y: 6})
 	variety := &entity.ItemVariety{
 		ID:       "berry-blue",
 		ItemType: "berry",
@@ -1740,7 +1740,7 @@ func TestFindDrinkIntent_DrinksWhenCardinallyAdjacent(t *testing.T) {
 
 	char := newTestCharacter()
 	char.Thirst = 75 // Moderate
-	char.SetPosition(5, 4) // North of spring at (5,5)
+	char.SetPos(types.Position{X: 5, Y: 4}) // North of spring at (5,5)
 
 	gameMap := game.NewMap(20, 20)
 	spring := entity.NewSpring(5, 5)
@@ -1765,7 +1765,7 @@ func TestFindDrinkIntent_DoesNotDrinkWhenDiagonallyAdjacent(t *testing.T) {
 
 	char := newTestCharacter()
 	char.Thirst = 75
-	char.SetPosition(4, 4) // Diagonally adjacent to spring at (5,5)
+	char.SetPos(types.Position{X: 4, Y: 4}) // Diagonally adjacent to spring at (5,5)
 
 	gameMap := game.NewMap(20, 20)
 	spring := entity.NewSpring(5, 5)
@@ -1790,7 +1790,7 @@ func TestFindDrinkIntent_MovesToAdjacentTile(t *testing.T) {
 
 	char := newTestCharacter()
 	char.Thirst = 75
-	char.SetPosition(0, 5) // Far from spring at (5,5)
+	char.SetPos(types.Position{X: 0, Y: 5}) // Far from spring at (5,5)
 
 	gameMap := game.NewMap(20, 20)
 	spring := entity.NewSpring(5, 5)
@@ -1813,7 +1813,7 @@ func TestContinueIntent_DrinkFromAdjacentTile(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.SetPosition(6, 5) // East of spring at (5,5)
+	char.SetPos(types.Position{X: 6, Y: 5}) // East of spring at (5,5)
 
 	gameMap := game.NewMap(20, 20)
 	spring := entity.NewSpring(5, 5)

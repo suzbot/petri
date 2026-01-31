@@ -186,11 +186,11 @@ func TestUpdateSpawnTimers_SpawnsAdjacentToParent(t *testing.T) {
 		if item == parent {
 			continue
 		}
-		ix, iy := item.Position()
-		dx := abs(ix - 5)
-		dy := abs(iy - 5)
+		ipos := item.Pos()
+		dx := abs(ipos.X - 5)
+		dy := abs(ipos.Y - 5)
 		if dx > 1 || dy > 1 {
-			t.Errorf("Spawned item at (%d, %d) is not adjacent to parent at (5, 5)", ix, iy)
+			t.Errorf("Spawned item at (%d, %d) is not adjacent to parent at (5, 5)", ipos.X, ipos.Y)
 		}
 	}
 }
@@ -243,9 +243,9 @@ func TestSpawnItem_InheritsParentProperties(t *testing.T) {
 	}
 
 	// Verify position
-	sx, sy := spawned.Position()
-	if sx != 6 || sy != 5 {
-		t.Errorf("Position: got (%d, %d), want (6, 5)", sx, sy)
+	spos := spawned.Pos()
+	if spos.X != 6 || spos.Y != 5 {
+		t.Errorf("Position: got (%d, %d), want (6, 5)", spos.X, spos.Y)
 	}
 }
 

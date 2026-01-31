@@ -161,16 +161,17 @@ func applyIntent(char *entity.Character, gameMap *game.Map, delta float64, actio
 
 // applyPickupIntent handles foraging - movement and pickup at destination
 func applyPickupIntent(char *entity.Character, gameMap *game.Map, delta float64, actionLog *system.ActionLog) {
-	cx, cy := char.Position()
+	cpos := char.Pos()
+	cx, cy := cpos.X, cpos.Y
 
 	if char.Intent.TargetItem == nil {
 		return
 	}
 
-	ix, iy := char.Intent.TargetItem.Position()
+	ipos := char.Intent.TargetItem.Pos()
 
 	// Check if at target item
-	if cx == ix && cy == iy {
+	if cx == ipos.X && cy == ipos.Y {
 		// At item - pickup in progress
 		char.ActionProgress += delta
 		if char.ActionProgress >= config.ActionDuration {
@@ -198,10 +199,10 @@ func applyPickupIntent(char *entity.Character, gameMap *game.Map, delta float64,
 	tx, ty := char.Intent.TargetX, char.Intent.TargetY
 	if gameMap.MoveCharacter(char, tx, ty) {
 		// Successfully moved - update intent for next step
-		newX, newY := char.Position()
-		if newX != ix || newY != iy {
+		newPos := char.Pos()
+		if newPos.X != ipos.X || newPos.Y != ipos.Y {
 			// Need to keep moving toward item
-			nextX, nextY := system.NextStep(newX, newY, ix, iy)
+			nextX, nextY := system.NextStep(newPos.X, newPos.Y, ipos.X, ipos.Y)
 			char.Intent.TargetX = nextX
 			char.Intent.TargetY = nextY
 		}
@@ -210,13 +211,14 @@ func applyPickupIntent(char *entity.Character, gameMap *game.Map, delta float64,
 
 // applyMoveIntent handles movement and eating at destination
 func applyMoveIntent(char *entity.Character, gameMap *game.Map, delta float64, actionLog *system.ActionLog) {
-	cx, cy := char.Position()
+	cpos := char.Pos()
+	cx, cy := cpos.X, cpos.Y
 	tx, ty := char.Intent.TargetX, char.Intent.TargetY
 
 	// Check if at target item - eating takes duration
 	if char.Intent.TargetItem != nil {
-		ix, iy := char.Intent.TargetItem.Position()
-		if cx == ix && cy == iy {
+		ipos := char.Intent.TargetItem.Pos()
+		if cx == ipos.X && cy == ipos.Y {
 			// At target item - eating in progress
 			char.ActionProgress += delta
 			if char.ActionProgress >= config.ActionDuration {
@@ -299,9 +301,11 @@ func findAlternateStep(char *entity.Character, gameMap *game.Map, cx, cy int, tr
 	if goalX == 0 && goalY == 0 {
 		// Fallback for intents without destination set
 		if char.Intent.TargetItem != nil {
-			goalX, goalY = char.Intent.TargetItem.Position()
+			gpos := char.Intent.TargetItem.Pos()
+			goalX, goalY = gpos.X, gpos.Y
 		} else if char.Intent.TargetFeature != nil {
-			goalX, goalY = char.Intent.TargetFeature.Position()
+			gpos := char.Intent.TargetFeature.Pos()
+			goalX, goalY = gpos.X, gpos.Y
 		} else {
 			return nil
 		}

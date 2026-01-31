@@ -32,8 +32,7 @@ then they can be removed from this list.
    - Everything non-null/non-false reflected in a sentence
    - Design must easily expand as new attribute types added
    - Example: "This is a hollow gourd. It is a vessel that can be used to carry things. It is warty and green."
-5. Ability to slow down game speed
-6. Show passage of world time below map
+5. Show passage of world time below map
 
 ## Tech Updates
 
@@ -53,9 +52,7 @@ then they can be removed from this list.
    - R to start with Random Characters
    - C to create Characters
 3. Edible Nuts drop from canopy
-4. Streams and Bridges (requires construction)
-5. Use moss, feathers, and leaves to make beds
-6. Baskets, Bags, and Bins
+4. Ability to slow down game speed
 
 # Ideas that aren't ready yet:
 
@@ -70,3 +67,6 @@ then they can be removed from this list.
   - feed fire with fuel?
   - food quality for mood
   - satiety of food items
+- Streams and Bridges (requires construction)
+- Use moss, feathers, and leaves to make beds
+- Baskets, Bags, and Bins

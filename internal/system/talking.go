@@ -19,7 +19,8 @@ func StartTalking(initiator, target *entity.Character, log *ActionLog) {
 	target.CurrentActivity = "Talking with " + initiator.Name
 
 	// Set intent for target so they also continue talking
-	tx, ty := target.Position()
+	tpos := target.Pos()
+	tx, ty := tpos.X, tpos.Y
 	target.Intent = &entity.Intent{
 		TargetX:         tx,
 		TargetY:         ty,
@@ -79,8 +80,8 @@ func findTalkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	closestDist := int(^uint(0) >> 1) // Max int
 
 	for _, other := range candidates {
-		ox, oy := other.Position()
-		dist := abs(cx-ox) + abs(cy-oy)
+		opos := other.Pos()
+		dist := abs(cx-opos.X) + abs(cy-opos.Y)
 		if dist < closestDist {
 			closestDist = dist
 			closest = other
@@ -91,7 +92,8 @@ func findTalkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		return nil
 	}
 
-	tx, ty := closest.Position()
+	cpos := closest.Pos()
+	tx, ty := cpos.X, cpos.Y
 
 	// If adjacent, start talking immediately
 	if isAdjacent(cx, cy, tx, ty) {

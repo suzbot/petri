@@ -826,7 +826,8 @@ func TestCalculateIntent_ContinuesApproachingTalkTarget(t *testing.T) {
 
 	// Simulate multiple ticks - alice should keep pursuing bob
 	for i := 0; i < 10; i++ {
-		cx, cy := alice.Position()
+		apos := alice.Pos()
+		cx, cy := apos.X, apos.Y
 		intent := CalculateIntent(alice, items, gameMap, nil, nil)
 
 		if intent == nil {

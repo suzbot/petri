@@ -126,7 +126,8 @@ func findHarvestIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 		availableVessel := FindAvailableVessel(cx, cy, items, target, registry)
 		if availableVessel != nil {
 			// Go pick up vessel first
-			vx, vy := availableVessel.Position()
+			vpos := availableVessel.Pos()
+			vx, vy := vpos.X, vpos.Y
 			if cx == vx && cy == vy {
 				newActivity := "Picking up vessel"
 				if char.CurrentActivity != newActivity {
@@ -169,7 +170,8 @@ func findHarvestIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 			// Now not carrying anything - look for compatible vessel
 			availableVessel := FindAvailableVessel(cx, cy, items, target, registry)
 			if availableVessel != nil {
-				vx, vy := availableVessel.Position()
+				vpos := availableVessel.Pos()
+				vx, vy := vpos.X, vpos.Y
 				if cx == vx && cy == vy {
 					newActivity := "Picking up vessel"
 					if char.CurrentActivity != newActivity {
@@ -206,7 +208,8 @@ func findHarvestIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 		// which drops items when on order before pickup
 	}
 
-	tx, ty := target.Position()
+	tpos := target.Pos()
+	tx, ty := tpos.X, tpos.Y
 
 	// Check if already at target
 	if cx == tx && cy == ty {
@@ -268,7 +271,8 @@ func findCraftVesselIntent(char *entity.Character, cx, cy int, items []*entity.I
 		return nil // No gourds available - will trigger abandonment
 	}
 
-	tx, ty := target.Position()
+	tpos := target.Pos()
+	tx, ty := tpos.X, tpos.Y
 
 	// Check if already at target
 	if cx == tx && cy == ty {
@@ -322,8 +326,8 @@ func findNearestItemByType(cx, cy int, items []*entity.Item, itemType string) *e
 			continue
 		}
 
-		ix, iy := item.Position()
-		dist := abs(cx-ix) + abs(cy-iy)
+		ipos := item.Pos()
+		dist := abs(cx-ipos.X) + abs(cy-ipos.Y)
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = item

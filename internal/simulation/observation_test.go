@@ -339,9 +339,9 @@ func TestObserveTimeToFirstDeath(t *testing.T) {
 					foodResult := system.FindFoodTarget(c, world.GameMap.Items())
 					foodInfo := "none found"
 					if foodResult.Item != nil {
-						ix, iy := foodResult.Item.Position()
-						cx, cy := c.Position()
-						dist := abs(cx-ix) + abs(cy-iy)
+						ipos := foodResult.Item.Pos()
+						cpos := c.Pos()
+						dist := abs(cpos.X-ipos.X) + abs(cpos.Y-ipos.Y)
 						foodInfo = fmt.Sprintf("dist:%d pref:%d", dist, foodResult.NetPreference)
 					}
 					fmt.Printf("Run %d: Death at tick %d (%.0fs) - %s | Speed:%d Poisoned:%v Food:%s Edible:%d\n",
@@ -532,9 +532,9 @@ func TestObserveDeathProgression(t *testing.T) {
 				foodResult := system.FindFoodTarget(c, world.GameMap.Items())
 				foodInfo := "none found"
 				if foodResult.Item != nil {
-					ix, iy := foodResult.Item.Position()
-					cx, cy := c.Position()
-					dist := abs(cx-ix) + abs(cy-iy)
+					ipos := foodResult.Item.Pos()
+					cpos := c.Pos()
+					dist := abs(cpos.X-ipos.X) + abs(cpos.Y-ipos.Y)
 					foodInfo = fmt.Sprintf("%s (pref:%d dist:%d)", foodResult.Item.Description(), foodResult.NetPreference, dist)
 				}
 				fmt.Printf("Tick %d (%.0fs): %s died - %s\n", tick, float64(tick)*delta, c.Name, inferDeathCause(c))

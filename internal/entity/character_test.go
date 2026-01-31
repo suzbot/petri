@@ -661,14 +661,14 @@ func TestStatusText_Priority(t *testing.T) {
 	}
 }
 
-// TestNewCharacter_Position verifies position is set correctly
-func TestNewCharacter_Position(t *testing.T) {
+// TestNewCharacter_Pos verifies position is set correctly
+func TestNewCharacter_Pos(t *testing.T) {
 	t.Parallel()
 
 	c := NewCharacter(1, 5, 10, "Test", "berry", types.ColorRed)
-	x, y := c.Position()
-	if x != 5 || y != 10 {
-		t.Errorf("NewCharacter Position(): got (%d, %d), want (5, 10)", x, y)
+	pos := c.Pos()
+	if pos.X != 5 || pos.Y != 10 {
+		t.Errorf("NewCharacter Pos(): got (%d, %d), want (5, 10)", pos.X, pos.Y)
 	}
 }
 

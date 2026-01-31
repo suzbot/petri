@@ -1,27 +1,31 @@
 package entity
 
-import "testing"
+import (
+	"testing"
 
-// TestBaseEntity_Position verifies Position returns correct coordinates
-func TestBaseEntity_Position(t *testing.T) {
+	"petri/internal/types"
+)
+
+// TestBaseEntity_Pos verifies Pos returns correct position
+func TestBaseEntity_Pos(t *testing.T) {
 	t.Parallel()
 
 	e := &BaseEntity{X: 15, Y: 20}
-	x, y := e.Position()
-	if x != 15 || y != 20 {
-		t.Errorf("Position(): got (%d, %d), want (15, 20)", x, y)
+	pos := e.Pos()
+	if pos.X != 15 || pos.Y != 20 {
+		t.Errorf("Pos(): got (%d, %d), want (15, 20)", pos.X, pos.Y)
 	}
 }
 
-// TestBaseEntity_SetPosition verifies SetPosition updates coordinates
-func TestBaseEntity_SetPosition(t *testing.T) {
+// TestBaseEntity_SetPos verifies SetPos updates position
+func TestBaseEntity_SetPos(t *testing.T) {
 	t.Parallel()
 
 	e := &BaseEntity{X: 0, Y: 0}
-	e.SetPosition(25, 30)
-	x, y := e.Position()
-	if x != 25 || y != 30 {
-		t.Errorf("SetPosition(25, 30) then Position(): got (%d, %d), want (25, 30)", x, y)
+	e.SetPos(types.Position{X: 25, Y: 30})
+	pos := e.Pos()
+	if pos.X != 25 || pos.Y != 30 {
+		t.Errorf("SetPos({25, 30}) then Pos(): got (%d, %d), want (25, 30)", pos.X, pos.Y)
 	}
 }
 

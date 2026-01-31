@@ -1,6 +1,6 @@
 # Position Struct Refactor
 
-**Status:** Planning
+**Status:** In Progress (Phase 2 Complete)
 **Goal:** Replace separate `x, y` / `posX, posY` coordinate pairs with a unified `Position` struct
 
 ## Key Discovery
@@ -91,16 +91,16 @@ func (p Position) NextStepToward(target Position) Position {
 
 ## Implementation Plan
 
-### Phase 1: Foundation
-- [ ] Create `internal/types/position.go` with Position type and methods
-- [ ] Add `abs()` and `sign()` helpers to position package
-- [ ] Write tests for Position methods
+### Phase 1: Foundation ✓
+- [x] Create `internal/types/position.go` with Position type and methods
+- [x] Add `Abs()` and `Sign()` helpers to position package (exported)
+- [x] Write tests for Position methods (23 tests)
 
-### Phase 2: Entity Layer
-- [ ] Update `BaseEntity` to use Position
-- [ ] Update `Position()` getter to return Position (breaking change)
-- [ ] Update `SetPosition()` to take Position
-- [ ] Update entity constructors
+### Phase 2: Entity Layer ✓
+- [x] Update `BaseEntity` to use `Pos()` method returning `types.Position`
+- [x] Rename `Position()` to `Pos()` returning `types.Position`
+- [x] Rename `SetPosition()` to `SetPos()` taking `types.Position`
+- [ ] Update entity constructors (deferred - still use x, y ints)
 
 ### Phase 3: Intent System
 - [ ] Update `Intent` struct fields
@@ -186,3 +186,14 @@ This ensures future sessions:
 - Found existing `Pos` struct in map.go
 - Identified ~50+ functions needing updates
 - Created this tracking document
+
+### Session 2 (2026-01-31)
+- Completed Phase 1: Foundation
+- Created `internal/types/position.go` with Position struct and methods
+- Added exported `Abs()` and `Sign()` helpers
+- Wrote 23 tests covering all Position methods
+- Added JSON tags for serialization compatibility
+- Completed Phase 2: Entity Layer
+- Renamed `Position()` to `Pos()`, `SetPosition()` to `SetPos()`
+- Updated 82+ call sites across 22 files
+- All tests passing

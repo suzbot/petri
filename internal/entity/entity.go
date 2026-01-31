@@ -1,5 +1,7 @@
 package entity
 
+import "petri/internal/types"
+
 // EntityType distinguishes between different entity categories
 type EntityType int
 
@@ -11,27 +13,27 @@ const (
 
 // Entity is the base interface for all game objects
 type Entity interface {
-	Position() (int, int)
-	SetPosition(x, y int)
+	Pos() types.Position
+	SetPos(pos types.Position)
 	Symbol() rune
 	Type() EntityType
 }
 
 // BaseEntity provides common fields for all entities
 type BaseEntity struct {
-	X, Y  int
+	X, Y  int // Kept for direct field access during transition
 	Sym   rune
 	EType EntityType
 }
 
-// Position returns the entity's current coordinates
-func (e *BaseEntity) Position() (int, int) {
-	return e.X, e.Y
+// Pos returns the entity's current position
+func (e *BaseEntity) Pos() types.Position {
+	return types.Position{X: e.X, Y: e.Y}
 }
 
-// SetPosition updates the entity's coordinates
-func (e *BaseEntity) SetPosition(x, y int) {
-	e.X, e.Y = x, y
+// SetPos updates the entity's position
+func (e *BaseEntity) SetPos(pos types.Position) {
+	e.X, e.Y = pos.X, pos.Y
 }
 
 // Symbol returns the display character for this entity

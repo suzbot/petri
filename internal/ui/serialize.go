@@ -335,7 +335,8 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 	// Set cursor to first character position if any
 	chars := m.gameMap.Characters()
 	if len(chars) > 0 {
-		m.cursorX, m.cursorY = chars[0].Position()
+		pos := chars[0].Pos()
+		m.cursorX, m.cursorY = pos.X, pos.Y
 	}
 
 	return m

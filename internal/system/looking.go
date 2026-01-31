@@ -22,9 +22,9 @@ func CompleteLook(char *entity.Character, item *entity.Item, log *ActionLog) {
 	}
 
 	// Remember last looked item (to avoid looking at same item twice in a row)
-	ix, iy := item.Position()
-	char.LastLookedX = ix
-	char.LastLookedY = iy
+	ipos := item.Pos()
+	char.LastLookedX = ipos.X
+	char.LastLookedY = ipos.Y
 	char.HasLastLooked = true
 
 	// Mood adjustment from preferences (same as eating)

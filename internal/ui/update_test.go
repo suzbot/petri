@@ -47,9 +47,9 @@ func TestApplyIntent_CollapseIsImmediate(t *testing.T) {
 	}
 
 	// Assert: character should NOT have moved (still at 5,5)
-	cx, cy := char.Position()
-	if cx != 5 || cy != 5 {
-		t.Errorf("Expected character to stay at (5,5) after collapse, but moved to (%d,%d)", cx, cy)
+	pos := char.Pos()
+	if pos.X != 5 || pos.Y != 5 {
+		t.Errorf("Expected character to stay at (5,5) after collapse, but moved to (%d,%d)", pos.X, pos.Y)
 	}
 }
 
@@ -84,9 +84,9 @@ func TestApplyIntent_NoCollapseWhenEnergyAboveZero(t *testing.T) {
 	}
 
 	// Assert: character should have moved to (6,5)
-	cx, cy := char.Position()
-	if cx != 6 || cy != 5 {
-		t.Errorf("Expected character to move to (6,5), but is at (%d,%d)", cx, cy)
+	pos := char.Pos()
+	if pos.X != 6 || pos.Y != 5 {
+		t.Errorf("Expected character to move to (6,5), but is at (%d,%d)", pos.X, pos.Y)
 	}
 }
 

@@ -21,11 +21,11 @@ func assertNoPositionDuplicates(t *testing.T, world *TestWorld) {
 	positions := make(map[[2]int]int) // position -> character ID
 
 	for _, char := range chars {
-		x, y := char.Position()
-		key := [2]int{x, y}
+		pos := char.Pos()
+		key := [2]int{pos.X, pos.Y}
 		if existingID, exists := positions[key]; exists {
 			t.Errorf("Position conflict: characters %d and %d both at (%d, %d)",
-				existingID, char.ID, x, y)
+				existingID, char.ID, pos.X, pos.Y)
 		}
 		positions[key] = char.ID
 	}
@@ -37,15 +37,15 @@ func assertCharacterMapConsistency(t *testing.T, world *TestWorld) {
 	chars := world.GameMap.Characters()
 
 	for _, char := range chars {
-		x, y := char.Position()
-		found := world.GameMap.CharacterAt(x, y)
+		pos := char.Pos()
+		found := world.GameMap.CharacterAt(pos.X, pos.Y)
 		if found != char {
 			if found == nil {
 				t.Errorf("CharacterAt(%d, %d) returned nil, expected character %d",
-					x, y, char.ID)
+					pos.X, pos.Y, char.ID)
 			} else {
 				t.Errorf("CharacterAt(%d, %d) returned character %d, expected %d",
-					x, y, found.ID, char.ID)
+					pos.X, pos.Y, found.ID, char.ID)
 			}
 		}
 	}
@@ -153,7 +153,7 @@ func TestSimulation_DeadCharactersStopUpdating(t *testing.T) {
 		if deadChar == nil {
 			for _, char := range world.GameMap.Characters() {
 				if char.IsDead {
-					x, y := char.Position()
+					pos := char.Pos()
 					deadChar = &struct {
 						ID        int
 						X, Y      int
@@ -163,8 +163,8 @@ func TestSimulation_DeadCharactersStopUpdating(t *testing.T) {
 						DeathTick int
 					}{
 						ID:        char.ID,
-						X:         x,
-						Y:         y,
+						X:         pos.X,
+						Y:         pos.Y,
 						Hunger:    char.Hunger,
 						Thirst:    char.Thirst,
 						Energy:    char.Energy,
@@ -180,12 +180,12 @@ func TestSimulation_DeadCharactersStopUpdating(t *testing.T) {
 			// Find the character again
 			for _, char := range world.GameMap.Characters() {
 				if char.ID == deadChar.ID {
-					x, y := char.Position()
+					pos := char.Pos()
 
 					// Position should not change
-					if x != deadChar.X || y != deadChar.Y {
+					if pos.X != deadChar.X || pos.Y != deadChar.Y {
 						t.Errorf("Dead character %d moved from (%d,%d) to (%d,%d)",
-							deadChar.ID, deadChar.X, deadChar.Y, x, y)
+							deadChar.ID, deadChar.X, deadChar.Y, pos.X, pos.Y)
 					}
 
 					// Stats should not change (they were recorded at death)

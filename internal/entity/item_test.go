@@ -13,9 +13,9 @@ func TestNewBerry_Properties(t *testing.T) {
 
 	item := NewBerry(5, 10, types.ColorRed, false, false)
 
-	x, y := item.Position()
-	if x != 5 || y != 10 {
-		t.Errorf("NewBerry Position(): got (%d, %d), want (5, 10)", x, y)
+	pos := item.Pos()
+	if pos.X != 5 || pos.Y != 10 {
+		t.Errorf("NewBerry Pos(): got (%d, %d), want (5, 10)", pos.X, pos.Y)
 	}
 	if item.ItemType != "berry" {
 		t.Errorf("NewBerry ItemType: got %q, want %q", item.ItemType, "berry")
@@ -50,9 +50,9 @@ func TestNewMushroom_Properties(t *testing.T) {
 
 	item := NewMushroom(8, 12, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
 
-	x, y := item.Position()
-	if x != 8 || y != 12 {
-		t.Errorf("NewMushroom Position(): got (%d, %d), want (8, 12)", x, y)
+	pos := item.Pos()
+	if pos.X != 8 || pos.Y != 12 {
+		t.Errorf("NewMushroom Pos(): got (%d, %d), want (8, 12)", pos.X, pos.Y)
 	}
 	if item.ItemType != "mushroom" {
 		t.Errorf("NewMushroom ItemType: got %q, want %q", item.ItemType, "mushroom")

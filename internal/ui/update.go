@@ -428,7 +428,8 @@ func (m Model) startGameMulti() Model {
 		// Randomly select one character to follow
 		followIdx := rand.Intn(len(chars))
 		m.following = chars[followIdx]
-		m.cursorX, m.cursorY = chars[followIdx].Position()
+		pos := chars[followIdx].Pos()
+		m.cursorX, m.cursorY = pos.X, pos.Y
 	}
 
 	// Spawn items and features (respecting test config)
@@ -500,7 +501,8 @@ func (m Model) updateGame(now time.Time) (Model, tea.Cmd) {
 
 	// Update cursor if following
 	if m.following != nil {
-		m.cursorX, m.cursorY = m.following.Position()
+		fpos := m.following.Pos()
+		m.cursorX, m.cursorY = fpos.X, fpos.Y
 	}
 
 	return m, nil
@@ -520,7 +522,8 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 
 	switch char.Intent.Action {
 	case entity.ActionMove:
-		cx, cy := char.Position()
+		cpos := char.Pos()
+		cx, cy := cpos.X, cpos.Y
 		tx, ty := char.Intent.TargetX, char.Intent.TargetY
 
 		// Check if at target item for eating - only if driven by hunger
@@ -531,8 +534,8 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			isVesselWithFood := targetItem.Container != nil && len(targetItem.Container.Contents) > 0
 
 			if isEdible || isVesselWithFood {
-				ix, iy := targetItem.Position()
-				if cx == ix && cy == iy {
+				ipos := targetItem.Pos()
+				if cx == ipos.X && cy == ipos.Y {
 					// At target item - eating in progress
 					char.ActionProgress += delta
 					if char.ActionProgress >= config.ActionDuration {
@@ -675,16 +678,17 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 
 	case entity.ActionPickup:
 		// Picking up an item (used by both foraging and harvest orders)
-		cx, cy := char.Position()
+		cpos := char.Pos()
+		cx, cy := cpos.X, cpos.Y
 
 		if char.Intent.TargetItem == nil {
 			return
 		}
 
-		ix, iy := char.Intent.TargetItem.Position()
+		ipos := char.Intent.TargetItem.Pos()
 
 		// Check if at target item
-		if cx == ix && cy == iy {
+		if cx == ipos.X && cy == ipos.Y {
 			// At item - pickup in progress
 			char.ActionProgress += delta
 			if char.ActionProgress >= config.ActionDuration {
@@ -770,10 +774,10 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		tx, ty := char.Intent.TargetX, char.Intent.TargetY
 		if m.gameMap.MoveCharacter(char, tx, ty) {
 			// Successfully moved - update intent for next step
-			newX, newY := char.Position()
-			if newX != ix || newY != iy {
+			newPos := char.Pos()
+			if newPos.X != ipos.X || newPos.Y != ipos.Y {
 				// Not at item yet, calculate next step
-				nx, ny := system.NextStep(newX, newY, ix, iy)
+				nx, ny := system.NextStep(newPos.X, newPos.Y, ipos.X, ipos.Y)
 				char.Intent.TargetX = nx
 				char.Intent.TargetY = ny
 			}
@@ -893,7 +897,8 @@ func (m *Model) cycleToNextCharacter() {
 	next := alive[nextIdx]
 
 	m.following = next
-	m.cursorX, m.cursorY = next.Position()
+	npos := next.Pos()
+	m.cursorX, m.cursorY = npos.X, npos.Y
 	m.logScrollOffset = 0
 }
 
@@ -932,7 +937,8 @@ func (m *Model) cycleToPreviousCharacter() {
 	prev := alive[prevIdx]
 
 	m.following = prev
-	m.cursorX, m.cursorY = prev.Position()
+	ppos := prev.Pos()
+	m.cursorX, m.cursorY = ppos.X, ppos.Y
 	m.logScrollOffset = 0
 }
 
@@ -978,7 +984,8 @@ func (m *Model) stepForward() {
 
 	// Update cursor if following
 	if m.following != nil {
-		m.cursorX, m.cursorY = m.following.Position()
+		fpos := m.following.Pos()
+		m.cursorX, m.cursorY = fpos.X, fpos.Y
 	}
 }
 
@@ -992,9 +999,11 @@ func (m *Model) findAlternateStep(char *entity.Character, cx, cy int, triedPosit
 	if goalX == 0 && goalY == 0 {
 		// Fallback for intents without destination set
 		if char.Intent.TargetItem != nil {
-			goalX, goalY = char.Intent.TargetItem.Position()
+			gpos := char.Intent.TargetItem.Pos()
+			goalX, goalY = gpos.X, gpos.Y
 		} else if char.Intent.TargetFeature != nil {
-			goalX, goalY = char.Intent.TargetFeature.Position()
+			gpos := char.Intent.TargetFeature.Pos()
+			goalX, goalY = gpos.X, gpos.Y
 		} else {
 			return nil
 		}
@@ -1241,7 +1250,8 @@ func (m Model) startGameFromCreation() Model {
 	// Randomly select one character to follow
 	followIdx := rand.Intn(len(chars))
 	m.following = chars[followIdx]
-	m.cursorX, m.cursorY = chars[followIdx].Position()
+	fpos := chars[followIdx].Pos()
+	m.cursorX, m.cursorY = fpos.X, fpos.Y
 
 	// Clear creation state
 	m.creationState = nil
