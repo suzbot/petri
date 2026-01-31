@@ -36,7 +36,7 @@ func TestAddCharacter_EmptyPosition(t *testing.T) {
 		t.Error("AddCharacter() should succeed for empty position")
 	}
 
-	got := m.CharacterAt(5, 5)
+	got := m.CharacterAt(types.Position{X: 5, Y: 5})
 	if got != c {
 		t.Errorf("CharacterAt(5,5) should return added character, got %v", got)
 	}
@@ -55,7 +55,7 @@ func TestAddCharacter_OccupiedPosition(t *testing.T) {
 		t.Error("AddCharacter() should fail for occupied position")
 	}
 
-	got := m.CharacterAt(5, 5)
+	got := m.CharacterAt(types.Position{X: 5, Y: 5})
 	if got != c1 {
 		t.Error("CharacterAt(5,5) should still return original character")
 	}
@@ -65,7 +65,7 @@ func TestCharacterAt_EmptyPosition(t *testing.T) {
 	t.Parallel()
 
 	m := NewMap(20, 20)
-	got := m.CharacterAt(10, 10)
+	got := m.CharacterAt(types.Position{X: 10, Y: 10})
 	if got != nil {
 		t.Errorf("CharacterAt() for empty position should return nil, got %v", got)
 	}
@@ -114,18 +114,18 @@ func TestMoveCharacter_ToEmptyPosition(t *testing.T) {
 	c := newTestCharacter(1, 5, 5)
 	m.AddCharacter(c)
 
-	ok := m.MoveCharacter(c, 6, 5)
+	ok := m.MoveCharacter(c, types.Position{X: 6, Y: 5})
 	if !ok {
 		t.Error("MoveCharacter() should succeed for empty target position")
 	}
 
 	// Old position should be empty
-	if m.CharacterAt(5, 5) != nil {
+	if m.CharacterAt(types.Position{X: 5, Y: 5}) != nil {
 		t.Error("CharacterAt(5,5) should return nil after move")
 	}
 
 	// New position should have character
-	if m.CharacterAt(6, 5) != c {
+	if m.CharacterAt(types.Position{X: 6, Y: 5}) != c {
 		t.Error("CharacterAt(6,5) should return moved character")
 	}
 
@@ -145,16 +145,16 @@ func TestMoveCharacter_ToOccupiedPosition(t *testing.T) {
 	m.AddCharacter(c1)
 	m.AddCharacter(c2)
 
-	ok := m.MoveCharacter(c1, 6, 5)
+	ok := m.MoveCharacter(c1, types.Position{X: 6, Y: 5})
 	if ok {
 		t.Error("MoveCharacter() should fail for occupied target position")
 	}
 
 	// Both characters should remain at original positions
-	if m.CharacterAt(5, 5) != c1 {
+	if m.CharacterAt(types.Position{X: 5, Y: 5}) != c1 {
 		t.Error("CharacterAt(5,5) should still return c1")
 	}
-	if m.CharacterAt(6, 5) != c2 {
+	if m.CharacterAt(types.Position{X: 6, Y: 5}) != c2 {
 		t.Error("CharacterAt(6,5) should still return c2")
 	}
 }
@@ -166,7 +166,7 @@ func TestIsOccupied_OccupiedPosition(t *testing.T) {
 	c := newTestCharacter(1, 5, 5)
 	m.AddCharacter(c)
 
-	if !m.IsOccupied(5, 5) {
+	if !m.IsOccupied(types.Position{X: 5, Y: 5}) {
 		t.Error("IsOccupied() should return true for occupied position")
 	}
 }
@@ -175,7 +175,7 @@ func TestIsOccupied_EmptyPosition(t *testing.T) {
 	t.Parallel()
 
 	m := NewMap(20, 20)
-	if m.IsOccupied(10, 10) {
+	if m.IsOccupied(types.Position{X: 10, Y: 10}) {
 		t.Error("IsOccupied() should return false for empty position")
 	}
 }
@@ -194,7 +194,7 @@ func TestFindNearestDrinkSource_ReturnsClosest(t *testing.T) {
 	m.AddFeature(spring2)
 
 	// Character at (12, 10) - closer to spring1 at (10, 10)
-	got := m.FindNearestDrinkSource(12, 10)
+	got := m.FindNearestDrinkSource(types.Position{X: 12, Y: 10})
 	if got != spring1 {
 		t.Error("FindNearestDrinkSource() should return closest spring")
 	}
@@ -216,7 +216,7 @@ func TestFindNearestDrinkSource_SkipsWhenAllAdjacentOccupied(t *testing.T) {
 	m.AddCharacter(newTestCharacter(4, 9, 10))  // West
 
 	// Character at (12, 10) should skip blocked spring1
-	got := m.FindNearestDrinkSource(12, 10)
+	got := m.FindNearestDrinkSource(types.Position{X: 12, Y: 10})
 	if got != spring2 {
 		t.Error("FindNearestDrinkSource() should skip springs with all adjacent tiles blocked")
 	}
@@ -239,7 +239,7 @@ func TestFindNearestDrinkSource_AllowsRequesterAdjacentPosition(t *testing.T) {
 	m.AddCharacter(newTestCharacter(4, 9, 10))  // West
 
 	// Should still return the spring - requester's adjacent position counts as available
-	got := m.FindNearestDrinkSource(10, 9)
+	got := m.FindNearestDrinkSource(types.Position{X: 10, Y: 9})
 	if got != spring {
 		t.Error("FindNearestDrinkSource() should allow requesting character's adjacent position")
 	}
@@ -267,7 +267,7 @@ func TestFindNearestDrinkSource_AllAdjacentBlocked(t *testing.T) {
 	m.AddCharacter(newTestCharacter(8, 19, 20))  // West
 
 	// Character at (15, 15) looking for spring
-	got := m.FindNearestDrinkSource(15, 15)
+	got := m.FindNearestDrinkSource(types.Position{X: 15, Y: 15})
 	if got != nil {
 		t.Error("FindNearestDrinkSource() should return nil when all springs have all adjacent tiles blocked")
 	}
@@ -277,7 +277,7 @@ func TestFindNearestDrinkSource_NoSprings(t *testing.T) {
 	t.Parallel()
 
 	m := NewMap(30, 30)
-	got := m.FindNearestDrinkSource(10, 10)
+	got := m.FindNearestDrinkSource(types.Position{X: 10, Y: 10})
 	if got != nil {
 		t.Error("FindNearestDrinkSource() should return nil when no springs exist")
 	}
@@ -293,7 +293,7 @@ func TestFindNearestBed_ReturnsClosest(t *testing.T) {
 	m.AddFeature(bed2)
 
 	// Character at (12, 10) - closer to bed1 at (10, 10)
-	got := m.FindNearestBed(12, 10)
+	got := m.FindNearestBed(types.Position{X: 12, Y: 10})
 	if got != bed1 {
 		t.Error("FindNearestBed() should return closest bed")
 	}
@@ -313,7 +313,7 @@ func TestFindNearestBed_SkipsOccupied(t *testing.T) {
 	m.AddCharacter(charA)
 
 	// Character B at (12, 10) should skip occupied bed1
-	got := m.FindNearestBed(12, 10)
+	got := m.FindNearestBed(types.Position{X: 12, Y: 10})
 	if got != bed2 {
 		t.Error("FindNearestBed() should skip occupied beds")
 	}
@@ -323,7 +323,7 @@ func TestFindNearestBed_NoBeds(t *testing.T) {
 	t.Parallel()
 
 	m := NewMap(30, 30)
-	got := m.FindNearestBed(10, 10)
+	got := m.FindNearestBed(types.Position{X: 10, Y: 10})
 	if got != nil {
 		t.Error("FindNearestBed() should return nil when no beds exist")
 	}
@@ -349,7 +349,7 @@ func TestIsValid_InsideBounds(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if !m.IsValid(tt.x, tt.y) {
+			if !m.IsValid(types.Position{X: tt.x, Y: tt.y}) {
 				t.Errorf("IsValid(%d,%d) should return true", tt.x, tt.y)
 			}
 		})
@@ -374,7 +374,7 @@ func TestIsValid_OutsideBounds(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if m.IsValid(tt.x, tt.y) {
+			if m.IsValid(types.Position{X: tt.x, Y: tt.y}) {
 				t.Errorf("IsValid(%d,%d) should return false", tt.x, tt.y)
 			}
 		})
@@ -392,7 +392,7 @@ func TestIsBlocked_ImpassableFeature(t *testing.T) {
 	spring := newTestSpring(10, 10)
 	m.AddFeature(spring)
 
-	if !m.IsBlocked(10, 10) {
+	if !m.IsBlocked(types.Position{X: 10, Y: 10}) {
 		t.Error("IsBlocked() should return true for impassable spring")
 	}
 }
@@ -404,7 +404,7 @@ func TestIsBlocked_PassableFeature(t *testing.T) {
 	bed := newTestBed(10, 10)
 	m.AddFeature(bed)
 
-	if m.IsBlocked(10, 10) {
+	if m.IsBlocked(types.Position{X: 10, Y: 10}) {
 		t.Error("IsBlocked() should return false for passable leaf pile")
 	}
 }
@@ -416,7 +416,7 @@ func TestIsBlocked_Character(t *testing.T) {
 	c := newTestCharacter(1, 10, 10)
 	m.AddCharacter(c)
 
-	if !m.IsBlocked(10, 10) {
+	if !m.IsBlocked(types.Position{X: 10, Y: 10}) {
 		t.Error("IsBlocked() should return true for character position")
 	}
 }
@@ -426,7 +426,7 @@ func TestIsBlocked_EmptyPosition(t *testing.T) {
 
 	m := NewMap(20, 20)
 
-	if m.IsBlocked(10, 10) {
+	if m.IsBlocked(types.Position{X: 10, Y: 10}) {
 		t.Error("IsBlocked() should return false for empty position")
 	}
 }
@@ -442,7 +442,7 @@ func TestMoveCharacter_BlockedByImpassableFeature(t *testing.T) {
 	spring := newTestSpring(6, 5)
 	m.AddFeature(spring)
 
-	ok := m.MoveCharacter(c, 6, 5)
+	ok := m.MoveCharacter(c, types.Position{X: 6, Y: 5})
 	if ok {
 		t.Error("MoveCharacter() should fail when target has impassable feature")
 	}
@@ -465,7 +465,7 @@ func TestMoveCharacter_AllowedOntoPassableFeature(t *testing.T) {
 	bed := newTestBed(6, 5)
 	m.AddFeature(bed)
 
-	ok := m.MoveCharacter(c, 6, 5)
+	ok := m.MoveCharacter(c, types.Position{X: 6, Y: 5})
 	if !ok {
 		t.Error("MoveCharacter() should succeed when target has passable feature")
 	}
@@ -495,7 +495,7 @@ func TestFindNearestDrinkSource_SkipsWhenAllAdjacentBlocked(t *testing.T) {
 	m.AddCharacter(newTestCharacter(4, 9, 10))  // West
 
 	// Character at (15, 15) looking for spring - should find none
-	got := m.FindNearestDrinkSource(15, 15)
+	got := m.FindNearestDrinkSource(types.Position{X: 15, Y: 15})
 	if got != nil {
 		t.Error("FindNearestDrinkSource() should return nil when all adjacent tiles blocked")
 	}
@@ -515,7 +515,7 @@ func TestFindNearestDrinkSource_AllowsWhenOneAdjacentFree(t *testing.T) {
 	// West (9, 10) is free
 
 	// Character at (15, 15) looking for spring - should find it
-	got := m.FindNearestDrinkSource(15, 15)
+	got := m.FindNearestDrinkSource(types.Position{X: 15, Y: 15})
 	if got != spring {
 		t.Error("FindNearestDrinkSource() should return spring when at least one adjacent tile is free")
 	}
@@ -538,7 +538,7 @@ func TestFindNearestDrinkSource_AllowsRequesterAtAdjacentTile(t *testing.T) {
 	m.AddCharacter(newTestCharacter(4, 9, 10))  // West
 
 	// Requester should still find the spring (they're at an adjacent tile)
-	got := m.FindNearestDrinkSource(10, 9)
+	got := m.FindNearestDrinkSource(types.Position{X: 10, Y: 9})
 	if got != spring {
 		t.Error("FindNearestDrinkSource() should allow requester's own position as available")
 	}
@@ -556,7 +556,7 @@ func TestFindNearestDrinkSource_MultipleDrinkersAtDifferentTiles(t *testing.T) {
 	m.AddCharacter(newTestCharacter(2, 11, 10)) // East
 
 	// Third character looking for spring - should find it (South and West still free)
-	got := m.FindNearestDrinkSource(15, 15)
+	got := m.FindNearestDrinkSource(types.Position{X: 15, Y: 15})
 	if got != spring {
 		t.Error("FindNearestDrinkSource() should allow spring when some adjacent tiles remain free")
 	}

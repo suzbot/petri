@@ -121,9 +121,9 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 		if !shouldReEval {
 			switch char.Intent.DrivingStat {
 			case types.StatHunger:
-				if thirstTier > currentDrivingTier && canFulfillThirst(gameMap, cx, cy) {
+				if thirstTier > currentDrivingTier && canFulfillThirst(gameMap, cpos) {
 					shouldReEval = true
-				} else if energyTier > currentDrivingTier && canFulfillEnergy(char, gameMap, cx, cy) {
+				} else if energyTier > currentDrivingTier && canFulfillEnergy(char, gameMap, cpos) {
 					shouldReEval = true
 				} else if healthTier > currentDrivingTier && canFulfillHealth(char, items) {
 					shouldReEval = true
@@ -131,7 +131,7 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 			case types.StatThirst:
 				if hungerTier > currentDrivingTier && canFulfillHunger(char, items) {
 					shouldReEval = true
-				} else if energyTier > currentDrivingTier && canFulfillEnergy(char, gameMap, cx, cy) {
+				} else if energyTier > currentDrivingTier && canFulfillEnergy(char, gameMap, cpos) {
 					shouldReEval = true
 				} else if healthTier > currentDrivingTier && canFulfillHealth(char, items) {
 					shouldReEval = true
@@ -139,17 +139,17 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 			case types.StatEnergy:
 				if hungerTier > currentDrivingTier && canFulfillHunger(char, items) {
 					shouldReEval = true
-				} else if thirstTier > currentDrivingTier && canFulfillThirst(gameMap, cx, cy) {
+				} else if thirstTier > currentDrivingTier && canFulfillThirst(gameMap, cpos) {
 					shouldReEval = true
 				} else if healthTier > currentDrivingTier && canFulfillHealth(char, items) {
 					shouldReEval = true
 				}
 			case types.StatHealth:
-				if thirstTier > currentDrivingTier && canFulfillThirst(gameMap, cx, cy) {
+				if thirstTier > currentDrivingTier && canFulfillThirst(gameMap, cpos) {
 					shouldReEval = true
 				} else if hungerTier > currentDrivingTier && canFulfillHunger(char, items) {
 					shouldReEval = true
-				} else if energyTier > currentDrivingTier && canFulfillEnergy(char, gameMap, cx, cy) {
+				} else if energyTier > currentDrivingTier && canFulfillEnergy(char, gameMap, cpos) {
 					shouldReEval = true
 				}
 			default:
@@ -292,7 +292,7 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	// Check if target item still exists at expected position (O(1) instead of O(n))
 	if intent.TargetItem != nil {
 		ipos := intent.TargetItem.Pos()
-		if gameMap.ItemAt(ipos.X, ipos.Y) != intent.TargetItem {
+		if gameMap.ItemAt(ipos) != intent.TargetItem {
 			return nil // Target consumed by someone else
 		}
 	}
@@ -307,14 +307,14 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 			hasAvailableTile := false
 			cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
 			for _, dir := range cardinalDirs {
-				ax, ay := fpos.X+dir[0], fpos.Y+dir[1]
-				if !gameMap.IsValid(ax, ay) {
+				adjPos := types.Position{X: fpos.X + dir[0], Y: fpos.Y + dir[1]}
+				if !gameMap.IsValid(adjPos) {
 					continue
 				}
-				occupant := gameMap.CharacterAt(ax, ay)
+				occupant := gameMap.CharacterAt(adjPos)
 				if occupant == nil || occupant == char {
 					// Also check for impassable features at adjacent tile
-					if adjFeature := gameMap.FeatureAt(ax, ay); adjFeature != nil && !adjFeature.IsPassable() {
+					if adjFeature := gameMap.FeatureAt(adjPos); adjFeature != nil && !adjFeature.IsPassable() {
 						continue
 					}
 					hasAvailableTile = true
@@ -326,7 +326,7 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 			}
 		} else {
 			// For passable features (beds), check if occupied by another character
-			occupant := gameMap.CharacterAt(fpos.X, fpos.Y)
+			occupant := gameMap.CharacterAt(fpos)
 			if occupant != nil && occupant != char {
 				return nil // Target occupied by someone else, find new target
 			}
@@ -440,7 +440,7 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 // findDrinkIntent finds a spring to drink from
 // Springs are impassable - characters drink from cardinally adjacent tiles
 func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.Map, tier int, log *ActionLog) *entity.Intent {
-	spring := gameMap.FindNearestDrinkSource(pos.X, pos.Y)
+	spring := gameMap.FindNearestDrinkSource(pos)
 	if spring == nil {
 		if char.CurrentActivity != "Idle" {
 			char.CurrentActivity = "Idle"
@@ -624,7 +624,7 @@ func findHealingIntent(char *entity.Character, pos types.Position, items []*enti
 
 // findSleepIntent finds a bed to sleep in
 func findSleepIntent(char *entity.Character, pos types.Position, gameMap *game.Map, tier int, log *ActionLog) *entity.Intent {
-	bed := gameMap.FindNearestBed(pos.X, pos.Y)
+	bed := gameMap.FindNearestBed(pos)
 
 	// If no bed, can sleep on ground when exhausted (voluntary) or collapsed (involuntary)
 	if bed == nil {
@@ -885,8 +885,8 @@ func sign(x int) int {
 }
 
 // canFulfillThirst checks if thirst can be addressed (water source exists)
-func canFulfillThirst(gameMap *game.Map, cx, cy int) bool {
-	return gameMap.FindNearestDrinkSource(cx, cy) != nil
+func canFulfillThirst(gameMap *game.Map, pos types.Position) bool {
+	return gameMap.FindNearestDrinkSource(pos) != nil
 }
 
 // canFulfillHunger checks if hunger can be addressed (suitable food exists)
@@ -895,13 +895,13 @@ func canFulfillHunger(char *entity.Character, items []*entity.Item) bool {
 }
 
 // canFulfillEnergy checks if energy can be addressed (bed exists or exhausted enough for ground sleep)
-func canFulfillEnergy(char *entity.Character, gameMap *game.Map, cx, cy int) bool {
+func canFulfillEnergy(char *entity.Character, gameMap *game.Map, pos types.Position) bool {
 	// Can sleep on ground if exhausted (voluntary at ≤10, involuntary collapse at 0)
 	if char.Energy <= 10 {
 		return true
 	}
 	// Otherwise need a bed
-	return gameMap.FindNearestBed(cx, cy) != nil
+	return gameMap.FindNearestBed(pos) != nil
 }
 
 // canFulfillHealth checks if health can be addressed (character knows healing items and they exist)
@@ -1017,12 +1017,12 @@ func findClosestCardinalTile(cx, cy, tx, ty int, gameMap *game.Map) (int, int) {
 	bestDist := int(^uint(0) >> 1)
 
 	for _, dir := range directions {
-		ax, ay := tx+dir[0], ty+dir[1]
-		if !gameMap.IsValid(ax, ay) || gameMap.IsBlocked(ax, ay) {
+		adjPos := types.Position{X: tx + dir[0], Y: ty + dir[1]}
+		if !gameMap.IsValid(adjPos) || gameMap.IsBlocked(adjPos) {
 			continue
 		}
-		if dist := abs(cx-ax) + abs(cy-ay); dist < bestDist {
-			bestDist, bestX, bestY = dist, ax, ay
+		if dist := abs(cx-adjPos.X) + abs(cy-adjPos.Y); dist < bestDist {
+			bestDist, bestX, bestY = dist, adjPos.X, adjPos.Y
 		}
 	}
 	return bestX, bestY
@@ -1040,18 +1040,18 @@ func findClosestAdjacentTile(cx, cy, tx, ty int, gameMap *game.Map) (int, int) {
 	bestDist := int(^uint(0) >> 1)
 
 	for _, dir := range directions {
-		ax, ay := tx+dir[0], ty+dir[1]
-		if !gameMap.IsValid(ax, ay) {
+		adjPos := types.Position{X: tx + dir[0], Y: ty + dir[1]}
+		if !gameMap.IsValid(adjPos) {
 			continue
 		}
-		if gameMap.IsOccupied(ax, ay) {
+		if gameMap.IsOccupied(adjPos) {
 			continue
 		}
 
-		dist := abs(cx-ax) + abs(cy-ay)
+		dist := abs(cx-adjPos.X) + abs(cy-adjPos.Y)
 		if dist < bestDist {
 			bestDist = dist
-			bestX, bestY = ax, ay
+			bestX, bestY = adjPos.X, adjPos.Y
 		}
 	}
 

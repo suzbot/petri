@@ -129,14 +129,14 @@ func TestConsume_RemovesItemFromMap(t *testing.T) {
 	gameMap.AddItem(item)
 
 	// Verify item exists
-	if gameMap.ItemAt(5, 5) != item {
+	if gameMap.ItemAt(types.Position{X: 5, Y: 5}) != item {
 		t.Fatal("Item should exist on map before consumption")
 	}
 
 	Consume(char, item, gameMap, nil)
 
 	// Verify item removed
-	if gameMap.ItemAt(5, 5) != nil {
+	if gameMap.ItemAt(types.Position{X: 5, Y: 5}) != nil {
 		t.Error("Item should be removed from map after consumption")
 	}
 }

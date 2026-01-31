@@ -176,7 +176,7 @@ func applyPickupIntent(char *entity.Character, gameMap *game.Map, delta float64,
 		char.ActionProgress += delta
 		if char.ActionProgress >= config.ActionDuration {
 			char.ActionProgress = 0
-			if item := gameMap.ItemAt(cx, cy); item == char.Intent.TargetItem {
+			if item := gameMap.ItemAt(types.Position{X: cx, Y: cy}); item == char.Intent.TargetItem {
 				system.Pickup(char, item, gameMap, actionLog, gameMap.Varieties())
 			}
 		}
@@ -197,7 +197,7 @@ func applyPickupIntent(char *entity.Character, gameMap *game.Map, delta float64,
 
 	// Move toward target item
 	tx, ty := char.Intent.Target.X, char.Intent.Target.Y
-	if gameMap.MoveCharacter(char, tx, ty) {
+	if gameMap.MoveCharacter(char, types.Position{X: tx, Y: ty}) {
 		// Successfully moved - update intent for next step
 		newPos := char.Pos()
 		if newPos.X != ipos.X || newPos.Y != ipos.Y {
@@ -223,7 +223,7 @@ func applyMoveIntent(char *entity.Character, gameMap *game.Map, delta float64, a
 			char.ActionProgress += delta
 			if char.ActionProgress >= config.ActionDuration {
 				char.ActionProgress = 0
-				if item := gameMap.ItemAt(cx, cy); item == char.Intent.TargetItem {
+				if item := gameMap.ItemAt(types.Position{X: cx, Y: cy}); item == char.Intent.TargetItem {
 					system.Consume(char, item, gameMap, actionLog)
 				}
 			}
@@ -249,7 +249,7 @@ func applyMoveIntent(char *entity.Character, gameMap *game.Map, delta float64, a
 	triedPositions[[2]int{tx, ty}] = true
 
 	for attempts := 0; attempts < 5 && !moved; attempts++ {
-		if gameMap.MoveCharacter(char, tx, ty) {
+		if gameMap.MoveCharacter(char, types.Position{X: tx, Y: ty}) {
 			moved = true
 			break
 		}
@@ -358,10 +358,11 @@ func findAlternateStep(char *entity.Character, gameMap *game.Map, cx, cy int, tr
 		if triedPositions[key] {
 			continue
 		}
-		if !gameMap.IsValid(x, y) {
+		candidatePos := types.Position{X: x, Y: y}
+		if !gameMap.IsValid(candidatePos) {
 			continue
 		}
-		if gameMap.IsOccupied(x, y) {
+		if gameMap.IsOccupied(candidatePos) {
 			continue
 		}
 		return pos

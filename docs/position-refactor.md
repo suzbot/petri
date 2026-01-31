@@ -1,6 +1,6 @@
 # Position Struct Refactor
 
-**Status:** In Progress (Phase 3 Complete)
+**Status:** In Progress (Phase 4 Complete)
 **Goal:** Replace separate `x, y` / `posX, posY` coordinate pairs with a unified `Position` struct
 
 ## Key Discovery
@@ -107,10 +107,10 @@ func (p Position) NextStepToward(target Position) Position {
 - [x] Update all intent-finding functions to use Position parameter
 - [x] Update selectIdleActivity, selectOrderActivity to use Position
 
-### Phase 4: Map Operations
-- [ ] Update Map query methods
-- [ ] Remove duplicate `Pos` struct (use types.Position)
-- [ ] Update spatial indexing maps
+### Phase 4: Map Operations ✓
+- [x] Update Map query methods
+- [x] Remove duplicate `Pos` struct (use types.Position)
+- [x] Update spatial indexing maps
 
 ### Phase 5: Serialization
 - [ ] Update save state structs
@@ -207,4 +207,23 @@ This ensures future sessions:
 - Updated selectIdleActivity and selectOrderActivity signatures
 - Added types import to foraging.go, order_execution.go, talking.go, idle.go
 - Used pos.DistanceTo() in findHealingIntent, findTalkIntent, findForageTarget
+- All tests passing
+
+### Session 4 (2026-01-31)
+- Completed Phase 4: Map Operations
+- Removed duplicate `Pos` struct from map.go
+- Updated internal maps to use `types.Position` as key:
+  - `entities map[types.Position]entity.Entity`
+  - `characterByPos map[types.Position]*entity.Character`
+- Updated 14 Map query method signatures to use `types.Position`:
+  - EntityAt, CharacterAt, ItemAt, FeatureAt, DrinkSourceAt, BedAt
+  - IsValid, IsOccupied, IsBlocked, IsEmpty
+  - FindNearestDrinkSource, FindNearestBed
+  - MoveEntity, MoveCharacter
+- Removed local `abs()` function, using `pos.DistanceTo()` instead
+- Updated canFulfillThirst, canFulfillEnergy signatures
+- Updated 70+ call sites across 15 files:
+  - map_test.go, world.go, movement.go, update.go, view.go
+  - simulation.go, simulation_test.go, lifecycle.go, lifecycle_test.go
+  - talking_test.go, consumption_test.go, serialize_test.go, order_execution_test.go
 - All tests passing

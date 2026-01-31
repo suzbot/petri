@@ -137,13 +137,13 @@ func TestFromSaveState_RestoresFeatures(t *testing.T) {
 	}
 
 	// Find spring
-	foundSpring := restored.gameMap.DrinkSourceAt(3, 3)
+	foundSpring := restored.gameMap.DrinkSourceAt(types.Position{X: 3, Y: 3})
 	if foundSpring == nil {
 		t.Error("Expected to find spring at (3,3)")
 	}
 
 	// Find leaf pile
-	foundBed := restored.gameMap.BedAt(7, 7)
+	foundBed := restored.gameMap.BedAt(types.Position{X: 7, Y: 7})
 	if foundBed == nil {
 		t.Error("Expected to find leaf pile at (7,7)")
 	}

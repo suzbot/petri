@@ -6,6 +6,7 @@ import (
 	"petri/internal/config"
 	"petri/internal/entity"
 	"petri/internal/game"
+	"petri/internal/types"
 )
 
 // UpdateSpawnTimers decrements spawn timers for growing plants and spawns new items when timers expire
@@ -136,7 +137,8 @@ func findEmptyAdjacent(x, y int, gameMap *game.Map) (int, int, bool) {
 
 	for _, dir := range directions {
 		nx, ny := x+dir[0], y+dir[1]
-		if gameMap.IsValid(nx, ny) && gameMap.IsEmpty(nx, ny) {
+		adjPos := types.Position{X: nx, Y: ny}
+		if gameMap.IsValid(adjPos) && gameMap.IsEmpty(adjPos) {
 			return nx, ny, true
 		}
 	}

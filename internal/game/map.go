@@ -5,19 +5,14 @@ import (
 	"petri/internal/types"
 )
 
-// Pos represents a 2D position on the map
-type Pos struct {
-	X, Y int
-}
-
 // Map represents the game world as a sparse grid
 type Map struct {
 	Width, Height int
-	entities      map[Pos]entity.Entity
+	entities      map[types.Position]entity.Entity
 
 	// Indexed lookups for performance with many entities
 	characters     []*entity.Character
-	characterByPos map[Pos]*entity.Character // O(1) position lookup, max 1 character per position
+	characterByPos map[types.Position]*entity.Character // O(1) position lookup, max 1 character per position
 	items          []*entity.Item
 	features       []*entity.Feature
 
@@ -34,9 +29,9 @@ func NewMap(width, height int) *Map {
 	return &Map{
 		Width:          width,
 		Height:         height,
-		entities:       make(map[Pos]entity.Entity),
+		entities:       make(map[types.Position]entity.Entity),
 		characters:     make([]*entity.Character, 0),
-		characterByPos: make(map[Pos]*entity.Character),
+		characterByPos: make(map[types.Position]*entity.Character),
 		items:          make([]*entity.Item, 0),
 		features:       make([]*entity.Feature, 0),
 	}
@@ -45,7 +40,7 @@ func NewMap(width, height int) *Map {
 // AddCharacter adds a character to the map
 // Returns false if position is already occupied by another character
 func (m *Map) AddCharacter(c *entity.Character) bool {
-	pos := Pos{c.X, c.Y}
+	pos := c.Pos()
 	if m.characterByPos[pos] != nil {
 		return false
 	}
@@ -82,8 +77,7 @@ func (m *Map) RemoveItem(item *entity.Item) {
 
 // EntityAt returns an entity at the given position, or nil
 // For characters, returns the character at that position
-func (m *Map) EntityAt(x, y int) entity.Entity {
-	pos := Pos{x, y}
+func (m *Map) EntityAt(pos types.Position) entity.Entity {
 	if char := m.characterByPos[pos]; char != nil {
 		return char
 	}
@@ -91,80 +85,77 @@ func (m *Map) EntityAt(x, y int) entity.Entity {
 }
 
 // CharacterAt returns the character at the given position, or nil (O(1) lookup)
-func (m *Map) CharacterAt(x, y int) *entity.Character {
-	return m.characterByPos[Pos{x, y}]
+func (m *Map) CharacterAt(pos types.Position) *entity.Character {
+	return m.characterByPos[pos]
 }
 
 // MoveEntity moves a non-character entity from one position to another
-func (m *Map) MoveEntity(fromX, fromY, toX, toY int) {
-	pos := Pos{fromX, fromY}
-	if e, ok := m.entities[pos]; ok {
-		delete(m.entities, pos)
-		e.SetPos(types.Position{X: toX, Y: toY})
-		m.entities[Pos{toX, toY}] = e
+func (m *Map) MoveEntity(from, to types.Position) {
+	if e, ok := m.entities[from]; ok {
+		delete(m.entities, from)
+		e.SetPos(to)
+		m.entities[to] = e
 	}
 }
 
 // MoveCharacter moves a character to a new position, updating the position index
 // Returns true if the move succeeded, false if blocked (position already occupied or impassable feature)
-func (m *Map) MoveCharacter(char *entity.Character, toX, toY int) bool {
+func (m *Map) MoveCharacter(char *entity.Character, to types.Position) bool {
 	oldPos := char.Pos()
-	oldMapPos := Pos{oldPos.X, oldPos.Y}
-	newPos := Pos{toX, toY}
 
 	// Refuse move if target is occupied by another character
-	if existing := m.characterByPos[newPos]; existing != nil && existing != char {
+	if existing := m.characterByPos[to]; existing != nil && existing != char {
 		return false
 	}
 
 	// Refuse move if target has an impassable feature
-	if f := m.FeatureAt(toX, toY); f != nil && !f.IsPassable() {
+	if f := m.FeatureAt(to); f != nil && !f.IsPassable() {
 		return false
 	}
 
 	// Remove from old position - but verify it's actually this character
-	if m.characterByPos[oldMapPos] == char {
-		delete(m.characterByPos, oldMapPos)
+	if m.characterByPos[oldPos] == char {
+		delete(m.characterByPos, oldPos)
 	}
 
 	// Update character position
-	char.SetPos(types.Position{X: toX, Y: toY})
+	char.SetPos(to)
 
 	// Add to new position
-	m.characterByPos[newPos] = char
+	m.characterByPos[to] = char
 	return true
 }
 
 // IsValid returns true if the position is within map bounds
-func (m *Map) IsValid(x, y int) bool {
-	return x >= 0 && x < m.Width && y >= 0 && y < m.Height
+func (m *Map) IsValid(pos types.Position) bool {
+	return pos.X >= 0 && pos.X < m.Width && pos.Y >= 0 && pos.Y < m.Height
 }
 
 // IsOccupied returns true if there's a character at the position
-func (m *Map) IsOccupied(x, y int) bool {
-	return m.characterByPos[Pos{x, y}] != nil
+func (m *Map) IsOccupied(pos types.Position) bool {
+	return m.characterByPos[pos] != nil
 }
 
 // IsBlocked returns true if the position is blocked by a character or impassable feature
-func (m *Map) IsBlocked(x, y int) bool {
-	if m.characterByPos[Pos{x, y}] != nil {
+func (m *Map) IsBlocked(pos types.Position) bool {
+	if m.characterByPos[pos] != nil {
 		return true
 	}
-	if f := m.FeatureAt(x, y); f != nil && !f.IsPassable() {
+	if f := m.FeatureAt(pos); f != nil && !f.IsPassable() {
 		return true
 	}
 	return false
 }
 
 // IsEmpty returns true if no entity (character, item, or feature) is at the position
-func (m *Map) IsEmpty(x, y int) bool {
-	if m.characterByPos[Pos{x, y}] != nil {
+func (m *Map) IsEmpty(pos types.Position) bool {
+	if m.characterByPos[pos] != nil {
 		return false
 	}
-	if m.ItemAt(x, y) != nil {
+	if m.ItemAt(pos) != nil {
 		return false
 	}
-	if m.FeatureAt(x, y) != nil {
+	if m.FeatureAt(pos) != nil {
 		return false
 	}
 	return true
@@ -182,10 +173,9 @@ func (m *Map) Items() []*entity.Item {
 
 // ItemAt returns the item at the given position, or nil
 // Searches the items slice directly
-func (m *Map) ItemAt(x, y int) *entity.Item {
+func (m *Map) ItemAt(pos types.Position) *entity.Item {
 	for _, item := range m.items {
-		pos := item.Pos()
-		if pos.X == x && pos.Y == y {
+		if item.Pos() == pos {
 			return item
 		}
 	}
@@ -214,10 +204,9 @@ func (m *Map) Features() []*entity.Feature {
 }
 
 // FeatureAt returns the feature at the given position, or nil
-func (m *Map) FeatureAt(x, y int) *entity.Feature {
+func (m *Map) FeatureAt(pos types.Position) *entity.Feature {
 	for _, f := range m.features {
-		pos := f.Pos()
-		if pos.X == x && pos.Y == y {
+		if f.Pos() == pos {
 			return f
 		}
 	}
@@ -225,8 +214,8 @@ func (m *Map) FeatureAt(x, y int) *entity.Feature {
 }
 
 // DrinkSourceAt returns a drink source feature at the given position, or nil
-func (m *Map) DrinkSourceAt(x, y int) *entity.Feature {
-	f := m.FeatureAt(x, y)
+func (m *Map) DrinkSourceAt(pos types.Position) *entity.Feature {
+	f := m.FeatureAt(pos)
 	if f != nil && f.IsDrinkSource() {
 		return f
 	}
@@ -234,8 +223,8 @@ func (m *Map) DrinkSourceAt(x, y int) *entity.Feature {
 }
 
 // BedAt returns a bed feature at the given position, or nil
-func (m *Map) BedAt(x, y int) *entity.Feature {
-	f := m.FeatureAt(x, y)
+func (m *Map) BedAt(pos types.Position) *entity.Feature {
+	f := m.FeatureAt(pos)
 	if f != nil && f.IsBed() {
 		return f
 	}
@@ -245,10 +234,10 @@ func (m *Map) BedAt(x, y int) *entity.Feature {
 // FindNearestDrinkSource finds the nearest drink source that has an available cardinal-adjacent tile
 // Springs are impassable, so characters drink from cardinally adjacent tiles (N/E/S/W)
 // A spring is available if at least one cardinal-adjacent tile is unblocked or occupied by the requester
-func (m *Map) FindNearestDrinkSource(x, y int) *entity.Feature {
+func (m *Map) FindNearestDrinkSource(pos types.Position) *entity.Feature {
 	var nearest *entity.Feature
 	nearestDist := int(^uint(0) >> 1)
-	requestingChar := m.characterByPos[Pos{x, y}]
+	requestingChar := m.characterByPos[pos]
 
 	// Cardinal directions: N, E, S, W
 	cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
@@ -262,15 +251,15 @@ func (m *Map) FindNearestDrinkSource(x, y int) *entity.Feature {
 		// Check if any cardinal-adjacent tile is available
 		hasAvailableTile := false
 		for _, dir := range cardinalDirs {
-			ax, ay := fpos.X+dir[0], fpos.Y+dir[1]
-			if !m.IsValid(ax, ay) {
+			adjPos := types.Position{X: fpos.X + dir[0], Y: fpos.Y + dir[1]}
+			if !m.IsValid(adjPos) {
 				continue
 			}
 			// Tile is available if: unblocked, or occupied by the requesting character
-			occupant := m.characterByPos[Pos{ax, ay}]
+			occupant := m.characterByPos[adjPos]
 			if occupant == nil || occupant == requestingChar {
 				// Also check for impassable features at adjacent tile
-				if adjFeature := m.FeatureAt(ax, ay); adjFeature != nil && !adjFeature.IsPassable() {
+				if adjFeature := m.FeatureAt(adjPos); adjFeature != nil && !adjFeature.IsPassable() {
 					continue
 				}
 				hasAvailableTile = true
@@ -282,7 +271,7 @@ func (m *Map) FindNearestDrinkSource(x, y int) *entity.Feature {
 			continue
 		}
 
-		dist := abs(x-fpos.X) + abs(y-fpos.Y)
+		dist := pos.DistanceTo(fpos)
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = f
@@ -292,11 +281,11 @@ func (m *Map) FindNearestDrinkSource(x, y int) *entity.Feature {
 }
 
 // FindNearestBed finds the nearest unoccupied bed to the given position
-// Excludes beds occupied by other characters (the requesting character at x,y is allowed)
-func (m *Map) FindNearestBed(x, y int) *entity.Feature {
+// Excludes beds occupied by other characters (the requesting character at pos is allowed)
+func (m *Map) FindNearestBed(pos types.Position) *entity.Feature {
 	var nearest *entity.Feature
 	nearestDist := int(^uint(0) >> 1)
-	requestingChar := m.characterByPos[Pos{x, y}]
+	requestingChar := m.characterByPos[pos]
 
 	for _, f := range m.features {
 		if !f.IsBed() {
@@ -305,25 +294,18 @@ func (m *Map) FindNearestBed(x, y int) *entity.Feature {
 		fpos := f.Pos()
 
 		// Skip beds occupied by another character
-		occupant := m.characterByPos[Pos{fpos.X, fpos.Y}]
+		occupant := m.characterByPos[fpos]
 		if occupant != nil && occupant != requestingChar {
 			continue
 		}
 
-		dist := abs(x-fpos.X) + abs(y-fpos.Y)
+		dist := pos.DistanceTo(fpos)
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = f
 		}
 	}
 	return nearest
-}
-
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
 }
 
 // Varieties returns the variety registry for this map

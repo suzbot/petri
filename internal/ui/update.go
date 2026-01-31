@@ -354,7 +354,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		case "home":
 			// Jump to oldest
-			if e := m.gameMap.EntityAt(m.cursorX, m.cursorY); e != nil {
+			if e := m.gameMap.EntityAt(types.Position{X: m.cursorX, Y: m.cursorY}); e != nil {
 				if char, ok := e.(*entity.Character); ok {
 					m.logScrollOffset = m.actionLog.EventCount(char.ID) - 1
 					if m.logScrollOffset < 0 {
@@ -540,7 +540,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 					char.ActionProgress += delta
 					if char.ActionProgress >= config.ActionDuration {
 						char.ActionProgress = 0
-						if item := m.gameMap.ItemAt(cx, cy); item == targetItem {
+						if item := m.gameMap.ItemAt(types.Position{X: cx, Y: cy}); item == targetItem {
 							if isVesselWithFood {
 								// Eat from vessel contents (vessel stays on map)
 								system.ConsumeFromVessel(char, item, m.actionLog)
@@ -577,7 +577,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		triedPositions[[2]int{tx, ty}] = true
 
 		for attempts := 0; attempts < 5 && !moved; attempts++ {
-			if m.gameMap.MoveCharacter(char, tx, ty) {
+			if m.gameMap.MoveCharacter(char, types.Position{X: tx, Y: ty}) {
 				moved = true
 				break
 			}
@@ -693,7 +693,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			char.ActionProgress += delta
 			if char.ActionProgress >= config.ActionDuration {
 				char.ActionProgress = 0
-				if item := m.gameMap.ItemAt(cx, cy); item == char.Intent.TargetItem {
+				if item := m.gameMap.ItemAt(types.Position{X: cx, Y: cy}); item == char.Intent.TargetItem {
 					// If on an order and inventory full, drop current item first
 					// BUT don't drop if carrying a vessel with space (can add to it)
 					// (If carrying a recipe input, we'd have ActionCraft intent instead)
@@ -772,7 +772,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 
 		// Move toward target item
 		tx, ty := char.Intent.Target.X, char.Intent.Target.Y
-		if m.gameMap.MoveCharacter(char, tx, ty) {
+		if m.gameMap.MoveCharacter(char, types.Position{X: tx, Y: ty}) {
 			// Successfully moved - update intent for next step
 			newPos := char.Pos()
 			if newPos.X != ipos.X || newPos.Y != ipos.Y {
@@ -847,14 +847,14 @@ func (m *Model) moveCursor(dx, dy int) {
 	m.logScrollOffset = 0
 	nx := m.cursorX + dx
 	ny := m.cursorY + dy
-	if m.gameMap.IsValid(nx, ny) {
+	if m.gameMap.IsValid(types.Position{X: nx, Y: ny}) {
 		m.cursorX, m.cursorY = nx, ny
 	}
 }
 
 // toggleFollow toggles following the character at cursor
 func (m *Model) toggleFollow() {
-	if e := m.gameMap.EntityAt(m.cursorX, m.cursorY); e != nil {
+	if e := m.gameMap.EntityAt(types.Position{X: m.cursorX, Y: m.cursorY}); e != nil {
 		if char, ok := e.(*entity.Character); ok {
 			if m.following == char {
 				m.following = nil
@@ -1058,10 +1058,11 @@ func (m *Model) findAlternateStep(char *entity.Character, cx, cy int, triedPosit
 		if triedPositions[key] {
 			continue
 		}
-		if !m.gameMap.IsValid(x, y) {
+		candidatePos := types.Position{X: x, Y: y}
+		if !m.gameMap.IsValid(candidatePos) {
 			continue
 		}
-		if m.gameMap.IsBlocked(x, y) {
+		if m.gameMap.IsBlocked(candidatePos) {
 			continue
 		}
 		return pos

@@ -38,7 +38,7 @@ func assertCharacterMapConsistency(t *testing.T, world *TestWorld) {
 
 	for _, char := range chars {
 		pos := char.Pos()
-		found := world.GameMap.CharacterAt(pos.X, pos.Y)
+		found := world.GameMap.CharacterAt(pos)
 		if found != char {
 			if found == nil {
 				t.Errorf("CharacterAt(%d, %d) returned nil, expected character %d",

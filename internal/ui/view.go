@@ -491,7 +491,7 @@ func (m Model) viewGame() string {
 		var charInfo []string
 		for _, c := range m.gameMap.Characters() {
 			pos := c.Pos()
-			found := m.gameMap.CharacterAt(pos.X, pos.Y)
+			found := m.gameMap.CharacterAt(pos)
 			marker := "✓"
 			if found != c {
 				marker = "✗"
@@ -507,16 +507,17 @@ func (m Model) viewGame() string {
 // renderCell renders a single map cell
 func (m Model) renderCell(x, y int) string {
 	isCursor := x == m.cursorX && y == m.cursorY
+	pos := types.Position{X: x, Y: y}
 
 	var sym string
 
 	// Check for character first (takes visual precedence)
-	if char := m.gameMap.CharacterAt(x, y); char != nil {
+	if char := m.gameMap.CharacterAt(pos); char != nil {
 		sym = m.styledSymbol(char)
-	} else if item := m.gameMap.ItemAt(x, y); item != nil {
+	} else if item := m.gameMap.ItemAt(pos); item != nil {
 		// Check for item
 		sym = m.styledSymbol(item)
-	} else if feature := m.gameMap.FeatureAt(x, y); feature != nil {
+	} else if feature := m.gameMap.FeatureAt(pos); feature != nil {
 		// Check for feature
 		sym = m.styledSymbol(feature)
 	} else {
@@ -622,9 +623,10 @@ func (m Model) renderDetails() string {
 	lines = append(lines, titleStyle.Render("       DETAILS"), "")
 
 	// Check for character first, then item, then feature
-	e := m.gameMap.EntityAt(m.cursorX, m.cursorY)
-	item := m.gameMap.ItemAt(m.cursorX, m.cursorY)
-	feature := m.gameMap.FeatureAt(m.cursorX, m.cursorY)
+	cursorPos := types.Position{X: m.cursorX, Y: m.cursorY}
+	e := m.gameMap.EntityAt(cursorPos)
+	item := m.gameMap.ItemAt(cursorPos)
+	feature := m.gameMap.FeatureAt(cursorPos)
 
 	if e == nil && item == nil && feature == nil {
 		lines = append(lines, " Type: Empty")
@@ -815,7 +817,7 @@ func (m Model) renderActionLog() string {
 	var lines []string
 	lines = append(lines, titleStyle.Render("       ACTION LOG"), "")
 
-	e := m.gameMap.EntityAt(m.cursorX, m.cursorY)
+	e := m.gameMap.EntityAt(types.Position{X: m.cursorX, Y: m.cursorY})
 	char, isChar := e.(*entity.Character)
 
 	if !isChar {
@@ -1041,7 +1043,7 @@ func (m Model) renderKnowledgePanel() string {
 	lines = append(lines, titleStyle.Render("       KNOWLEDGE"), "")
 
 	// Get character at cursor
-	if e := m.gameMap.EntityAt(m.cursorX, m.cursorY); e != nil {
+	if e := m.gameMap.EntityAt(types.Position{X: m.cursorX, Y: m.cursorY}); e != nil {
 		if char, ok := e.(*entity.Character); ok {
 			hasKnowHow := len(char.KnownActivities) > 0
 			hasFacts := len(char.Knowledge) > 0
@@ -1108,7 +1110,7 @@ func (m Model) renderInventoryPanel() string {
 	lines = append(lines, titleStyle.Render("       INVENTORY"), "")
 
 	// Get character at cursor
-	if e := m.gameMap.EntityAt(m.cursorX, m.cursorY); e != nil {
+	if e := m.gameMap.EntityAt(types.Position{X: m.cursorX, Y: m.cursorY}); e != nil {
 		if char, ok := e.(*entity.Character); ok {
 			if char.Carrying != nil {
 				lines = append(lines, " Carrying: "+char.Carrying.Description())

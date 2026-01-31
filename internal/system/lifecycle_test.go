@@ -91,7 +91,7 @@ func TestFindEmptyAdjacent_RespectsMapBounds(t *testing.T) {
 	}
 
 	// Check position is within bounds
-	if !gameMap.IsValid(x, y) {
+	if !gameMap.IsValid(types.Position{X: x, Y: y}) {
 		t.Errorf("Position (%d, %d) is outside map bounds", x, y)
 	}
 }

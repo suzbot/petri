@@ -489,7 +489,7 @@ func TestFindHarvestIntent_DropsIncompatibleVessel(t *testing.T) {
 	}
 
 	// Vessel should be on the map at character's position
-	droppedVessel := gameMap.ItemAt(5, 5)
+	droppedVessel := gameMap.ItemAt(types.Position{X: 5, Y: 5})
 	if droppedVessel == nil || droppedVessel.Container == nil {
 		t.Error("Dropped vessel should be on map at character position")
 	}
@@ -1009,7 +1009,7 @@ func TestDrop_RemovesFromInventoryAndPlacesOnMap(t *testing.T) {
 	}
 
 	// Item should be on map at character's position
-	droppedItem := gameMap.ItemAt(5, 5)
+	droppedItem := gameMap.ItemAt(types.Position{X: 5, Y: 5})
 	if droppedItem != berry {
 		t.Error("Expected dropped item at character position")
 	}

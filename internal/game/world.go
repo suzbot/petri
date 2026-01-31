@@ -5,6 +5,7 @@ import (
 
 	"petri/internal/config"
 	"petri/internal/entity"
+	"petri/internal/types"
 )
 
 // SpawnItems populates the map with random items using the variety system
@@ -106,7 +107,7 @@ func findEmptySpot(m *Map) (int, int) {
 	for {
 		x := rand.Intn(m.Width)
 		y := rand.Intn(m.Height)
-		if !m.IsOccupied(x, y) {
+		if !m.IsOccupied(types.Position{X: x, Y: y}) {
 			return x, y
 		}
 	}

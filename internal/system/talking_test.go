@@ -853,7 +853,7 @@ func TestCalculateIntent_ContinuesApproachingTalkTarget(t *testing.T) {
 
 		// Simulate alice actually moving (like applyIntent would do)
 		if intent.Action == entity.ActionMove && (intent.Target.X != cx || intent.Target.Y != cy) {
-			gameMap.MoveCharacter(alice, intent.Target.X, intent.Target.Y)
+			gameMap.MoveCharacter(alice, intent.Target)
 		}
 	}
 
@@ -892,7 +892,7 @@ func TestCalculateIntent_ApproachingTalkTargetReachesAndTalks(t *testing.T) {
 
 	// Simulate alice moving to (5, 5) - now adjacent to Bob at (6, 5)
 	alice.Intent = intent1
-	gameMap.MoveCharacter(alice, 5, 5)
+	gameMap.MoveCharacter(alice, types.Position{X: 5, Y: 5})
 
 	// Second tick - should switch to ActionTalk since now adjacent
 	intent2 := CalculateIntent(alice, items, gameMap, nil, nil)
