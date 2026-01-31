@@ -3,8 +3,11 @@ package ui
 import (
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"petri/internal/entity"
 	"petri/internal/game"
+	"petri/internal/save"
 	"petri/internal/system"
 	"petri/internal/types"
 )
@@ -485,5 +488,56 @@ func TestApplyIntent_HarvestOrderWithoutVessel_CompletesAfterOneItem(t *testing.
 	// Assert: order should be completed (inventory full after one item)
 	if char.AssignedOrderID != 0 {
 		t.Error("Character should have no assigned order after inventory full")
+	}
+}
+
+// =============================================================================
+// World State Reset Tests
+// =============================================================================
+
+func TestReturnToWorldSelect_ClearsWorldState(t *testing.T) {
+	// Setup: use temp directory for saves
+	tempDir := t.TempDir()
+	save.SetBaseDir(tempDir)
+	defer save.ResetBaseDir()
+
+	// Create a model in playing state with world data
+	m := Model{
+		phase:           phasePlaying,
+		worldID:         "test-world-123",
+		actionLog:       system.NewActionLog(100),
+		elapsedGameTime: 500.0,
+		orders:          []*entity.Order{{ID: 1}},
+		nextOrderID:     5,
+		gameMap:         game.NewMap(20, 20),
+	}
+
+	// Add some log entries
+	m.actionLog.Add(1, "TestChar", "test", "Some log entry")
+
+	// Act: simulate pressing ESC to return to world select
+	// We can't fully simulate the key press without more infrastructure,
+	// but we can call handleKey directly
+	newModel, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
+	m2 := newModel.(Model)
+
+	// Assert: world state should be cleared
+	if m2.worldID != "" {
+		t.Errorf("Expected worldID to be cleared, got '%s'", m2.worldID)
+	}
+	if m2.elapsedGameTime != 0 {
+		t.Errorf("Expected elapsedGameTime to be 0, got %f", m2.elapsedGameTime)
+	}
+	if len(m2.orders) != 0 {
+		t.Errorf("Expected orders to be cleared, got %d orders", len(m2.orders))
+	}
+	if m2.nextOrderID != 1 {
+		t.Errorf("Expected nextOrderID to be 1, got %d", m2.nextOrderID)
+	}
+	if m2.actionLog.AllEventCount() != 0 {
+		t.Errorf("Expected actionLog to be cleared, got %d events", m2.actionLog.AllEventCount())
+	}
+	if m2.phase != phaseWorldSelect {
+		t.Errorf("Expected phase to be phaseWorldSelect, got %d", m2.phase)
 	}
 }

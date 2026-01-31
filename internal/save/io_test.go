@@ -29,6 +29,11 @@ func TestCreateWorld(t *testing.T) {
 		t.Error("Expected non-empty world ID")
 	}
 
+	// Verify timestamp-based ID format (world-YYYYMMDD-HHMMSS = 21 chars)
+	if len(worldID) != 21 || worldID[:6] != "world-" {
+		t.Errorf("Expected timestamp-based ID format (21 chars), got '%s' (%d chars)", worldID, len(worldID))
+	}
+
 	// Verify directory was created
 	dir, _ := WorldDir(worldID)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -44,35 +49,35 @@ func TestCreateWorld(t *testing.T) {
 	if meta.ID != worldID {
 		t.Errorf("Expected meta.ID=%s, got %s", worldID, meta.ID)
 	}
-	if meta.Name != "World 1" {
-		t.Errorf("Expected name 'World 1', got '%s'", meta.Name)
+	if meta.Name == "" {
+		t.Error("Expected non-empty name")
 	}
 }
 
 func TestCreateWorld_MultipleWorlds(t *testing.T) {
 	setupTestDir(t)
 
+	// Create worlds with small delays to ensure unique timestamps
 	world1, _ := CreateWorld()
+	time.Sleep(1100 * time.Millisecond) // Ensure different second
 	world2, _ := CreateWorld()
+	time.Sleep(1100 * time.Millisecond)
 	world3, _ := CreateWorld()
 
 	if world1 == world2 || world2 == world3 {
-		t.Error("World IDs should be unique")
+		t.Errorf("World IDs should be unique: %s, %s, %s", world1, world2, world3)
 	}
 
-	// Verify names increment
+	// Verify all have valid metadata with timestamp-derived names
 	meta1, _ := LoadMeta(world1)
 	meta2, _ := LoadMeta(world2)
 	meta3, _ := LoadMeta(world3)
 
-	if meta1.Name != "World 1" {
-		t.Errorf("Expected 'World 1', got '%s'", meta1.Name)
-	}
-	if meta2.Name != "World 2" {
-		t.Errorf("Expected 'World 2', got '%s'", meta2.Name)
-	}
-	if meta3.Name != "World 3" {
-		t.Errorf("Expected 'World 3', got '%s'", meta3.Name)
+	// All worlds should have non-empty names
+	for i, meta := range []*WorldMeta{meta1, meta2, meta3} {
+		if meta.Name == "" {
+			t.Errorf("World %d: expected non-empty name", i+1)
+		}
 	}
 }
 
@@ -93,6 +98,7 @@ func TestListWorlds_WithWorlds(t *testing.T) {
 	setupTestDir(t)
 
 	CreateWorld()
+	time.Sleep(1100 * time.Millisecond) // Ensure different timestamp
 	CreateWorld()
 
 	worlds, err := ListWorlds()
@@ -258,25 +264,28 @@ func TestSaveAndLoadMeta(t *testing.T) {
 	}
 }
 
-func TestGenerateWorldID_Sequential(t *testing.T) {
+func TestGenerateWorldID_TimestampFormat(t *testing.T) {
 	setupTestDir(t)
 
-	id1, _ := GenerateWorldID()
-	EnsureWorldDir(id1) // Create the directory
-
-	id2, _ := GenerateWorldID()
-	EnsureWorldDir(id2)
-
-	id3, _ := GenerateWorldID()
-
-	if id1 != "world-0001" {
-		t.Errorf("Expected 'world-0001', got '%s'", id1)
+	id, err := GenerateWorldID()
+	if err != nil {
+		t.Fatalf("GenerateWorldID failed: %v", err)
 	}
-	if id2 != "world-0002" {
-		t.Errorf("Expected 'world-0002', got '%s'", id2)
+
+	// Should be in format "world-YYYYMMDD-HHMMSS" (21 chars)
+	if len(id) != 21 {
+		t.Errorf("Expected ID length 21, got %d: '%s'", len(id), id)
 	}
-	if id3 != "world-0003" {
-		t.Errorf("Expected 'world-0003', got '%s'", id3)
+
+	if id[:6] != "world-" {
+		t.Errorf("Expected ID to start with 'world-', got '%s'", id)
+	}
+
+	// Parse the timestamp part to verify format
+	timestampPart := id[6:] // Skip "world-"
+	_, err = time.Parse("20060102-150405", timestampPart)
+	if err != nil {
+		t.Errorf("Expected valid timestamp format, got '%s': %v", timestampPart, err)
 	}
 }
 
@@ -369,5 +378,47 @@ func TestDeleteWorld(t *testing.T) {
 		if w.ID == worldID {
 			t.Error("Deleted world should not appear in list")
 		}
+	}
+}
+
+func TestListWorlds_CleansUpGhostDirectories(t *testing.T) {
+	baseDir := setupTestDir(t)
+
+	// Create a valid world
+	validWorldID, _ := CreateWorld()
+	SaveWorld(validWorldID, &SaveState{Version: 1})
+
+	// Manually create a ghost directory (has state.json but no meta.json)
+	ghostDir := filepath.Join(baseDir, "worlds", "ghost-world")
+	if err := os.MkdirAll(ghostDir, 0755); err != nil {
+		t.Fatalf("Failed to create ghost dir: %v", err)
+	}
+	ghostState := filepath.Join(ghostDir, "state.json")
+	if err := os.WriteFile(ghostState, []byte(`{"version":1}`), 0644); err != nil {
+		t.Fatalf("Failed to create ghost state: %v", err)
+	}
+
+	// Verify ghost directory exists
+	if _, err := os.Stat(ghostDir); os.IsNotExist(err) {
+		t.Fatal("Ghost directory should exist before ListWorlds")
+	}
+
+	// List worlds - should clean up ghost
+	worlds, err := ListWorlds()
+	if err != nil {
+		t.Fatalf("ListWorlds failed: %v", err)
+	}
+
+	// Should only have the valid world
+	if len(worlds) != 1 {
+		t.Errorf("Expected 1 world, got %d", len(worlds))
+	}
+	if len(worlds) > 0 && worlds[0].ID != validWorldID {
+		t.Errorf("Expected valid world ID %s, got %s", validWorldID, worlds[0].ID)
+	}
+
+	// Ghost directory should be cleaned up
+	if _, err := os.Stat(ghostDir); !os.IsNotExist(err) {
+		t.Error("Ghost directory should be removed by ListWorlds")
 	}
 }

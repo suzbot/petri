@@ -11,8 +11,7 @@ then they can be removed from this list.
 
 ## Issues To resolve
 
-1. **World deletion log merge**: When deleting a world and creating a new one, old world logs may merge with newly generated world. Needs reproduction and investigation.
-2. **Game Mechanics**: they are little disorganized, inconsistent about what level of detail it share, not in the most intuitive order.
+1. **Game Mechanics**: they are little disorganized, inconsistent about what level of detail it share, not in the most intuitive order.
    a. Make it a markdown file with headers
    b. Reorganize, clean up, summarize where makes sense,
    c. Put table of contents at top

@@ -216,6 +216,7 @@ func LoadMeta(worldID string) (*WorldMeta, error) {
 }
 
 // ListWorlds returns metadata for all saved worlds
+// Also cleans up ghost directories (directories without valid meta.json)
 func ListWorlds() ([]WorldMeta, error) {
 	baseDir, err := BaseDir()
 	if err != nil {
@@ -242,7 +243,14 @@ func ListWorlds() ([]WorldMeta, error) {
 
 		meta, err := LoadMeta(entry.Name())
 		if err != nil {
-			// Skip worlds with missing/corrupt metadata
+			// Ghost directory: has no valid metadata
+			// Clean it up to prevent ID conflicts and orphaned data
+			ghostDir := filepath.Join(worldsDir, entry.Name())
+			if removeErr := os.RemoveAll(ghostDir); removeErr != nil {
+				LogWarning("Failed to clean up ghost world directory %s: %v", entry.Name(), removeErr)
+			} else {
+				LogWarning("Cleaned up ghost world directory: %s", entry.Name())
+			}
 			continue
 		}
 
@@ -266,34 +274,19 @@ func DeleteWorld(worldID string) error {
 	return nil
 }
 
-// GenerateWorldID creates a new unique world ID
+// GenerateWorldID creates a new unique world ID using timestamp
 func GenerateWorldID() (string, error) {
-	baseDir, err := BaseDir()
-	if err != nil {
-		return "", err
-	}
-
-	worldsDir := filepath.Join(baseDir, "worlds")
-
-	// Find next available ID
-	for i := 1; i <= 9999; i++ {
-		id := fmt.Sprintf("world-%04d", i)
-		dir := filepath.Join(worldsDir, id)
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			return id, nil
-		}
-	}
-
-	return "", fmt.Errorf("too many worlds")
+	// Use timestamp-based ID to prevent reuse of deleted world IDs
+	// Format: world-YYYYMMDD-HHMMSS
+	id := fmt.Sprintf("world-%s", time.Now().Format("20060102-150405"))
+	return id, nil
 }
 
-// GenerateWorldName creates a display name for a new world
-func GenerateWorldName() (string, error) {
-	worlds, err := ListWorlds()
-	if err != nil {
-		return "World 1", nil
-	}
-	return fmt.Sprintf("World %d", len(worlds)+1), nil
+// GenerateWorldName creates a display name for a new world based on its ID
+// Currently just uses the directory name directly for easier troubleshooting
+// This is extensible for future user-chosen names at world creation
+func GenerateWorldName(worldID string) string {
+	return worldID
 }
 
 // CreateWorld creates a new world with initial metadata and returns its ID
@@ -303,10 +296,7 @@ func CreateWorld() (string, error) {
 		return "", fmt.Errorf("could not generate world ID: %w", err)
 	}
 
-	worldName, err := GenerateWorldName()
-	if err != nil {
-		return "", fmt.Errorf("could not generate world name: %w", err)
-	}
+	worldName := GenerateWorldName(worldID)
 
 	_, err = EnsureWorldDir(worldID)
 	if err != nil {

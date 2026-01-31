@@ -119,6 +119,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.showInventoryPanel = false
 			m.showOrdersPanel = false
 			m.logScrollOffset = 0
+			// Clear world state so new worlds get fresh IDs and logs
+			m.worldID = ""
+			m.actionLog = system.NewActionLog(200)
+			m.elapsedGameTime = 0
+			m.orders = nil
+			m.nextOrderID = 1
 			return m, tea.Batch(tea.ClearScreen, tea.WindowSize())
 		case " ":
 			m.paused = !m.paused
@@ -1084,7 +1090,9 @@ func (m Model) handleWorldSelectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Confirm delete
 			if m.confirmingDelete < len(m.worlds) {
 				worldID := m.worlds[m.confirmingDelete].ID
-				save.DeleteWorld(worldID)
+				if err := save.DeleteWorld(worldID); err != nil {
+					save.LogWarning("Failed to delete world %s: %v", worldID, err)
+				}
 				// Refresh world list
 				m.worlds, _ = save.ListWorlds()
 				// Adjust selection if needed
