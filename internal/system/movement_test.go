@@ -274,7 +274,7 @@ func TestFindFoodTarget_CrisisPicksNearest(t *testing.T) {
 
 	items := []*entity.Item{farRedBerry, nearMushroom}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	if result.Item != nearMushroom {
 		t.Error("Crisis should pick nearest regardless of preference")
@@ -298,7 +298,7 @@ func TestFindFoodTarget_SevereUsesGradientScoring(t *testing.T) {
 
 	items := []*entity.Item{redBerry, brownMushroom}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	if result.Item != brownMushroom {
 		t.Errorf("Severe should use gradient - expected closer neutral item, got %v", result.Item)
@@ -316,7 +316,7 @@ func TestFindFoodTarget_SevereConsidersDislikedItems(t *testing.T) {
 	// Only disliked food available
 	items := []*entity.Item{entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	if result.Item == nil {
 		t.Error("Severe should consider disliked items when nothing else available")
@@ -340,7 +340,7 @@ func TestFindFoodTarget_SeverePrefersLikedOverDisliked(t *testing.T) {
 
 	items := []*entity.Item{brownMushroom, blueBerry}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	if result.Item != blueBerry {
 		t.Error("Severe should prefer liked over disliked at same distance")
@@ -364,7 +364,7 @@ func TestFindFoodTarget_ModerateUsesGradientScoring(t *testing.T) {
 
 	items := []*entity.Item{blueBerry, redBerry}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	if result.Item != redBerry {
 		t.Errorf("Moderate should use gradient - expected higher preference item, got %v", result.Item)
@@ -382,7 +382,7 @@ func TestFindFoodTarget_ModerateFiltersDislikedItems(t *testing.T) {
 	// Only disliked food available
 	items := []*entity.Item{entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	if result.Item != nil {
 		t.Error("Moderate should filter out disliked items (return nil)")
@@ -400,7 +400,7 @@ func TestFindFoodTarget_ModerateTakesNeutralItems(t *testing.T) {
 
 	items := []*entity.Item{brownMushroom}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	if result.Item != brownMushroom {
 		t.Error("Moderate should accept neutral items (NetPref >= 0)")
@@ -422,7 +422,7 @@ func TestFindFoodTarget_ModeratePrefersLikedOverNeutral(t *testing.T) {
 
 	items := []*entity.Item{brownMushroom, blueBerry}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	if result.Item != blueBerry {
 		t.Error("Moderate should prefer liked over neutral at same distance")
@@ -443,7 +443,7 @@ func TestFindFoodTarget_DistanceTiebreaker(t *testing.T) {
 
 	items := []*entity.Item{farRedBerry, nearRedBerry}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	if result.Item != nearRedBerry {
 		t.Error("Should prefer closer item when preference is equal")
@@ -460,7 +460,7 @@ func TestFindFoodTarget_ReturnsNilForNoEdibleItems(t *testing.T) {
 	// Only non-edible items (flowers)
 	items := []*entity.Item{entity.NewFlower(5, 5, types.ColorRed)}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	if result.Item != nil {
 		t.Error("Should return nil when no edible items exist")
@@ -480,7 +480,7 @@ func TestFindFoodTarget_VesselNotEdible(t *testing.T) {
 
 	items := []*entity.Item{vessel}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	if result.Item != nil {
 		t.Error("Vessel should not be edible - got a food target when none expected")
@@ -526,7 +526,7 @@ func TestFindFoodTarget_HealingBonus_OnlyWhenKnown(t *testing.T) {
 
 	items := []*entity.Item{healingBerry, regularBerry}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	// Without knowledge, healing item shouldn't get bonus
 	// regularBerry is at distance 5, healingBerry is at distance 10
@@ -557,7 +557,7 @@ func TestFindFoodTarget_HealingBonus_OnlyWhenHurt(t *testing.T) {
 
 	items := []*entity.Item{healingBerry, regularBerry}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	// At full health, no bonus - closer item wins
 	if result.Item != regularBerry {
@@ -611,7 +611,7 @@ func TestFindFoodTarget_HealingBonus_PrefersKnownHealingWhenHurt(t *testing.T) {
 
 	items := []*entity.Item{redBerry, blueBerry}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	if result.Item != blueBerry {
 		t.Errorf("When hurt and has knowledge, should prefer known healing item, got %v", result.Item.Description())
@@ -646,7 +646,7 @@ func TestFindFoodTarget_HealingBonus_ScalesWithHealthTier(t *testing.T) {
 
 	items := []*entity.Item{redBerry, blueBerry}
 
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 
 	if result.Item != blueBerry {
 		t.Errorf("At Crisis health, larger healing bonus should win, got %v", result.Item.Description())

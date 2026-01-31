@@ -488,6 +488,6 @@ After each of the below items, Update README, Game Mechanics, claude.md, and arc
 
 - [x] **Evaluate pickup code unification** - Evaluated: duplication exists (~30 lines vessel-seeking pattern) plus mixed concerns (foraging.go has generic pickup functions, update.go has order-specific completion logic). Refactor deferred until adding another pickup-based order/activity. Detailed guidance added to triggered-enhancements.md.
 
-### Clean-up 4: Balance Tuning
+### Clean-up 4: Balance Tuning ✓
 
-- [ ] **Time config reset:** Adjust so "world day" = 2 game minutes (0.5 game seconds = ~6 "world minutes")
+- [x] **Time config reset:** Adjusted all durations to use consistent world time scale (1 game second = 12 world minutes, 1 world day = 2 game minutes). Rebalanced hunger (6 days to starve), thirst (3 days to dehydrate), action durations, and item lifecycle intervals. Fixed critical bug where `ActionConsume` wasn't handled in simulation tests (characters couldn't eat from inventory). Extended observation tests to 20-25 world days with world-day labels.

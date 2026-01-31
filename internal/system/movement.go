@@ -449,7 +449,7 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 // findFoodIntent finds food based on hunger priority
 // Uses unified scoring for both carried and map items (carried items have distance=0)
 func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, tier int, log *ActionLog) *entity.Intent {
-	result := findFoodTarget(char, items)
+	result := FindFoodTarget(char, items)
 	if result.Item == nil {
 		if char.CurrentActivity != "Idle" {
 			char.CurrentActivity = "Idle"
@@ -634,7 +634,7 @@ type FoodTargetResult struct {
 	GradientScore float64
 }
 
-// findFoodTarget finds the best food for a character based on hunger level
+// FindFoodTarget finds the best food for a character based on hunger level
 // Uses gradient scoring: Score = (NetPreference × PrefWeight) - (Distance × DistWeight) + HealingBonus
 // Considers both carried items (distance=0) and map items using the same scoring.
 // Hunger tier affects both the preference weight and which items are considered:
@@ -643,7 +643,7 @@ type FoodTargetResult struct {
 // - Crisis (90+): No pref weight (just distance), all items considered
 // Healing bonus: When health tier >= Moderate and character knows item is healing,
 // adds bonus to score (larger bonus at worse health tiers)
-func findFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResult {
+func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResult {
 	cx, cy := char.Position()
 
 	// Determine hunger tier and corresponding weights/filters
@@ -827,7 +827,7 @@ func canFulfillThirst(gameMap *game.Map, cx, cy int) bool {
 
 // canFulfillHunger checks if hunger can be addressed (suitable food exists)
 func canFulfillHunger(char *entity.Character, items []*entity.Item) bool {
-	return findFoodTarget(char, items).Item != nil
+	return FindFoodTarget(char, items).Item != nil
 }
 
 // canFulfillEnergy checks if energy can be addressed (bed exists or exhausted enough for ground sleep)

@@ -2,6 +2,20 @@
 
 Detailed game mechanics. For exact values, see `internal/config/config.go`.
 
+## World Time
+
+The simulation uses a compressed time scale where game time passes faster than "world time" (the narrative time experienced by characters). This allows observing multi-day events in minutes of real time.
+
+**Time scale:** 1 game second ≈ 12 world minutes, meaning 1 world day = 2 game minutes.
+
+All durations in the game are tuned to feel narratively appropriate at this scale:
+- **Actions** (eating, drinking, looking): Minutes to under an hour of world time
+- **Need cycles** (hunger, thirst): Multiple world days to reach critical levels
+- **Item lifecycles** (spawning, flower death): Days of world time between events
+- **Sleep**: Several world hours to fully rest
+
+The time scale is documented in config comments and used consistently across all duration-based mechanics.
+
 ## Stat Thresholds
 
 Stats have four severity tiers: Mild, Moderate, Severe, Crisis. Thresholds defined in `internal/entity/character.go`.

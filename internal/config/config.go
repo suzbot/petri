@@ -35,9 +35,10 @@ const (
 	ExhaustedSpeedPenalty  = 10 // energy <= 10 (additional)
 
 	// Survival mechanics
-	PoisonDuration          = 20.0 // seconds
-	HungerIncreaseRate      = 0.5  // per second (slower than thirst)
-	ThirstIncreaseRate      = 0.85 // per second (slightly faster than hunger)
+	// Time scale: 1 game second = 12 world minutes, 1 world day = 120 game seconds
+	PoisonDuration          = 20.0 // seconds (~4 world hours)
+	HungerIncreaseRate      = 0.14 // per second (starving in ~6 world days)
+	ThirstIncreaseRate      = 0.28 // per second (dehydrated in ~3 world days)
 	EnergyDecreaseRate      = 0.5  // per second (base rate)
 	EnergyMovementDrain     = 0.2  // additional per movement tick
 	StarvationDamageRate    = 0.5  // health per second
@@ -45,15 +46,16 @@ const (
 	PoisonDamageRate        = 0.33 // health per second
 	FoodHungerReduction     = 20.0 // hunger reduced per food
 	DrinkThirstReduction    = 20.0 // thirst reduced per drink
-	BedEnergyRestoreRate    = 5.0  // energy per second in bed
-	GroundEnergyRestoreRate = 2.0  // energy per second on ground
-	SatisfactionCooldown    = 5.0  // seconds before stat starts changing after reaching optimal
-	ActionDuration          = 1.5  // seconds for consume/drink/sleep actions to complete
+	BedEnergyRestoreRate    = 2.86 // energy per second in bed (~7 world hours to full)
+	GroundEnergyRestoreRate = 1.67 // energy per second on ground (~12 world hours to full)
+	SatisfactionCooldown    = 5.0  // seconds (~1 world hour) before stat starts changing after reaching optimal
+	// TODO: Consider Short/Medium/Long action duration tiers as more actions are added
+	ActionDuration = 0.83 // seconds (~10 world minutes) for consume/drink/sleep actions
 
 	// Idle activities (looking, talking)
-	IdleCooldown = 10.0 // seconds between idle activity attempts
-	LookDuration = 3.0  // seconds to complete looking at an item
-	TalkDuration = 5.0  // seconds to complete a conversation
+	IdleCooldown = 5.0 // seconds (~1 world hour) between idle activity attempts
+	LookDuration = 4.0 // seconds (~48 world minutes) to complete looking at an item
+	TalkDuration = 5.0 // seconds (~1 world hour) to complete a conversation
 
 	// Frustration mechanics
 	FrustrationThreshold = 3   // consecutive failed intents before frustrated
@@ -123,11 +125,15 @@ type LifecycleConfig struct {
 }
 
 // ItemLifecycle maps item types to their lifecycle configuration
+// Time scale: 1 game second = 12 world minutes, 1 world day = 120 game seconds
+// NOTE: These values are multiplied by initialItemCount in lifecycle.go to spread
+// spawn attempts across all plants. To get target world-time intervals, divide by
+// expected item count (typically 20). E.g., 18 * 20 = 360s = 3 world days.
 var ItemLifecycle = map[string]LifecycleConfig{
-	"berry":    {SpawnInterval: 3.0, DeathInterval: 0},   // immortal until eaten
-	"mushroom": {SpawnInterval: 3.0, DeathInterval: 0},   // immortal until eaten
-	"flower":   {SpawnInterval: 3.0, DeathInterval: 8.0}, // dies after ~6-10 min
-	"gourd":    {SpawnInterval: 3.0, DeathInterval: 0},   // immortal until eaten
+	"berry":    {SpawnInterval: 18.0, DeathInterval: 0},   // ~3 world days between spawns, immortal until eaten
+	"mushroom": {SpawnInterval: 18.0, DeathInterval: 0},   // ~3 world days between spawns, immortal until eaten
+	"flower":   {SpawnInterval: 18.0, DeathInterval: 48.0}, // ~3 world days between spawns, dies after ~8 world days
+	"gourd":    {SpawnInterval: 18.0, DeathInterval: 0},   // ~3 world days between spawns, immortal until eaten
 }
 
 // StackSize maps item types to how many fit in one stack (for vessel storage)

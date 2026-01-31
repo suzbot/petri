@@ -115,23 +115,21 @@ See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 **Completed:**
 
 - Phase 6 Features 1-6
+- Phase 6 Clean-ups 1-4
 
 **In Progress:**
 
-- 
+-
 
 **Up Next:**
 
-- Phase 6 Clean-up and close-out tasks
-- Evaluation of 'random ideas' and 'future enhancements' for any applicable quick wins
-- Full code and testing audit looking to 
-	- reduce duplicate code
-	- improve concern separation
-	- reduce touchpoint when adding new actions, orders, recipes and items
-	- ensure tests are functionally relevant and not flaky or brittle
-	- evaluate that existing patterns make sense to support future phases (see vision.txt, futureEnhancements.md and future enhancement brainstorming.txt)
-- Evaluation of docs/randomideas.txt and docs/triggered-enhancements against future phases to prioritize anything opportunistically within or before upcoming phase
-- Phase 7 planning
+- Blocked Spring Issue: Make spring impassable, drink from adjacent tile (pre-gardening)
+- Add "Fav" to character creation labels (Food → Fav Food, Color → Fav Color)
+- Show character speed in debug mode details view
+- Add `-characters=N` flag for character count control
+- Pre-Gardening extensibility audit (see [docs/pre-gardening-audit.md](docs/pre-gardening-audit.md))
+- Evaluation of docs/randomideas.md and docs/triggered-enhancements.md against future phases to prioritize anything opportunistically within or before upcoming phase
+- Simple Gardening planning (see [docs/Gardening-Reqs.txt](docs/Gardening-Reqs.txt))
 
 ## Reference and Planning Documents
 
@@ -140,5 +138,5 @@ See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 | [docs/VISION.txt](docs/VISION.txt)                     | Project vision and phases                     |
 | [docs/architecture.md](docs/architecture.md)           | Design patterns, data flow, item/memory model |
 | [docs/game-mechanics.md](docs/game-mechanics.md)       | Detailed stat thresholds, rates, systems      |
-| [docs/futureEnancements.md](docs/triggered-enhancements.md) | Deferred items with triggers, balance tuning  |
+| [docs/triggered-enhancements.md](docs/triggered-enhancements.md) | Deferred items with triggers, balance tuning  |
 | [docs/failed-approaches.md](docs/failed-approaches.md) | Approaches tried and abandoned                |

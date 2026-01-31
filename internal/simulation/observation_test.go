@@ -6,15 +6,16 @@ import (
 
 	"petri/internal/config"
 	"petri/internal/entity"
+	"petri/internal/system"
 )
 
 // TestObserveBalanceMetrics runs simulations and collects balance metrics
 func TestObserveBalanceMetrics(t *testing.T) {
 	const (
 		numRuns       = 5
-		ticksPerRun   = 2000 // ~5 minutes of game time at 0.15s/tick
-		sampleEvery   = 100  // sample metrics every N ticks
-		delta         = 0.15 // tick duration
+		ticksPerRun   = 16000 // ~2400 game-seconds (~20 world days) at 0.15s/tick
+		sampleEvery   = 1000  // sample metrics every N ticks
+		delta         = 0.15  // tick duration
 	)
 
 	fmt.Println("\n=== BALANCE OBSERVATION REPORT ===")
@@ -99,7 +100,7 @@ func TestObserveBalanceMetrics(t *testing.T) {
 // TestObserveFoodScarcity specifically watches food availability
 func TestObserveFoodScarcity(t *testing.T) {
 	const (
-		ticks = 3000
+		ticks = 16000 // ~2400 game-seconds (~20 world days)
 		delta = 0.15
 	)
 
@@ -115,8 +116,8 @@ func TestObserveFoodScarcity(t *testing.T) {
 	fmt.Printf("Spawn chance: %.0f%%, Interval base: %.1fs\n",
 		config.ItemSpawnChance*100, config.ItemLifecycle["berry"].SpawnInterval)
 
-	// Run simulation tracking consumption
-	checkpoints := []int{500, 1000, 1500, 2000, 2500, 3000}
+	// Run simulation tracking consumption - checkpoints every 5 world days
+	checkpoints := []int{4000, 8000, 12000, 16000} // 5, 10, 15, 20 world days
 	checkIdx := 0
 
 	for tick := 0; tick < ticks; tick++ {
@@ -134,14 +135,15 @@ func TestObserveFoodScarcity(t *testing.T) {
 		if checkIdx < len(checkpoints) && tick == checkpoints[checkIdx] {
 			edible, flowers := countItems(world)
 			aliveCount := countAliveChars(world)
-			fmt.Printf("Tick %d: %d edible, %d flowers, %d alive\n",
-				tick, edible, flowers, aliveCount)
+			worldDays := float64(tick) * delta / 120
+			fmt.Printf("Day %.0f (tick %d): %d edible, %d flowers, %d alive\n",
+				worldDays, tick, edible, flowers, aliveCount)
 			checkIdx++
 		}
 	}
 
 	edibleEnd, flowersEnd := countItems(world)
-	fmt.Printf("\nFinal: %d edible, %d flowers\n", edibleEnd, flowersEnd)
+	fmt.Printf("\nFinal (day 20): %d edible, %d flowers\n", edibleEnd, flowersEnd)
 	fmt.Printf("Approximate eat events: %d, spawn events: %d\n", eatEvents, spawnEvents)
 	fmt.Printf("Net item change: %+d\n", (edibleEnd+flowersEnd)-initialEdible)
 }
@@ -149,27 +151,49 @@ func TestObserveFoodScarcity(t *testing.T) {
 // TestObserveFlowerGrowth tracks flower population specifically
 func TestObserveFlowerGrowth(t *testing.T) {
 	const (
-		ticks = 4000
+		ticks = 16000 // ~2400 game-seconds (~20 world days)
 		delta = 0.15
 	)
 
 	fmt.Println("\n=== FLOWER GROWTH OBSERVATION ===")
+	fmt.Printf("Flower spawn interval: %.0fs, death interval: %.0fs\n",
+		config.ItemLifecycle["flower"].SpawnInterval,
+		config.ItemLifecycle["flower"].DeathInterval)
+	fmt.Printf("(Note: intervals multiplied by item count ~20 in lifecycle.go)\n")
 
 	world := CreateTestWorld(WorldOptions{})
 
 	_, initialFlowers := countItems(world)
 	initialEdible, _ := countItems(world)
+	prevFlowers := initialFlowers
 
-	fmt.Printf("Initial: %d edible, %d flowers\n", initialEdible, initialFlowers)
+	var totalSpawns, totalDeaths int
+
+	fmt.Printf("Initial: %d edible, %d flowers\n\n", initialEdible, initialFlowers)
+
+	// Checkpoints every 5 world days
+	checkpoints := []int{4000, 8000, 12000, 16000}
+	checkIdx := 0
 
 	for tick := 0; tick < ticks; tick++ {
 		RunTick(world, delta)
 
-		if tick%500 == 0 && tick > 0 {
+		// Track flower changes
+		_, flowers := countItems(world)
+		if flowers > prevFlowers {
+			totalSpawns += flowers - prevFlowers
+		} else if flowers < prevFlowers {
+			totalDeaths += prevFlowers - flowers
+		}
+		prevFlowers = flowers
+
+		if checkIdx < len(checkpoints) && tick == checkpoints[checkIdx] {
 			edible, flowers := countItems(world)
+			worldDays := float64(tick) * delta / 120
 			ratio := float64(flowers) / float64(edible+flowers) * 100
-			fmt.Printf("Tick %d: %d edible, %d flowers (%.1f%% flowers)\n",
-				tick, edible, flowers, ratio)
+			fmt.Printf("Day %.0f: %d edible, %d flowers (%.1f%% flowers)\n",
+				worldDays, edible, flowers, ratio)
+			checkIdx++
 		}
 	}
 
@@ -177,6 +201,8 @@ func TestObserveFlowerGrowth(t *testing.T) {
 	ratio := float64(flowersEnd) / float64(edibleEnd+flowersEnd) * 100
 	fmt.Printf("\nFinal: %d edible, %d flowers (%.1f%% flowers)\n",
 		edibleEnd, flowersEnd, ratio)
+	fmt.Printf("Flower lifecycle: %d spawns, %d deaths (net: %+d)\n",
+		totalSpawns, totalDeaths, flowersEnd-initialFlowers)
 
 	if flowersEnd > initialFlowers*3 {
 		fmt.Println("⚠️  WARNING: Flower overpopulation detected!")
@@ -235,17 +261,47 @@ func moodTier(mood float64) string {
 	}
 }
 
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func actionName(a entity.ActionType) string {
+	switch a {
+	case entity.ActionNone:
+		return "None"
+	case entity.ActionMove:
+		return "Move"
+	case entity.ActionConsume:
+		return "Consume"
+	case entity.ActionDrink:
+		return "Drink"
+	case entity.ActionSleep:
+		return "Sleep"
+	case entity.ActionLook:
+		return "Look"
+	case entity.ActionTalk:
+		return "Talk"
+	case entity.ActionPickup:
+		return "Pickup"
+	default:
+		return "Unknown"
+	}
+}
+
 // TestObserveTimeToFirstDeath measures how long until characters start dying
 func TestObserveTimeToFirstDeath(t *testing.T) {
 	const (
 		numRuns  = 10
-		maxTicks = 10000 // ~25 minutes game time
+		maxTicks = 20000 // ~3000 game-seconds (~25 world days)
 		delta    = 0.15
 	)
 
 	fmt.Println("\n=== TIME TO DEATH OBSERVATION ===")
-	fmt.Printf("Running %d simulations, max %d ticks (%.0f game-seconds)\n\n",
-		numRuns, maxTicks, float64(maxTicks)*delta)
+	fmt.Printf("Running %d simulations, max %d ticks (%.0f game-seconds, ~%.1f world days)\n\n",
+		numRuns, maxTicks, float64(maxTicks)*delta, float64(maxTicks)*delta/120)
 
 	var deathTicks []int
 	var deathCauses []string
@@ -276,8 +332,23 @@ func TestObserveTimeToFirstDeath(t *testing.T) {
 
 		if deathTick >= 0 {
 			gameSeconds := float64(deathTick) * delta
-			fmt.Printf("Run %d: First death at tick %d (%.0fs game time) - %s\n",
-				run+1, deathTick, gameSeconds, cause)
+			// Find the dead character and print detailed diagnostics
+			for _, c := range world.GameMap.Characters() {
+				if c.IsDead {
+					edible, _ := countItems(world)
+					foodResult := system.FindFoodTarget(c, world.GameMap.Items())
+					foodInfo := "none found"
+					if foodResult.Item != nil {
+						ix, iy := foodResult.Item.Position()
+						cx, cy := c.Position()
+						dist := abs(cx-ix) + abs(cy-iy)
+						foodInfo = fmt.Sprintf("dist:%d pref:%d", dist, foodResult.NetPreference)
+					}
+					fmt.Printf("Run %d: Death at tick %d (%.0fs) - %s | Speed:%d Poisoned:%v Food:%s Edible:%d\n",
+						run+1, deathTick, gameSeconds, cause, c.EffectiveSpeed(), c.Poisoned, foodInfo, edible)
+					break
+				}
+			}
 			deathTicks = append(deathTicks, deathTick)
 			deathCauses = append(deathCauses, cause)
 		} else {
@@ -324,13 +395,16 @@ func TestObserveTimeToFirstDeath(t *testing.T) {
 // TestObserveGourdReproduction verifies gourds are spawning and reproducing
 func TestObserveGourdReproduction(t *testing.T) {
 	const (
-		ticks = 2000
+		ticks = 10000 // ~1500 game-seconds - enough for multiple spawn cycles
 		delta = 0.15
 	)
 
 	fmt.Println("\n=== GOURD REPRODUCTION OBSERVATION ===")
-	fmt.Printf("Running simulation for %d ticks (%.0f game-seconds) with NO characters\n\n",
+	fmt.Printf("Running simulation for %d ticks (%.0f game-seconds) with NO characters\n",
 		ticks, float64(ticks)*delta)
+	fmt.Printf("Spawn interval: %.0fs (~%d ticks)\n\n",
+		config.ItemLifecycle["gourd"].SpawnInterval,
+		int(config.ItemLifecycle["gourd"].SpawnInterval/delta))
 
 	// Create world without characters so items don't get eaten
 	world := CreateTestWorld(WorldOptions{NoCharacters: true})
@@ -350,7 +424,7 @@ func TestObserveGourdReproduction(t *testing.T) {
 	}
 
 	// Run simulation
-	samplePoints := []int{500, 1000, 1500, 2000}
+	samplePoints := []int{2500, 5000, 7500, 10000}
 	sampleIdx := 0
 
 	for tick := 0; tick < ticks; tick++ {
@@ -388,13 +462,13 @@ func TestObserveGourdReproduction(t *testing.T) {
 // TestObserveDeathProgression tracks all deaths over extended simulation
 func TestObserveDeathProgression(t *testing.T) {
 	const (
-		ticks = 15000 // ~37.5 minutes game time
+		ticks = 20000 // ~3000 game-seconds (~25 world days)
 		delta = 0.15
 	)
 
 	fmt.Println("\n=== DEATH PROGRESSION OBSERVATION ===")
-	fmt.Printf("Running single simulation for %d ticks (%.0f game-seconds)\n\n",
-		ticks, float64(ticks)*delta)
+	fmt.Printf("Running single simulation for %d ticks (%.0f game-seconds, ~%.1f world days)\n\n",
+		ticks, float64(ticks)*delta, float64(ticks)*delta/120)
 
 	world := CreateTestWorld(WorldOptions{})
 	initialChars := len(world.GameMap.Characters())
@@ -407,11 +481,42 @@ func TestObserveDeathProgression(t *testing.T) {
 	var deaths []deathRecord
 	deadSet := make(map[int]bool)
 
-	checkpoints := []int{1000, 2000, 3000, 5000, 7500, 10000, 12500, 15000}
-	checkIdx := 0
+	// Track first character's state for diagnosis
+	chars := world.GameMap.Characters()
+	trackChar := chars[0]
+	fmt.Printf("Tracking %s - initial Hunger: %.0f, Prefs: %d\n\n",
+		trackChar.Name, trackChar.Hunger, len(trackChar.Preferences))
 
+	checkpoints := []int{2000, 4000, 6000, 8000, 10000, 12000, 15000, 20000}
+	checkIdx := 0
+	diagCheckpoints := []int{500, 1000, 1500, 2000, 2500, 3000, 3500, 4000}
+
+	diagIdx := 0
 	for tick := 0; tick < ticks; tick++ {
 		RunTick(world, delta)
+
+		// Diagnostic: track one character's state
+		if diagIdx < len(diagCheckpoints) && tick == diagCheckpoints[diagIdx] && !trackChar.IsDead {
+			activity := trackChar.CurrentActivity
+			intent := "none"
+			if trackChar.Intent != nil {
+				intent = actionName(trackChar.Intent.Action)
+				if trackChar.Intent.TargetItem != nil {
+					intent += " -> " + trackChar.Intent.TargetItem.Description()
+				} else if trackChar.Intent.TargetFeature != nil {
+					intent += " -> feature"
+				}
+			}
+			// Check what food would be found
+			foodResult := system.FindFoodTarget(trackChar, world.GameMap.Items())
+			foodInfo := "none"
+			if foodResult.Item != nil {
+				foodInfo = fmt.Sprintf("%s (pref:%d)", foodResult.Item.Description(), foodResult.NetPreference)
+			}
+			fmt.Printf("  [Diag %s tick %d] Hunger:%.0f Health:%.0f Poisoned:%v Activity:%s Intent:%s BestFood:%s\n",
+				trackChar.Name, tick, trackChar.Hunger, trackChar.Health, trackChar.Poisoned, activity, intent, foodInfo)
+			diagIdx++
+		}
 
 		// Check for new deaths
 		for _, c := range world.GameMap.Characters() {
@@ -422,8 +527,22 @@ func TestObserveDeathProgression(t *testing.T) {
 					name:  c.Name,
 					cause: inferDeathCause(c),
 				})
-				fmt.Printf("Tick %d (%.0fs): %s died - %s\n",
-					tick, float64(tick)*delta, c.Name, inferDeathCause(c))
+				// Detailed death diagnostics
+				edible, flowers := countItems(world)
+				foodResult := system.FindFoodTarget(c, world.GameMap.Items())
+				foodInfo := "none found"
+				if foodResult.Item != nil {
+					ix, iy := foodResult.Item.Position()
+					cx, cy := c.Position()
+					dist := abs(cx-ix) + abs(cy-iy)
+					foodInfo = fmt.Sprintf("%s (pref:%d dist:%d)", foodResult.Item.Description(), foodResult.NetPreference, dist)
+				}
+				fmt.Printf("Tick %d (%.0fs): %s died - %s\n", tick, float64(tick)*delta, c.Name, inferDeathCause(c))
+				fmt.Printf("  Stats: Hunger:%.0f Health:%.0f Speed:%d Poisoned:%v Frustrated:%v\n",
+					c.Hunger, c.Health, c.EffectiveSpeed(), c.Poisoned, c.IsFrustrated)
+				fmt.Printf("  World: %d edible items, %d flowers\n", edible, flowers)
+				fmt.Printf("  BestFood: %s\n", foodInfo)
+				fmt.Printf("  Activity: %s, Prefs: %d\n", c.CurrentActivity, len(c.Preferences))
 			}
 		}
 

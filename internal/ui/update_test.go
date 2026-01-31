@@ -335,7 +335,8 @@ func TestApplyIntent_HarvestOrderWithVessel_ContinuesUntilFull(t *testing.T) {
 	}
 
 	// Act: apply intent with enough time to complete first pickup
-	for i := 0; i < 20; i++ {
+	// ActionDuration is 0.83s, so 1.0s should complete exactly one pickup
+	for i := 0; i < 10; i++ {
 		m.applyIntent(char, 0.1)
 	}
 

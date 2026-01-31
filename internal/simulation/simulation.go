@@ -123,6 +123,19 @@ func applyIntent(char *entity.Character, gameMap *game.Map, delta float64, actio
 			system.Drink(char, actionLog)
 		}
 
+	case entity.ActionConsume:
+		// Eating from inventory - no movement needed, just duration
+		char.ActionProgress += delta
+		if char.ActionProgress >= config.ActionDuration {
+			char.ActionProgress = 0
+			// Check if carrying a vessel with edible contents
+			if char.Carrying != nil && char.Carrying.Container != nil && len(char.Carrying.Container.Contents) > 0 {
+				system.ConsumeFromVessel(char, char.Carrying, actionLog)
+			} else if char.Carrying == char.Intent.TargetItem {
+				system.ConsumeFromInventory(char, char.Carrying, actionLog)
+			}
+		}
+
 	case entity.ActionSleep:
 		atBed := char.Intent.TargetFeature != nil && char.Intent.TargetFeature.IsBed()
 
