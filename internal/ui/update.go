@@ -524,7 +524,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 	case entity.ActionMove:
 		cpos := char.Pos()
 		cx, cy := cpos.X, cpos.Y
-		tx, ty := char.Intent.TargetX, char.Intent.TargetY
+		tx, ty := char.Intent.Target.X, char.Intent.Target.Y
 
 		// Check if at target item for eating - only if driven by hunger
 		// Item can be edible directly OR be a vessel with edible contents
@@ -771,15 +771,15 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		char.SpeedAccumulator -= movementThreshold
 
 		// Move toward target item
-		tx, ty := char.Intent.TargetX, char.Intent.TargetY
+		tx, ty := char.Intent.Target.X, char.Intent.Target.Y
 		if m.gameMap.MoveCharacter(char, tx, ty) {
 			// Successfully moved - update intent for next step
 			newPos := char.Pos()
 			if newPos.X != ipos.X || newPos.Y != ipos.Y {
 				// Not at item yet, calculate next step
 				nx, ny := system.NextStep(newPos.X, newPos.Y, ipos.X, ipos.Y)
-				char.Intent.TargetX = nx
-				char.Intent.TargetY = ny
+				char.Intent.Target.X = nx
+				char.Intent.Target.Y = ny
 			}
 		}
 
@@ -995,7 +995,7 @@ func (m *Model) stepForward() {
 func (m *Model) findAlternateStep(char *entity.Character, cx, cy int, triedPositions map[[2]int]bool) []int {
 	// Use destination position (where we need to stand to interact)
 	// This is set correctly for adjacency-based interactions (springs, talking, looking)
-	goalX, goalY := char.Intent.DestX, char.Intent.DestY
+	goalX, goalY := char.Intent.Dest.X, char.Intent.Dest.Y
 	if goalX == 0 && goalY == 0 {
 		// Fallback for intents without destination set
 		if char.Intent.TargetItem != nil {

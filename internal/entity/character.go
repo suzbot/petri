@@ -68,14 +68,14 @@ type Character struct {
 
 // Intent represents what a character wants to do next tick
 type Intent struct {
-	TargetX, TargetY int        // Next step position (immediate move)
-	DestX, DestY     int        // Destination position (where we need to stand to interact)
+	Target           types.Position // Next step position (immediate move)
+	Dest             types.Position // Destination position (where we need to stand to interact)
 	Action           ActionType
-	TargetItem       *Item      // The specific item being pursued (nil if none)
-	TargetFeature    *Feature   // The specific feature being pursued (nil if none)
-	TargetCharacter  *Character // The character being pursued for talking (nil if none)
+	TargetItem       *Item          // The specific item being pursued (nil if none)
+	TargetFeature    *Feature       // The specific feature being pursued (nil if none)
+	TargetCharacter  *Character     // The character being pursued for talking (nil if none)
 	DrivingStat      types.StatType // Which stat is driving this intent
-	DrivingTier      int        // The urgency tier when intent was set
+	DrivingTier      int            // The urgency tier when intent was set
 }
 
 // ActionType represents the type of action a character intends to take

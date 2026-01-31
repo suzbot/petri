@@ -65,10 +65,8 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 			// If already talking, continue
 			if char.TalkingWith != nil {
 				return &entity.Intent{
-					TargetX:         cx,
-					TargetY:         cy,
-					DestX:           cx, // Already at destination (talking)
-					DestY:           cy,
+					Target:          types.Position{X: cx, Y: cy},
+					Dest:            types.Position{X: cx, Y: cy}, // Already at destination (talking)
 					Action:          entity.ActionTalk,
 					TargetCharacter: char.TalkingWith,
 				}
@@ -181,7 +179,7 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 
 	// No urgent needs - try an idle activity (looking, talking, or staying idle)
 	if maxTier == entity.TierNone {
-		if intent := selectIdleActivity(char, cx, cy, items, gameMap, log, orders); intent != nil {
+		if intent := selectIdleActivity(char, cpos, items, gameMap, log, orders); intent != nil {
 			return intent
 		}
 		if char.CurrentActivity != "Idle" {
@@ -230,13 +228,13 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 		var intent *entity.Intent
 		switch p.stat {
 		case types.StatThirst:
-			intent = findDrinkIntent(char, cx, cy, gameMap, p.tier, log)
+			intent = findDrinkIntent(char, cpos, gameMap, p.tier, log)
 		case types.StatHunger:
-			intent = findFoodIntent(char, cx, cy, items, p.tier, log)
+			intent = findFoodIntent(char, cpos, items, p.tier, log)
 		case types.StatHealth:
-			intent = findHealingIntent(char, cx, cy, items, p.tier, log)
+			intent = findHealingIntent(char, cpos, items, p.tier, log)
 		case types.StatEnergy:
-			intent = findSleepIntent(char, cx, cy, gameMap, p.tier, log)
+			intent = findSleepIntent(char, cpos, gameMap, p.tier, log)
 		}
 		if intent != nil {
 			// Check for order interruption - character has assigned order but pursuing a need
@@ -269,7 +267,7 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 	}
 
 	// No needs could be fulfilled - try an idle activity
-	if intent := selectIdleActivity(char, cx, cy, items, gameMap, log, orders); intent != nil {
+	if intent := selectIdleActivity(char, cpos, items, gameMap, log, orders); intent != nil {
 		return intent
 	}
 
@@ -347,7 +345,7 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		tpos := intent.TargetCharacter.Pos()
 		tx, ty = tpos.X, tpos.Y
 	} else {
-		tx, ty = intent.TargetX, intent.TargetY
+		tx, ty = intent.Target.X, intent.Target.Y
 	}
 
 	// Check if we've arrived at a feature target - switch to appropriate action
@@ -365,10 +363,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 					}
 				}
 				return &entity.Intent{
-					TargetX:       cx, // Stay in place
-					TargetY:       cy,
-					DestX:         cx, // Already at destination
-					DestY:         cy,
+					Target:          types.Position{X: cx, Y: cy}, // Stay in place
+					Dest:            types.Position{X: cx, Y: cy}, // Already at destination
 					Action:        entity.ActionDrink,
 					TargetFeature: feature,
 					DrivingStat:   intent.DrivingStat,
@@ -392,10 +388,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 				char.CurrentActivity = newActivity
 			}
 			return &entity.Intent{
-				TargetX:       tx,
-				TargetY:       ty,
-				DestX:         tx, // Destination is the bed
-				DestY:         ty,
+				Target:          types.Position{X: tx, Y: ty},
+				Dest:            types.Position{X: tx, Y: ty}, // Destination is the bed
 				Action:        entity.ActionSleep,
 				TargetFeature: feature,
 				DrivingStat:   intent.DrivingStat,
@@ -412,10 +406,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 			char.CurrentActivity = newActivity
 		}
 		return &entity.Intent{
-			TargetX:    cx, // Stay in place
-			TargetY:    cy,
-			DestX:      cx, // Already at destination (adjacent to item)
-			DestY:      cy,
+			Target:          types.Position{X: cx, Y: cy}, // Stay in place
+			Dest:            types.Position{X: cx, Y: cy}, // Already at destination (adjacent to item)
 			Action:     entity.ActionLook,
 			TargetItem: intent.TargetItem,
 		}
@@ -424,10 +416,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	// Check if we've arrived adjacent to a character for talking
 	if intent.TargetCharacter != nil && isAdjacent(cx, cy, tx, ty) {
 		return &entity.Intent{
-			TargetX:         cx, // Stay in place
-			TargetY:         cy,
-			DestX:           cx, // Already at destination (adjacent to character)
-			DestY:           cy,
+			Target:          types.Position{X: cx, Y: cy}, // Stay in place
+			Dest:            types.Position{X: cx, Y: cy}, // Already at destination (adjacent to character)
 			Action:          entity.ActionTalk,
 			TargetCharacter: intent.TargetCharacter,
 		}
@@ -436,10 +426,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	nx, ny := NextStep(cx, cy, tx, ty)
 
 	return &entity.Intent{
-		TargetX:         nx,
-		TargetY:         ny,
-		DestX:           tx, // Destination we're moving toward
-		DestY:           ty,
+		Target:          types.Position{X: nx, Y: ny},
+		Dest:            types.Position{X: tx, Y: ty}, // Destination we're moving toward
 		Action:          intent.Action,
 		TargetItem:      intent.TargetItem,
 		TargetFeature:   intent.TargetFeature,
@@ -451,8 +439,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 
 // findDrinkIntent finds a spring to drink from
 // Springs are impassable - characters drink from cardinally adjacent tiles
-func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier int, log *ActionLog) *entity.Intent {
-	spring := gameMap.FindNearestDrinkSource(cx, cy)
+func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.Map, tier int, log *ActionLog) *entity.Intent {
+	spring := gameMap.FindNearestDrinkSource(pos.X, pos.Y)
 	if spring == nil {
 		if char.CurrentActivity != "Idle" {
 			char.CurrentActivity = "Idle"
@@ -467,7 +455,7 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 	tx, ty := spos.X, spos.Y
 
 	// Already cardinally adjacent to spring - drink from current position
-	if isCardinallyAdjacent(cx, cy, tx, ty) {
+	if isCardinallyAdjacent(pos.X, pos.Y, tx, ty) {
 		newActivity := "Drinking"
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
@@ -476,10 +464,8 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 			}
 		}
 		return &entity.Intent{
-			TargetX:       cx, // Stay in place
-			TargetY:       cy,
-			DestX:         cx, // Already at destination
-			DestY:         cy,
+			Target:        pos, // Stay in place
+			Dest:          pos, // Already at destination
 			Action:        entity.ActionDrink,
 			TargetFeature: spring,
 			DrivingStat:   types.StatThirst,
@@ -488,7 +474,7 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 	}
 
 	// Find closest cardinal tile adjacent to spring and move toward it
-	adjX, adjY := findClosestCardinalTile(cx, cy, tx, ty, gameMap)
+	adjX, adjY := findClosestCardinalTile(pos.X, pos.Y, tx, ty, gameMap)
 	if adjX == -1 {
 		// No available adjacent tile - spring is blocked
 		if char.CurrentActivity != "Idle" {
@@ -501,7 +487,7 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 	}
 
 	// Move toward adjacent tile (not the spring itself)
-	nx, ny := NextStep(cx, cy, adjX, adjY)
+	nx, ny := NextStep(pos.X, pos.Y, adjX, adjY)
 	newActivity := "Moving to spring"
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
@@ -511,10 +497,8 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 	}
 
 	return &entity.Intent{
-		TargetX:       nx,
-		TargetY:       ny,
-		DestX:         adjX, // Destination is the cardinal tile, not the spring
-		DestY:         adjY,
+		Target:        types.Position{X: nx, Y: ny},
+		Dest:          types.Position{X: adjX, Y: adjY}, // Destination is the cardinal tile, not the spring
 		Action:        entity.ActionMove,
 		TargetFeature: spring,
 		DrivingStat:   types.StatThirst,
@@ -524,7 +508,7 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 
 // findFoodIntent finds food based on hunger priority
 // Uses unified scoring for both carried and map items (carried items have distance=0)
-func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, tier int, log *ActionLog) *entity.Intent {
+func findFoodIntent(char *entity.Character, pos types.Position, items []*entity.Item, tier int, log *ActionLog) *entity.Intent {
 	result := FindFoodTarget(char, items)
 	if result.Item == nil {
 		if char.CurrentActivity != "Idle" {
@@ -548,10 +532,8 @@ func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, ti
 			}
 		}
 		return &entity.Intent{
-			TargetX:     cx,
-			TargetY:     cy,
-			DestX:       cx, // Already at destination (eating from inventory)
-			DestY:       cy,
+			Target:      pos,
+			Dest:        pos, // Already at destination (eating from inventory)
 			Action:      entity.ActionConsume,
 			TargetItem:  char.Carrying,
 			DrivingStat: types.StatHunger,
@@ -562,7 +544,7 @@ func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, ti
 	// Best food is on map - move to it
 	ipos := result.Item.Pos()
 	tx, ty := ipos.X, ipos.Y
-	nx, ny := NextStep(cx, cy, tx, ty)
+	nx, ny := NextStep(pos.X, pos.Y, tx, ty)
 
 	newActivity := "Moving to " + result.Item.Description()
 	if char.CurrentActivity != newActivity {
@@ -575,10 +557,8 @@ func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, ti
 	}
 
 	return &entity.Intent{
-		TargetX:     nx,
-		TargetY:     ny,
-		DestX:       tx, // Destination is the item's position
-		DestY:       ty,
+		Target:      types.Position{X: nx, Y: ny},
+		Dest:        types.Position{X: tx, Y: ty}, // Destination is the item's position
 		Action:      entity.ActionMove,
 		TargetItem:  result.Item,
 		DrivingStat: types.StatHunger,
@@ -589,7 +569,7 @@ func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, ti
 // findHealingIntent finds a known healing item to consume.
 // Only considers items the character knows are healing.
 // Returns nil if no known healing items are available.
-func findHealingIntent(char *entity.Character, cx, cy int, items []*entity.Item, tier int, log *ActionLog) *entity.Intent {
+func findHealingIntent(char *entity.Character, pos types.Position, items []*entity.Item, tier int, log *ActionLog) *entity.Intent {
 	// Get only items the character knows are healing
 	knownHealing := char.KnownHealingItems(items)
 	if len(knownHealing) == 0 {
@@ -608,7 +588,7 @@ func findHealingIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 
 	for _, item := range knownHealing {
 		ipos := item.Pos()
-		dist := abs(cx-ipos.X) + abs(cy-ipos.Y)
+		dist := pos.DistanceTo(ipos)
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = item
@@ -621,7 +601,7 @@ func findHealingIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 
 	npos := nearest.Pos()
 	tx, ty := npos.X, npos.Y
-	nx, ny := NextStep(cx, cy, tx, ty)
+	nx, ny := NextStep(pos.X, pos.Y, tx, ty)
 
 	newActivity := "Moving to " + nearest.Description() + " (healing)"
 	if char.CurrentActivity != newActivity {
@@ -633,10 +613,8 @@ func findHealingIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 	}
 
 	return &entity.Intent{
-		TargetX:     nx,
-		TargetY:     ny,
-		DestX:       tx, // Destination is the item's position
-		DestY:       ty,
+		Target:      types.Position{X: nx, Y: ny},
+		Dest:        types.Position{X: tx, Y: ty}, // Destination is the item's position
 		Action:      entity.ActionMove,
 		TargetItem:  nearest,
 		DrivingStat: types.StatHealth,
@@ -645,8 +623,8 @@ func findHealingIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 }
 
 // findSleepIntent finds a bed to sleep in
-func findSleepIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier int, log *ActionLog) *entity.Intent {
-	bed := gameMap.FindNearestBed(cx, cy)
+func findSleepIntent(char *entity.Character, pos types.Position, gameMap *game.Map, tier int, log *ActionLog) *entity.Intent {
+	bed := gameMap.FindNearestBed(pos.X, pos.Y)
 
 	// If no bed, can sleep on ground when exhausted (voluntary) or collapsed (involuntary)
 	if bed == nil {
@@ -656,10 +634,8 @@ func findSleepIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 				char.CurrentActivity = newActivity
 			}
 			return &entity.Intent{
-				TargetX:     cx,
-				TargetY:     cy,
-				DestX:       cx, // Already at destination (ground sleep)
-				DestY:       cy,
+				Target:      pos,
+				Dest:        pos, // Already at destination (ground sleep)
 				Action:      entity.ActionSleep,
 				DrivingStat: types.StatEnergy,
 				DrivingTier: tier,
@@ -679,16 +655,14 @@ func findSleepIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 	tx, ty := bpos.X, bpos.Y
 
 	// Already at bed - sleep
-	if cx == tx && cy == ty {
+	if pos.X == tx && pos.Y == ty {
 		newActivity := "Sleeping (in bed)"
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
 		}
 		return &entity.Intent{
-			TargetX:       tx,
-			TargetY:       ty,
-			DestX:         tx, // Already at destination (the bed)
-			DestY:         ty,
+			Target:        types.Position{X: tx, Y: ty},
+			Dest:          types.Position{X: tx, Y: ty}, // Already at destination (the bed)
 			Action:        entity.ActionSleep,
 			TargetFeature: bed,
 			DrivingStat:   types.StatEnergy,
@@ -697,7 +671,7 @@ func findSleepIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 	}
 
 	// Move toward bed
-	nx, ny := NextStep(cx, cy, tx, ty)
+	nx, ny := NextStep(pos.X, pos.Y, tx, ty)
 	newActivity := "Moving to leaf pile"
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
@@ -707,10 +681,8 @@ func findSleepIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 	}
 
 	return &entity.Intent{
-		TargetX:       nx,
-		TargetY:       ny,
-		DestX:         tx, // Destination is the bed
-		DestY:         ty,
+		Target:        types.Position{X: nx, Y: ny},
+		Dest:          types.Position{X: tx, Y: ty}, // Destination is the bed
 		Action:        entity.ActionMove,
 		TargetFeature: bed,
 		DrivingStat:   types.StatEnergy,
@@ -939,9 +911,9 @@ func canFulfillHealth(char *entity.Character, items []*entity.Item) bool {
 
 // findLookIntent creates an intent to look at the nearest item.
 // Called by selectIdleActivity when looking is selected.
-func findLookIntent(char *entity.Character, cx, cy int, items []*entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
+func findLookIntent(char *entity.Character, pos types.Position, items []*entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
 	// Find nearest item, excluding last looked item
-	target := findNearestItemExcluding(cx, cy, items, char.LastLookedX, char.LastLookedY, char.HasLastLooked)
+	target := findNearestItemExcluding(pos.X, pos.Y, items, char.LastLookedX, char.LastLookedY, char.HasLastLooked)
 	if target == nil {
 		return nil
 	}
@@ -950,7 +922,7 @@ func findLookIntent(char *entity.Character, cx, cy int, items []*entity.Item, ga
 	tx, ty := tpos.X, tpos.Y
 
 	// Check if already adjacent to target
-	if isAdjacent(cx, cy, tx, ty) {
+	if isAdjacent(pos.X, pos.Y, tx, ty) {
 		// Start looking immediately
 		newActivity := "Looking at " + target.Description()
 		if char.CurrentActivity != newActivity {
@@ -960,23 +932,21 @@ func findLookIntent(char *entity.Character, cx, cy int, items []*entity.Item, ga
 			}
 		}
 		return &entity.Intent{
-			TargetX:    cx, // Stay in place
-			TargetY:    cy,
-			DestX:      cx, // Already at destination (adjacent to item)
-			DestY:      cy,
+			Target:     pos, // Stay in place
+			Dest:       pos, // Already at destination (adjacent to item)
 			Action:     entity.ActionLook,
 			TargetItem: target,
 		}
 	}
 
 	// Find closest adjacent tile to target
-	adjX, adjY := findClosestAdjacentTile(cx, cy, tx, ty, gameMap)
+	adjX, adjY := findClosestAdjacentTile(pos.X, pos.Y, tx, ty, gameMap)
 	if adjX == -1 {
 		return nil // No accessible adjacent tile
 	}
 
 	// Move toward adjacent tile
-	nx, ny := NextStep(cx, cy, adjX, adjY)
+	nx, ny := NextStep(pos.X, pos.Y, adjX, adjY)
 
 	newActivity := "Moving to look at " + target.Description()
 	if char.CurrentActivity != newActivity {
@@ -987,10 +957,8 @@ func findLookIntent(char *entity.Character, cx, cy int, items []*entity.Item, ga
 	}
 
 	return &entity.Intent{
-		TargetX:    nx,
-		TargetY:    ny,
-		DestX:      adjX, // Destination is adjacent to the item
-		DestY:      adjY,
+		Target:     types.Position{X: nx, Y: ny},
+		Dest:       types.Position{X: adjX, Y: adjY}, // Destination is adjacent to the item
 		Action:     entity.ActionMove,
 		TargetItem: target,
 	}

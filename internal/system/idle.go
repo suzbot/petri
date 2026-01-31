@@ -7,16 +7,17 @@ import (
 	"petri/internal/config"
 	"petri/internal/entity"
 	"petri/internal/game"
+	"petri/internal/types"
 )
 
 // selectIdleActivity checks for order work first, then randomly selects an idle activity.
 // Returns nil if cooldown is active or if the selected activity cannot be performed.
 // Sets IdleCooldown after being called (regardless of outcome).
-func selectIdleActivity(char *entity.Character, cx, cy int, items []*entity.Item, gameMap *game.Map, log *ActionLog, orders []*entity.Order) *entity.Intent {
+func selectIdleActivity(char *entity.Character, pos types.Position, items []*entity.Item, gameMap *game.Map, log *ActionLog, orders []*entity.Order) *entity.Intent {
 	// Priority: if character has an assigned order, always try to resume it (bypass cooldown)
 	// This ensures order work isn't blocked by idle cooldown when target changes
 	if char.AssignedOrderID != 0 {
-		if intent := selectOrderActivity(char, cx, cy, items, gameMap, orders, log); intent != nil {
+		if intent := selectOrderActivity(char, pos, items, gameMap, orders, log); intent != nil {
 			return intent
 		}
 		// Order couldn't find a target - fall through to idle activities
@@ -31,7 +32,7 @@ func selectIdleActivity(char *entity.Character, cx, cy int, items []*entity.Item
 	char.IdleCooldown = config.IdleCooldown
 
 	// Check for new order work (taking unassigned orders)
-	if intent := selectOrderActivity(char, cx, cy, items, gameMap, orders, log); intent != nil {
+	if intent := selectOrderActivity(char, pos, items, gameMap, orders, log); intent != nil {
 		return intent
 	}
 
@@ -41,44 +42,44 @@ func selectIdleActivity(char *entity.Character, cx, cy int, items []*entity.Item
 	switch roll {
 	case 0:
 		// Try looking
-		if intent := findLookIntent(char, cx, cy, items, gameMap, log); intent != nil {
+		if intent := findLookIntent(char, pos, items, gameMap, log); intent != nil {
 			return intent
 		}
 		// Fall through to try other activities
-		if intent := findTalkIntent(char, cx, cy, gameMap, log); intent != nil {
+		if intent := findTalkIntent(char, pos, gameMap, log); intent != nil {
 			return intent
 		}
 		if CanPickUpMore(char, gameMap.Varieties()) {
-			if intent := findForageIntent(char, cx, cy, items, log, gameMap.Varieties()); intent != nil {
+			if intent := findForageIntent(char, pos, items, log, gameMap.Varieties()); intent != nil {
 				return intent
 			}
 		}
 	case 1:
 		// Try talking
-		if intent := findTalkIntent(char, cx, cy, gameMap, log); intent != nil {
+		if intent := findTalkIntent(char, pos, gameMap, log); intent != nil {
 			return intent
 		}
 		// Fall through to try looking
-		if intent := findLookIntent(char, cx, cy, items, gameMap, log); intent != nil {
+		if intent := findLookIntent(char, pos, items, gameMap, log); intent != nil {
 			return intent
 		}
 		if CanPickUpMore(char, gameMap.Varieties()) {
-			if intent := findForageIntent(char, cx, cy, items, log, gameMap.Varieties()); intent != nil {
+			if intent := findForageIntent(char, pos, items, log, gameMap.Varieties()); intent != nil {
 				return intent
 			}
 		}
 	case 2:
 		// Try foraging (only if can pick up more)
 		if CanPickUpMore(char, gameMap.Varieties()) {
-			if intent := findForageIntent(char, cx, cy, items, log, gameMap.Varieties()); intent != nil {
+			if intent := findForageIntent(char, pos, items, log, gameMap.Varieties()); intent != nil {
 				return intent
 			}
 		}
 		// Fall through to try other activities
-		if intent := findLookIntent(char, cx, cy, items, gameMap, log); intent != nil {
+		if intent := findLookIntent(char, pos, items, gameMap, log); intent != nil {
 			return intent
 		}
-		if intent := findTalkIntent(char, cx, cy, gameMap, log); intent != nil {
+		if intent := findTalkIntent(char, pos, gameMap, log); intent != nil {
 			return intent
 		}
 	case 3:

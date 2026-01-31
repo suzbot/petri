@@ -10,8 +10,6 @@
 6. Run all tests
 
 **During Testing:**
-
-- Allow the user to save tokens by prompting them to run the build instead of running it yourself. Human will return any tests that need to be fixed.
 - **Track balance tuning discoveries**: When testing reveals balance issues (rates too fast/slow, etc.), add notes to docs/futureEnhancements.md for future tuning pass.
 
 ### What to Test
@@ -46,5 +44,5 @@ Headless simulation tests for measuring game balance. Located in `internal/simul
      | `TestObserveTimeToFirstDeath` | 10 runs: measures time until first death                     |
      | `TestObserveDeathProgression` | Single extended run tracking all deaths                      |
 
-   Results are documented in `docs/futureEnancements.md` under "Balance Observation Results".
+   Results are documented in `docs/triggered-enhancements.md` under "Balance Observation Results".
 

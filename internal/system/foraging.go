@@ -6,6 +6,7 @@ import (
 	"petri/internal/config"
 	"petri/internal/entity"
 	"petri/internal/game"
+	"petri/internal/types"
 )
 
 // AddToVessel attempts to add an item to a vessel's contents.
@@ -262,7 +263,7 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 // Uses preference/distance scoring similar to eating but without hunger-based filtering.
 // If not carrying a vessel, will look for one first before foraging.
 // If carrying a vessel with contents, only targets matching variety.
-func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, log *ActionLog, registry *game.VarietyRegistry) *entity.Intent {
+func findForageIntent(char *entity.Character, pos types.Position, items []*entity.Item, log *ActionLog, registry *game.VarietyRegistry) *entity.Intent {
 	// Get the vessel if carrying one (used for variety filtering)
 	var vessel *entity.Item
 	if char.Carrying != nil && char.Carrying.Container != nil {
@@ -271,19 +272,19 @@ func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, 
 
 	// Find best edible item using preference/distance gradient
 	// If carrying vessel with contents, only considers matching variety
-	target := findForageTarget(char, cx, cy, items, vessel)
+	target := findForageTarget(char, pos, items, vessel)
 	if target == nil {
 		return nil
 	}
 
 	// If not carrying anything, look for available vessel first
 	if char.Carrying == nil {
-		availableVessel := FindAvailableVessel(cx, cy, items, target, registry)
+		availableVessel := FindAvailableVessel(pos.X, pos.Y, items, target, registry)
 		if availableVessel != nil {
 			// Go pick up vessel first
 			vpos := availableVessel.Pos()
 			vx, vy := vpos.X, vpos.Y
-			if cx == vx && cy == vy {
+			if pos.X == vx && pos.Y == vy {
 				newActivity := "Picking up vessel"
 				if char.CurrentActivity != newActivity {
 					char.CurrentActivity = newActivity
@@ -292,16 +293,14 @@ func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, 
 					}
 				}
 				return &entity.Intent{
-					TargetX:    cx,
-					TargetY:    cy,
-					DestX:      cx, // Already at destination
-					DestY:      cy,
+					Target:     pos,
+					Dest:       pos, // Already at destination
 					Action:     entity.ActionPickup,
 					TargetItem: availableVessel,
 				}
 			}
 			// Move toward vessel
-			nx, ny := NextStep(cx, cy, vx, vy)
+			nx, ny := NextStep(pos.X, pos.Y, vx, vy)
 			newActivity := "Moving to pick up vessel"
 			if char.CurrentActivity != newActivity {
 				char.CurrentActivity = newActivity
@@ -310,10 +309,8 @@ func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, 
 				}
 			}
 			return &entity.Intent{
-				TargetX:    nx,
-				TargetY:    ny,
-				DestX:      vx, // Destination is the vessel's position
-				DestY:      vy,
+				Target:     types.Position{X: nx, Y: ny},
+				Dest:       types.Position{X: vx, Y: vy}, // Destination is the vessel's position
 				Action:     entity.ActionPickup,
 				TargetItem: availableVessel,
 			}
@@ -325,7 +322,7 @@ func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, 
 	tx, ty := tpos.X, tpos.Y
 
 	// Check if already at target
-	if cx == tx && cy == ty {
+	if pos.X == tx && pos.Y == ty {
 		// Start foraging immediately
 		newActivity := "Foraging " + target.Description()
 		if char.CurrentActivity != newActivity {
@@ -335,17 +332,15 @@ func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, 
 			}
 		}
 		return &entity.Intent{
-			TargetX:    cx,
-			TargetY:    cy,
-			DestX:      cx, // Already at destination
-			DestY:      cy,
+			Target:     pos,
+			Dest:       pos, // Already at destination
 			Action:     entity.ActionPickup,
 			TargetItem: target,
 		}
 	}
 
 	// Move toward target - use ActionPickup to distinguish from looking
-	nx, ny := NextStep(cx, cy, tx, ty)
+	nx, ny := NextStep(pos.X, pos.Y, tx, ty)
 
 	newActivity := "Moving to forage " + target.Description()
 	if char.CurrentActivity != newActivity {
@@ -356,10 +351,8 @@ func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, 
 	}
 
 	return &entity.Intent{
-		TargetX:    nx,
-		TargetY:    ny,
-		DestX:      tx, // Destination is the item's position
-		DestY:      ty,
+		Target:     types.Position{X: nx, Y: ny},
+		Dest:       types.Position{X: tx, Y: ty}, // Destination is the item's position
 		Action:     entity.ActionPickup,
 		TargetItem: target,
 	}
@@ -368,7 +361,7 @@ func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, 
 // findForageTarget finds the best edible item for foraging using preference/distance scoring.
 // Uses moderate preference weight - foraging is idle activity, not urgent need.
 // If vessel is provided and has contents, only returns items matching the vessel's variety.
-func findForageTarget(char *entity.Character, cx, cy int, items []*entity.Item, vessel *entity.Item) *entity.Item {
+func findForageTarget(char *entity.Character, pos types.Position, items []*entity.Item, vessel *entity.Item) *entity.Item {
 	if len(items) == 0 {
 		return nil
 	}
@@ -404,7 +397,7 @@ func findForageTarget(char *entity.Character, cx, cy int, items []*entity.Item, 
 
 		netPref := char.NetPreference(item)
 		ipos := item.Pos()
-		dist := abs(cx-ipos.X) + abs(cy-ipos.Y)
+		dist := pos.DistanceTo(ipos)
 
 		// Calculate gradient score (same weights as moderate hunger eating)
 		score := float64(netPref)*config.FoodSeekPrefWeightModerate - float64(dist)*config.FoodSeekDistWeight
@@ -474,10 +467,8 @@ func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.It
 		// Already at target
 		char.CurrentActivity = "Foraging " + nearest.Description()
 		return &entity.Intent{
-			TargetX:    cx,
-			TargetY:    cy,
-			DestX:      cx, // Already at destination
-			DestY:      cy,
+			Target:          types.Position{X: cx, Y: cy},
+			Dest:            types.Position{X: cx, Y: cy}, // Already at destination
 			Action:     entity.ActionPickup,
 			TargetItem: nearest,
 		}
@@ -487,10 +478,8 @@ func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.It
 	nx, ny := NextStep(cx, cy, tx, ty)
 	char.CurrentActivity = "Moving to forage " + nearest.Description()
 	return &entity.Intent{
-		TargetX:    nx,
-		TargetY:    ny,
-		DestX:      tx, // Destination is the item's position
-		DestY:      ty,
+		Target:          types.Position{X: nx, Y: ny},
+		Dest:            types.Position{X: tx, Y: ty}, // Destination is the item's position
 		Action:     entity.ActionPickup,
 		TargetItem: nearest,
 	}

@@ -20,7 +20,7 @@ func TestFindTalkIntent_ReturnsNilWithNoOtherCharacters(t *testing.T) {
 	gameMap := game.NewMap(10, 10)
 	gameMap.AddCharacter(char)
 
-	intent := findTalkIntent(char, 5, 5, gameMap, nil)
+	intent := findTalkIntent(char, types.Position{X: 5, Y: 5}, gameMap, nil)
 
 	if intent != nil {
 		t.Error("Should return nil when no other characters exist")
@@ -38,7 +38,7 @@ func TestFindTalkIntent_ReturnsNilWhenOnlyNonIdleCharacters(t *testing.T) {
 	gameMap.AddCharacter(char)
 	gameMap.AddCharacter(other)
 
-	intent := findTalkIntent(char, 5, 5, gameMap, nil)
+	intent := findTalkIntent(char, types.Position{X: 5, Y: 5}, gameMap, nil)
 
 	if intent != nil {
 		t.Error("Should return nil when other characters are not doing idle activities")
@@ -56,7 +56,7 @@ func TestFindTalkIntent_ReturnsTalkIntentWhenAdjacent(t *testing.T) {
 	gameMap.AddCharacter(char)
 	gameMap.AddCharacter(other)
 
-	intent := findTalkIntent(char, 5, 5, gameMap, nil)
+	intent := findTalkIntent(char, types.Position{X: 5, Y: 5}, gameMap, nil)
 
 	if intent == nil {
 		t.Fatal("Should return an intent when idle character is adjacent")
@@ -80,7 +80,7 @@ func TestFindTalkIntent_ReturnsMoveIntentWhenNotAdjacent(t *testing.T) {
 	gameMap.AddCharacter(char)
 	gameMap.AddCharacter(other)
 
-	intent := findTalkIntent(char, 5, 5, gameMap, nil)
+	intent := findTalkIntent(char, types.Position{X: 5, Y: 5}, gameMap, nil)
 
 	if intent == nil {
 		t.Fatal("Should return an intent when idle character exists")
@@ -107,7 +107,7 @@ func TestFindTalkIntent_FindsClosestIdleCharacter(t *testing.T) {
 	gameMap.AddCharacter(far)
 	gameMap.AddCharacter(near)
 
-	intent := findTalkIntent(char, 5, 5, gameMap, nil)
+	intent := findTalkIntent(char, types.Position{X: 5, Y: 5}, gameMap, nil)
 
 	if intent == nil {
 		t.Fatal("Should return an intent")
@@ -128,7 +128,7 @@ func TestFindTalkIntent_TargetsCharacterLooking(t *testing.T) {
 	gameMap.AddCharacter(char)
 	gameMap.AddCharacter(other)
 
-	intent := findTalkIntent(char, 5, 5, gameMap, nil)
+	intent := findTalkIntent(char, types.Position{X: 5, Y: 5}, gameMap, nil)
 
 	if intent == nil {
 		t.Fatal("Should return an intent when character is looking")
@@ -149,7 +149,7 @@ func TestFindTalkIntent_TargetsCharacterTalking(t *testing.T) {
 	gameMap.AddCharacter(char)
 	gameMap.AddCharacter(other)
 
-	intent := findTalkIntent(char, 5, 5, gameMap, nil)
+	intent := findTalkIntent(char, types.Position{X: 5, Y: 5}, gameMap, nil)
 
 	if intent == nil {
 		t.Fatal("Should return an intent when character is talking")
@@ -171,7 +171,7 @@ func TestFindTalkIntent_SkipsDeadCharacters(t *testing.T) {
 	gameMap.AddCharacter(char)
 	gameMap.AddCharacter(dead)
 
-	intent := findTalkIntent(char, 5, 5, gameMap, nil)
+	intent := findTalkIntent(char, types.Position{X: 5, Y: 5}, gameMap, nil)
 
 	if intent != nil {
 		t.Error("Should not target dead characters")
@@ -189,7 +189,7 @@ func TestFindTalkIntent_SkipsSleepingCharacters(t *testing.T) {
 	gameMap.AddCharacter(char)
 	gameMap.AddCharacter(sleeping)
 
-	intent := findTalkIntent(char, 5, 5, gameMap, nil)
+	intent := findTalkIntent(char, types.Position{X: 5, Y: 5}, gameMap, nil)
 
 	if intent != nil {
 		t.Error("Should not target sleeping characters")
@@ -207,7 +207,7 @@ func TestFindTalkIntent_SkipsCharactersWithActiveNeeds(t *testing.T) {
 	gameMap.AddCharacter(char)
 	gameMap.AddCharacter(busy)
 
-	intent := findTalkIntent(char, 5, 5, gameMap, nil)
+	intent := findTalkIntent(char, types.Position{X: 5, Y: 5}, gameMap, nil)
 
 	if intent != nil {
 		t.Error("Should not target characters with active needs")
@@ -271,7 +271,7 @@ func TestSelectIdleActivity_ReturnsNilWhenCooldownActive(t *testing.T) {
 	item := entity.NewFlower(6, 5, types.ColorPurple)
 	items := []*entity.Item{item}
 
-	intent := selectIdleActivity(char, 5, 5, items, gameMap, nil, nil)
+	intent := selectIdleActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil, nil)
 
 	if intent != nil {
 		t.Error("Should return nil when cooldown is active")
@@ -290,7 +290,7 @@ func TestSelectIdleActivity_SetsCooldownWhenCalled(t *testing.T) {
 	items := []*entity.Item{}
 
 	// Call multiple times - cooldown should be set
-	selectIdleActivity(char, 5, 5, items, gameMap, nil, nil)
+	selectIdleActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil, nil)
 
 	if char.IdleCooldown <= 0 {
 		t.Error("Should set IdleCooldown after being called")
@@ -321,7 +321,7 @@ func TestSelectIdleActivity_ReturnsVariedIntents(t *testing.T) {
 		char.IdleCooldown = 0
 		gameMap.AddCharacter(char)
 
-		intent := selectIdleActivity(char, 5, 5, items, gameMap, nil, nil)
+		intent := selectIdleActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil, nil)
 
 		if intent == nil {
 			idleCount++
@@ -364,7 +364,7 @@ func TestSelectIdleActivity_FallsBackWhenLookingNotPossible(t *testing.T) {
 		char.IdleCooldown = 0
 		gameMap.AddCharacter(char)
 
-		intent := selectIdleActivity(char, 5, 5, items, gameMap, nil, nil)
+		intent := selectIdleActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil, nil)
 
 		if intent != nil && intent.TargetItem != nil {
 			t.Error("Should not return looking intent when no items exist")
@@ -389,7 +389,7 @@ func TestSelectIdleActivity_FallsBackWhenTalkingNotPossible(t *testing.T) {
 		char.IdleCooldown = 0
 		gameMap.AddCharacter(char)
 
-		intent := selectIdleActivity(char, 5, 5, items, gameMap, nil, nil)
+		intent := selectIdleActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil, nil)
 
 		if intent != nil && intent.TargetCharacter != nil {
 			t.Error("Should not return talking intent when no other characters exist")
@@ -817,8 +817,7 @@ func TestCalculateIntent_ContinuesApproachingTalkTarget(t *testing.T) {
 
 	// Set up initial talking intent (as if findTalkIntent was just called)
 	alice.Intent = &entity.Intent{
-		TargetX:         3, // Next step toward Bob
-		TargetY:         5,
+		Target:          types.Position{X: 3, Y: 5}, // Next step toward Bob
 		Action:          entity.ActionMove,
 		TargetCharacter: bob,
 	}
@@ -853,8 +852,8 @@ func TestCalculateIntent_ContinuesApproachingTalkTarget(t *testing.T) {
 		}
 
 		// Simulate alice actually moving (like applyIntent would do)
-		if intent.Action == entity.ActionMove && (intent.TargetX != cx || intent.TargetY != cy) {
-			gameMap.MoveCharacter(alice, intent.TargetX, intent.TargetY)
+		if intent.Action == entity.ActionMove && (intent.Target.X != cx || intent.Target.Y != cy) {
+			gameMap.MoveCharacter(alice, intent.Target.X, intent.Target.Y)
 		}
 	}
 
@@ -877,8 +876,7 @@ func TestCalculateIntent_ApproachingTalkTargetReachesAndTalks(t *testing.T) {
 
 	// Initial intent to move toward Bob
 	alice.Intent = &entity.Intent{
-		TargetX:         5,
-		TargetY:         5,
+		Target:          types.Position{X: 5, Y: 5},
 		Action:          entity.ActionMove,
 		TargetCharacter: bob,
 	}
@@ -924,8 +922,7 @@ func TestCalculateIntent_ApproachStopsIfTargetBecomesNonIdle(t *testing.T) {
 
 	// Alice is approaching Bob
 	alice.Intent = &entity.Intent{
-		TargetX:         3,
-		TargetY:         5,
+		Target:          types.Position{X: 3, Y: 5},
 		Action:          entity.ActionMove,
 		TargetCharacter: bob,
 	}

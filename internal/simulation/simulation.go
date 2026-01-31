@@ -196,15 +196,15 @@ func applyPickupIntent(char *entity.Character, gameMap *game.Map, delta float64,
 	char.SpeedAccumulator -= movementThreshold
 
 	// Move toward target item
-	tx, ty := char.Intent.TargetX, char.Intent.TargetY
+	tx, ty := char.Intent.Target.X, char.Intent.Target.Y
 	if gameMap.MoveCharacter(char, tx, ty) {
 		// Successfully moved - update intent for next step
 		newPos := char.Pos()
 		if newPos.X != ipos.X || newPos.Y != ipos.Y {
 			// Need to keep moving toward item
 			nextX, nextY := system.NextStep(newPos.X, newPos.Y, ipos.X, ipos.Y)
-			char.Intent.TargetX = nextX
-			char.Intent.TargetY = nextY
+			char.Intent.Target.X = nextX
+			char.Intent.Target.Y = nextY
 		}
 	}
 }
@@ -213,7 +213,7 @@ func applyPickupIntent(char *entity.Character, gameMap *game.Map, delta float64,
 func applyMoveIntent(char *entity.Character, gameMap *game.Map, delta float64, actionLog *system.ActionLog) {
 	cpos := char.Pos()
 	cx, cy := cpos.X, cpos.Y
-	tx, ty := char.Intent.TargetX, char.Intent.TargetY
+	tx, ty := char.Intent.Target.X, char.Intent.Target.Y
 
 	// Check if at target item - eating takes duration
 	if char.Intent.TargetItem != nil {
@@ -297,7 +297,7 @@ func applyMoveIntent(char *entity.Character, gameMap *game.Map, delta float64, a
 // findAlternateStep finds an alternate step when preferred is blocked
 func findAlternateStep(char *entity.Character, gameMap *game.Map, cx, cy int, triedPositions map[[2]int]bool) []int {
 	// Use destination position (where we need to stand to interact)
-	goalX, goalY := char.Intent.DestX, char.Intent.DestY
+	goalX, goalY := char.Intent.Dest.X, char.Intent.Dest.Y
 	if goalX == 0 && goalY == 0 {
 		// Fallback for intents without destination set
 		if char.Intent.TargetItem != nil {

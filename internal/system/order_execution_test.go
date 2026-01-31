@@ -29,7 +29,7 @@ func TestSelectOrderActivity_AssignsOpenOrder(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
+	intent := selectOrderActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, orders, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent to be returned, got nil")
@@ -76,7 +76,7 @@ func TestSelectOrderActivity_ResumesAssignedOrder(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
+	intent := selectOrderActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, orders, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent to be returned for resume, got nil")
@@ -107,7 +107,7 @@ func TestSelectOrderActivity_ResumesPausedOrder(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
+	intent := selectOrderActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, orders, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent to be returned for paused resume, got nil")
@@ -134,7 +134,7 @@ func TestSelectOrderActivity_RequiresKnowHow(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
+	intent := selectOrderActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, orders, nil)
 
 	if intent != nil {
 		t.Error("Expected nil intent for character without know-how")
@@ -161,7 +161,7 @@ func TestSelectOrderActivity_FullInventoryCanTakeNew(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
+	intent := selectOrderActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, orders, nil)
 
 	// Characters can now take orders with full inventory - will drop during execution
 	if intent == nil {
@@ -190,7 +190,7 @@ func TestSelectOrderActivity_AbandonsWhenNoItems(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
+	intent := selectOrderActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, orders, nil)
 
 	if intent != nil {
 		t.Error("Expected nil intent when no items to harvest")
@@ -229,7 +229,7 @@ func TestSelectOrderActivity_OrderIDMustBeNonZero(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	_ = selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
+	_ = selectOrderActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, orders, nil)
 
 	// After assignment, char.AssignedOrderID = order.ID = 0
 	// This looks like "no order assigned" because we check AssignedOrderID != 0
@@ -267,7 +267,7 @@ func TestSelectOrderActivity_ValidatesAssignmentBidirectional(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
+	intent := selectOrderActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, orders, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent, got nil")
@@ -317,7 +317,7 @@ func TestFindHarvestIntent_FindsNearestItem(t *testing.T) {
 	order := entity.NewOrder(1, "harvest", "berry")
 	items := gameMap.Items()
 
-	intent := findHarvestIntent(char, 5, 5, items, order, nil, gameMap)
+	intent := findHarvestIntent(char, types.Position{X: 5, Y: 5}, items, order, nil, gameMap)
 
 	if intent == nil {
 		t.Fatal("Expected intent, got nil")
@@ -344,7 +344,7 @@ func TestFindHarvestIntent_MatchesTargetType(t *testing.T) {
 	order := entity.NewOrder(1, "harvest", "berry")
 	items := gameMap.Items()
 
-	intent := findHarvestIntent(char, 5, 5, items, order, nil, gameMap)
+	intent := findHarvestIntent(char, types.Position{X: 5, Y: 5}, items, order, nil, gameMap)
 
 	if intent == nil {
 		t.Fatal("Expected intent, got nil")
@@ -369,7 +369,7 @@ func TestFindHarvestIntent_ReturnsNilWhenNoMatchingItems(t *testing.T) {
 	order := entity.NewOrder(1, "harvest", "berry")
 	items := gameMap.Items()
 
-	intent := findHarvestIntent(char, 5, 5, items, order, nil, gameMap)
+	intent := findHarvestIntent(char, types.Position{X: 5, Y: 5}, items, order, nil, gameMap)
 
 	if intent != nil {
 		t.Error("Expected nil intent when no matching items")
@@ -417,7 +417,7 @@ func TestFindHarvestIntent_LooksForVesselFirst(t *testing.T) {
 	order := entity.NewOrder(1, "harvest", "berry")
 	items := gameMap.Items()
 
-	intent := findHarvestIntent(char, 5, 5, items, order, nil, gameMap)
+	intent := findHarvestIntent(char, types.Position{X: 5, Y: 5}, items, order, nil, gameMap)
 
 	if intent == nil {
 		t.Fatal("Expected intent, got nil")
@@ -477,7 +477,7 @@ func TestFindHarvestIntent_DropsIncompatibleVessel(t *testing.T) {
 	items := gameMap.Items()
 
 	// This should drop the vessel
-	intent := findHarvestIntent(char, 5, 5, items, order, nil, gameMap)
+	intent := findHarvestIntent(char, types.Position{X: 5, Y: 5}, items, order, nil, gameMap)
 
 	if intent == nil {
 		t.Fatal("Expected intent, got nil")
@@ -534,7 +534,7 @@ func TestFindHarvestIntent_UsesCompatibleVessel(t *testing.T) {
 	order := entity.NewOrder(1, "harvest", "berry")
 	items := gameMap.Items()
 
-	intent := findHarvestIntent(char, 5, 5, items, order, nil, gameMap)
+	intent := findHarvestIntent(char, types.Position{X: 5, Y: 5}, items, order, nil, gameMap)
 
 	if intent == nil {
 		t.Fatal("Expected intent, got nil")
@@ -626,8 +626,7 @@ func TestCalculateIntent_ContinuesOrderWork(t *testing.T) {
 
 	// Set up existing intent (character is working on order)
 	char.Intent = &entity.Intent{
-		TargetX:    6, // Moving toward berry
-		TargetY:    5,
+		Target:     types.Position{X: 6, Y: 5}, // Moving toward berry
 		Action:     entity.ActionPickup,
 		TargetItem: berry,
 	}
@@ -677,8 +676,7 @@ func TestCalculateIntent_PausesOrderWhenModerateNeed(t *testing.T) {
 
 	// Set up existing intent (character was working on order)
 	char.Intent = &entity.Intent{
-		TargetX:    7,
-		TargetY:    5,
+		Target:     types.Position{X: 7, Y: 5},
 		Action:     entity.ActionPickup,
 		TargetItem: berry,
 	}
@@ -900,7 +898,7 @@ func TestFindCraftVesselIntent_WithGourdInInventory(t *testing.T) {
 	order := entity.NewOrder(1, "craftVessel", "")
 
 	items := gameMap.Items()
-	intent := findCraftVesselIntent(char, 5, 5, items, order, nil)
+	intent := findCraftVesselIntent(char, types.Position{X: 5, Y: 5}, items, order, nil)
 
 	if intent == nil {
 		t.Fatal("Expected craft intent")
@@ -928,7 +926,7 @@ func TestFindCraftVesselIntent_WithoutGourd_FindsGourdOnMap(t *testing.T) {
 	order := entity.NewOrder(1, "craftVessel", "")
 
 	items := gameMap.Items()
-	intent := findCraftVesselIntent(char, 5, 5, items, order, nil)
+	intent := findCraftVesselIntent(char, types.Position{X: 5, Y: 5}, items, order, nil)
 
 	if intent == nil {
 		t.Fatal("Expected pickup intent for gourd")
@@ -956,7 +954,7 @@ func TestFindCraftVesselIntent_NoGourdsAvailable(t *testing.T) {
 	order := entity.NewOrder(1, "craftVessel", "")
 
 	items := gameMap.Items()
-	intent := findCraftVesselIntent(char, 5, 5, items, order, nil)
+	intent := findCraftVesselIntent(char, types.Position{X: 5, Y: 5}, items, order, nil)
 
 	if intent != nil {
 		t.Error("Expected nil intent when no gourds available")
@@ -978,7 +976,7 @@ func TestFindCraftVesselIntent_CarryingNonGourd_FindsGourd(t *testing.T) {
 	order := entity.NewOrder(1, "craftVessel", "")
 
 	items := gameMap.Items()
-	intent := findCraftVesselIntent(char, 5, 5, items, order, nil)
+	intent := findCraftVesselIntent(char, types.Position{X: 5, Y: 5}, items, order, nil)
 
 	if intent == nil {
 		t.Fatal("Expected pickup intent for gourd")
@@ -1038,7 +1036,7 @@ func TestSelectOrderActivity_FullInventory_DropsOnPickup(t *testing.T) {
 	orders := []*entity.Order{order}
 
 	items := gameMap.Items()
-	intent := selectOrderActivity(char, 5, 5, items, gameMap, orders, nil)
+	intent := selectOrderActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, orders, nil)
 
 	// Should get pickup intent even with full inventory
 	if intent == nil {

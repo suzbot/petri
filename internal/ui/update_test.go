@@ -26,8 +26,7 @@ func TestApplyIntent_CollapseIsImmediate(t *testing.T) {
 	bed := entity.NewLeafPile(10, 10)
 	char.Intent = &entity.Intent{
 		Action:        entity.ActionMove,
-		TargetX:       6,
-		TargetY:       5,
+		Target:        types.Position{X: 6, Y: 5},
 		TargetFeature: bed,
 	}
 	gameMap.AddCharacter(char)
@@ -61,9 +60,8 @@ func TestApplyIntent_NoCollapseWhenEnergyAboveZero(t *testing.T) {
 	char := entity.NewCharacter(1, 5, 5, "TestChar", "berries", types.ColorRed)
 	char.Energy = 1 // Just above collapse threshold
 	char.Intent = &entity.Intent{
-		Action:  entity.ActionMove,
-		TargetX: 6,
-		TargetY: 5,
+		Action: entity.ActionMove,
+		Target: types.Position{X: 6, Y: 5},
 	}
 	// Need enough speed to actually move (threshold is 7.5)
 	char.SpeedAccumulator = 10.0
@@ -105,8 +103,7 @@ func TestApplyIntent_ActionConsume_ConsumesFromInventory(t *testing.T) {
 	char.Carrying = carriedItem
 	char.Intent = &entity.Intent{
 		Action:     entity.ActionConsume,
-		TargetX:    5,
-		TargetY:    5,
+		Target:     types.Position{X: 5, Y: 5},
 		TargetItem: carriedItem,
 	}
 	gameMap.AddCharacter(char)
@@ -146,8 +143,7 @@ func TestApplyIntent_ActionConsume_RequiresDuration(t *testing.T) {
 	char.ActionProgress = 0
 	char.Intent = &entity.Intent{
 		Action:     entity.ActionConsume,
-		TargetX:    5,
-		TargetY:    5,
+		Target:     types.Position{X: 5, Y: 5},
 		TargetItem: carriedItem,
 	}
 	gameMap.AddCharacter(char)
@@ -182,8 +178,7 @@ func TestApplyIntent_ActionConsume_VerifiesTargetMatchesCarrying(t *testing.T) {
 	char.Carrying = carriedItem
 	char.Intent = &entity.Intent{
 		Action:     entity.ActionConsume,
-		TargetX:    5,
-		TargetY:    5,
+		Target:     types.Position{X: 5, Y: 5},
 		TargetItem: differentItem, // Mismatched!
 	}
 	gameMap.AddCharacter(char)
@@ -232,8 +227,7 @@ func TestApplyIntent_CraftOrderNotCompletedOnPickup(t *testing.T) {
 	// Set pickup intent for gourd
 	char.Intent = &entity.Intent{
 		Action:     entity.ActionPickup,
-		TargetX:    5,
-		TargetY:    5,
+		Target:     types.Position{X: 5, Y: 5},
 		TargetItem: gourd,
 	}
 
@@ -325,8 +319,7 @@ func TestApplyIntent_HarvestOrderWithVessel_ContinuesUntilFull(t *testing.T) {
 	// Set pickup intent for first berry
 	char.Intent = &entity.Intent{
 		Action:     entity.ActionPickup,
-		TargetX:    5,
-		TargetY:    5,
+		Target:     types.Position{X: 5, Y: 5},
 		TargetItem: berry1,
 	}
 
@@ -404,8 +397,7 @@ func TestApplyIntent_HarvestOrderWithVessel_CompletesWhenFull(t *testing.T) {
 
 	char.Intent = &entity.Intent{
 		Action:     entity.ActionPickup,
-		TargetX:    5,
-		TargetY:    5,
+		Target:     types.Position{X: 5, Y: 5},
 		TargetItem: gourd,
 	}
 
@@ -463,8 +455,7 @@ func TestApplyIntent_HarvestOrderWithoutVessel_CompletesAfterOneItem(t *testing.
 
 	char.Intent = &entity.Intent{
 		Action:     entity.ActionPickup,
-		TargetX:    5,
-		TargetY:    5,
+		Target:     types.Position{X: 5, Y: 5},
 		TargetItem: berry,
 	}
 

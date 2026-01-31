@@ -1,6 +1,6 @@
 # Position Struct Refactor
 
-**Status:** In Progress (Phase 2 Complete)
+**Status:** In Progress (Phase 3 Complete)
 **Goal:** Replace separate `x, y` / `posX, posY` coordinate pairs with a unified `Position` struct
 
 ## Key Discovery
@@ -102,9 +102,10 @@ func (p Position) NextStepToward(target Position) Position {
 - [x] Rename `SetPosition()` to `SetPos()` taking `types.Position`
 - [ ] Update entity constructors (deferred - still use x, y ints)
 
-### Phase 3: Intent System
-- [ ] Update `Intent` struct fields
-- [ ] Update all intent-finding functions in `system/`
+### Phase 3: Intent System ✓
+- [x] Update `Intent` struct fields (Target, Dest as types.Position)
+- [x] Update all intent-finding functions to use Position parameter
+- [x] Update selectIdleActivity, selectOrderActivity to use Position
 
 ### Phase 4: Map Operations
 - [ ] Update Map query methods
@@ -196,4 +197,14 @@ This ensures future sessions:
 - Completed Phase 2: Entity Layer
 - Renamed `Position()` to `Pos()`, `SetPosition()` to `SetPos()`
 - Updated 82+ call sites across 22 files
+- All tests passing
+
+### Session 3 (2026-01-31)
+- Completed Phase 3: Intent System
+- Updated Intent struct: `TargetX/Y, DestX/Y` → `Target, Dest types.Position`
+- Updated 57 Intent literals across 8 files
+- Updated 10 find*Intent function signatures to use Position parameter
+- Updated selectIdleActivity and selectOrderActivity signatures
+- Added types import to foraging.go, order_execution.go, talking.go, idle.go
+- Used pos.DistanceTo() in findHealingIntent, findTalkIntent, findForageTarget
 - All tests passing

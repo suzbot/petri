@@ -621,7 +621,7 @@ func TestFindForageTarget_FiltersToVesselVariety(t *testing.T) {
 
 	items := []*entity.Item{blueBerry, targetBerry}
 
-	target := findForageTarget(char, 0, 0, items, vessel)
+	target := findForageTarget(char, types.Position{X: 0, Y: 0}, items, vessel)
 
 	if target != targetBerry {
 		t.Error("Should find red berry matching vessel variety, not closer blue berry")
@@ -641,7 +641,7 @@ func TestFindForageTarget_NoFilterWhenVesselEmpty(t *testing.T) {
 
 	items := []*entity.Item{blueBerry, redBerry}
 
-	target := findForageTarget(char, 0, 0, items, vessel)
+	target := findForageTarget(char, types.Position{X: 0, Y: 0}, items, vessel)
 
 	if target != blueBerry {
 		t.Error("Empty vessel should not filter - should find closest edible item")

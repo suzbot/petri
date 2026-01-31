@@ -199,7 +199,7 @@ func TestFindLookIntent_ReturnsNilWithNoItems(t *testing.T) {
 
 	// Run multiple times (50% chance)
 	for i := 0; i < 10; i++ {
-		intent := findLookIntent(char, 5, 5, nil, gameMap, nil)
+		intent := findLookIntent(char, types.Position{X: 5, Y: 5}, nil, gameMap, nil)
 		if intent != nil {
 			t.Error("Should return nil when no items exist")
 		}
@@ -219,7 +219,7 @@ func TestFindLookIntent_ReturnsLookIntentWhenAdjacent(t *testing.T) {
 	// Run multiple times to get a look intent (50% chance)
 	var intent *entity.Intent
 	for i := 0; i < 20; i++ {
-		intent = findLookIntent(char, 5, 5, items, gameMap, nil)
+		intent = findLookIntent(char, types.Position{X: 5, Y: 5}, items, gameMap, nil)
 		if intent != nil {
 			break
 		}
@@ -250,7 +250,7 @@ func TestFindLookIntent_ReturnsMoveIntentWhenNotAdjacent(t *testing.T) {
 	// Run multiple times to get an intent (50% chance)
 	var intent *entity.Intent
 	for i := 0; i < 20; i++ {
-		intent = findLookIntent(char, 5, 5, items, gameMap, nil)
+		intent = findLookIntent(char, types.Position{X: 5, Y: 5}, items, gameMap, nil)
 		if intent != nil {
 			break
 		}
