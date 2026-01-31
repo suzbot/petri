@@ -40,6 +40,9 @@ then they can be removed from this list.
 1. **Character Names**: put in their own special file so its super easy for users/me to add more names.
    - Names to remember to add next: Bog, Log, Fen, Pod, Bough, Toady, Tarn, Weir, Bine, Brome, Cress, Daub, Nook, Fir, Frond, Furl, Rye, Muld, Grue, Gnarl, Peat, Pad, Sod, Sprout
    - Alphabetize all names, to make it easy for humans to not add duplicates
+2. Create Code Review Agent
+3. Assess process docs for claude skills
+4. Consider sequential problem solving MCS
 
 ## Small Features
 
@@ -49,20 +52,10 @@ then they can be removed from this list.
    - === Petri ===
    - R to start with Random Characters
    - C to create Characters
-3. sticks spawn randomly, but do not grow, they are "dropped" on the ground by falling from the canopy (required for construction)
-4. generate ponds at world creation (drinkable feature - required for gardening requirements)
-5. generate clay pit?? (required for construction)
-6. Fire for cooking
-   - Pumpkin Pie recipe to use those hollow gourds that contain 1 gourd
-   - Porridge! made out of tall grass seeds or nuts or berries + water
-   - Soup! made out of mushrooms + water
-   - feed fire with fuel?
-   - food quality for mood
-   - satiety of food items
-7. Edible Nuts drop from canopy
-8. Streams and Bridges (requires construction)
-9. Use moss, feathers, and leaves to make beds
-10. Baskets, Bags, and Bins
+3. Edible Nuts drop from canopy
+4. Streams and Bridges (requires construction)
+5. Use moss, feathers, and leaves to make beds
+6. Baskets, Bags, and Bins
 
 # Ideas that aren't ready yet:
 
@@ -70,3 +63,10 @@ then they can be removed from this list.
 - Extended ascii art mushrooms on title screen
 - Reorder the fields in the Details panel (low - still needs product decision)
 - Auto pause at certain events?
+- Fire for cooking
+  - Pumpkin Pie recipe to use those hollow gourds that contain 1 gourd
+  - Porridge! made out of tall grass seeds or nuts or berries + water
+  - Soup! made out of mushrooms + water
+  - feed fire with fuel?
+  - food quality for mood
+  - satiety of food items

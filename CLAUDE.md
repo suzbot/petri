@@ -110,18 +110,6 @@ Process docs:
 
 ## Development Roadmap
 
-See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
-
-**Completed:**
-
-- Phase 6 Features 1-6
-- Phase 6 Clean-ups 1-4
-- Impassable Springs: Springs are impassable terrain, characters drink from cardinal-adjacent tiles
-
-**In Progress:**
-
--
-
 **Up Next:**
 
 - Add "Fav" to character creation labels (Food → Fav Food, Color → Fav Color)
@@ -133,10 +121,10 @@ See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 
 ## Reference and Planning Documents
 
-| Document                                               | Purpose                                       |
-| ------------------------------------------------------ | --------------------------------------------- |
-| [docs/VISION.txt](docs/VISION.txt)                     | Project vision and phases                     |
-| [docs/architecture.md](docs/architecture.md)           | Design patterns, data flow, item/memory model |
-| [docs/game-mechanics.md](docs/game-mechanics.md)       | Detailed stat thresholds, rates, systems      |
+| Document                                                         | Purpose                                       |
+| ---------------------------------------------------------------- | --------------------------------------------- |
+| [docs/VISION.txt](docs/VISION.txt)                               | Project vision and phases                     |
+| [docs/architecture.md](docs/architecture.md)                     | Design patterns, data flow, item/memory model |
+| [docs/game-mechanics.md](docs/game-mechanics.md)                 | Detailed stat thresholds, rates, systems      |
 | [docs/triggered-enhancements.md](docs/triggered-enhancements.md) | Deferred items with triggers, balance tuning  |
-| [docs/failed-approaches.md](docs/failed-approaches.md) | Approaches tried and abandoned                |
+| [docs/failed-approaches.md](docs/failed-approaches.md)           | Approaches tried and abandoned                |
