@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"petri/internal/types"
 )
 
 func setupTestDir(t *testing.T) string {
@@ -124,19 +126,17 @@ func TestSaveAndLoadWorld(t *testing.T) {
 		MapHeight:       30,
 		Characters: []CharacterSave{
 			{
-				ID:     1,
-				Name:   "TestChar",
-				X:      10,
-				Y:      15,
-				Health: 100.0,
-				Hunger: 80.0,
+				ID:       1,
+				Name:     "TestChar",
+				Position: types.Position{X: 10, Y: 15},
+				Health:   100.0,
+				Hunger:   80.0,
 			},
 		},
 		Items: []ItemSave{
 			{
 				ID:       1,
-				X:        5,
-				Y:        5,
+				Position: types.Position{X: 5, Y: 5},
 				ItemType: "mushroom",
 				Color:    "red",
 			},

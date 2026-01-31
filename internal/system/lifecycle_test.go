@@ -50,8 +50,8 @@ func TestFindEmptyAdjacent_FindsEmptyTile(t *testing.T) {
 	}
 
 	// Check returned position is adjacent (8-directional)
-	dx := abs(x - 5)
-	dy := abs(y - 5)
+	dx := types.Abs(x - 5)
+	dy := types.Abs(y - 5)
 	if dx > 1 || dy > 1 || (dx == 0 && dy == 0) {
 		t.Errorf("Position (%d, %d) is not adjacent to (5, 5)", x, y)
 	}
@@ -187,8 +187,8 @@ func TestUpdateSpawnTimers_SpawnsAdjacentToParent(t *testing.T) {
 			continue
 		}
 		ipos := item.Pos()
-		dx := abs(ipos.X - 5)
-		dy := abs(ipos.Y - 5)
+		dx := types.Abs(ipos.X - 5)
+		dy := types.Abs(ipos.Y - 5)
 		if dx > 1 || dy > 1 {
 			t.Errorf("Spawned item at (%d, %d) is not adjacent to parent at (5, 5)", ipos.X, ipos.Y)
 		}

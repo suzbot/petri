@@ -1,6 +1,6 @@
 # Position Struct Refactor
 
-**Status:** In Progress (Phase 4 Complete)
+**Status:** Complete
 **Goal:** Replace separate `x, y` / `posX, posY` coordinate pairs with a unified `Position` struct
 
 ## Key Discovery
@@ -112,21 +112,21 @@ func (p Position) NextStepToward(target Position) Position {
 - [x] Remove duplicate `Pos` struct (use types.Position)
 - [x] Update spatial indexing maps
 
-### Phase 5: Serialization
-- [ ] Update save state structs
-- [ ] Update ToSaveState/FromSaveState
-- [ ] Verify save/load compatibility
+### Phase 5: Serialization ✓
+- [x] Update save state structs
+- [x] Update ToSaveState/FromSaveState
+- [x] Verify save/load compatibility
 
-### Phase 6: Cleanup
-- [ ] Remove duplicate `abs()` functions
-- [ ] Replace inline distance calculations with method calls
-- [ ] Update tests
+### Phase 6: Cleanup ✓
+- [x] Remove duplicate `abs()` functions
+- [x] Replace inline distance calculations with method calls
+- [x] Update tests
 
-### Phase 7: Documentation
-- [ ] Update `docs/architecture.md` with Position type usage patterns
-- [ ] Update `CLAUDE.md` Key Files section to include `types/position.go`
-- [ ] Document when to use Position methods vs inline calculations
-- [ ] Add examples of correct Position usage for future reference
+### Phase 7: Documentation ✓
+- [x] Update `docs/architecture.md` with Position type usage patterns
+- [x] Update `CLAUDE.md` Key Files section to include `types/position.go`
+- [x] Document when to use Position methods vs inline calculations
+- [x] Add examples of correct Position usage for future reference
 
 ## Serialization Compatibility
 
@@ -227,3 +227,42 @@ This ensures future sessions:
   - simulation.go, simulation_test.go, lifecycle.go, lifecycle_test.go
   - talking_test.go, consumption_test.go, serialize_test.go, order_execution_test.go
 - All tests passing
+
+### Session 5 (2026-01-31)
+- Completed Phase 5: Serialization
+- Updated save structs to use anonymous `types.Position` embedding:
+  - CharacterSave, ItemSave, FeatureSave
+- JSON format maintained as flat `{"x":5,"y":10}` (backwards compatible)
+- Updated serialize.go conversion functions:
+  - ToSaveState functions use `entity.Pos()` method
+  - FromSaveState functions read from embedded `Position.X/Y`
+- Added backwards compatibility tests (json_compat_test.go)
+- Verified old save format loads correctly
+- All tests passing
+
+### Session 6 (2026-01-31)
+- Completed Phase 6: Cleanup
+- Removed duplicate `abs()` functions:
+  - Removed from `movement.go` (line 870)
+  - Removed from `simulation/observation_test.go` (line 264)
+- Removed local `sign()` function from `movement.go`
+- Replaced inline distance calculations with `pos.DistanceTo(other)`:
+  - `movement.go`: 4 sites (FindFoodTarget, findNearestItemExcluding, findClosestCardinalTile, findClosestAdjacentTile)
+  - `foraging.go`: 2 sites (FindAvailableVessel, FindNextVesselTarget)
+  - `order_execution.go`: 1 site (findNearestItemByType)
+  - `simulation/observation_test.go`: 2 sites
+- Updated `isAdjacent` and `isCardinallyAdjacent` to use Position methods
+- Updated `NextStep` to use `types.Abs()` and `types.Sign()`
+- Updated `lifecycle_test.go` to use `types.Abs()`
+- All tests passing
+
+### Session 7 (2026-01-31)
+- Completed Phase 7: Documentation
+- Added "Position Handling" section to `docs/architecture.md`:
+  - Entity position methods (Pos, SetPos)
+  - Position methods table (DistanceTo, IsAdjacentTo, etc.)
+  - Helper functions (types.Abs, types.Sign)
+  - Map query methods list
+  - Do/Don't guidelines
+- Updated `CLAUDE.md` Key Files section to include `types/position.go`
+- Refactor complete!

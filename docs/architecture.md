@@ -255,6 +255,57 @@ This allows multiple characters to drink from the same spring simultaneously (fr
 
 `findAlternateStep()` uses `IsBlocked()` to route around both characters and impassable features.
 
+## Position Handling
+
+All coordinates use `types.Position` struct:
+
+```go
+type Position struct {
+    X, Y int
+}
+```
+
+### Entity Positions
+
+- Get position: `entity.Pos()` returns `types.Position`
+- Set position: `entity.SetPos(pos)`
+- Direct field access: `entity.X`, `entity.Y` (for performance-critical code)
+
+### Position Methods
+
+| Method | Purpose |
+|--------|---------|
+| `pos.DistanceTo(other)` | Manhattan distance between positions |
+| `pos.IsAdjacentTo(other)` | True if within 1 tile (8 directions) |
+| `pos.IsCardinallyAdjacentTo(other)` | True if exactly 1 tile away (N/E/S/W only) |
+| `pos.NextStepToward(target)` | Position one step closer to target |
+
+### Helper Functions
+
+| Function | Location |
+|----------|----------|
+| `types.Abs(x)` | Absolute value |
+| `types.Sign(x)` | Returns -1, 0, or 1 |
+
+### Map Query Methods
+
+All Map query methods take `types.Position`:
+- `EntityAt(pos)`, `CharacterAt(pos)`, `ItemAt(pos)`, `FeatureAt(pos)`
+- `IsValid(pos)`, `IsOccupied(pos)`, `IsBlocked(pos)`, `IsEmpty(pos)`
+- `FindNearestDrinkSource(pos)`, `FindNearestBed(pos)`
+
+### Guidelines
+
+**Do:**
+- Use `pos.DistanceTo(other)` for distance calculations
+- Use `pos.IsAdjacentTo(other)` for adjacency checks
+- Create Position with `types.Position{X: x, Y: y}` when needed
+
+**Don't:**
+- Inline distance calculations like `abs(x1-x2) + abs(y1-y2)`
+- Create new position-like structs
+- Define local `abs()` or `sign()` functions
+
 ## Common Implementation Pitfalls
 
 **Game time vs wall clock**: UI indicators that should work when paused (like "Saved" message) need wall clock time (`time.Now()`), not game time which only advances when unpaused.

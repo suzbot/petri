@@ -1,6 +1,10 @@
 package save
 
-import "time"
+import (
+	"time"
+
+	"petri/internal/types"
+)
 
 // CurrentVersion is the save file format version
 const CurrentVersion = 1
@@ -55,8 +59,7 @@ type EventSave struct {
 type CharacterSave struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
-	X    int    `json:"x"`
-	Y    int    `json:"y"`
+	types.Position
 
 	// Stats
 	Health float64 `json:"health"`
@@ -134,9 +137,8 @@ type ContainerDataSave struct {
 
 // ItemSave represents an item for serialization
 type ItemSave struct {
-	ID       int    `json:"id"`
-	X        int    `json:"x"`
-	Y        int    `json:"y"`
+	ID int `json:"id"`
+	types.Position
 	Name     string `json:"name,omitempty"` // Display name for crafted items
 	ItemType string `json:"item_type"`
 	Color    string `json:"color"`
@@ -158,9 +160,8 @@ type ItemSave struct {
 
 // FeatureSave represents a feature for serialization
 type FeatureSave struct {
-	ID          int  `json:"id"`
-	X           int  `json:"x"`
-	Y           int  `json:"y"`
+	ID int `json:"id"`
+	types.Position
 	FeatureType int  `json:"feature_type"` // FeatureType enum value
 	DrinkSource bool `json:"drink_source"`
 	Bed         bool `json:"bed"`

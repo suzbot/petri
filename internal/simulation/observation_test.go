@@ -261,12 +261,6 @@ func moodTier(mood float64) string {
 	}
 }
 
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
 
 func actionName(a entity.ActionType) string {
 	switch a {
@@ -341,7 +335,7 @@ func TestObserveTimeToFirstDeath(t *testing.T) {
 					if foodResult.Item != nil {
 						ipos := foodResult.Item.Pos()
 						cpos := c.Pos()
-						dist := abs(cpos.X-ipos.X) + abs(cpos.Y-ipos.Y)
+						dist := cpos.DistanceTo(ipos)
 						foodInfo = fmt.Sprintf("dist:%d pref:%d", dist, foodResult.NetPreference)
 					}
 					fmt.Printf("Run %d: Death at tick %d (%.0fs) - %s | Speed:%d Poisoned:%v Food:%s Edible:%d\n",
@@ -534,7 +528,7 @@ func TestObserveDeathProgression(t *testing.T) {
 				if foodResult.Item != nil {
 					ipos := foodResult.Item.Pos()
 					cpos := c.Pos()
-					dist := abs(cpos.X-ipos.X) + abs(cpos.Y-ipos.Y)
+					dist := cpos.DistanceTo(ipos)
 					foodInfo = fmt.Sprintf("%s (pref:%d dist:%d)", foodResult.Item.Description(), foodResult.NetPreference, dist)
 				}
 				fmt.Printf("Tick %d (%.0fs): %s died - %s\n", tick, float64(tick)*delta, c.Name, inferDeathCause(c))

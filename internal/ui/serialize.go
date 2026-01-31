@@ -86,11 +86,10 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 				}
 			}
 			carrying = &save.ItemSave{
-				ID:         c.Carrying.ID,
-				X:          c.Carrying.X,
-				Y:          c.Carrying.Y,
-				Name:       c.Carrying.Name,
-				ItemType:   c.Carrying.ItemType,
+				ID:       c.Carrying.ID,
+				Position: c.Carrying.Pos(),
+				Name:     c.Carrying.Name,
+				ItemType: c.Carrying.ItemType,
 				Color:      string(c.Carrying.Color),
 				Pattern:    string(c.Carrying.Pattern),
 				Texture:    string(c.Carrying.Texture),
@@ -104,10 +103,9 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 		}
 
 		result[i] = save.CharacterSave{
-			ID:   c.ID,
-			Name: c.Name,
-			X:    c.X,
-			Y:    c.Y,
+			ID:       c.ID,
+			Name:     c.Name,
+			Position: c.Pos(),
 
 			Health: c.Health,
 			Hunger: c.Hunger,
@@ -216,11 +214,10 @@ func itemsToSave(items []*entity.Item) []save.ItemSave {
 			}
 		}
 		result[i] = save.ItemSave{
-			ID:         item.ID,
-			X:          item.X,
-			Y:          item.Y,
-			Name:       item.Name,
-			ItemType:   item.ItemType,
+			ID:       item.ID,
+			Position: item.Pos(),
+			Name:     item.Name,
+			ItemType: item.ItemType,
 			Color:      string(item.Color),
 			Pattern:    string(item.Pattern),
 			Texture:    string(item.Texture),
@@ -241,8 +238,7 @@ func featuresToSave(features []*entity.Feature) []save.FeatureSave {
 	for i, f := range features {
 		result[i] = save.FeatureSave{
 			ID:          f.ID,
-			X:           f.X,
-			Y:           f.Y,
+			Position:    f.Pos(),
 			FeatureType: int(f.FType),
 			DrinkSource: f.DrinkSource,
 			Bed:         f.Bed,
@@ -426,8 +422,8 @@ func characterFromSave(cs save.CharacterSave, registry *game.VarietyRegistry) *e
 	}
 
 	// Set position and symbol via BaseEntity
-	char.X = cs.X
-	char.Y = cs.Y
+	char.X = cs.Position.X
+	char.Y = cs.Position.Y
 	char.Sym = config.CharRobot
 	char.EType = entity.TypeCharacter
 
@@ -533,8 +529,8 @@ func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item
 		Edible:     edible,
 		DeathTimer: is.DeathTimer,
 	}
-	item.X = is.X
-	item.Y = is.Y
+	item.X = is.Position.X
+	item.Y = is.Position.Y
 	item.EType = entity.TypeItem
 
 	// Set display symbol based on item type
@@ -574,8 +570,8 @@ func featureFromSave(fs save.FeatureSave) *entity.Feature {
 		Bed:         fs.Bed,
 		Passable:    passable,
 	}
-	feature.X = fs.X
-	feature.Y = fs.Y
+	feature.X = fs.Position.X
+	feature.Y = fs.Position.Y
 	feature.EType = entity.TypeFeature
 
 	// Set display symbol based on feature type

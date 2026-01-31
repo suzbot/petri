@@ -297,6 +297,7 @@ func findNearestItemByType(cx, cy int, items []*entity.Item, itemType string) *e
 		return nil
 	}
 
+	pos := types.Position{X: cx, Y: cy}
 	var nearest *entity.Item
 	nearestDist := int(^uint(0) >> 1) // Max int
 
@@ -310,7 +311,7 @@ func findNearestItemByType(cx, cy int, items []*entity.Item, itemType string) *e
 		}
 
 		ipos := item.Pos()
-		dist := abs(cx-ipos.X) + abs(cy-ipos.Y)
+		dist := pos.DistanceTo(ipos)
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = item

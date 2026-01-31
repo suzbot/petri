@@ -125,6 +125,7 @@ func FindAvailableVessel(cx, cy int, items []*entity.Item, targetItem *entity.It
 		return nil
 	}
 
+	pos := types.Position{X: cx, Y: cy}
 	var nearest *entity.Item
 	nearestDist := int(^uint(0) >> 1) // Max int
 
@@ -140,7 +141,7 @@ func FindAvailableVessel(cx, cy int, items []*entity.Item, targetItem *entity.It
 		}
 
 		ipos := item.Pos()
-		dist := abs(cx-ipos.X) + abs(cy-ipos.Y)
+		dist := pos.DistanceTo(ipos)
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = item
@@ -433,6 +434,7 @@ func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.It
 	}
 
 	// Find nearest item matching the variety
+	pos := types.Position{X: cx, Y: cy}
 	var nearest *entity.Item
 	nearestDist := int(^uint(0) >> 1) // Max int
 
@@ -450,7 +452,7 @@ func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.It
 		}
 
 		ipos := item.Pos()
-		dist := abs(cx-ipos.X) + abs(cy-ipos.Y)
+		dist := pos.DistanceTo(ipos)
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = item

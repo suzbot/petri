@@ -48,6 +48,7 @@ internal/
 
 - `internal/config/config.go` - All game constants, rates, thresholds, spawn counts
 - `internal/types/types.go` - Core enums: Color, Pattern, Texture, StatType
+- `internal/types/position.go` - Position struct with distance/adjacency methods
 
 **Entity Definitions**
 

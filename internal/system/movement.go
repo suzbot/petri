@@ -708,7 +708,6 @@ type FoodTargetResult struct {
 // adds bonus to score (larger bonus at worse health tiers)
 func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResult {
 	cpos := char.Pos()
-	cx, cy := cpos.X, cpos.Y
 
 	// Determine hunger tier and corresponding weights/filters
 	var prefWeight float64
@@ -813,7 +812,7 @@ func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 	// Score map items (including dropped vessels with edible contents)
 	for _, item := range items {
 		ipos := item.Pos()
-		dist := abs(cx-ipos.X) + abs(cy-ipos.Y)
+		dist := cpos.DistanceTo(ipos)
 
 		// Check if item is a vessel with edible contents
 		if item.Container != nil && len(item.Container.Contents) > 0 {
@@ -861,27 +860,10 @@ func NextStep(fromX, fromY, toX, toY int) (int, int) {
 	}
 
 	// Move toward larger distance
-	if abs(dx) > abs(dy) {
-		return fromX + sign(dx), fromY
+	if types.Abs(dx) > types.Abs(dy) {
+		return fromX + types.Sign(dx), fromY
 	}
-	return fromX, fromY + sign(dy)
-}
-
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
-func sign(x int) int {
-	if x > 0 {
-		return 1
-	}
-	if x < 0 {
-		return -1
-	}
-	return 0
+	return fromX, fromY + types.Sign(dy)
 }
 
 // canFulfillThirst checks if thirst can be addressed (water source exists)
@@ -975,6 +957,7 @@ func findNearestItemExcluding(cx, cy int, items []*entity.Item, excludeX, exclud
 		return nil
 	}
 
+	pos := types.Position{X: cx, Y: cy}
 	var nearest *entity.Item
 	nearestDist := int(^uint(0) >> 1)
 
@@ -986,7 +969,7 @@ func findNearestItemExcluding(cx, cy int, items []*entity.Item, excludeX, exclud
 			continue
 		}
 
-		dist := abs(cx-ipos.X) + abs(cy-ipos.Y)
+		dist := pos.DistanceTo(ipos)
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = item
@@ -998,20 +981,17 @@ func findNearestItemExcluding(cx, cy int, items []*entity.Item, excludeX, exclud
 
 // isAdjacent checks if two positions are adjacent (including diagonals)
 func isAdjacent(x1, y1, x2, y2 int) bool {
-	dx := abs(x1 - x2)
-	dy := abs(y1 - y2)
-	return dx <= 1 && dy <= 1 && !(dx == 0 && dy == 0)
+	return types.Position{X: x1, Y: y1}.IsAdjacentTo(types.Position{X: x2, Y: y2})
 }
 
 // isCardinallyAdjacent checks 4-direction adjacency (N/E/S/W, no diagonals)
 func isCardinallyAdjacent(x1, y1, x2, y2 int) bool {
-	dx := abs(x1 - x2)
-	dy := abs(y1 - y2)
-	return (dx == 1 && dy == 0) || (dx == 0 && dy == 1)
+	return types.Position{X: x1, Y: y1}.IsCardinallyAdjacentTo(types.Position{X: x2, Y: y2})
 }
 
 // findClosestCardinalTile finds closest unblocked cardinally adjacent tile to target
 func findClosestCardinalTile(cx, cy, tx, ty int, gameMap *game.Map) (int, int) {
+	pos := types.Position{X: cx, Y: cy}
 	directions := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
 	bestX, bestY := -1, -1
 	bestDist := int(^uint(0) >> 1)
@@ -1021,7 +1001,7 @@ func findClosestCardinalTile(cx, cy, tx, ty int, gameMap *game.Map) (int, int) {
 		if !gameMap.IsValid(adjPos) || gameMap.IsBlocked(adjPos) {
 			continue
 		}
-		if dist := abs(cx-adjPos.X) + abs(cy-adjPos.Y); dist < bestDist {
+		if dist := pos.DistanceTo(adjPos); dist < bestDist {
 			bestDist, bestX, bestY = dist, adjPos.X, adjPos.Y
 		}
 	}
@@ -1030,6 +1010,7 @@ func findClosestCardinalTile(cx, cy, tx, ty int, gameMap *game.Map) (int, int) {
 
 // findClosestAdjacentTile finds the closest unoccupied tile adjacent to (tx, ty) from position (cx, cy)
 func findClosestAdjacentTile(cx, cy, tx, ty int, gameMap *game.Map) (int, int) {
+	pos := types.Position{X: cx, Y: cy}
 	// 8 directions
 	directions := [][2]int{
 		{0, -1}, {1, -1}, {1, 0}, {1, 1},
@@ -1048,7 +1029,7 @@ func findClosestAdjacentTile(cx, cy, tx, ty int, gameMap *game.Map) (int, int) {
 			continue
 		}
 
-		dist := abs(cx-adjPos.X) + abs(cy-adjPos.Y)
+		dist := pos.DistanceTo(adjPos)
 		if dist < bestDist {
 			bestDist = dist
 			bestX, bestY = adjPos.X, adjPos.Y
