@@ -709,7 +709,7 @@ func TestContinueIntent_AbandonsIfTargetItemConsumed(t *testing.T) {
 	}
 }
 
-func TestContinueIntent_AbandonsIfTargetSpringOccupied(t *testing.T) {
+func TestContinueIntent_AbandonsIfAllSpringAdjacentTilesBlocked(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
@@ -719,9 +719,11 @@ func TestContinueIntent_AbandonsIfTargetSpringOccupied(t *testing.T) {
 	spring := entity.NewSpring(5, 5)
 	gameMap.AddFeature(spring)
 
-	// Another character at the spring
-	otherChar := entity.NewCharacter(2, 5, 5, "Other", "berry", types.ColorBlue)
-	gameMap.AddCharacter(otherChar)
+	// Block all 4 cardinal-adjacent tiles of the spring
+	gameMap.AddCharacter(entity.NewCharacter(2, 5, 4, "N", "berry", types.ColorBlue))
+	gameMap.AddCharacter(entity.NewCharacter(3, 6, 5, "E", "berry", types.ColorBlue))
+	gameMap.AddCharacter(entity.NewCharacter(4, 5, 6, "S", "berry", types.ColorBlue))
+	gameMap.AddCharacter(entity.NewCharacter(5, 4, 5, "W", "berry", types.ColorBlue))
 
 	char.Intent = &entity.Intent{
 		TargetX:       1,
@@ -735,7 +737,7 @@ func TestContinueIntent_AbandonsIfTargetSpringOccupied(t *testing.T) {
 	intent := continueIntent(char, 0, 0, gameMap, nil)
 
 	if intent != nil {
-		t.Error("Should abandon intent when target spring is occupied")
+		t.Error("Should abandon intent when all spring adjacent tiles are blocked")
 	}
 }
 
@@ -1598,5 +1600,245 @@ func TestFindFoodIntent_DroppedVesselCloser_WinsOverFarFood(t *testing.T) {
 	// At Crisis, distance wins - should target closer vessel
 	if intent.TargetItem != vessel {
 		t.Error("At Crisis hunger, should target closer dropped vessel")
+	}
+}
+
+// =============================================================================
+// Cardinal Adjacency Helpers
+// =============================================================================
+
+func TestIsCardinallyAdjacent_Cardinal_True(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		x1, y1   int
+		x2, y2   int
+		expected bool
+	}{
+		{"north", 5, 5, 5, 4, true},
+		{"south", 5, 5, 5, 6, true},
+		{"east", 5, 5, 6, 5, true},
+		{"west", 5, 5, 4, 5, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isCardinallyAdjacent(tt.x1, tt.y1, tt.x2, tt.y2)
+			if got != tt.expected {
+				t.Errorf("isCardinallyAdjacent(%d,%d,%d,%d): got %v, want %v",
+					tt.x1, tt.y1, tt.x2, tt.y2, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsCardinallyAdjacent_Diagonal_False(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		x1, y1 int
+		x2, y2 int
+	}{
+		{"northeast", 5, 5, 6, 4},
+		{"northwest", 5, 5, 4, 4},
+		{"southeast", 5, 5, 6, 6},
+		{"southwest", 5, 5, 4, 6},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isCardinallyAdjacent(tt.x1, tt.y1, tt.x2, tt.y2)
+			if got {
+				t.Errorf("isCardinallyAdjacent(%d,%d,%d,%d): got true for diagonal, want false",
+					tt.x1, tt.y1, tt.x2, tt.y2)
+			}
+		})
+	}
+}
+
+func TestIsCardinallyAdjacent_SamePosition_False(t *testing.T) {
+	t.Parallel()
+
+	got := isCardinallyAdjacent(5, 5, 5, 5)
+	if got {
+		t.Error("isCardinallyAdjacent(5,5,5,5): got true for same position, want false")
+	}
+}
+
+func TestIsCardinallyAdjacent_TooFar_False(t *testing.T) {
+	t.Parallel()
+
+	got := isCardinallyAdjacent(5, 5, 7, 5)
+	if got {
+		t.Error("isCardinallyAdjacent(5,5,7,5): got true for distance 2, want false")
+	}
+}
+
+func TestFindClosestCardinalTile_FindsClosest(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+
+	// Character at (3, 5), target spring at (5, 5)
+	// Cardinal tiles around spring: (5,4), (6,5), (5,6), (4,5)
+	// Closest to (3,5) is (4,5) with distance 1
+	x, y := findClosestCardinalTile(3, 5, 5, 5, gameMap)
+
+	if x != 4 || y != 5 {
+		t.Errorf("findClosestCardinalTile: got (%d,%d), want (4,5)", x, y)
+	}
+}
+
+func TestFindClosestCardinalTile_SkipsBlocked(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+
+	// Block the closest tile with a character
+	gameMap.AddCharacter(entity.NewCharacter(1, 4, 5, "Blocker", "berry", types.ColorRed))
+
+	// Character at (3, 5), target spring at (5, 5)
+	// (4,5) is blocked, next closest should be (5,4) or (5,6) with distance 3
+	x, y := findClosestCardinalTile(3, 5, 5, 5, gameMap)
+
+	// Should not return the blocked tile
+	if x == 4 && y == 5 {
+		t.Error("findClosestCardinalTile should skip blocked tiles")
+	}
+	// Should return a valid tile
+	if x == -1 {
+		t.Error("findClosestCardinalTile should find an unblocked tile")
+	}
+}
+
+func TestFindClosestCardinalTile_AllBlocked(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+
+	// Block all cardinal tiles around (5, 5)
+	gameMap.AddCharacter(entity.NewCharacter(1, 5, 4, "N", "berry", types.ColorRed))
+	gameMap.AddCharacter(entity.NewCharacter(2, 6, 5, "E", "berry", types.ColorRed))
+	gameMap.AddCharacter(entity.NewCharacter(3, 5, 6, "S", "berry", types.ColorRed))
+	gameMap.AddCharacter(entity.NewCharacter(4, 4, 5, "W", "berry", types.ColorRed))
+
+	x, y := findClosestCardinalTile(3, 5, 5, 5, gameMap)
+
+	if x != -1 || y != -1 {
+		t.Errorf("findClosestCardinalTile: got (%d,%d), want (-1,-1) when all blocked", x, y)
+	}
+}
+
+// =============================================================================
+// Drink Intent with Cardinal Adjacency
+// =============================================================================
+
+func TestFindDrinkIntent_DrinksWhenCardinallyAdjacent(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Thirst = 75 // Moderate
+	char.SetPosition(5, 4) // North of spring at (5,5)
+
+	gameMap := game.NewMap(20, 20)
+	spring := entity.NewSpring(5, 5)
+	gameMap.AddFeature(spring)
+
+	intent := findDrinkIntent(char, 5, 4, gameMap, entity.TierModerate, nil)
+
+	if intent == nil {
+		t.Fatal("Expected drink intent when cardinally adjacent to spring")
+	}
+	if intent.Action != entity.ActionDrink {
+		t.Errorf("Action: got %d, want ActionDrink", intent.Action)
+	}
+	// Should stay in place (not move onto spring)
+	if intent.TargetX != 5 || intent.TargetY != 4 {
+		t.Errorf("Target: got (%d,%d), want (5,4) - should stay in place", intent.TargetX, intent.TargetY)
+	}
+}
+
+func TestFindDrinkIntent_DoesNotDrinkWhenDiagonallyAdjacent(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Thirst = 75
+	char.SetPosition(4, 4) // Diagonally adjacent to spring at (5,5)
+
+	gameMap := game.NewMap(20, 20)
+	spring := entity.NewSpring(5, 5)
+	gameMap.AddFeature(spring)
+
+	intent := findDrinkIntent(char, 4, 4, gameMap, entity.TierModerate, nil)
+
+	if intent == nil {
+		t.Fatal("Expected move intent when diagonally adjacent")
+	}
+	// Should be moving, not drinking
+	if intent.Action == entity.ActionDrink {
+		t.Error("Should not drink when only diagonally adjacent - must be cardinally adjacent")
+	}
+	if intent.Action != entity.ActionMove {
+		t.Errorf("Action: got %d, want ActionMove", intent.Action)
+	}
+}
+
+func TestFindDrinkIntent_MovesToAdjacentTile(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Thirst = 75
+	char.SetPosition(0, 5) // Far from spring at (5,5)
+
+	gameMap := game.NewMap(20, 20)
+	spring := entity.NewSpring(5, 5)
+	gameMap.AddFeature(spring)
+
+	intent := findDrinkIntent(char, 0, 5, gameMap, entity.TierModerate, nil)
+
+	if intent == nil {
+		t.Fatal("Expected move intent")
+	}
+	if intent.Action != entity.ActionMove {
+		t.Errorf("Action: got %d, want ActionMove", intent.Action)
+	}
+	if intent.TargetFeature != spring {
+		t.Error("Should target the spring")
+	}
+}
+
+func TestContinueIntent_DrinkFromAdjacentTile(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPosition(6, 5) // East of spring at (5,5)
+
+	gameMap := game.NewMap(20, 20)
+	spring := entity.NewSpring(5, 5)
+	gameMap.AddFeature(spring)
+
+	// Set up intent targeting the spring
+	char.Intent = &entity.Intent{
+		TargetX:       5, // Was moving toward spring
+		TargetY:       5,
+		Action:        entity.ActionMove,
+		TargetFeature: spring,
+		DrivingStat:   types.StatThirst,
+		DrivingTier:   entity.TierModerate,
+	}
+
+	intent := continueIntent(char, 6, 5, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent when cardinally adjacent to spring")
+	}
+	if intent.Action != entity.ActionDrink {
+		t.Errorf("Action: got %d, want ActionDrink when cardinally adjacent", intent.Action)
+	}
+	// Should stay at current position
+	if intent.TargetX != 6 || intent.TargetY != 5 {
+		t.Errorf("Target: got (%d,%d), want (6,5) - should stay in place to drink", intent.TargetX, intent.TargetY)
 	}
 }

@@ -105,7 +105,7 @@ func (m *Map) MoveEntity(fromX, fromY, toX, toY int) {
 }
 
 // MoveCharacter moves a character to a new position, updating the position index
-// Returns true if the move succeeded, false if blocked (position already occupied)
+// Returns true if the move succeeded, false if blocked (position already occupied or impassable feature)
 func (m *Map) MoveCharacter(char *entity.Character, toX, toY int) bool {
 	oldX, oldY := char.Position()
 	oldPos := Pos{oldX, oldY}
@@ -113,6 +113,11 @@ func (m *Map) MoveCharacter(char *entity.Character, toX, toY int) bool {
 
 	// Refuse move if target is occupied by another character
 	if existing := m.characterByPos[newPos]; existing != nil && existing != char {
+		return false
+	}
+
+	// Refuse move if target has an impassable feature
+	if f := m.FeatureAt(toX, toY); f != nil && !f.IsPassable() {
 		return false
 	}
 
@@ -137,6 +142,17 @@ func (m *Map) IsValid(x, y int) bool {
 // IsOccupied returns true if there's a character at the position
 func (m *Map) IsOccupied(x, y int) bool {
 	return m.characterByPos[Pos{x, y}] != nil
+}
+
+// IsBlocked returns true if the position is blocked by a character or impassable feature
+func (m *Map) IsBlocked(x, y int) bool {
+	if m.characterByPos[Pos{x, y}] != nil {
+		return true
+	}
+	if f := m.FeatureAt(x, y); f != nil && !f.IsPassable() {
+		return true
+	}
+	return false
 }
 
 // IsEmpty returns true if no entity (character, item, or feature) is at the position
@@ -225,12 +241,16 @@ func (m *Map) BedAt(x, y int) *entity.Feature {
 	return nil
 }
 
-// FindNearestDrinkSource finds the nearest unoccupied drink source to the given position
-// Excludes springs occupied by other characters (the requesting character at x,y is allowed)
+// FindNearestDrinkSource finds the nearest drink source that has an available cardinal-adjacent tile
+// Springs are impassable, so characters drink from cardinally adjacent tiles (N/E/S/W)
+// A spring is available if at least one cardinal-adjacent tile is unblocked or occupied by the requester
 func (m *Map) FindNearestDrinkSource(x, y int) *entity.Feature {
 	var nearest *entity.Feature
 	nearestDist := int(^uint(0) >> 1)
 	requestingChar := m.characterByPos[Pos{x, y}]
+
+	// Cardinal directions: N, E, S, W
+	cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
 
 	for _, f := range m.features {
 		if !f.IsDrinkSource() {
@@ -238,9 +258,26 @@ func (m *Map) FindNearestDrinkSource(x, y int) *entity.Feature {
 		}
 		fx, fy := f.Position()
 
-		// Skip springs occupied by another character
-		occupant := m.characterByPos[Pos{fx, fy}]
-		if occupant != nil && occupant != requestingChar {
+		// Check if any cardinal-adjacent tile is available
+		hasAvailableTile := false
+		for _, dir := range cardinalDirs {
+			ax, ay := fx+dir[0], fy+dir[1]
+			if !m.IsValid(ax, ay) {
+				continue
+			}
+			// Tile is available if: unblocked, or occupied by the requesting character
+			occupant := m.characterByPos[Pos{ax, ay}]
+			if occupant == nil || occupant == requestingChar {
+				// Also check for impassable features at adjacent tile
+				if adjFeature := m.FeatureAt(ax, ay); adjFeature != nil && !adjFeature.IsPassable() {
+					continue
+				}
+				hasAvailableTile = true
+				break
+			}
+		}
+
+		if !hasAvailableTile {
 			continue
 		}
 

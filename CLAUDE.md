@@ -116,6 +116,7 @@ See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 
 - Phase 6 Features 1-6
 - Phase 6 Clean-ups 1-4
+- Impassable Springs: Springs are impassable terrain, characters drink from cardinal-adjacent tiles
 
 **In Progress:**
 
@@ -123,7 +124,6 @@ See [docs/phase06-plan.md](docs/phase06-plan.md) for full plan.
 
 **Up Next:**
 
-- Blocked Spring Issue: Make spring impassable, drink from adjacent tile (pre-gardening)
 - Add "Fav" to character creation labels (Food → Fav Food, Color → Fav Color)
 - Show character speed in debug mode details view
 - Add `-characters=N` flag for character count control

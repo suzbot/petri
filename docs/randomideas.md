@@ -16,7 +16,6 @@ then they can be removed from this list.
    a. Make it a markdown file with headers
    b. Reorganize, clean up, summarize where makes sense,
    c. Put table of contents at top
-3. **Blocked Spring Issue:** character hanging out idle on spring blocks it from others. Make the spring impassible. Make drinking from spring happen while adjacent to tile instead of on tile. Then, multiple characters can drink from spring at the same time. (resolve before gardening phase)
 
 ## UI Improvements
 
@@ -35,16 +34,13 @@ then they can be removed from this list.
    - Design must easily expand as new attribute types added
    - Example: "This is a hollow gourd. It is a vessel that can be used to carry things. It is warty and green."
 5. Ability to slow down game speed
-6. Add word 'favorite' to character creation screen
-7. Show character speed on details in debug mode
-8. Show passage of world time below map
+6. Show passage of world time below map
 
 ## Tech Updates
 
 1. **Character Names**: putin their own special file so its super easy for users/me to add more names.
    - Names to remember to add next: Bog, Log, Fen, Pod, Bough, Toady, Tarn, Weir, Bine, Brome, Cress, Daub, Nook, Fir, Frond, Furl, Rye, Muld, Grue, Gnarl, Peat, Pad, Sod, Sprout
    - Alphabetize all names, to make it easy for humans to not add duplicates
-2. **Flag for character count control**
 
 ## Small Features
 

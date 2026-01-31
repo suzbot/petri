@@ -1043,7 +1043,7 @@ func (m *Model) findAlternateStep(char *entity.Character, cx, cy int, triedPosit
 		if !m.gameMap.IsValid(x, y) {
 			continue
 		}
-		if m.gameMap.IsOccupied(x, y) {
+		if m.gameMap.IsBlocked(x, y) {
 			continue
 		}
 		return pos

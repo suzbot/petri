@@ -17,6 +17,7 @@ type Feature struct {
 	FType       FeatureType
 	DrinkSource bool // Can be used to drink
 	Bed         bool // Can be used to sleep
+	Passable    bool // Can characters walk onto this feature
 }
 
 // NewSpring creates a new water spring
@@ -31,6 +32,7 @@ func NewSpring(x, y int) *Feature {
 		FType:       FeatureSpring,
 		DrinkSource: true,
 		Bed:         false,
+		Passable:    false, // Springs are impassable - drink from adjacent tiles
 	}
 }
 
@@ -46,6 +48,7 @@ func NewLeafPile(x, y int) *Feature {
 		FType:       FeatureLeafPile,
 		DrinkSource: false,
 		Bed:         true,
+		Passable:    true, // Leaf piles are passable - walk onto them to sleep
 	}
 }
 
@@ -57,6 +60,11 @@ func (f *Feature) IsDrinkSource() bool {
 // IsBed returns true if this feature can be used for sleeping
 func (f *Feature) IsBed() bool {
 	return f.Bed
+}
+
+// IsPassable returns true if characters can walk onto this feature
+func (f *Feature) IsPassable() bool {
+	return f.Passable
 }
 
 // Description returns a human-readable description

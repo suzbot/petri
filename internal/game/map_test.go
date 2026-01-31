@@ -200,7 +200,7 @@ func TestFindNearestDrinkSource_ReturnsClosest(t *testing.T) {
 	}
 }
 
-func TestFindNearestDrinkSource_SkipsOccupied(t *testing.T) {
+func TestFindNearestDrinkSource_SkipsWhenAllAdjacentOccupied(t *testing.T) {
 	t.Parallel()
 
 	m := NewMap(30, 30)
@@ -209,36 +209,43 @@ func TestFindNearestDrinkSource_SkipsOccupied(t *testing.T) {
 	m.AddFeature(spring1)
 	m.AddFeature(spring2)
 
-	// Put character A at spring1, occupying it
-	charA := newTestCharacter(1, 10, 10)
-	m.AddCharacter(charA)
+	// Block all 4 cardinal-adjacent tiles of spring1
+	m.AddCharacter(newTestCharacter(1, 10, 9))  // North
+	m.AddCharacter(newTestCharacter(2, 11, 10)) // East
+	m.AddCharacter(newTestCharacter(3, 10, 11)) // South
+	m.AddCharacter(newTestCharacter(4, 9, 10))  // West
 
-	// Character B at (12, 10) should skip occupied spring1
+	// Character at (12, 10) should skip blocked spring1
 	got := m.FindNearestDrinkSource(12, 10)
 	if got != spring2 {
-		t.Error("FindNearestDrinkSource() should skip occupied springs")
+		t.Error("FindNearestDrinkSource() should skip springs with all adjacent tiles blocked")
 	}
 }
 
-func TestFindNearestDrinkSource_AllowsOwnPosition(t *testing.T) {
+func TestFindNearestDrinkSource_AllowsRequesterAdjacentPosition(t *testing.T) {
 	t.Parallel()
 
 	m := NewMap(30, 30)
 	spring := newTestSpring(10, 10)
 	m.AddFeature(spring)
 
-	// Character standing on spring
-	c := newTestCharacter(1, 10, 10)
+	// Character standing adjacent to spring (springs are now impassable)
+	c := newTestCharacter(1, 10, 9) // North of spring
 	m.AddCharacter(c)
 
-	// Should still return the spring they're standing on
-	got := m.FindNearestDrinkSource(10, 10)
+	// Block other 3 cardinal tiles
+	m.AddCharacter(newTestCharacter(2, 11, 10)) // East
+	m.AddCharacter(newTestCharacter(3, 10, 11)) // South
+	m.AddCharacter(newTestCharacter(4, 9, 10))  // West
+
+	// Should still return the spring - requester's adjacent position counts as available
+	got := m.FindNearestDrinkSource(10, 9)
 	if got != spring {
-		t.Error("FindNearestDrinkSource() should allow requesting character's current position")
+		t.Error("FindNearestDrinkSource() should allow requesting character's adjacent position")
 	}
 }
 
-func TestFindNearestDrinkSource_AllOccupied(t *testing.T) {
+func TestFindNearestDrinkSource_AllAdjacentBlocked(t *testing.T) {
 	t.Parallel()
 
 	m := NewMap(30, 30)
@@ -247,14 +254,22 @@ func TestFindNearestDrinkSource_AllOccupied(t *testing.T) {
 	m.AddFeature(spring1)
 	m.AddFeature(spring2)
 
-	// Occupy both springs with other characters
-	m.AddCharacter(newTestCharacter(1, 10, 10))
-	m.AddCharacter(newTestCharacter(2, 20, 20))
+	// Block all cardinal tiles around both springs
+	// Spring1 at (10, 10)
+	m.AddCharacter(newTestCharacter(1, 10, 9))   // North
+	m.AddCharacter(newTestCharacter(2, 11, 10))  // East
+	m.AddCharacter(newTestCharacter(3, 10, 11))  // South
+	m.AddCharacter(newTestCharacter(4, 9, 10))   // West
+	// Spring2 at (20, 20)
+	m.AddCharacter(newTestCharacter(5, 20, 19))  // North
+	m.AddCharacter(newTestCharacter(6, 21, 20))  // East
+	m.AddCharacter(newTestCharacter(7, 20, 21))  // South
+	m.AddCharacter(newTestCharacter(8, 19, 20))  // West
 
 	// Character at (15, 15) looking for spring
 	got := m.FindNearestDrinkSource(15, 15)
 	if got != nil {
-		t.Error("FindNearestDrinkSource() should return nil when all springs occupied")
+		t.Error("FindNearestDrinkSource() should return nil when all springs have all adjacent tiles blocked")
 	}
 }
 
@@ -363,5 +378,186 @@ func TestIsValid_OutsideBounds(t *testing.T) {
 				t.Errorf("IsValid(%d,%d) should return false", tt.x, tt.y)
 			}
 		})
+	}
+}
+
+// =============================================================================
+// Impassable Feature Tests
+// =============================================================================
+
+func TestIsBlocked_ImpassableFeature(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	spring := newTestSpring(10, 10)
+	m.AddFeature(spring)
+
+	if !m.IsBlocked(10, 10) {
+		t.Error("IsBlocked() should return true for impassable spring")
+	}
+}
+
+func TestIsBlocked_PassableFeature(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	bed := newTestBed(10, 10)
+	m.AddFeature(bed)
+
+	if m.IsBlocked(10, 10) {
+		t.Error("IsBlocked() should return false for passable leaf pile")
+	}
+}
+
+func TestIsBlocked_Character(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	c := newTestCharacter(1, 10, 10)
+	m.AddCharacter(c)
+
+	if !m.IsBlocked(10, 10) {
+		t.Error("IsBlocked() should return true for character position")
+	}
+}
+
+func TestIsBlocked_EmptyPosition(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+
+	if m.IsBlocked(10, 10) {
+		t.Error("IsBlocked() should return false for empty position")
+	}
+}
+
+func TestMoveCharacter_BlockedByImpassableFeature(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	c := newTestCharacter(1, 5, 5)
+	m.AddCharacter(c)
+
+	// Add impassable spring at target
+	spring := newTestSpring(6, 5)
+	m.AddFeature(spring)
+
+	ok := m.MoveCharacter(c, 6, 5)
+	if ok {
+		t.Error("MoveCharacter() should fail when target has impassable feature")
+	}
+
+	// Character should remain at original position
+	x, y := c.Position()
+	if x != 5 || y != 5 {
+		t.Errorf("Character position should be (5,5), got (%d,%d)", x, y)
+	}
+}
+
+func TestMoveCharacter_AllowedOntoPassableFeature(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	c := newTestCharacter(1, 5, 5)
+	m.AddCharacter(c)
+
+	// Add passable leaf pile at target
+	bed := newTestBed(6, 5)
+	m.AddFeature(bed)
+
+	ok := m.MoveCharacter(c, 6, 5)
+	if !ok {
+		t.Error("MoveCharacter() should succeed when target has passable feature")
+	}
+
+	// Character should be at new position
+	x, y := c.Position()
+	if x != 6 || y != 5 {
+		t.Errorf("Character position should be (6,5), got (%d,%d)", x, y)
+	}
+}
+
+// =============================================================================
+// Cardinal Adjacency Drink Source Tests
+// =============================================================================
+
+func TestFindNearestDrinkSource_SkipsWhenAllAdjacentBlocked(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(30, 30)
+	spring := newTestSpring(10, 10)
+	m.AddFeature(spring)
+
+	// Block all 4 cardinal-adjacent tiles with characters
+	m.AddCharacter(newTestCharacter(1, 10, 9))  // North
+	m.AddCharacter(newTestCharacter(2, 11, 10)) // East
+	m.AddCharacter(newTestCharacter(3, 10, 11)) // South
+	m.AddCharacter(newTestCharacter(4, 9, 10))  // West
+
+	// Character at (15, 15) looking for spring - should find none
+	got := m.FindNearestDrinkSource(15, 15)
+	if got != nil {
+		t.Error("FindNearestDrinkSource() should return nil when all adjacent tiles blocked")
+	}
+}
+
+func TestFindNearestDrinkSource_AllowsWhenOneAdjacentFree(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(30, 30)
+	spring := newTestSpring(10, 10)
+	m.AddFeature(spring)
+
+	// Block 3 of 4 cardinal-adjacent tiles
+	m.AddCharacter(newTestCharacter(1, 10, 9))  // North
+	m.AddCharacter(newTestCharacter(2, 11, 10)) // East
+	m.AddCharacter(newTestCharacter(3, 10, 11)) // South
+	// West (9, 10) is free
+
+	// Character at (15, 15) looking for spring - should find it
+	got := m.FindNearestDrinkSource(15, 15)
+	if got != spring {
+		t.Error("FindNearestDrinkSource() should return spring when at least one adjacent tile is free")
+	}
+}
+
+func TestFindNearestDrinkSource_AllowsRequesterAtAdjacentTile(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(30, 30)
+	spring := newTestSpring(10, 10)
+	m.AddFeature(spring)
+
+	// Requester is at adjacent tile
+	requester := newTestCharacter(1, 10, 9) // North of spring
+	m.AddCharacter(requester)
+
+	// Block other 3 adjacent tiles
+	m.AddCharacter(newTestCharacter(2, 11, 10)) // East
+	m.AddCharacter(newTestCharacter(3, 10, 11)) // South
+	m.AddCharacter(newTestCharacter(4, 9, 10))  // West
+
+	// Requester should still find the spring (they're at an adjacent tile)
+	got := m.FindNearestDrinkSource(10, 9)
+	if got != spring {
+		t.Error("FindNearestDrinkSource() should allow requester's own position as available")
+	}
+}
+
+func TestFindNearestDrinkSource_MultipleDrinkersAtDifferentTiles(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(30, 30)
+	spring := newTestSpring(10, 10)
+	m.AddFeature(spring)
+
+	// Two characters at adjacent tiles (simulating drinking)
+	m.AddCharacter(newTestCharacter(1, 10, 9))  // North
+	m.AddCharacter(newTestCharacter(2, 11, 10)) // East
+
+	// Third character looking for spring - should find it (South and West still free)
+	got := m.FindNearestDrinkSource(15, 15)
+	if got != spring {
+		t.Error("FindNearestDrinkSource() should allow spring when some adjacent tiles remain free")
 	}
 }

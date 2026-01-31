@@ -246,6 +246,7 @@ func featuresToSave(features []*entity.Feature) []save.FeatureSave {
 			FeatureType: int(f.FType),
 			DrinkSource: f.DrinkSource,
 			Bed:         f.Bed,
+			Passable:    f.Passable,
 		}
 	}
 	return result
@@ -554,11 +555,23 @@ func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item
 
 // featureFromSave converts a saved feature back to an entity
 func featureFromSave(fs save.FeatureSave) *entity.Feature {
+	// Handle backward compatibility for Passable field
+	// Old saves won't have this field, so we infer from feature type:
+	// - Springs (DrinkSource) are impassable
+	// - Leaf piles (Bed) are passable
+	passable := fs.Passable
+	if !fs.Passable && fs.Bed {
+		// Old save format - beds should be passable
+		passable = true
+	}
+	// Springs stay impassable (fs.Passable would be false, which is correct)
+
 	feature := &entity.Feature{
 		ID:          fs.ID,
 		FType:       entity.FeatureType(fs.FeatureType),
 		DrinkSource: fs.DrinkSource,
 		Bed:         fs.Bed,
+		Passable:    passable,
 	}
 	feature.X = fs.X
 	feature.Y = fs.Y

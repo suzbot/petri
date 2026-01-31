@@ -296,12 +296,39 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		}
 	}
 
-	// Check if target feature is now occupied by another character
+	// Check if target feature is still available
 	if intent.TargetFeature != nil {
-		fx, fy := intent.TargetFeature.Position()
-		occupant := gameMap.CharacterAt(fx, fy)
-		if occupant != nil && occupant != char {
-			return nil // Target occupied by someone else, find new target
+		feature := intent.TargetFeature
+		fx, fy := feature.Position()
+
+		// For drink sources (impassable), check if any cardinal tile is available
+		if feature.IsDrinkSource() {
+			hasAvailableTile := false
+			cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+			for _, dir := range cardinalDirs {
+				ax, ay := fx+dir[0], fy+dir[1]
+				if !gameMap.IsValid(ax, ay) {
+					continue
+				}
+				occupant := gameMap.CharacterAt(ax, ay)
+				if occupant == nil || occupant == char {
+					// Also check for impassable features at adjacent tile
+					if adjFeature := gameMap.FeatureAt(ax, ay); adjFeature != nil && !adjFeature.IsPassable() {
+						continue
+					}
+					hasAvailableTile = true
+					break
+				}
+			}
+			if !hasAvailableTile {
+				return nil // All cardinal tiles blocked, find new spring
+			}
+		} else {
+			// For passable features (beds), check if occupied by another character
+			occupant := gameMap.CharacterAt(fx, fy)
+			if occupant != nil && occupant != char {
+				return nil // Target occupied by someone else, find new target
+			}
 		}
 	}
 
@@ -318,26 +345,40 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	}
 
 	// Check if we've arrived at a feature target - switch to appropriate action
-	if intent.TargetFeature != nil && cx == tx && cy == ty {
+	if intent.TargetFeature != nil {
 		feature := intent.TargetFeature
+
+		// Drink sources are impassable - drink from cardinally adjacent tile
 		if feature.IsDrinkSource() {
-			newActivity := "Drinking"
-			if char.CurrentActivity != newActivity {
-				char.CurrentActivity = newActivity
-				if log != nil {
-					log.Add(char.ID, char.Name, "thirst", "Drinking from spring")
+			if isCardinallyAdjacent(cx, cy, tx, ty) {
+				newActivity := "Drinking"
+				if char.CurrentActivity != newActivity {
+					char.CurrentActivity = newActivity
+					if log != nil {
+						log.Add(char.ID, char.Name, "thirst", "Drinking from spring")
+					}
+				}
+				return &entity.Intent{
+					TargetX:       cx, // Stay in place
+					TargetY:       cy,
+					Action:        entity.ActionDrink,
+					TargetFeature: feature,
+					DrivingStat:   intent.DrivingStat,
+					DrivingTier:   intent.DrivingTier,
 				}
 			}
-			return &entity.Intent{
-				TargetX:       tx,
-				TargetY:       ty,
-				Action:        entity.ActionDrink,
-				TargetFeature: feature,
-				DrivingStat:   intent.DrivingStat,
-				DrivingTier:   intent.DrivingTier,
+			// Not adjacent yet - check if any cardinal tile is still available
+			adjX, adjY := findClosestCardinalTile(cx, cy, tx, ty, gameMap)
+			if adjX == -1 {
+				// All cardinal tiles blocked - find new spring
+				return nil
 			}
+			// Update target to move toward adjacent tile
+			tx, ty = adjX, adjY
 		}
-		if feature.IsBed() {
+
+		// Beds are passable - arrive when at the feature position
+		if feature.IsBed() && cx == tx && cy == ty {
 			newActivity := "Sleeping (in bed)"
 			if char.CurrentActivity != newActivity {
 				char.CurrentActivity = newActivity
@@ -393,6 +434,7 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 }
 
 // findDrinkIntent finds a spring to drink from
+// Springs are impassable - characters drink from cardinally adjacent tiles
 func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier int, log *ActionLog) *entity.Intent {
 	spring := gameMap.FindNearestDrinkSource(cx, cy)
 	if spring == nil {
@@ -407,8 +449,8 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 
 	tx, ty := spring.Position()
 
-	// Already at spring - drink
-	if cx == tx && cy == ty {
+	// Already cardinally adjacent to spring - drink from current position
+	if isCardinallyAdjacent(cx, cy, tx, ty) {
 		newActivity := "Drinking"
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
@@ -417,8 +459,8 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 			}
 		}
 		return &entity.Intent{
-			TargetX:       tx,
-			TargetY:       ty,
+			TargetX:       cx, // Stay in place
+			TargetY:       cy,
 			Action:        entity.ActionDrink,
 			TargetFeature: spring,
 			DrivingStat:   types.StatThirst,
@@ -426,8 +468,21 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 		}
 	}
 
-	// Move toward spring
-	nx, ny := NextStep(cx, cy, tx, ty)
+	// Find closest cardinal tile adjacent to spring and move toward it
+	adjX, adjY := findClosestCardinalTile(cx, cy, tx, ty, gameMap)
+	if adjX == -1 {
+		// No available adjacent tile - spring is blocked
+		if char.CurrentActivity != "Idle" {
+			char.CurrentActivity = "Idle"
+			if log != nil {
+				log.Add(char.ID, char.Name, "activity", "Idle (spring blocked)")
+			}
+		}
+		return nil
+	}
+
+	// Move toward adjacent tile (not the spring itself)
+	nx, ny := NextStep(cx, cy, adjX, adjY)
 	newActivity := "Moving to spring"
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
@@ -936,6 +991,31 @@ func isAdjacent(x1, y1, x2, y2 int) bool {
 	dx := abs(x1 - x2)
 	dy := abs(y1 - y2)
 	return dx <= 1 && dy <= 1 && !(dx == 0 && dy == 0)
+}
+
+// isCardinallyAdjacent checks 4-direction adjacency (N/E/S/W, no diagonals)
+func isCardinallyAdjacent(x1, y1, x2, y2 int) bool {
+	dx := abs(x1 - x2)
+	dy := abs(y1 - y2)
+	return (dx == 1 && dy == 0) || (dx == 0 && dy == 1)
+}
+
+// findClosestCardinalTile finds closest unblocked cardinally adjacent tile to target
+func findClosestCardinalTile(cx, cy, tx, ty int, gameMap *game.Map) (int, int) {
+	directions := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+	bestX, bestY := -1, -1
+	bestDist := int(^uint(0) >> 1)
+
+	for _, dir := range directions {
+		ax, ay := tx+dir[0], ty+dir[1]
+		if !gameMap.IsValid(ax, ay) || gameMap.IsBlocked(ax, ay) {
+			continue
+		}
+		if dist := abs(cx-ax) + abs(cy-ay); dist < bestDist {
+			bestDist, bestX, bestY = dist, ax, ay
+		}
+	}
+	return bestX, bestY
 }
 
 // findClosestAdjacentTile finds the closest unoccupied tile adjacent to (tx, ty) from position (cx, cy)

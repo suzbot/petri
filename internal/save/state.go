@@ -158,12 +158,13 @@ type ItemSave struct {
 
 // FeatureSave represents a feature for serialization
 type FeatureSave struct {
-	ID          int    `json:"id"`
-	X           int    `json:"x"`
-	Y           int    `json:"y"`
-	FeatureType int    `json:"feature_type"` // FeatureType enum value
-	DrinkSource bool   `json:"drink_source"`
-	Bed         bool   `json:"bed"`
+	ID          int  `json:"id"`
+	X           int  `json:"x"`
+	Y           int  `json:"y"`
+	FeatureType int  `json:"feature_type"` // FeatureType enum value
+	DrinkSource bool `json:"drink_source"`
+	Bed         bool `json:"bed"`
+	Passable    bool `json:"passable"`
 }
 
 // PreferenceSave represents a preference for serialization

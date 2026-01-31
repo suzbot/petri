@@ -225,6 +225,36 @@ When foraging or harvesting without a vessel:
 3. After vessel pickup, continues to harvest/forage into vessel
 4. If no vessel, picks up item directly to inventory
 
+## Feature Passability Model
+
+Features have a `Passable` boolean that controls movement:
+
+| Feature | Passable | Interaction |
+|---------|----------|-------------|
+| Spring | No | Drink from cardinally adjacent tile (N/E/S/W) |
+| Leaf Pile | Yes | Walk onto to sleep |
+
+### Movement Blocking
+
+`Map.IsBlocked(x, y)` returns true if:
+- A character occupies the position, OR
+- An impassable feature (like a spring) is at the position
+
+`MoveCharacter()` checks `IsBlocked()` before allowing movement.
+
+### Cardinal Adjacency for Impassable Features
+
+For impassable features like springs:
+- `isCardinallyAdjacent()` checks 4-direction adjacency (no diagonals)
+- `findClosestCardinalTile()` finds nearest unblocked adjacent tile
+- `FindNearestDrinkSource()` checks if any cardinal tile is available (not just if spring is "occupied")
+
+This allows multiple characters to drink from the same spring simultaneously (from different sides).
+
+### Pathfinding
+
+`findAlternateStep()` uses `IsBlocked()` to route around both characters and impassable features.
+
 ## Common Implementation Pitfalls
 
 **Game time vs wall clock**: UI indicators that should work when paused (like "Saved" message) need wall clock time (`time.Now()`), not game time which only advances when unpaused.
