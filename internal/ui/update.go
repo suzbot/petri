@@ -986,15 +986,18 @@ func (m *Model) stepForward() {
 // Returns [x, y] of alternate position, or nil if no valid alternative
 // triedPositions contains positions already attempted this tick
 func (m *Model) findAlternateStep(char *entity.Character, cx, cy int, triedPositions map[[2]int]bool) []int {
-	// Get ultimate goal position
-	var goalX, goalY int
-	if char.Intent.TargetItem != nil {
-		goalX, goalY = char.Intent.TargetItem.Position()
-	} else if char.Intent.TargetFeature != nil {
-		goalX, goalY = char.Intent.TargetFeature.Position()
-	} else {
-		// No clear goal, can't find alternate
-		return nil
+	// Use destination position (where we need to stand to interact)
+	// This is set correctly for adjacency-based interactions (springs, talking, looking)
+	goalX, goalY := char.Intent.DestX, char.Intent.DestY
+	if goalX == 0 && goalY == 0 {
+		// Fallback for intents without destination set
+		if char.Intent.TargetItem != nil {
+			goalX, goalY = char.Intent.TargetItem.Position()
+		} else if char.Intent.TargetFeature != nil {
+			goalX, goalY = char.Intent.TargetFeature.Position()
+		} else {
+			return nil
+		}
 	}
 
 	// Try adjacent positions that still move toward goal

@@ -66,6 +66,8 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 				return &entity.Intent{
 					TargetX:         cx,
 					TargetY:         cy,
+					DestX:           cx, // Already at destination (talking)
+					DestY:           cy,
 					Action:          entity.ActionTalk,
 					TargetCharacter: char.TalkingWith,
 				}
@@ -361,6 +363,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 				return &entity.Intent{
 					TargetX:       cx, // Stay in place
 					TargetY:       cy,
+					DestX:         cx, // Already at destination
+					DestY:         cy,
 					Action:        entity.ActionDrink,
 					TargetFeature: feature,
 					DrivingStat:   intent.DrivingStat,
@@ -386,6 +390,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 			return &entity.Intent{
 				TargetX:       tx,
 				TargetY:       ty,
+				DestX:         tx, // Destination is the bed
+				DestY:         ty,
 				Action:        entity.ActionSleep,
 				TargetFeature: feature,
 				DrivingStat:   intent.DrivingStat,
@@ -404,6 +410,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		return &entity.Intent{
 			TargetX:    cx, // Stay in place
 			TargetY:    cy,
+			DestX:      cx, // Already at destination (adjacent to item)
+			DestY:      cy,
 			Action:     entity.ActionLook,
 			TargetItem: intent.TargetItem,
 		}
@@ -414,6 +422,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		return &entity.Intent{
 			TargetX:         cx, // Stay in place
 			TargetY:         cy,
+			DestX:           cx, // Already at destination (adjacent to character)
+			DestY:           cy,
 			Action:          entity.ActionTalk,
 			TargetCharacter: intent.TargetCharacter,
 		}
@@ -424,6 +434,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	return &entity.Intent{
 		TargetX:         nx,
 		TargetY:         ny,
+		DestX:           tx, // Destination we're moving toward
+		DestY:           ty,
 		Action:          intent.Action,
 		TargetItem:      intent.TargetItem,
 		TargetFeature:   intent.TargetFeature,
@@ -461,6 +473,8 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 		return &entity.Intent{
 			TargetX:       cx, // Stay in place
 			TargetY:       cy,
+			DestX:         cx, // Already at destination
+			DestY:         cy,
 			Action:        entity.ActionDrink,
 			TargetFeature: spring,
 			DrivingStat:   types.StatThirst,
@@ -494,6 +508,8 @@ func findDrinkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 	return &entity.Intent{
 		TargetX:       nx,
 		TargetY:       ny,
+		DestX:         adjX, // Destination is the cardinal tile, not the spring
+		DestY:         adjY,
 		Action:        entity.ActionMove,
 		TargetFeature: spring,
 		DrivingStat:   types.StatThirst,
@@ -529,6 +545,8 @@ func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, ti
 		return &entity.Intent{
 			TargetX:     cx,
 			TargetY:     cy,
+			DestX:       cx, // Already at destination (eating from inventory)
+			DestY:       cy,
 			Action:      entity.ActionConsume,
 			TargetItem:  char.Carrying,
 			DrivingStat: types.StatHunger,
@@ -553,6 +571,8 @@ func findFoodIntent(char *entity.Character, cx, cy int, items []*entity.Item, ti
 	return &entity.Intent{
 		TargetX:     nx,
 		TargetY:     ny,
+		DestX:       tx, // Destination is the item's position
+		DestY:       ty,
 		Action:      entity.ActionMove,
 		TargetItem:  result.Item,
 		DrivingStat: types.StatHunger,
@@ -608,6 +628,8 @@ func findHealingIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 	return &entity.Intent{
 		TargetX:     nx,
 		TargetY:     ny,
+		DestX:       tx, // Destination is the item's position
+		DestY:       ty,
 		Action:      entity.ActionMove,
 		TargetItem:  nearest,
 		DrivingStat: types.StatHealth,
@@ -629,6 +651,8 @@ func findSleepIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 			return &entity.Intent{
 				TargetX:     cx,
 				TargetY:     cy,
+				DestX:       cx, // Already at destination (ground sleep)
+				DestY:       cy,
 				Action:      entity.ActionSleep,
 				DrivingStat: types.StatEnergy,
 				DrivingTier: tier,
@@ -655,6 +679,8 @@ func findSleepIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 		return &entity.Intent{
 			TargetX:       tx,
 			TargetY:       ty,
+			DestX:         tx, // Already at destination (the bed)
+			DestY:         ty,
 			Action:        entity.ActionSleep,
 			TargetFeature: bed,
 			DrivingStat:   types.StatEnergy,
@@ -675,6 +701,8 @@ func findSleepIntent(char *entity.Character, cx, cy int, gameMap *game.Map, tier
 	return &entity.Intent{
 		TargetX:       nx,
 		TargetY:       ny,
+		DestX:         tx, // Destination is the bed
+		DestY:         ty,
 		Action:        entity.ActionMove,
 		TargetFeature: bed,
 		DrivingStat:   types.StatEnergy,
@@ -924,6 +952,8 @@ func findLookIntent(char *entity.Character, cx, cy int, items []*entity.Item, ga
 		return &entity.Intent{
 			TargetX:    cx, // Stay in place
 			TargetY:    cy,
+			DestX:      cx, // Already at destination (adjacent to item)
+			DestY:      cy,
 			Action:     entity.ActionLook,
 			TargetItem: target,
 		}
@@ -949,6 +979,8 @@ func findLookIntent(char *entity.Character, cx, cy int, items []*entity.Item, ga
 	return &entity.Intent{
 		TargetX:    nx,
 		TargetY:    ny,
+		DestX:      adjX, // Destination is adjacent to the item
+		DestY:      adjY,
 		Action:     entity.ActionMove,
 		TargetItem: target,
 	}

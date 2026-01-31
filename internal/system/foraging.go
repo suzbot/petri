@@ -293,6 +293,8 @@ func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, 
 				return &entity.Intent{
 					TargetX:    cx,
 					TargetY:    cy,
+					DestX:      cx, // Already at destination
+					DestY:      cy,
 					Action:     entity.ActionPickup,
 					TargetItem: availableVessel,
 				}
@@ -309,6 +311,8 @@ func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, 
 			return &entity.Intent{
 				TargetX:    nx,
 				TargetY:    ny,
+				DestX:      vx, // Destination is the vessel's position
+				DestY:      vy,
 				Action:     entity.ActionPickup,
 				TargetItem: availableVessel,
 			}
@@ -331,6 +335,8 @@ func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, 
 		return &entity.Intent{
 			TargetX:    cx,
 			TargetY:    cy,
+			DestX:      cx, // Already at destination
+			DestY:      cy,
 			Action:     entity.ActionPickup,
 			TargetItem: target,
 		}
@@ -350,6 +356,8 @@ func findForageIntent(char *entity.Character, cx, cy int, items []*entity.Item, 
 	return &entity.Intent{
 		TargetX:    nx,
 		TargetY:    ny,
+		DestX:      tx, // Destination is the item's position
+		DestY:      ty,
 		Action:     entity.ActionPickup,
 		TargetItem: target,
 	}
@@ -465,6 +473,8 @@ func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.It
 		return &entity.Intent{
 			TargetX:    cx,
 			TargetY:    cy,
+			DestX:      cx, // Already at destination
+			DestY:      cy,
 			Action:     entity.ActionPickup,
 			TargetItem: nearest,
 		}
@@ -476,6 +486,8 @@ func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.It
 	return &entity.Intent{
 		TargetX:    nx,
 		TargetY:    ny,
+		DestX:      tx, // Destination is the item's position
+		DestY:      ty,
 		Action:     entity.ActionPickup,
 		TargetItem: nearest,
 	}

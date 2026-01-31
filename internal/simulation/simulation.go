@@ -294,13 +294,17 @@ func applyMoveIntent(char *entity.Character, gameMap *game.Map, delta float64, a
 
 // findAlternateStep finds an alternate step when preferred is blocked
 func findAlternateStep(char *entity.Character, gameMap *game.Map, cx, cy int, triedPositions map[[2]int]bool) []int {
-	var goalX, goalY int
-	if char.Intent.TargetItem != nil {
-		goalX, goalY = char.Intent.TargetItem.Position()
-	} else if char.Intent.TargetFeature != nil {
-		goalX, goalY = char.Intent.TargetFeature.Position()
-	} else {
-		return nil
+	// Use destination position (where we need to stand to interact)
+	goalX, goalY := char.Intent.DestX, char.Intent.DestY
+	if goalX == 0 && goalY == 0 {
+		// Fallback for intents without destination set
+		if char.Intent.TargetItem != nil {
+			goalX, goalY = char.Intent.TargetItem.Position()
+		} else if char.Intent.TargetFeature != nil {
+			goalX, goalY = char.Intent.TargetFeature.Position()
+		} else {
+			return nil
+		}
 	}
 
 	dx := sign(goalX - cx)

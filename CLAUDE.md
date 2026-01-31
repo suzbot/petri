@@ -93,7 +93,7 @@ internal/
 
 - **Discussion first**: Always discuss approach before writing code. Present options with trade-offs.
 - **TDD**: Write tests before implementation (see docs/testingProcess)
-- **Human testing required**: Do NOT mark features complete until user has manually tested
+- **Human testing required**: Do NOT mark features or fixes complete until user has manually tested. Passing unit tests is not sufficient - the user must confirm the fix works in actual gameplay before updating docs or marking complete.
 - **Keep docs current**: Update claude.md, README, game-mechanics as part of feature work
 
 Process docs:

@@ -19,7 +19,12 @@ func StartTalking(initiator, target *entity.Character, log *ActionLog) {
 	target.CurrentActivity = "Talking with " + initiator.Name
 
 	// Set intent for target so they also continue talking
+	tx, ty := target.Position()
 	target.Intent = &entity.Intent{
+		TargetX:         tx,
+		TargetY:         ty,
+		DestX:           tx, // Already at destination (adjacent to partner)
+		DestY:           ty,
 		Action:          entity.ActionTalk,
 		TargetCharacter: initiator,
 	}
@@ -100,13 +105,20 @@ func findTalkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		return &entity.Intent{
 			TargetX:         cx, // Stay in place
 			TargetY:         cy,
+			DestX:           cx, // Already at destination (adjacent to character)
+			DestY:           cy,
 			Action:          entity.ActionTalk,
 			TargetCharacter: closest,
 		}
 	}
 
-	// Not adjacent - move toward target
-	nx, ny := NextStep(cx, cy, tx, ty)
+	// Not adjacent - find adjacent tile to target and move toward it
+	adjX, adjY := findClosestAdjacentTile(cx, cy, tx, ty, gameMap)
+	if adjX == -1 {
+		// No accessible adjacent tile, try moving directly toward target
+		adjX, adjY = tx, ty
+	}
+	nx, ny := NextStep(cx, cy, adjX, adjY)
 
 	newActivity := "Moving to talk with " + closest.Name
 	if char.CurrentActivity != newActivity {
@@ -119,6 +131,8 @@ func findTalkIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	return &entity.Intent{
 		TargetX:         nx,
 		TargetY:         ny,
+		DestX:           adjX, // Destination is adjacent to the character
+		DestY:           adjY,
 		Action:          entity.ActionMove,
 		TargetCharacter: closest,
 	}

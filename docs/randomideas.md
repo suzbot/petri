@@ -12,9 +12,9 @@ then they can be removed from this list.
 ## Issues To resolve
 
 1. **Game Mechanics**: they are little disorganized, inconsistent about what level of detail it share, not in the most intuitive order.
-   a. Make it a markdown file with headers
-   b. Reorganize, clean up, summarize where makes sense,
-   c. Put table of contents at top
+   a. Reorganize in order of gameflow
+   b. remove anything that is unnessecary for user, or summarize where makes sense
+   c. Put table of contents at top (can it link to header sections?)
 
 ## UI Improvements
 
@@ -37,7 +37,7 @@ then they can be removed from this list.
 
 ## Tech Updates
 
-1. **Character Names**: putin their own special file so its super easy for users/me to add more names.
+1. **Character Names**: put in their own special file so its super easy for users/me to add more names.
    - Names to remember to add next: Bog, Log, Fen, Pod, Bough, Toady, Tarn, Weir, Bine, Brome, Cress, Daub, Nook, Fir, Frond, Furl, Rye, Muld, Grue, Gnarl, Peat, Pad, Sod, Sprout
    - Alphabetize all names, to make it easy for humans to not add duplicates
 
@@ -70,4 +70,3 @@ then they can be removed from this list.
 - Extended ascii art mushrooms on title screen
 - Reorder the fields in the Details panel (low - still needs product decision)
 - Auto pause at certain events?
-

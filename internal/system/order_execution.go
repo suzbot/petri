@@ -138,6 +138,8 @@ func findHarvestIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 				return &entity.Intent{
 					TargetX:    cx,
 					TargetY:    cy,
+					DestX:      cx, // Already at destination
+					DestY:      cy,
 					Action:     entity.ActionPickup,
 					TargetItem: availableVessel,
 				}
@@ -151,6 +153,8 @@ func findHarvestIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 			return &entity.Intent{
 				TargetX:    nx,
 				TargetY:    ny,
+				DestX:      vx, // Destination is the vessel's position
+				DestY:      vy,
 				Action:     entity.ActionPickup,
 				TargetItem: availableVessel,
 			}
@@ -174,6 +178,8 @@ func findHarvestIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 					return &entity.Intent{
 						TargetX:    cx,
 						TargetY:    cy,
+						DestX:      cx, // Already at destination
+						DestY:      cy,
 						Action:     entity.ActionPickup,
 						TargetItem: availableVessel,
 					}
@@ -186,6 +192,8 @@ func findHarvestIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 				return &entity.Intent{
 					TargetX:    nx,
 					TargetY:    ny,
+					DestX:      vx, // Destination is the vessel's position
+					DestY:      vy,
 					Action:     entity.ActionPickup,
 					TargetItem: availableVessel,
 				}
@@ -210,6 +218,8 @@ func findHarvestIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 		return &entity.Intent{
 			TargetX:    cx,
 			TargetY:    cy,
+			DestX:      cx, // Already at destination
+			DestY:      cy,
 			Action:     entity.ActionPickup,
 			TargetItem: target,
 		}
@@ -226,6 +236,8 @@ func findHarvestIntent(char *entity.Character, cx, cy int, items []*entity.Item,
 	return &entity.Intent{
 		TargetX:    nx,
 		TargetY:    ny,
+		DestX:      tx, // Destination is the item's position
+		DestY:      ty,
 		Action:     entity.ActionPickup,
 		TargetItem: target,
 	}
@@ -243,6 +255,8 @@ func findCraftVesselIntent(char *entity.Character, cx, cy int, items []*entity.I
 		return &entity.Intent{
 			TargetX:    cx,
 			TargetY:    cy,
+			DestX:      cx, // Already at destination (crafting in place)
+			DestY:      cy,
 			Action:     entity.ActionCraft,
 			TargetItem: char.Carrying, // The gourd being used
 		}
@@ -265,6 +279,8 @@ func findCraftVesselIntent(char *entity.Character, cx, cy int, items []*entity.I
 		return &entity.Intent{
 			TargetX:    cx,
 			TargetY:    cy,
+			DestX:      cx, // Already at destination
+			DestY:      cy,
 			Action:     entity.ActionPickup,
 			TargetItem: target,
 		}
@@ -281,6 +297,8 @@ func findCraftVesselIntent(char *entity.Character, cx, cy int, items []*entity.I
 	return &entity.Intent{
 		TargetX:    nx,
 		TargetY:    ny,
+		DestX:      tx, // Destination is the item's position
+		DestY:      ty,
 		Action:     entity.ActionPickup,
 		TargetItem: target,
 	}

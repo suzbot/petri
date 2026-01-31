@@ -68,7 +68,8 @@ type Character struct {
 
 // Intent represents what a character wants to do next tick
 type Intent struct {
-	TargetX, TargetY int
+	TargetX, TargetY int        // Next step position (immediate move)
+	DestX, DestY     int        // Destination position (where we need to stand to interact)
 	Action           ActionType
 	TargetItem       *Item      // The specific item being pursued (nil if none)
 	TargetFeature    *Feature   // The specific feature being pursued (nil if none)
