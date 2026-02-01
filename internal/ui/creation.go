@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"petri/internal/entity"
 	"petri/internal/game"
 	"petri/internal/types"
 )
@@ -19,14 +20,6 @@ const (
 
 // Maximum name length
 const MaxNameLength = 16
-
-// Name options for random selection
-var nameOptions = []string{
-	"Bud", "Ash", "Moss", "Twig", "Elm", "Wing", "Dew", "Oak",
-	"Loam", "Leaf", "Bug", "Sprig", "Sprout", "Fuzz", "Bole", "Fluff",
-	"Burl", "Burr", "Toad", "Fern", "Brer", "Bean", "Thorn", "Moth",
-	"Bloom", "Eft", "Leek", "Puff",
-}
 
 // foodOptions built dynamically from edible item types
 var foodOptions = buildFoodOptions()
@@ -194,11 +187,11 @@ func randomColor() string {
 	return colorOptions[rand.Intn(len(colorOptions))]
 }
 
-// randomUniqueNames returns n unique random names from nameOptions
+// randomUniqueNames returns n unique random names from entity.CharacterNames
 func randomUniqueNames(n int) []string {
-	// Shuffle a copy of nameOptions
-	shuffled := make([]string, len(nameOptions))
-	copy(shuffled, nameOptions)
+	// Shuffle a copy of CharacterNames
+	shuffled := make([]string, len(entity.CharacterNames))
+	copy(shuffled, entity.CharacterNames)
 	rand.Shuffle(len(shuffled), func(i, j int) {
 		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 	})

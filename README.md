@@ -10,6 +10,7 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Latest Updates
 
+- **Character Names File**: Random character names now in separate file for easy customization
 - **Two-Slot Inventory**: Characters can now carry two items (or vessels) at once
 - **Foraging Redesign**: Foraging uses hunger-scaled scoring for vessel vs loose item selection
 - **Crafted Items Auto-Drop**: Crafted vessels drop on ground for any character to use
@@ -120,6 +121,10 @@ rm -rf ~/.petri
 # Backup your saves
 cp -r ~/.petri ~/petri-backup
 ```
+
+## Customization
+
+**Character Names:** Edit `internal/entity/names.go` to add or remove names from the random name pool. Names are alphabetized by starting letter for easy maintenance.
 
 ## Project Vision
 

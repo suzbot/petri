@@ -41,7 +41,7 @@ then they can be removed from this list.
 
 ## Streamlined Character Creation (combined scope)
 
-Remove single/multi mode distinction from UI, add character count control, and improve name management:
+Remove single/multi mode distinction from UI and add character count control:
 
 1. **UI Streamlining**
    - Remove single char mode from game start
@@ -55,26 +55,6 @@ Remove single/multi mode distinction from UI, add character count control, and i
    - Add `-characters=N` flag to control spawn count (default 4)
    - `-characters=0` equivalent to `-no-characters`
    - Reasonable max cap (e.g., 20)
-
-3. **Character Names File**
-   - Put names in their own file for easy user/dev additions
-   - Alphabetize all names to prevent duplicates, breaking lines by starting letter
-   - Names to add (if they aren't already on the list):
-     Oak, Ash, Elm, Birch,
-     Bine, Bit, Bole, Bog, Bough, Brome, Burr, Buzz, Briar, Branch, Brush
-     Cress, Croft, Creft, Chert, Claw,
-     Daub, Dew, Dock, Dray, Duff, Eft, Egg,
-     Fen, Fir, Frond, Furl, Flax, Flit, Fitch,
-     Gnarl, Grub, Grue, Hedge, Herb, Knoll
-     Larch, Lil, Log,
-     Marsh, Marl, Mite, Mole, Mor, Moth, Muld, Mull, Midge, Mouse
-     Newt, Nook, Olm, Nest, Ov,
-     Pad, Peat, Pitch, Pith, Pod, Phlom, Phlox,
-     Reed, Rime, Root, Rye, Quill, Quitch,
-     Sap, Scamps, Scrub, Scurf, Sedge, Shoot, Shrew, Skink, Sod, Sprig, Sprout,
-     Stick, Stub, Stump, Snug, Skunk, Spud, Stoat, Swale
-     Tarn, Toady, Twig, Tuff, Tuft,
-     Verd, Vetch, Vole, Weir, Web, Yew, Wort, Weed
 
 ## Tech Updates
 

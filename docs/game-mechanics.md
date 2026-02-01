@@ -215,6 +215,10 @@ Characters start with two positive preferences based on character creation:
 - Likes [selected food type]
 - Likes [selected color]
 
+### Character Names
+
+Random character names are drawn from `internal/entity/names.go`. Edit this file to add or remove names from the pool. Names are organized alphabetically by starting letter.
+
 ### Preference Formation
 
 Preferences form dynamically when consuming or looking at items, based on current mood:
