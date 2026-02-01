@@ -116,4 +116,28 @@ Food Turning
 - Different edible items have a different satiation amount
 - Different growing items have different lifecycle times
 
+---
 
+## Implementation Notes (from Pre-Gardening Audit)
+
+### Prerequisites Completed Before Implementation
+- Inventory expansion to 2 slots
+- Pickup/drop unification (picking.go) - vessel-seeking pattern consolidated
+
+### Triggers to Monitor During Implementation
+
+**Order completion criteria refactor**: Currently harvest and craft completion logic is in update.go's applyIntent. Adding Till Soil, Plant, and Water Garden (3 more order types) may trigger need to refactor to a completion handler pattern. Monitor if completion conditionals exceed ~50 lines.
+
+**ItemType constants**: Adding seed, shell, stick, hoe item types. After implementation, evaluate if string-based ItemType comparisons have become error-prone enough to warrant compile-time constants.
+
+**Category formalization**: Hoe is first "tool" category item. Not triggered yet (wait for Construction when multiple non-plant categories exist), but note that hoe establishes the pattern.
+
+**Preference formation for beverages**: Fetch Water introduces water-filled vessels as drinkable. This triggers "Other beverages (non-spring) introduced" - evaluate whether preference formation should apply to water vessels.
+
+### Pattern Notes
+
+**Component procurement pattern** (Craft Hoe, Plant, Water Garden): Use the consolidated picking.go `PickupIntentBuilder` for the check-inventory → drop-non-components → seek-components → craft-or-abandon flow. This same pattern will be reused by Pigment and Construction.
+
+**Area selection UI** (Till Soil): New UI pattern - document approach for reuse by Construction's fence/hut placement.
+
+**Multi-slot crafting** (Craft Hoe requires stick + shell): First recipe requiring 2 different components. Ensure recipe system and intent-finding handle multi-component gathering.

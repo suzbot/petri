@@ -306,6 +306,170 @@ All Map query methods take `types.Position`:
 - Create new position-like structs
 - Define local `abs()` or `sign()` functions
 
+## Activity Registry & Know-How Discovery
+
+Activities are defined in `ActivityRegistry` with properties that control availability and discovery.
+
+### Activity Definition
+
+```go
+type Activity struct {
+    ID                string
+    Name              string
+    IntentFormation   IntentFormation  // automatic vs orderable
+    Availability      Availability     // default vs knowhow
+    DiscoveryTriggers []DiscoveryTrigger
+}
+```
+
+| IntentFormation | Description | Examples |
+|-----------------|-------------|----------|
+| `IntentAutomatic` | Triggered by needs or idle selection | eat, drink, forage, look |
+| `IntentOrderable` | Triggered by player orders | harvest, craftVessel |
+
+| Availability | Description | Examples |
+|--------------|-------------|----------|
+| `AvailabilityDefault` | All characters can do it | eat, drink, forage |
+| `AvailabilityKnowHow` | Must discover first | harvest, craftVessel |
+
+### Discovery Triggers
+
+Know-how activities are discovered through experience:
+
+```go
+type DiscoveryTrigger struct {
+    Action         ActionType  // ActionPickup, ActionLook, ActionConsume
+    ItemType       string      // Specific type or empty for any
+    RequiresEdible bool        // Only trigger if item is edible
+}
+```
+
+Example: Harvest is discovered by picking up, eating, or looking at edible items.
+
+### Adding a New Activity
+
+1. Add entry to `ActivityRegistry` in `entity/activity.go`
+2. If orderable: add case to `findOrderIntent()` switch in `order_execution.go`
+3. Add intent-finding function (e.g., `findHarvestIntent()`)
+4. If new ActionType needed: add to enum in `character.go`, handle in `applyIntent()`
+
+## Recipe System
+
+Recipes define how to craft items from components.
+
+### Recipe Definition
+
+```go
+type Recipe struct {
+    ID         string
+    Name       string           // Display name for crafted item
+    Inputs     []RecipeInput    // Required components
+    OutputType string           // ItemType of result
+    Duration   float64          // Crafting time
+}
+
+type RecipeInput struct {
+    ItemType string
+    Count    int
+}
+```
+
+### RecipeRegistry
+
+Recipes are stored in `RecipeRegistry` map, keyed by recipe ID. Currently one recipe (`hollow-gourd`), but pattern supports multiple recipes per output type.
+
+### Crafting Flow
+
+1. Order assigned → check for required components in inventory
+2. If missing components: drop incompatible items, seek components
+3. Once all components gathered: perform crafting action
+4. On completion: consume inputs, create output item
+
+### Adding a New Recipe
+
+1. Add recipe to `RecipeRegistry` in `entity/recipe.go`
+2. Add activity to `ActivityRegistry` for the crafting activity
+3. Add intent-finding function (follows component procurement pattern)
+4. Handle in `applyIntent()` ActionCraft case
+
+## Component Procurement Pattern
+
+Many activities require gathering specific items before performing the action. This pattern is used by harvest, craft, and will be used by gardening activities.
+
+### Flow
+
+```
+Order Assigned
+    ↓
+Check inventory for required items
+    ↓
+┌── Has all components? ──┐
+│                         │
+Yes                       No
+│                         │
+Begin activity    Drop non-components
+                         │
+                  Seek nearest component
+                  (preference/distance weighted)
+                         │
+                  ┌── Found? ──┐
+                  │            │
+                  Yes          No
+                  │            │
+            Move & pickup   Abandon order
+                  │
+            Check inventory again
+            (loop until complete)
+```
+
+### Implementation Notes
+
+- Preference/distance weighting uses `NetPreference()` and `DistanceTo()`
+- Vessel-seeking is a special case: find vessel that can hold target item
+- Drop logic: `Drop()` places item on ground at character position
+- Abandonment: `abandonOrder()` clears assignment, resets order status
+
+### Future: picking.go Consolidation
+
+The vessel-seeking pattern (~70 lines) is duplicated between `findForageIntent()` and `findHarvestIntent()`. This will be consolidated into `picking.go` with a `PickupIntentBuilder` that encapsulates the pattern with configurable target-finding and conflict-resolution strategies.
+
+## Feature Types
+
+Features are map elements that aren't items or characters. They have fixed positions and provide interaction capabilities.
+
+### Current Features
+
+| Feature | Passable | Capability | Interaction |
+|---------|----------|------------|-------------|
+| Spring | No | DrinkSource | Drink from adjacent tile |
+| Leaf Pile | Yes | Bed | Walk onto to sleep |
+
+### Feature Definition
+
+```go
+type Feature struct {
+    BaseEntity
+    FType       string  // "spring", "leafpile"
+    Passable    bool
+    DrinkSource bool
+    Bed         bool
+}
+```
+
+### Adding New Feature Types
+
+1. Add constructor in `entity/feature.go` (e.g., `NewPond()`)
+2. Set appropriate capability flags
+3. Add spawning logic in `game/spawning.go`
+4. If impassable: pathfinding already handles via `IsBlocked()`
+5. If new interaction type: add intent handling
+
+### Future: Tile States
+
+Gardening introduces tile states (tilled soil) that modify ground behavior. This may evolve into a tile property system separate from features:
+- Tilled soil: affects plant growth rate
+- Water tiles (ponds): impassable, allow drinking from adjacent
+
 ## Common Implementation Pitfalls
 
 **Game time vs wall clock**: UI indicators that should work when paused (like "Saved" message) need wall clock time (`time.Now()`), not game time which only advances when unpaused.

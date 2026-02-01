@@ -16,7 +16,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **ItemType constants**                 | Adding new item types; Want compile-time safety for item type checks              |
 | **Activity enum**                      | Need to enumerate/filter activities; Activity-based game logic beyond display     |
 | **Order completion criteria refactor** | Adding new order types; Completion logic scattered across update.go becomes unwieldy |
-| **Unify pickup/drop code (picking.go)** | Adding order/activity that involves picking up items; Duplicated vessel-seeking pattern becomes third instance; update.go ActionPickup handler grows with order-specific logic |
+| ~~**Unify pickup/drop code (picking.go)**~~ | ~~Adding order/activity that involves picking up items~~ **TRIGGERED by Gardening audit - implement before Gardening** |
 | **Feature capability derivation**      | Adding new feature types; DrinkSource/Bed bools become redundant                  |
 | **Action log retention policy**        | Implementing character memory; May need world time vs real time consideration     |
 | **UI color style map**                 | Adding new colors frequently; Switch statement maintenance becomes tedious        |
@@ -89,3 +89,63 @@ for _, char := range chars {
 }
 wg.Wait()
 ```
+
+---
+
+**Order completion criteria refactor (post-Gardening evaluation):**
+
+Pre-Gardening audit identified this as "monitor during Gardening." Current state:
+- Harvest completion: update.go lines 733-765
+- Craft completion: update.go lines 840-846
+
+Gardening adds 3+ order types (Till Soil, Plant, Water Garden). If completion logic exceeds ~50 lines of conditionals, refactor to handler pattern:
+```go
+type OrderCompletionHandler func(char *Character, order *Order, result PickupResult) bool
+var OrderCompletionHandlers = map[string]OrderCompletionHandler{
+    "harvest": handleHarvestCompletion,
+    "craftVessel": handleCraftCompletion,
+    // ... new handlers
+}
+```
+
+---
+
+**ItemType constants (post-Gardening evaluation):**
+
+Gardening adds: seed, shell, stick, hoe (4 new item types).
+Current item types: berry, mushroom, gourd, flower, vessel (~5 types).
+
+After Gardening, there will be ~9 item types. Evaluate whether string comparisons like `item.ItemType == "gourd"` scattered through the codebase have become error-prone. If typos or inconsistencies emerge, formalize to constants:
+```go
+const (
+    ItemTypeBerry    = "berry"
+    ItemTypeMushroom = "mushroom"
+    // ...
+)
+```
+
+---
+
+**Category formalization (evaluate during Construction):**
+
+Gardening introduces first tool (hoe). Construction introduces more categories:
+- Tools: hoe, (future: axe, hammer)
+- Building materials: grass bundles, stick bundles, bricks
+- Structures: fence, hut
+
+When Construction begins, formalize categories to enable:
+- Category-based spawning (plants spawn naturally, tools don't)
+- Category-based inventory rules (tools can't go in vessels)
+- Category-based preference formation
+
+---
+
+**Preference formation for beverages (evaluate during Gardening):**
+
+Gardening's Fetch Water activity introduces water-filled vessels as drinkable items. This technically triggers "Other beverages (non-spring) introduced."
+
+However, water vessels may not warrant full preference formation since:
+- Water is water (no variety like berry colors)
+- The vessel itself already has preference-forming attributes
+
+Evaluate whether characters should form preferences about "drinking from vessel" vs "drinking from spring" or defer until actual beverage variety exists (juice, tea, etc.).
