@@ -56,8 +56,8 @@ type Character struct {
 	// Activity tracking
 	CurrentActivity string
 
-	// Inventory
-	Carrying *Item // Item being carried (nil if empty, capacity: 1)
+	// Inventory (2 slots, each can hold a loose item or container)
+	Inventory []*Item // Items being carried (capacity: InventoryCapacity)
 
 	// Orders
 	AssignedOrderID int // ID of currently assigned order (0 = none)
@@ -459,7 +459,68 @@ func (c *Character) IsInCrisis() bool {
 		c.HealthTier() == TierCrisis
 }
 
+// InventoryCapacity is the maximum number of items a character can carry
+const InventoryCapacity = 2
+
 // IsInventoryFull returns true if the character cannot carry more items
 func (c *Character) IsInventoryFull() bool {
-	return c.Carrying != nil
+	return len(c.Inventory) >= InventoryCapacity
+}
+
+// HasInventorySpace returns true if character has at least one empty slot
+func (c *Character) HasInventorySpace() bool {
+	return len(c.Inventory) < InventoryCapacity
+}
+
+// AddToInventory adds item to first empty slot, returns false if full
+func (c *Character) AddToInventory(item *Item) bool {
+	if c.IsInventoryFull() {
+		return false
+	}
+	c.Inventory = append(c.Inventory, item)
+	return true
+}
+
+// RemoveFromInventory removes item from inventory, returns false if not found
+func (c *Character) RemoveFromInventory(item *Item) bool {
+	for i, inv := range c.Inventory {
+		if inv == item {
+			// Remove by replacing with last element and truncating
+			c.Inventory[i] = c.Inventory[len(c.Inventory)-1]
+			c.Inventory = c.Inventory[:len(c.Inventory)-1]
+			return true
+		}
+	}
+	return false
+}
+
+// GetCarriedVessel returns first vessel (item with Container) in inventory, or nil
+func (c *Character) GetCarriedVessel() *Item {
+	for _, item := range c.Inventory {
+		if item != nil && item.Container != nil {
+			return item
+		}
+	}
+	return nil
+}
+
+// GetCarriedItem returns first non-vessel item in inventory, or nil
+// Used for finding loose food items to eat
+func (c *Character) GetCarriedItem() *Item {
+	for _, item := range c.Inventory {
+		if item != nil && item.Container == nil {
+			return item
+		}
+	}
+	return nil
+}
+
+// FindInInventory returns first item matching predicate, or nil
+func (c *Character) FindInInventory(predicate func(*Item) bool) *Item {
+	for _, item := range c.Inventory {
+		if item != nil && predicate(item) {
+			return item
+		}
+	}
+	return nil
 }

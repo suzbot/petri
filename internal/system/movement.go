@@ -520,9 +520,10 @@ func findFoodIntent(char *entity.Character, pos types.Position, items []*entity.
 		return nil
 	}
 
-	// Check if best food is the carried item
-	if result.Item == char.Carrying {
-		newActivity := "Eating carried " + char.Carrying.Description()
+	// Check if best food is in inventory (any slot)
+	isInInventory := char.FindInInventory(func(i *entity.Item) bool { return i == result.Item }) != nil
+	if isInInventory {
+		newActivity := "Eating carried " + result.Item.Description()
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
 			if log != nil {
@@ -535,7 +536,7 @@ func findFoodIntent(char *entity.Character, pos types.Position, items []*entity.
 			Target:      pos,
 			Dest:        pos, // Already at destination (eating from inventory)
 			Action:      entity.ActionConsume,
-			TargetItem:  char.Carrying,
+			TargetItem:  result.Item,
 			DrivingStat: types.StatHunger,
 			DrivingTier: tier,
 		}
@@ -778,11 +779,14 @@ func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 		}
 	}
 
-	// Score carried item first (distance = 0)
-	if char.Carrying != nil {
+	// Score inventory items first (distance = 0)
+	for _, invItem := range char.Inventory {
+		if invItem == nil {
+			continue
+		}
 		// Check if carrying a vessel with edible contents
-		if char.Carrying.Container != nil && len(char.Carrying.Container.Contents) > 0 {
-			variety := char.Carrying.Container.Contents[0].Variety
+		if invItem.Container != nil && len(invItem.Container.Contents) > 0 {
+			variety := invItem.Container.Contents[0].Variety
 			if variety.IsEdible() {
 				netPref := char.NetPreferenceForVariety(variety)
 
@@ -796,7 +800,7 @@ func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 					}
 
 					if score > bestScore || (score == bestScore && 0 < bestDist) {
-						bestItem = char.Carrying // Return vessel, not the variety
+						bestItem = invItem // Return vessel, not the variety
 						bestNetPref = netPref
 						bestScore = score
 						bestDist = 0
@@ -805,7 +809,7 @@ func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 			}
 		} else {
 			// Carrying a loose item - score it directly
-			scoreCandidate(char.Carrying, 0)
+			scoreCandidate(invItem, 0)
 		}
 	}
 

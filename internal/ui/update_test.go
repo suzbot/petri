@@ -100,7 +100,7 @@ func TestApplyIntent_ActionConsume_ConsumesFromInventory(t *testing.T) {
 	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
 	char.Hunger = 80
 	carriedItem := entity.NewBerry(0, 0, types.ColorRed, false, false)
-	char.Carrying = carriedItem
+	char.AddToInventory(carriedItem)
 	char.Intent = &entity.Intent{
 		Action:     entity.ActionConsume,
 		Target:     types.Position{X: 5, Y: 5},
@@ -121,8 +121,8 @@ func TestApplyIntent_ActionConsume_ConsumesFromInventory(t *testing.T) {
 	}
 
 	// Assert: inventory should be cleared
-	if char.Carrying != nil {
-		t.Error("Expected Carrying to be nil after ActionConsume")
+	if len(char.Inventory) != 0 {
+		t.Error("Expected inventory to be empty after ActionConsume")
 	}
 
 	// Assert: hunger should be reduced
@@ -139,7 +139,7 @@ func TestApplyIntent_ActionConsume_RequiresDuration(t *testing.T) {
 	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
 	char.Hunger = 80
 	carriedItem := entity.NewBerry(0, 0, types.ColorRed, false, false)
-	char.Carrying = carriedItem
+	char.AddToInventory(carriedItem)
 	char.ActionProgress = 0
 	char.Intent = &entity.Intent{
 		Action:     entity.ActionConsume,
@@ -161,7 +161,7 @@ func TestApplyIntent_ActionConsume_RequiresDuration(t *testing.T) {
 	if char.ActionProgress == 0 {
 		t.Error("Expected ActionProgress to increase")
 	}
-	if char.Carrying == nil {
+	if len(char.Inventory) == 0 {
 		t.Error("Expected item to NOT be consumed yet (duration not complete)")
 	}
 }
@@ -175,7 +175,7 @@ func TestApplyIntent_ActionConsume_VerifiesTargetMatchesCarrying(t *testing.T) {
 	char.Hunger = 80
 	carriedItem := entity.NewBerry(0, 0, types.ColorRed, false, false)
 	differentItem := entity.NewBerry(0, 0, types.ColorBlue, false, false) // Different item
-	char.Carrying = carriedItem
+	char.AddToInventory(carriedItem)
 	char.Intent = &entity.Intent{
 		Action:     entity.ActionConsume,
 		Target:     types.Position{X: 5, Y: 5},
@@ -195,8 +195,8 @@ func TestApplyIntent_ActionConsume_VerifiesTargetMatchesCarrying(t *testing.T) {
 	}
 
 	// Assert: item should NOT be consumed (target mismatch)
-	if char.Carrying == nil {
-		t.Error("Expected item to NOT be consumed when target doesn't match carrying")
+	if len(char.Inventory) == 0 {
+		t.Error("Expected item to NOT be consumed when target doesn't match inventory")
 	}
 }
 
@@ -244,11 +244,9 @@ func TestApplyIntent_CraftOrderNotCompletedOnPickup(t *testing.T) {
 	}
 
 	// Assert: character should now be carrying the gourd
-	if char.Carrying == nil {
+	carriedGourd := char.FindInInventory(func(i *entity.Item) bool { return i.ItemType == "gourd" })
+	if carriedGourd == nil {
 		t.Fatal("Expected character to be carrying gourd after pickup")
-	}
-	if char.Carrying.ItemType != "gourd" {
-		t.Errorf("Expected carrying gourd, got %s", char.Carrying.ItemType)
 	}
 
 	// Assert: order should NOT be completed - should still be assigned
@@ -301,7 +299,7 @@ func TestApplyIntent_HarvestOrderWithVessel_ContinuesUntilFull(t *testing.T) {
 
 	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
 	char.KnownActivities = []string{"harvest"}
-	char.Carrying = vessel
+	char.AddToInventory(vessel)
 	gameMap.AddCharacter(char)
 
 	// Add multiple red berries at character's position
@@ -382,7 +380,7 @@ func TestApplyIntent_HarvestOrderWithVessel_CompletesWhenFull(t *testing.T) {
 
 	char := entity.NewCharacter(1, 5, 5, "TestChar", "gourd", types.ColorGreen)
 	char.KnownActivities = []string{"harvest"}
-	char.Carrying = vessel
+	char.AddToInventory(vessel)
 	gameMap.AddCharacter(char)
 
 	// Add gourd at character's position
@@ -440,7 +438,7 @@ func TestApplyIntent_HarvestOrderWithoutVessel_CompletesAfterOneItem(t *testing.
 
 	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
 	char.KnownActivities = []string{"harvest"}
-	char.Carrying = nil // No vessel
+	char.Inventory = nil // No vessel
 	gameMap.AddCharacter(char)
 
 	// Add berry at character's position
@@ -472,13 +470,88 @@ func TestApplyIntent_HarvestOrderWithoutVessel_CompletesAfterOneItem(t *testing.
 	}
 
 	// Assert: character should be carrying berry
-	if char.Carrying != berry {
+	hasBerry := char.FindInInventory(func(i *entity.Item) bool { return i == berry }) != nil
+	if !hasBerry {
 		t.Error("Character should be carrying berry")
 	}
 
-	// Assert: order should be completed (inventory full after one item)
+	// Assert: order should be completed (no vessel means single pickup completes)
 	if char.AssignedOrderID != 0 {
-		t.Error("Character should have no assigned order after inventory full")
+		t.Error("Character should have no assigned order after pickup")
+	}
+}
+
+func TestApplyIntent_HarvestOrderWithoutVessel_ContinuesUntilInventoryFull(t *testing.T) {
+	t.Parallel()
+
+	// Setup: no vessel, multiple berries to harvest
+	gameMap := game.NewMap(20, 20)
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   &entity.EdibleProperties{},
+	})
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"harvest"}
+	char.Inventory = nil // Empty inventory
+	gameMap.AddCharacter(char)
+
+	// Add multiple berries - one at position, one nearby
+	berry1 := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	berry2 := entity.NewBerry(6, 5, types.ColorRed, false, false)
+	berry3 := entity.NewBerry(7, 5, types.ColorRed, false, false) // Third berry won't fit
+	gameMap.AddItem(berry1)
+	gameMap.AddItem(berry2)
+	gameMap.AddItem(berry3)
+
+	// Create harvest order
+	order := entity.NewOrder(1, "harvest", "berry")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionPickup,
+		Target:     types.Position{X: 5, Y: 5},
+		TargetItem: berry1,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	// Act: apply intent many times to allow movement and pickup
+	for i := 0; i < 100; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Assert: character should have 2 items in inventory (inventory capacity)
+	if len(char.Inventory) != 2 {
+		t.Errorf("Expected 2 items in inventory, got %d", len(char.Inventory))
+	}
+
+	// Assert: order should be completed (inventory full)
+	if char.AssignedOrderID != 0 {
+		t.Error("Character should have no assigned order after inventory is full")
+	}
+
+	// Assert: third berry should still be on map (couldn't fit in inventory)
+	mapItems := gameMap.Items()
+	berryCount := 0
+	for _, item := range mapItems {
+		if item.ItemType == "berry" {
+			berryCount++
+		}
+	}
+	if berryCount != 1 {
+		t.Errorf("Expected 1 berry left on map, got %d", berryCount)
 	}
 }
 

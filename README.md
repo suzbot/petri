@@ -10,10 +10,11 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Latest Updates
 
+- **Two-Slot Inventory**: Characters can now carry two items (or vessels) at once
+- **Foraging Redesign**: Foraging uses hunger-scaled scoring for vessel vs loose item selection
+- **Crafted Items Auto-Drop**: Crafted vessels drop on ground for any character to use
+- **Crafting from Vessel Contents**: Craft orders can use materials stored inside carried vessels
 - **Impassable Springs**: Springs are now impassable terrain. Characters drink from cardinally adjacent tiles (N/E/S/W), allowing multiple characters to drink from the same spring simultaneously.
-- **Eating from Vessels**: Hungry characters eat from vessel contents (carried or dropped). Food selection uses unified scoring: preferences, distance, and healing knowledge all factor in.
-- **Vessel Contents**: Vessels hold stacks of items. Characters automatically seek out vessels when foraging or harvesting, filling them until full.
-- **Crafting System**: Characters can craft vessels from gourds. Discover crafting by interacting with gourds or drinking. Order crafting via Orders panel (Craft > Vessel).
 
 ## How It Works
 

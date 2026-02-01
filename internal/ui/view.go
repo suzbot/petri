@@ -1129,25 +1129,28 @@ func (m Model) renderInventoryPanel() string {
 	// Get character at cursor
 	if e := m.gameMap.EntityAt(types.Position{X: m.cursorX, Y: m.cursorY}); e != nil {
 		if char, ok := e.(*entity.Character); ok {
-			if char.Carrying != nil {
-				lines = append(lines, " Carrying: "+char.Carrying.Description())
+			if len(char.Inventory) == 0 {
+				lines = append(lines, " Inventory: empty")
+			} else {
+				lines = append(lines, fmt.Sprintf(" Inventory: %d/%d slots", len(char.Inventory), entity.InventoryCapacity))
+				for i, item := range char.Inventory {
+					lines = append(lines, fmt.Sprintf("  [%d] %s", i+1, item.Description()))
 
-				// Show vessel contents if carrying a vessel
-				if char.Carrying.Container != nil {
-					if len(char.Carrying.Container.Contents) == 0 {
-						lines = append(lines, "   (empty)")
-					} else {
-						for _, stack := range char.Carrying.Container.Contents {
-							if stack.Variety != nil {
-								stackSize := config.GetStackSize(stack.Variety.ItemType)
-								lines = append(lines, fmt.Sprintf("   %s: %d/%d",
-									stack.Variety.Description(), stack.Count, stackSize))
+					// Show vessel contents if this item is a vessel
+					if item.Container != nil {
+						if len(item.Container.Contents) == 0 {
+							lines = append(lines, "      (empty)")
+						} else {
+							for _, stack := range item.Container.Contents {
+								if stack.Variety != nil {
+									stackSize := config.GetStackSize(stack.Variety.ItemType)
+									lines = append(lines, fmt.Sprintf("      %s: %d/%d",
+										stack.Variety.Description(), stack.Count, stackSize))
+								}
 							}
 						}
 					}
 				}
-			} else {
-				lines = append(lines, " Carrying: nothing")
 			}
 		} else {
 			lines = append(lines, " Select a character")

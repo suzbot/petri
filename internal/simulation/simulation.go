@@ -128,11 +128,16 @@ func applyIntent(char *entity.Character, gameMap *game.Map, delta float64, actio
 		char.ActionProgress += delta
 		if char.ActionProgress >= config.ActionDuration {
 			char.ActionProgress = 0
-			// Check if carrying a vessel with edible contents
-			if char.Carrying != nil && char.Carrying.Container != nil && len(char.Carrying.Container.Contents) > 0 {
-				system.ConsumeFromVessel(char, char.Carrying, actionLog)
-			} else if char.Carrying == char.Intent.TargetItem {
-				system.ConsumeFromInventory(char, char.Carrying, actionLog)
+			targetItem := char.Intent.TargetItem
+			// Check if target item is in inventory
+			inInventory := char.FindInInventory(func(i *entity.Item) bool { return i == targetItem }) != nil
+			if inInventory {
+				// Check if it's a vessel with edible contents
+				if targetItem.Container != nil && len(targetItem.Container.Contents) > 0 {
+					system.ConsumeFromVessel(char, targetItem, actionLog)
+				} else {
+					system.ConsumeFromInventory(char, targetItem, actionLog)
+				}
 			}
 		}
 

@@ -440,6 +440,72 @@ func TestFromSaveState_RestoresVesselWithContents(t *testing.T) {
 	}
 }
 
+func TestFromSaveState_RestoresTwoSlotInventory(t *testing.T) {
+	m := createTestModel()
+	chars := m.gameMap.Characters()
+	if len(chars) == 0 {
+		t.Fatal("Need at least 1 character")
+	}
+
+	// Create two items for inventory
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, true) // healing berry
+	berry.ID = 901
+
+	vessel := &entity.Item{
+		ID:       902,
+		Name:     "Hollow Gourd",
+		ItemType: "vessel",
+		Color:    types.ColorGreen,
+		Pattern:  types.PatternNone,
+		Texture:  types.TextureWaxy,
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	vessel.EType = entity.TypeItem
+
+	// Fill both inventory slots
+	chars[0].AddToInventory(berry)
+	chars[0].AddToInventory(vessel)
+
+	if len(chars[0].Inventory) != 2 {
+		t.Fatalf("Expected 2 items in inventory, got %d", len(chars[0].Inventory))
+	}
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Verify both items restored
+	restoredChar := restored.gameMap.Characters()[0]
+	if len(restoredChar.Inventory) != 2 {
+		t.Fatalf("Expected 2 items in restored inventory, got %d", len(restoredChar.Inventory))
+	}
+
+	// Verify first item (berry)
+	if restoredChar.Inventory[0].ItemType != "berry" {
+		t.Errorf("Expected first item to be berry, got %s", restoredChar.Inventory[0].ItemType)
+	}
+	if restoredChar.Inventory[0].ID != 901 {
+		t.Errorf("Expected first item ID 901, got %d", restoredChar.Inventory[0].ID)
+	}
+	if !restoredChar.Inventory[0].IsHealing() {
+		t.Error("Expected first item to be healing")
+	}
+
+	// Verify second item (vessel)
+	if restoredChar.Inventory[1].ItemType != "vessel" {
+		t.Errorf("Expected second item to be vessel, got %s", restoredChar.Inventory[1].ItemType)
+	}
+	if restoredChar.Inventory[1].ID != 902 {
+		t.Errorf("Expected second item ID 902, got %d", restoredChar.Inventory[1].ID)
+	}
+	if restoredChar.Inventory[1].Container == nil {
+		t.Error("Expected second item to have container")
+	}
+}
+
 func TestFromSaveState_RestoresCarriedVesselWithContents(t *testing.T) {
 	m := createTestModel()
 	chars := m.gameMap.Characters()
@@ -477,7 +543,7 @@ func TestFromSaveState_RestoresCarriedVesselWithContents(t *testing.T) {
 	vessel.EType = entity.TypeItem
 
 	// Give vessel to character
-	chars[0].Carrying = vessel
+	chars[0].AddToInventory(vessel)
 
 	// Round trip
 	state := m.ToSaveState()
@@ -486,11 +552,10 @@ func TestFromSaveState_RestoresCarriedVesselWithContents(t *testing.T) {
 	// Get restored character
 	restoredChar := restored.gameMap.Characters()[0]
 
-	if restoredChar.Carrying == nil {
+	carriedVessel := restoredChar.GetCarriedVessel()
+	if carriedVessel == nil {
 		t.Fatal("Expected character to be carrying vessel")
 	}
-
-	carriedVessel := restoredChar.Carrying
 	if carriedVessel.ItemType != "vessel" {
 		t.Errorf("Expected item type 'vessel', got '%s'", carriedVessel.ItemType)
 	}

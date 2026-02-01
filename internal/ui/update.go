@@ -709,9 +709,9 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 					// (If carrying a recipe input, we'd have ActionCraft intent instead)
 					if char.AssignedOrderID != 0 && char.IsInventoryFull() {
 						// Check if carrying vessel with space - don't drop, will add to it
-						canAddToVessel := char.Carrying != nil &&
-							char.Carrying.Container != nil &&
-							!system.IsVesselFull(char.Carrying, m.gameMap.Varieties())
+						carriedVessel := char.GetCarriedVessel()
+						canAddToVessel := carriedVessel != nil &&
+							!system.IsVesselFull(carriedVessel, m.gameMap.Varieties())
 						if !canAddToVessel {
 							system.Drop(char, m.gameMap, m.actionLog)
 						}
@@ -720,18 +720,14 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 
 					// Handle vessel filling continuation
 					if result == system.PickupToVessel {
-						// Item was added to vessel - check if we should continue
-						if nextIntent := system.FindNextVesselTarget(char, cx, cy, m.gameMap.Items(), m.gameMap.Varieties()); nextIntent != nil {
-							char.Intent = nextIntent
-							return
-						}
-						// Vessel full or no more matching targets - stop
-						char.Intent = nil
-						char.IdleCooldown = config.IdleCooldown
-						char.CurrentActivity = "Idle"
-
-						// Check for harvest order completion (vessel full or no matching items)
+						// Only continue filling for orders, not autonomous foraging
 						if char.AssignedOrderID != 0 {
+							// On harvest order - continue until vessel full
+							if nextIntent := system.FindNextVesselTarget(char, cx, cy, m.gameMap.Items(), m.gameMap.Varieties()); nextIntent != nil {
+								char.Intent = nextIntent
+								return
+							}
+							// Vessel full or no more matching targets - complete order
 							if order := m.findOrderByID(char.AssignedOrderID); order != nil {
 								if order.ActivityID == "harvest" {
 									system.CompleteOrder(char, order, m.actionLog)
@@ -739,6 +735,10 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 								}
 							}
 						}
+						// Autonomous foraging or order complete - stop after one item
+						char.Intent = nil
+						char.IdleCooldown = config.IdleCooldown
+						char.CurrentActivity = "Idle"
 						return
 					}
 
@@ -751,13 +751,19 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 						return
 					}
 
-					// PickupToInventory - inventory now full (one item)
-					// Check for harvest order completion
+					// PickupToInventory - item added to inventory
+					// Check for harvest order continuation or completion
 					// Craft orders don't complete on pickup - they complete after crafting
 					// If picked up a vessel, continue harvesting into it (don't complete order)
-					if char.AssignedOrderID != 0 && (char.Carrying == nil || char.Carrying.Container == nil) {
+					if char.AssignedOrderID != 0 && char.GetCarriedVessel() == nil {
 						if order := m.findOrderByID(char.AssignedOrderID); order != nil {
 							if order.ActivityID == "harvest" {
+								// Try to continue harvesting if space and targets remain
+								if nextIntent := system.FindNextHarvestTarget(char, cx, cy, m.gameMap.Items(), order.TargetType); nextIntent != nil {
+									char.Intent = nextIntent
+									return
+								}
+								// No more space or targets - complete order
 								system.CompleteOrder(char, order, m.actionLog)
 								m.removeOrder(order.ID)
 							}
@@ -798,19 +804,25 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		char.ActionProgress += delta
 		if char.ActionProgress >= config.ActionDuration {
 			char.ActionProgress = 0
-			// Check if carrying a vessel with edible contents
-			if char.Carrying != nil && char.Carrying.Container != nil && len(char.Carrying.Container.Contents) > 0 {
-				// Eat from vessel contents
-				system.ConsumeFromVessel(char, char.Carrying, m.actionLog)
-			} else if char.Carrying == char.Intent.TargetItem {
-				// Eat the carried item directly
-				system.ConsumeFromInventory(char, char.Carrying, m.actionLog)
+			targetItem := char.Intent.TargetItem
+			// Check if target item is in inventory
+			inInventory := char.FindInInventory(func(i *entity.Item) bool { return i == targetItem }) != nil
+			if inInventory {
+				// Check if it's a vessel with edible contents
+				if targetItem.Container != nil && len(targetItem.Container.Contents) > 0 {
+					// Eat from vessel contents
+					system.ConsumeFromVessel(char, targetItem, m.actionLog)
+				} else {
+					// Eat the carried item directly
+					system.ConsumeFromInventory(char, targetItem, m.actionLog)
+				}
 			}
 		}
 
 	case entity.ActionCraft:
 		// Crafting - uses recipe duration
-		if char.Carrying == nil || char.Carrying.ItemType != "gourd" {
+		gourd := char.FindInInventory(func(i *entity.Item) bool { return i.ItemType == "gourd" })
+		if gourd == nil {
 			// No gourd to craft with - clear intent
 			char.Intent = nil
 			return
@@ -827,10 +839,12 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		if char.ActionProgress >= recipe.Duration {
 			char.ActionProgress = 0
 
-			// Complete the craft
-			gourd := char.Carrying
+			// Complete the craft - remove gourd, drop vessel on ground for any character to use
 			vessel := system.CreateVessel(gourd, recipe)
-			char.Carrying = vessel
+			char.RemoveFromInventory(gourd)
+			vessel.X = char.X
+			vessel.Y = char.Y
+			m.gameMap.AddItem(vessel)
 
 			// Log the craft
 			if m.actionLog != nil {

@@ -53,13 +53,15 @@ func AddToVessel(vessel, item *entity.Item, registry *game.VarietyRegistry) bool
 }
 
 // CanPickUpMore returns true if the character can pick up more items.
-// True if: not carrying anything, OR carrying a vessel with space.
+// True if: has empty inventory slot, OR carrying a vessel with space.
 func CanPickUpMore(char *entity.Character, registry *game.VarietyRegistry) bool {
-	if char.Carrying == nil {
+	if char.HasInventorySpace() {
 		return true
 	}
-	if char.Carrying.Container != nil {
-		return !IsVesselFull(char.Carrying, registry)
+	// Inventory is full, but check if any vessel has space
+	vessel := char.GetCarriedVessel()
+	if vessel != nil {
+		return !IsVesselFull(vessel, registry)
 	}
 	return false
 }
@@ -151,13 +153,14 @@ func FindAvailableVessel(cx, cy int, items []*entity.Item, targetItem *entity.It
 	return nearest
 }
 
-// Drop handles a character dropping an item from inventory
+// Drop handles a character dropping the first item from inventory
 func Drop(char *entity.Character, gameMap *game.Map, log *ActionLog) {
-	if char.Carrying == nil {
+	if len(char.Inventory) == 0 {
 		return // Nothing to drop
 	}
 
-	item := char.Carrying
+	// Drop first item in inventory
+	item := char.Inventory[0]
 	itemName := item.Description()
 
 	// Place item on map at character's position
@@ -165,8 +168,28 @@ func Drop(char *entity.Character, gameMap *game.Map, log *ActionLog) {
 	item.Y = char.Y
 	gameMap.AddItem(item)
 
-	// Clear from inventory
-	char.Carrying = nil
+	// Remove from inventory
+	char.RemoveFromInventory(item)
+
+	// Log drop
+	if log != nil {
+		log.Add(char.ID, char.Name, "activity",
+			fmt.Sprintf("Dropped %s", itemName))
+	}
+}
+
+// DropItem handles a character dropping a specific item from inventory
+func DropItem(char *entity.Character, item *entity.Item, gameMap *game.Map, log *ActionLog) {
+	if !char.RemoveFromInventory(item) {
+		return // Item not in inventory
+	}
+
+	itemName := item.Description()
+
+	// Place item on map at character's position
+	item.X = char.X
+	item.Y = char.Y
+	gameMap.AddItem(item)
 
 	// Log drop
 	if log != nil {
@@ -195,9 +218,10 @@ const (
 func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *ActionLog, registry *game.VarietyRegistry) PickupResult {
 	itemName := item.Description()
 
-	// Check if carrying a vessel
-	if char.Carrying != nil && char.Carrying.Container != nil {
-		if AddToVessel(char.Carrying, item, registry) {
+	// Check if carrying a vessel with space
+	vessel := char.GetCarriedVessel()
+	if vessel != nil {
+		if AddToVessel(vessel, item, registry) {
 			// Successfully added to vessel
 			gameMap.RemoveItem(item)
 
@@ -210,7 +234,7 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 
 			// Log the addition
 			if log != nil {
-				count := char.Carrying.Container.Contents[0].Count
+				count := vessel.Container.Contents[0].Count
 				log.Add(char.ID, char.Name, "activity",
 					fmt.Sprintf("Added %s to vessel (%d)", itemName, count))
 			}
@@ -221,8 +245,16 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 			// DON'T clear intent - caller will decide if foraging continues
 			return PickupToVessel
 		}
-		// Vessel full or variety mismatch - cannot pick up without dropping vessel
-		// Return failure so caller can decide whether to drop vessel or skip item
+		// Vessel full or variety mismatch - check if there's inventory space for loose pickup
+		if !char.HasInventorySpace() {
+			// No space - return failure so caller can decide
+			return PickupFailed
+		}
+		// Fall through to standard pickup
+	}
+
+	// Check if inventory has space
+	if !char.HasInventorySpace() {
 		return PickupFailed
 	}
 
@@ -238,7 +270,7 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 	item.DeathTimer = 0
 
 	// Add to inventory
-	char.Carrying = item
+	char.AddToInventory(item)
 
 	// Update activity
 	char.CurrentActivity = "Idle"
@@ -261,112 +293,51 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 
 // findForageIntent creates an intent to forage (pick up) an edible item.
 // Called by selectIdleActivity when foraging is selected.
-// Uses preference/distance scoring similar to eating but without hunger-based filtering.
-// If not carrying a vessel, will look for one first before foraging.
+// Uses unified scoring of growing items vs vessels, with vessel value scaled by hunger.
+// Lower hunger = more willing to invest in vessel; higher hunger = grab immediate food.
 // If carrying a vessel with contents, only targets matching variety.
 func findForageIntent(char *entity.Character, pos types.Position, items []*entity.Item, log *ActionLog, registry *game.VarietyRegistry) *entity.Intent {
-	// Get the vessel if carrying one (used for variety filtering)
-	var vessel *entity.Item
-	if char.Carrying != nil && char.Carrying.Container != nil {
-		vessel = char.Carrying
+	// If already carrying a vessel, just find a target item
+	vessel := char.GetCarriedVessel()
+	if vessel != nil {
+		return findForageItemIntent(char, pos, items, vessel, log)
 	}
 
-	// Find best edible item using preference/distance gradient
-	// If carrying vessel with contents, only considers matching variety
-	target := findForageTarget(char, pos, items, vessel)
-	if target == nil {
+	// No vessel - use unified scoring to decide between growing items and vessels
+	// Vessel bonus scales with hunger: low hunger = willing to plan ahead
+	vesselBonus := config.FoodSeekPrefWeightModerate * (1 - char.Hunger/100)
+
+	// Find best growing item
+	bestItem, bestItemScore := scoreForageItems(char, pos, items, nil)
+
+	// Find best vessel (if inventory has space)
+	var bestVessel *entity.Item
+	bestVesselScore := float64(int(^uint(0)>>1)) * -1 // Negative max float
+
+	if char.HasInventorySpace() {
+		bestVessel, bestVesselScore = scoreForageVessels(char, pos, items, vesselBonus, registry)
+	}
+
+	// Nothing to forage
+	if bestItem == nil && bestVessel == nil {
 		return nil
 	}
 
-	// If not carrying anything, look for available vessel first
-	if char.Carrying == nil {
-		availableVessel := FindAvailableVessel(pos.X, pos.Y, items, target, registry)
-		if availableVessel != nil {
-			// Go pick up vessel first
-			vpos := availableVessel.Pos()
-			vx, vy := vpos.X, vpos.Y
-			if pos.X == vx && pos.Y == vy {
-				newActivity := "Picking up vessel"
-				if char.CurrentActivity != newActivity {
-					char.CurrentActivity = newActivity
-					if log != nil {
-						log.Add(char.ID, char.Name, "activity", "Picking up vessel for foraging")
-					}
-				}
-				return &entity.Intent{
-					Target:     pos,
-					Dest:       pos, // Already at destination
-					Action:     entity.ActionPickup,
-					TargetItem: availableVessel,
-				}
-			}
-			// Move toward vessel
-			nx, ny := NextStep(pos.X, pos.Y, vx, vy)
-			newActivity := "Moving to pick up vessel"
-			if char.CurrentActivity != newActivity {
-				char.CurrentActivity = newActivity
-				if log != nil {
-					log.Add(char.ID, char.Name, "activity", "Getting vessel for foraging")
-				}
-			}
-			return &entity.Intent{
-				Target:     types.Position{X: nx, Y: ny},
-				Dest:       types.Position{X: vx, Y: vy}, // Destination is the vessel's position
-				Action:     entity.ActionPickup,
-				TargetItem: availableVessel,
-			}
-		}
-		// No vessel available - proceed to pick up target directly (single item)
+	// Pick the better option (vessel wins ties - investment pays off)
+	if bestVessel != nil && bestVesselScore >= bestItemScore {
+		return createPickupIntent(char, pos, bestVessel, "vessel", log)
 	}
 
-	tpos := target.Pos()
-	tx, ty := tpos.X, tpos.Y
-
-	// Check if already at target
-	if pos.X == tx && pos.Y == ty {
-		// Start foraging immediately
-		newActivity := "Foraging " + target.Description()
-		if char.CurrentActivity != newActivity {
-			char.CurrentActivity = newActivity
-			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Foraging for "+target.ItemType)
-			}
-		}
-		return &entity.Intent{
-			Target:     pos,
-			Dest:       pos, // Already at destination
-			Action:     entity.ActionPickup,
-			TargetItem: target,
-		}
+	if bestItem != nil {
+		return createPickupIntent(char, pos, bestItem, bestItem.ItemType, log)
 	}
 
-	// Move toward target - use ActionPickup to distinguish from looking
-	nx, ny := NextStep(pos.X, pos.Y, tx, ty)
-
-	newActivity := "Moving to forage " + target.Description()
-	if char.CurrentActivity != newActivity {
-		char.CurrentActivity = newActivity
-		if log != nil {
-			log.Add(char.ID, char.Name, "activity", "Foraging for "+target.ItemType)
-		}
-	}
-
-	return &entity.Intent{
-		Target:     types.Position{X: nx, Y: ny},
-		Dest:       types.Position{X: tx, Y: ty}, // Destination is the item's position
-		Action:     entity.ActionPickup,
-		TargetItem: target,
-	}
+	return nil
 }
 
-// findForageTarget finds the best edible item for foraging using preference/distance scoring.
-// Uses moderate preference weight - foraging is idle activity, not urgent need.
-// If vessel is provided and has contents, only returns items matching the vessel's variety.
-func findForageTarget(char *entity.Character, pos types.Position, items []*entity.Item, vessel *entity.Item) *entity.Item {
-	if len(items) == 0 {
-		return nil
-	}
-
+// scoreForageItems scores all growing edible items and returns the best one.
+// If vessel is provided and has contents, only considers matching variety.
+func scoreForageItems(char *entity.Character, pos types.Position, items []*entity.Item, vessel *entity.Item) (*entity.Item, float64) {
 	// Get variety constraint from vessel if it has contents
 	var requiredVariety *entity.ItemVariety
 	if vessel != nil && vessel.Container != nil && len(vessel.Container.Contents) > 0 {
@@ -375,14 +346,10 @@ func findForageTarget(char *entity.Character, pos types.Position, items []*entit
 
 	var bestItem *entity.Item
 	bestScore := float64(int(^uint(0)>>1)) * -1 // Negative max float
-	bestDist := int(^uint(0) >> 1)              // Max int for distance tiebreaker
 
 	for _, item := range items {
-		// Only consider edible, growing items for foraging
-		if !item.IsEdible() {
-			continue
-		}
-		if item.Plant == nil || !item.Plant.IsGrowing {
+		// Only consider edible, growing items
+		if !item.IsEdible() || item.Plant == nil || !item.Plant.IsGrowing {
 			continue
 		}
 
@@ -397,38 +364,147 @@ func findForageTarget(char *entity.Character, pos types.Position, items []*entit
 		}
 
 		netPref := char.NetPreference(item)
-		ipos := item.Pos()
-		dist := pos.DistanceTo(ipos)
-
-		// Calculate gradient score (same weights as moderate hunger eating)
+		dist := pos.DistanceTo(item.Pos())
 		score := float64(netPref)*config.FoodSeekPrefWeightModerate - float64(dist)*config.FoodSeekDistWeight
 
-		// Update best if better score, or same score but closer
-		if score > bestScore || (score == bestScore && dist < bestDist) {
+		if score > bestScore {
 			bestItem = item
 			bestScore = score
-			bestDist = dist
 		}
 	}
 
-	return bestItem
+	return bestItem, bestScore
+}
+
+// scoreForageVessels scores all available vessels and returns the best one.
+// Empty vessels get vesselBonus. Partial vessels get vesselBonus + content preference.
+// Partial vessels are only scored if matching growing items exist.
+func scoreForageVessels(char *entity.Character, pos types.Position, items []*entity.Item, vesselBonus float64, registry *game.VarietyRegistry) (*entity.Item, float64) {
+	var bestVessel *entity.Item
+	bestScore := float64(int(^uint(0)>>1)) * -1 // Negative max float
+
+	for _, item := range items {
+		// Must be a vessel (has container)
+		if item.Container == nil {
+			continue
+		}
+
+		// Must not be full
+		if IsVesselFull(item, registry) {
+			continue
+		}
+
+		dist := pos.DistanceTo(item.Pos())
+		var score float64
+
+		if len(item.Container.Contents) == 0 {
+			// Empty vessel - just vesselBonus minus distance
+			score = vesselBonus - float64(dist)*config.FoodSeekDistWeight
+		} else {
+			// Partial vessel - check if matching growing items exist
+			contentVariety := item.Container.Contents[0].Variety
+			if !hasMatchingGrowingItems(items, contentVariety) {
+				continue // No point picking up vessel we can't fill
+			}
+
+			// Score with content preference
+			contentPref := char.NetPreferenceForVariety(contentVariety)
+			score = vesselBonus + float64(contentPref)*config.FoodSeekPrefWeightModerate - float64(dist)*config.FoodSeekDistWeight
+		}
+
+		if score > bestScore {
+			bestVessel = item
+			bestScore = score
+		}
+	}
+
+	return bestVessel, bestScore
+}
+
+// hasMatchingGrowingItems checks if any growing items match the given variety.
+func hasMatchingGrowingItems(items []*entity.Item, variety *entity.ItemVariety) bool {
+	if variety == nil {
+		return false
+	}
+	for _, item := range items {
+		if item.Plant == nil || !item.Plant.IsGrowing {
+			continue
+		}
+		if item.ItemType == variety.ItemType &&
+			item.Color == variety.Color &&
+			item.Pattern == variety.Pattern &&
+			item.Texture == variety.Texture {
+			return true
+		}
+	}
+	return false
+}
+
+// findForageItemIntent creates intent to pick up a growing item when already carrying a vessel.
+func findForageItemIntent(char *entity.Character, pos types.Position, items []*entity.Item, vessel *entity.Item, log *ActionLog) *entity.Intent {
+	target, _ := scoreForageItems(char, pos, items, vessel)
+	if target == nil {
+		return nil
+	}
+	return createPickupIntent(char, pos, target, target.ItemType, log)
+}
+
+// createPickupIntent creates an intent to move to and pick up an item.
+func createPickupIntent(char *entity.Character, pos types.Position, target *entity.Item, itemType string, log *ActionLog) *entity.Intent {
+	tpos := target.Pos()
+	tx, ty := tpos.X, tpos.Y
+
+	if pos.X == tx && pos.Y == ty {
+		// Already at target
+		newActivity := "Foraging " + target.Description()
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+			if log != nil {
+				log.Add(char.ID, char.Name, "activity", "Foraging for "+itemType)
+			}
+		}
+		return &entity.Intent{
+			Target:     pos,
+			Dest:       pos,
+			Action:     entity.ActionPickup,
+			TargetItem: target,
+		}
+	}
+
+	// Move toward target
+	nx, ny := NextStep(pos.X, pos.Y, tx, ty)
+	newActivity := "Moving to forage " + target.Description()
+	if char.CurrentActivity != newActivity {
+		char.CurrentActivity = newActivity
+		if log != nil {
+			log.Add(char.ID, char.Name, "activity", "Foraging for "+itemType)
+		}
+	}
+
+	return &entity.Intent{
+		Target:     types.Position{X: nx, Y: ny},
+		Dest:       types.Position{X: tx, Y: ty},
+		Action:     entity.ActionPickup,
+		TargetItem: target,
+	}
 }
 
 // FindNextVesselTarget finds the next item to pick up when filling a vessel.
 // Only considers growing items matching the variety already in the vessel.
 // Returns nil if vessel is empty, full, or no matching items exist.
 func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.Item, registry *game.VarietyRegistry) *entity.Intent {
-	if char.Carrying == nil || char.Carrying.Container == nil {
+	vessel := char.GetCarriedVessel()
+	if vessel == nil {
 		return nil
 	}
-	if len(char.Carrying.Container.Contents) == 0 {
+	if len(vessel.Container.Contents) == 0 {
 		return nil // Empty vessel - shouldn't happen mid-forage
 	}
-	if IsVesselFull(char.Carrying, registry) {
+	if IsVesselFull(vessel, registry) {
 		return nil
 	}
 
-	targetVariety := char.Carrying.Container.Contents[0].Variety
+	targetVariety := vessel.Container.Contents[0].Variety
 	if targetVariety == nil {
 		return nil
 	}

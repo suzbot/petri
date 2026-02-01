@@ -497,7 +497,7 @@ func TestFindFoodIntent_CarriedVesselNotEaten(t *testing.T) {
 	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 	vessel := CreateVessel(gourd, recipe)
-	char.Carrying = vessel
+	char.AddToInventory(vessel)
 
 	cpos := char.Pos()
 	intent := findFoodIntent(char, cpos, nil, entity.TierCrisis, nil)
@@ -1095,7 +1095,7 @@ func TestFindFoodIntent_ReturnsConsumeIntent_WhenCarryingEdibleItem(t *testing.T
 
 	// Character is carrying an edible item
 	carriedBerry := entity.NewBerry(0, 0, types.ColorRed, false, false)
-	char.Carrying = carriedBerry
+	char.AddToInventory(carriedBerry)
 
 	// Map item exists but is farther away
 	mapItem := entity.NewBerry(10, 10, types.ColorRed, false, false)
@@ -1126,7 +1126,7 @@ func TestFindFoodIntent_IgnoresCarriedItem_WhenNotEdible(t *testing.T) {
 
 	// Character is carrying a non-edible item (flower)
 	carriedFlower := entity.NewFlower(0, 0, types.ColorRed)
-	char.Carrying = carriedFlower
+	char.AddToInventory(carriedFlower)
 
 	// Map has edible item
 	mapBerry := entity.NewBerry(6, 6, types.ColorRed, false, false)
@@ -1152,7 +1152,7 @@ func TestFindFoodIntent_FallsBackToMapItems_WhenNotCarrying(t *testing.T) {
 	char := newTestCharacter()
 	char.Hunger = 60
 	char.SetPos(types.Position{X: 5, Y: 5})
-	char.Carrying = nil // Not carrying anything
+	char.Inventory = nil // Not carrying anything
 
 	mapBerry := entity.NewBerry(6, 6, types.ColorRed, false, false)
 	items := []*entity.Item{mapBerry}
@@ -1180,7 +1180,7 @@ func TestContinueIntent_ActionConsume_PreservesIntent(t *testing.T) {
 	char.SetPos(types.Position{X: 5, Y: 5})
 
 	carriedItem := entity.NewBerry(0, 0, types.ColorRed, false, false)
-	char.Carrying = carriedItem
+	char.AddToInventory(carriedItem)
 
 	// Set up an ActionConsume intent (eating from inventory)
 	char.Intent = &entity.Intent{
@@ -1212,7 +1212,7 @@ func TestContinueIntent_ActionConsume_PreservesIntent(t *testing.T) {
 // Foraging Filter - IsGrowing (Feature 3b)
 // =============================================================================
 
-func TestFindForageTarget_SkipsNonGrowingItems(t *testing.T) {
+func TestScoreForageItems_SkipsNonGrowingItems(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
@@ -1228,14 +1228,14 @@ func TestFindForageTarget_SkipsNonGrowingItems(t *testing.T) {
 
 	items := []*entity.Item{droppedBerry, growingBerry}
 
-	result := findForageTarget(char, types.Position{X: 0, Y: 0}, items, nil) // nil vessel = no variety filter
+	result, _ := scoreForageItems(char, types.Position{X: 0, Y: 0}, items, nil) // nil vessel = no variety filter
 
 	if result != growingBerry {
 		t.Errorf("Expected growing berry, got %v", result)
 	}
 }
 
-func TestFindForageTarget_ReturnsNilWhenOnlyNonGrowingItems(t *testing.T) {
+func TestScoreForageItems_ReturnsNilWhenOnlyNonGrowingItems(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
@@ -1247,7 +1247,7 @@ func TestFindForageTarget_ReturnsNilWhenOnlyNonGrowingItems(t *testing.T) {
 
 	items := []*entity.Item{droppedBerry}
 
-	result := findForageTarget(char, types.Position{X: 0, Y: 0}, items, nil) // nil vessel = no variety filter
+	result, _ := scoreForageItems(char, types.Position{X: 0, Y: 0}, items, nil) // nil vessel = no variety filter
 
 	if result != nil {
 		t.Error("Should return nil when only non-growing items exist")
@@ -1270,7 +1270,7 @@ func TestFindFoodIntent_CarriedDislikedItem_FilteredAtModerate(t *testing.T) {
 
 	// Carrying a disliked mushroom
 	carriedMushroom := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
-	char.Carrying = carriedMushroom
+	char.AddToInventory(carriedMushroom)
 
 	// Liked berry on map
 	mapBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
@@ -1302,7 +1302,7 @@ func TestFindFoodIntent_CarriedDislikedItem_EatenAtCrisis(t *testing.T) {
 
 	// Carrying a disliked mushroom
 	carriedMushroom := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
-	char.Carrying = carriedMushroom
+	char.AddToInventory(carriedMushroom)
 
 	// Liked berry far away on map
 	mapBerry := entity.NewBerry(15, 15, types.ColorRed, false, false)
@@ -1331,7 +1331,7 @@ func TestFindFoodIntent_CarriedLikedItem_WinsOverFarLikedItem(t *testing.T) {
 
 	// Carrying a liked red berry
 	carriedBerry := entity.NewBerry(0, 0, types.ColorRed, false, false)
-	char.Carrying = carriedBerry
+	char.AddToInventory(carriedBerry)
 
 	// Another liked red berry far away
 	mapBerry := entity.NewBerry(15, 15, types.ColorRed, false, false)
@@ -1362,7 +1362,7 @@ func TestFindFoodIntent_CarriedNeutralItem_FilteredWhenLikedAvailable(t *testing
 
 	// Carrying a neutral item (brown mushroom - no preference match)
 	carriedMushroom := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
-	char.Carrying = carriedMushroom
+	char.AddToInventory(carriedMushroom)
 
 	// Liked red berry nearby
 	mapBerry := entity.NewBerry(7, 7, types.ColorRed, false, false)
@@ -1396,7 +1396,7 @@ func TestFindFoodIntent_NoFood_ReturnsNil(t *testing.T) {
 
 	// Only carrying disliked food, no map food
 	carriedMushroom := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
-	char.Carrying = carriedMushroom
+	char.AddToInventory(carriedMushroom)
 
 	items := []*entity.Item{} // No map food
 
@@ -1426,7 +1426,7 @@ func TestFindFoodIntent_VesselContents_RecognizedAsFood(t *testing.T) {
 		Edible: &entity.EdibleProperties{},
 	}
 	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
-	char.Carrying = vessel
+	char.AddToInventory(vessel)
 
 	items := []*entity.Item{} // No map food
 
@@ -1464,7 +1464,7 @@ func TestFindFoodIntent_VesselWithDislikedContents_FilteredAtModerate(t *testing
 		Edible: &entity.EdibleProperties{},
 	}
 	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
-	char.Carrying = vessel
+	char.AddToInventory(vessel)
 
 	// Liked berry on map
 	mapBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
@@ -1490,7 +1490,7 @@ func TestFindFoodIntent_DroppedVessel_RecognizedAsFood(t *testing.T) {
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 60           // Moderate
 	char.SetPos(types.Position{X: 5, Y: 5})
-	char.Carrying = nil // Not carrying anything
+	char.Inventory = nil // Not carrying anything
 
 	// Create dropped vessel with red berries (liked)
 	gourd := entity.NewGourd(7, 7, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
@@ -1526,7 +1526,7 @@ func TestFindFoodIntent_DroppedVesselWithDislikedContents_FilteredAtModerate(t *
 	char := newTestCharacter()
 	char.Hunger = 60 // Moderate
 	char.SetPos(types.Position{X: 5, Y: 5})
-	char.Carrying = nil
+	char.Inventory = nil
 
 	// Add dislike for mushrooms
 	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
@@ -1565,7 +1565,7 @@ func TestFindFoodIntent_DroppedVesselCloser_WinsOverFarFood(t *testing.T) {
 	char := newTestCharacter() // Likes berries and red
 	char.Hunger = 95           // Crisis - distance wins
 	char.SetPos(types.Position{X: 5, Y: 5})
-	char.Carrying = nil
+	char.Inventory = nil
 
 	// Create dropped vessel nearby with berries
 	gourd := entity.NewGourd(6, 6, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)

@@ -793,12 +793,12 @@ func TestConsumeFromInventory_ClearsCarrying(t *testing.T) {
 
 	char := newTestCharacter()
 	item := entity.NewBerry(0, 0, types.ColorRed, false, false)
-	char.Carrying = item
+	char.AddToInventory(item)
 
 	ConsumeFromInventory(char, item, nil)
 
-	if char.Carrying != nil {
-		t.Error("Carrying should be nil after consuming from inventory")
+	if len(char.Inventory) != 0 {
+		t.Error("Inventory should be empty after consuming from inventory")
 	}
 }
 
@@ -808,7 +808,7 @@ func TestConsumeFromInventory_ReducesHunger(t *testing.T) {
 	char := newTestCharacter()
 	char.Hunger = 80
 	item := entity.NewBerry(0, 0, types.ColorRed, false, false)
-	char.Carrying = item
+	char.AddToInventory(item)
 
 	ConsumeFromInventory(char, item, nil)
 
@@ -824,7 +824,7 @@ func TestConsumeFromInventory_AppliesPoison(t *testing.T) {
 	char := newTestCharacter()
 	char.Poisoned = false
 	item := entity.NewBerry(0, 0, types.ColorRed, true, false) // Poisonous
-	char.Carrying = item
+	char.AddToInventory(item)
 
 	ConsumeFromInventory(char, item, nil)
 
@@ -839,7 +839,7 @@ func TestConsumeFromInventory_AppliesHealing(t *testing.T) {
 	char := newTestCharacter()
 	char.Health = 60
 	item := entity.NewBerry(0, 0, types.ColorRed, false, true) // Healing
-	char.Carrying = item
+	char.AddToInventory(item)
 
 	ConsumeFromInventory(char, item, nil)
 
@@ -856,7 +856,7 @@ func TestConsumeFromInventory_AppliesMoodFromPreference(t *testing.T) {
 	char.Mood = 50
 	char.Hunger = 80 // Won't reach 0
 	item := entity.NewBerry(0, 0, types.ColorRed, false, false) // +2 preference
-	char.Carrying = item
+	char.AddToInventory(item)
 
 	ConsumeFromInventory(char, item, nil)
 
@@ -873,7 +873,7 @@ func TestConsumeFromInventory_TriggersPreferenceFormation(t *testing.T) {
 	char.Mood = 95 // High mood - very likely to form preference
 	char.Preferences = []entity.Preference{}
 	item := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
-	char.Carrying = item
+	char.AddToInventory(item)
 
 	// Run multiple times to increase chance of preference formation
 	// (preference formation is probabilistic based on mood)
@@ -885,7 +885,7 @@ func TestConsumeFromInventory_TriggersPreferenceFormation(t *testing.T) {
 		testChar.Mood = 95
 		testChar.Preferences = []entity.Preference{}
 		testItem := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
-		testChar.Carrying = testItem
+		testChar.AddToInventory(testItem)
 
 		ConsumeFromInventory(testChar, testItem, nil)
 
@@ -906,7 +906,7 @@ func TestConsumeFromInventory_LearnsKnowledge(t *testing.T) {
 	char := newTestCharacter()
 	char.Knowledge = []entity.Knowledge{}
 	item := entity.NewBerry(0, 0, types.ColorRed, true, false) // Poisonous
-	char.Carrying = item
+	char.AddToInventory(item)
 
 	ConsumeFromInventory(char, item, nil)
 
@@ -930,7 +930,7 @@ func TestConsumeFromVessel_ReducesHunger(t *testing.T) {
 
 	// Create vessel with berries
 	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, false)
-	char.Carrying = vessel
+	char.AddToInventory(vessel)
 
 	ConsumeFromVessel(char, vessel, nil)
 
@@ -947,7 +947,7 @@ func TestConsumeFromVessel_DecrementsStackCount(t *testing.T) {
 	char.Hunger = 80
 
 	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, false)
-	char.Carrying = vessel
+	char.AddToInventory(vessel)
 
 	ConsumeFromVessel(char, vessel, nil)
 
@@ -966,7 +966,7 @@ func TestConsumeFromVessel_RemovesEmptyStack(t *testing.T) {
 	char.Hunger = 80
 
 	vessel := createTestVesselWithContents("berry", types.ColorRed, 1, false, false)
-	char.Carrying = vessel
+	char.AddToInventory(vessel)
 
 	ConsumeFromVessel(char, vessel, nil)
 
@@ -982,11 +982,11 @@ func TestConsumeFromVessel_VesselStaysInInventory(t *testing.T) {
 	char.Hunger = 80
 
 	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, false)
-	char.Carrying = vessel
+	char.AddToInventory(vessel)
 
 	ConsumeFromVessel(char, vessel, nil)
 
-	if char.Carrying != vessel {
+	if char.FindInInventory(func(i *entity.Item) bool { return i == vessel }) == nil {
 		t.Error("Vessel should remain in inventory after eating from it")
 	}
 }
@@ -999,7 +999,7 @@ func TestConsumeFromVessel_AppliesPoisonFromVariety(t *testing.T) {
 	char.Knowledge = []entity.Knowledge{}
 
 	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, true, false) // Poisonous
-	char.Carrying = vessel
+	char.AddToInventory(vessel)
 
 	ConsumeFromVessel(char, vessel, nil)
 
@@ -1021,7 +1021,7 @@ func TestConsumeFromVessel_AppliesHealingFromVariety(t *testing.T) {
 	char.Knowledge = []entity.Knowledge{}
 
 	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, true) // Healing
-	char.Carrying = vessel
+	char.AddToInventory(vessel)
 
 	ConsumeFromVessel(char, vessel, nil)
 
@@ -1044,7 +1044,7 @@ func TestConsumeFromVessel_MoodAdjustedByPreference(t *testing.T) {
 
 	// Red berry matches both preferences: NetPreference = +2
 	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, false)
-	char.Carrying = vessel
+	char.AddToInventory(vessel)
 
 	ConsumeFromVessel(char, vessel, nil)
 

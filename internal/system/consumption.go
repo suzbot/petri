@@ -249,8 +249,8 @@ func ConsumeFromInventory(char *entity.Character, item *entity.Item, log *Action
 	// Try to discover know-how from eating
 	TryDiscoverKnowHow(char, entity.ActionConsume, item, log, GetDiscoveryChance(char))
 
-	// Clear inventory (item consumed from inventory, not map)
-	char.Carrying = nil
+	// Remove item from inventory (item consumed from inventory, not map)
+	char.RemoveFromInventory(item)
 }
 
 // Drink handles a character drinking from a water source
@@ -436,6 +436,6 @@ func ConsumeFromVessel(char *entity.Character, vessel *entity.Item, log *ActionL
 		vessel.Container.Contents = vessel.Container.Contents[1:]
 	}
 
-	// Note: We don't clear char.Carrying - vessel stays in inventory
+	// Note: We don't remove from inventory - vessel stays with character
 }
 

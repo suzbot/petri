@@ -75,30 +75,33 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 			talkingWithID = c.TalkingWith.ID
 		}
 
-		// Convert carried item if present
-		var carrying *save.ItemSave
-		if c.Carrying != nil {
-			var plantSave *save.PlantPropertiesSave
-			if c.Carrying.Plant != nil {
-				plantSave = &save.PlantPropertiesSave{
-					IsGrowing:  c.Carrying.Plant.IsGrowing,
-					SpawnTimer: c.Carrying.Plant.SpawnTimer,
+		// Convert inventory items
+		var inventory []save.ItemSave
+		if len(c.Inventory) > 0 {
+			inventory = make([]save.ItemSave, len(c.Inventory))
+			for idx, item := range c.Inventory {
+				var plantSave *save.PlantPropertiesSave
+				if item.Plant != nil {
+					plantSave = &save.PlantPropertiesSave{
+						IsGrowing:  item.Plant.IsGrowing,
+						SpawnTimer: item.Plant.SpawnTimer,
+					}
 				}
-			}
-			carrying = &save.ItemSave{
-				ID:       c.Carrying.ID,
-				Position: c.Carrying.Pos(),
-				Name:     c.Carrying.Name,
-				ItemType: c.Carrying.ItemType,
-				Color:      string(c.Carrying.Color),
-				Pattern:    string(c.Carrying.Pattern),
-				Texture:    string(c.Carrying.Texture),
-				Plant:      plantSave,
-				Container:  containerToSave(c.Carrying.Container),
-				Edible:     c.Carrying.IsEdible(),
-				Poisonous:  c.Carrying.IsPoisonous(),
-				Healing:    c.Carrying.IsHealing(),
-				DeathTimer: c.Carrying.DeathTimer,
+				inventory[idx] = save.ItemSave{
+					ID:         item.ID,
+					Position:   item.Pos(),
+					Name:       item.Name,
+					ItemType:   item.ItemType,
+					Color:      string(item.Color),
+					Pattern:    string(item.Pattern),
+					Texture:    string(item.Texture),
+					Plant:      plantSave,
+					Container:  containerToSave(item.Container),
+					Edible:     item.IsEdible(),
+					Poisonous:  item.IsPoisonous(),
+					Healing:    item.IsHealing(),
+					DeathTimer: item.DeathTimer,
+				}
 			}
 		}
 
@@ -144,7 +147,7 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 			KnownActivities: c.KnownActivities,
 			KnownRecipes:    c.KnownRecipes,
 
-			Carrying:        carrying,
+			Inventory:       inventory,
 			AssignedOrderID: c.AssignedOrderID,
 		}
 	}
@@ -428,9 +431,12 @@ func characterFromSave(cs save.CharacterSave, registry *game.VarietyRegistry) *e
 	char.Sym = config.CharRobot
 	char.EType = entity.TypeCharacter
 
-	// Restore carried item if present
-	if cs.Carrying != nil {
-		char.Carrying = itemFromSave(*cs.Carrying, registry)
+	// Restore inventory
+	if len(cs.Inventory) > 0 {
+		char.Inventory = make([]*entity.Item, len(cs.Inventory))
+		for i, is := range cs.Inventory {
+			char.Inventory[i] = itemFromSave(is, registry)
+		}
 	}
 
 	// Restore assigned order

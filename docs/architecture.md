@@ -159,16 +159,23 @@ result := system.Pickup(char, item, gameMap, actionLog)
 // Handle based on result and context
 switch result {
 case PickupToVessel:
-    // Continue filling vessel until full or no targets
-    if nextTarget := FindNextVesselTarget(...); nextTarget != nil {
-        char.Intent = newIntentFor(nextTarget)
-    } else if char.AssignedOrderID != 0 {
-        CompleteOrder(char, order, actionLog)
+    // Only continue filling for orders, not autonomous foraging
+    if char.AssignedOrderID != 0 {
+        if nextTarget := FindNextVesselTarget(...); nextTarget != nil {
+            char.Intent = newIntentFor(nextTarget)
+        } else {
+            CompleteOrder(char, order, actionLog)
+        }
     }
+    // Autonomous foraging stops after one item
 case PickupToInventory:
-    // Inventory full - complete order if on one
-    if char.AssignedOrderID != 0 && !isVessel(char.Carrying) {
-        CompleteOrder(char, order, actionLog)
+    // Check if order should continue (harvest fills both slots)
+    if char.AssignedOrderID != 0 {
+        if nextTarget := FindNextHarvestTarget(...); nextTarget != nil {
+            char.Intent = nextTarget
+        } else {
+            CompleteOrder(char, order, actionLog)
+        }
     }
 }
 ```

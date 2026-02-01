@@ -151,7 +151,9 @@ func TestSelectOrderActivity_FullInventoryCanTakeNew(t *testing.T) {
 	gameMap := game.NewMap(10, 10)
 	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
 	char.KnownActivities = []string{"harvest"}
-	char.Carrying = entity.NewBerry(0, 0, types.ColorRed, false, false) // inventory full
+	// Fill inventory to capacity
+	char.AddToInventory(entity.NewBerry(0, 0, types.ColorRed, false, false))
+	char.AddToInventory(entity.NewBerry(0, 0, types.ColorRed, false, false))
 	gameMap.AddCharacter(char)
 
 	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
@@ -467,7 +469,7 @@ func TestFindHarvestIntent_DropsIncompatibleVessel(t *testing.T) {
 			}},
 		},
 	}
-	char.Carrying = vessel
+	char.AddToInventory(vessel)
 
 	// Berry to harvest (incompatible with vessel contents)
 	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
@@ -484,7 +486,7 @@ func TestFindHarvestIntent_DropsIncompatibleVessel(t *testing.T) {
 	}
 
 	// Vessel should have been dropped
-	if char.Carrying != nil {
+	if char.GetCarriedVessel() != nil {
 		t.Error("Vessel should have been dropped due to variety mismatch")
 	}
 
@@ -525,7 +527,7 @@ func TestFindHarvestIntent_UsesCompatibleVessel(t *testing.T) {
 			}},
 		},
 	}
-	char.Carrying = vessel
+	char.AddToInventory(vessel)
 
 	// Red berry to harvest (compatible with vessel contents)
 	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
@@ -541,7 +543,7 @@ func TestFindHarvestIntent_UsesCompatibleVessel(t *testing.T) {
 	}
 
 	// Vessel should NOT be dropped (it's compatible)
-	if char.Carrying != vessel {
+	if char.GetCarriedVessel() != vessel {
 		t.Error("Compatible vessel should not be dropped")
 	}
 
@@ -812,7 +814,7 @@ func TestOrderLifecycle_FullFlow(t *testing.T) {
 	// Step 6: Complete order (simulate pickup completing)
 	// The actual pickup and completion happens in applyIntent (UI layer)
 	// Here we just verify the CompleteOrder function works correctly
-	char.Carrying = berry // Simulate inventory is now full
+	char.AddToInventory(berry) // Simulate item picked up
 	gameMap.RemoveItem(berry)
 
 	CompleteOrder(char, order, nil)
@@ -892,7 +894,8 @@ func TestFindCraftVesselIntent_WithGourdInInventory(t *testing.T) {
 	gameMap := game.NewMap(10, 10)
 	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
 	char.KnownActivities = []string{"craftVessel"}
-	char.Carrying = entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
+	char.AddToInventory(gourd)
 	gameMap.AddCharacter(char)
 
 	order := entity.NewOrder(1, "craftVessel", "")
@@ -906,7 +909,7 @@ func TestFindCraftVesselIntent_WithGourdInInventory(t *testing.T) {
 	if intent.Action != entity.ActionCraft {
 		t.Errorf("Expected ActionCraft, got %d", intent.Action)
 	}
-	if intent.TargetItem != char.Carrying {
+	if intent.TargetItem != gourd {
 		t.Error("Expected TargetItem to be the carried gourd")
 	}
 }
@@ -967,7 +970,7 @@ func TestFindCraftVesselIntent_CarryingNonGourd_FindsGourd(t *testing.T) {
 	gameMap := game.NewMap(10, 10)
 	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
 	char.KnownActivities = []string{"craftVessel"}
-	char.Carrying = entity.NewBerry(0, 0, types.ColorRed, false, false) // carrying berry, not gourd
+	char.AddToInventory(entity.NewBerry(0, 0, types.ColorRed, false, false)) // carrying berry, not gourd
 	gameMap.AddCharacter(char)
 
 	gourd := entity.NewGourd(7, 5, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
@@ -999,12 +1002,12 @@ func TestDrop_RemovesFromInventoryAndPlacesOnMap(t *testing.T) {
 	gameMap := game.NewMap(10, 10)
 	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
 	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
-	char.Carrying = berry
+	char.Inventory = []*entity.Item{berry}
 	gameMap.AddCharacter(char)
 
 	Drop(char, gameMap, nil)
 
-	if char.Carrying != nil {
+	if len(char.Inventory) != 0 {
 		t.Error("Expected inventory to be empty after drop")
 	}
 
@@ -1025,8 +1028,9 @@ func TestSelectOrderActivity_FullInventory_DropsOnPickup(t *testing.T) {
 	gameMap := game.NewMap(10, 10)
 	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
 	char.KnownActivities = []string{"harvest"}
-	existingBerry := entity.NewBerry(0, 0, types.ColorRed, false, false)
-	char.Carrying = existingBerry // inventory full
+	existingBerry1 := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	existingBerry2 := entity.NewBerry(0, 0, types.ColorGreen, false, false)
+	char.Inventory = []*entity.Item{existingBerry1, existingBerry2} // inventory full (2 slots)
 	gameMap.AddCharacter(char)
 
 	targetBerry := entity.NewBerry(5, 5, types.ColorBlue, false, false) // at same position

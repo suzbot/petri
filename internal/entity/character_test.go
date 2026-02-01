@@ -1352,3 +1352,339 @@ func TestKnowsVarietyIsHealing_MustMatchExactly(t *testing.T) {
 		t.Error("Should not know plain red mushroom is healing (different pattern)")
 	}
 }
+
+// =============================================================================
+// Inventory Helpers (2-slot inventory)
+// =============================================================================
+
+// TestHasInventorySpace_Empty verifies empty inventory has space
+func TestHasInventorySpace_Empty(t *testing.T) {
+	t.Parallel()
+
+	c := &Character{Inventory: []*Item{}}
+	if !c.HasInventorySpace() {
+		t.Error("HasInventorySpace() should return true for empty inventory")
+	}
+}
+
+// TestHasInventorySpace_OneSlotUsed verifies one slot used still has space
+func TestHasInventorySpace_OneSlotUsed(t *testing.T) {
+	t.Parallel()
+
+	berry := NewBerry(0, 0, types.ColorRed, false, false)
+	c := &Character{Inventory: []*Item{berry}}
+	if !c.HasInventorySpace() {
+		t.Error("HasInventorySpace() should return true with one slot used")
+	}
+}
+
+// TestHasInventorySpace_Full verifies full inventory has no space
+func TestHasInventorySpace_Full(t *testing.T) {
+	t.Parallel()
+
+	berry1 := NewBerry(0, 0, types.ColorRed, false, false)
+	berry2 := NewBerry(0, 0, types.ColorBlue, false, false)
+	c := &Character{Inventory: []*Item{berry1, berry2}}
+	if c.HasInventorySpace() {
+		t.Error("HasInventorySpace() should return false when inventory is full")
+	}
+}
+
+// TestIsInventoryFull_Empty verifies empty inventory is not full
+func TestIsInventoryFull_Empty(t *testing.T) {
+	t.Parallel()
+
+	c := &Character{Inventory: []*Item{}}
+	if c.IsInventoryFull() {
+		t.Error("IsInventoryFull() should return false for empty inventory")
+	}
+}
+
+// TestIsInventoryFull_OneSlotUsed verifies one slot used is not full
+func TestIsInventoryFull_OneSlotUsed(t *testing.T) {
+	t.Parallel()
+
+	berry := NewBerry(0, 0, types.ColorRed, false, false)
+	c := &Character{Inventory: []*Item{berry}}
+	if c.IsInventoryFull() {
+		t.Error("IsInventoryFull() should return false with one slot used")
+	}
+}
+
+// TestIsInventoryFull_Full verifies full inventory is full
+func TestIsInventoryFull_Full(t *testing.T) {
+	t.Parallel()
+
+	berry1 := NewBerry(0, 0, types.ColorRed, false, false)
+	berry2 := NewBerry(0, 0, types.ColorBlue, false, false)
+	c := &Character{Inventory: []*Item{berry1, berry2}}
+	if !c.IsInventoryFull() {
+		t.Error("IsInventoryFull() should return true when inventory is full")
+	}
+}
+
+// TestAddToInventory_Empty verifies adding to empty inventory
+func TestAddToInventory_Empty(t *testing.T) {
+	t.Parallel()
+
+	c := &Character{Inventory: []*Item{}}
+	berry := NewBerry(0, 0, types.ColorRed, false, false)
+
+	added := c.AddToInventory(berry)
+
+	if !added {
+		t.Error("AddToInventory() should return true when adding to empty inventory")
+	}
+	if len(c.Inventory) != 1 {
+		t.Errorf("Inventory should have 1 item, got %d", len(c.Inventory))
+	}
+	if c.Inventory[0] != berry {
+		t.Error("Inventory should contain the added berry")
+	}
+}
+
+// TestAddToInventory_OneSlotUsed verifies adding when one slot is used
+func TestAddToInventory_OneSlotUsed(t *testing.T) {
+	t.Parallel()
+
+	berry1 := NewBerry(0, 0, types.ColorRed, false, false)
+	c := &Character{Inventory: []*Item{berry1}}
+	berry2 := NewBerry(0, 0, types.ColorBlue, false, false)
+
+	added := c.AddToInventory(berry2)
+
+	if !added {
+		t.Error("AddToInventory() should return true when one slot is available")
+	}
+	if len(c.Inventory) != 2 {
+		t.Errorf("Inventory should have 2 items, got %d", len(c.Inventory))
+	}
+}
+
+// TestAddToInventory_Full verifies adding when inventory is full fails
+func TestAddToInventory_Full(t *testing.T) {
+	t.Parallel()
+
+	berry1 := NewBerry(0, 0, types.ColorRed, false, false)
+	berry2 := NewBerry(0, 0, types.ColorBlue, false, false)
+	c := &Character{Inventory: []*Item{berry1, berry2}}
+	berry3 := NewBerry(0, 0, types.ColorGreen, false, false)
+
+	added := c.AddToInventory(berry3)
+
+	if added {
+		t.Error("AddToInventory() should return false when inventory is full")
+	}
+	if len(c.Inventory) != 2 {
+		t.Errorf("Inventory should still have 2 items, got %d", len(c.Inventory))
+	}
+}
+
+// TestRemoveFromInventory_Existing verifies removing existing item
+func TestRemoveFromInventory_Existing(t *testing.T) {
+	t.Parallel()
+
+	berry := NewBerry(0, 0, types.ColorRed, false, false)
+	c := &Character{Inventory: []*Item{berry}}
+
+	removed := c.RemoveFromInventory(berry)
+
+	if !removed {
+		t.Error("RemoveFromInventory() should return true when removing existing item")
+	}
+	if len(c.Inventory) != 0 {
+		t.Errorf("Inventory should be empty, got %d items", len(c.Inventory))
+	}
+}
+
+// TestRemoveFromInventory_NotFound verifies removing non-existing item
+func TestRemoveFromInventory_NotFound(t *testing.T) {
+	t.Parallel()
+
+	berry1 := NewBerry(0, 0, types.ColorRed, false, false)
+	c := &Character{Inventory: []*Item{berry1}}
+	berry2 := NewBerry(0, 0, types.ColorBlue, false, false) // not in inventory
+
+	removed := c.RemoveFromInventory(berry2)
+
+	if removed {
+		t.Error("RemoveFromInventory() should return false when item not in inventory")
+	}
+	if len(c.Inventory) != 1 {
+		t.Errorf("Inventory should still have 1 item, got %d", len(c.Inventory))
+	}
+}
+
+// TestRemoveFromInventory_SecondSlot verifies removing from second slot
+func TestRemoveFromInventory_SecondSlot(t *testing.T) {
+	t.Parallel()
+
+	berry1 := NewBerry(0, 0, types.ColorRed, false, false)
+	berry2 := NewBerry(0, 0, types.ColorBlue, false, false)
+	c := &Character{Inventory: []*Item{berry1, berry2}}
+
+	removed := c.RemoveFromInventory(berry2)
+
+	if !removed {
+		t.Error("RemoveFromInventory() should return true when removing from second slot")
+	}
+	if len(c.Inventory) != 1 {
+		t.Errorf("Inventory should have 1 item, got %d", len(c.Inventory))
+	}
+	if c.Inventory[0] != berry1 {
+		t.Error("First item should remain after removing second")
+	}
+}
+
+// TestGetCarriedVessel_NoVessel verifies nil when no vessel
+func TestGetCarriedVessel_NoVessel(t *testing.T) {
+	t.Parallel()
+
+	berry := NewBerry(0, 0, types.ColorRed, false, false)
+	c := &Character{Inventory: []*Item{berry}}
+
+	vessel := c.GetCarriedVessel()
+	if vessel != nil {
+		t.Error("GetCarriedVessel() should return nil when no vessel in inventory")
+	}
+}
+
+// TestGetCarriedVessel_HasVessel verifies finding vessel
+func TestGetCarriedVessel_HasVessel(t *testing.T) {
+	t.Parallel()
+
+	// Create a vessel manually (item with Container)
+	vessel := &Item{
+		ItemType:  "vessel",
+		Container: &ContainerData{Capacity: 1},
+	}
+	c := &Character{Inventory: []*Item{vessel}}
+
+	found := c.GetCarriedVessel()
+	if found != vessel {
+		t.Error("GetCarriedVessel() should return the vessel")
+	}
+}
+
+// TestGetCarriedVessel_VesselInSecondSlot verifies finding vessel in second slot
+func TestGetCarriedVessel_VesselInSecondSlot(t *testing.T) {
+	t.Parallel()
+
+	berry := NewBerry(0, 0, types.ColorRed, false, false)
+	vessel := &Item{
+		ItemType:  "vessel",
+		Container: &ContainerData{Capacity: 1},
+	}
+	c := &Character{Inventory: []*Item{berry, vessel}}
+
+	found := c.GetCarriedVessel()
+	if found != vessel {
+		t.Error("GetCarriedVessel() should find vessel in second slot")
+	}
+}
+
+// TestGetCarriedItem_NoItem verifies nil when inventory empty
+func TestGetCarriedItem_NoItem(t *testing.T) {
+	t.Parallel()
+
+	c := &Character{Inventory: []*Item{}}
+
+	item := c.GetCarriedItem()
+	if item != nil {
+		t.Error("GetCarriedItem() should return nil when inventory empty")
+	}
+}
+
+// TestGetCarriedItem_HasNonVessel verifies finding non-vessel item
+func TestGetCarriedItem_HasNonVessel(t *testing.T) {
+	t.Parallel()
+
+	berry := NewBerry(0, 0, types.ColorRed, false, false)
+	c := &Character{Inventory: []*Item{berry}}
+
+	found := c.GetCarriedItem()
+	if found != berry {
+		t.Error("GetCarriedItem() should return the berry")
+	}
+}
+
+// TestGetCarriedItem_OnlyVessel verifies nil when only vessel in inventory
+func TestGetCarriedItem_OnlyVessel(t *testing.T) {
+	t.Parallel()
+
+	vessel := &Item{
+		ItemType:  "vessel",
+		Container: &ContainerData{Capacity: 1},
+	}
+	c := &Character{Inventory: []*Item{vessel}}
+
+	found := c.GetCarriedItem()
+	if found != nil {
+		t.Error("GetCarriedItem() should return nil when only vessel in inventory")
+	}
+}
+
+// TestGetCarriedItem_MixedInventory verifies finding non-vessel when vessel also present
+func TestGetCarriedItem_MixedInventory(t *testing.T) {
+	t.Parallel()
+
+	vessel := &Item{
+		ItemType:  "vessel",
+		Container: &ContainerData{Capacity: 1},
+	}
+	berry := NewBerry(0, 0, types.ColorRed, false, false)
+	c := &Character{Inventory: []*Item{vessel, berry}}
+
+	found := c.GetCarriedItem()
+	if found != berry {
+		t.Error("GetCarriedItem() should return berry, not vessel")
+	}
+}
+
+// TestFindInInventory_Found verifies finding item by predicate
+func TestFindInInventory_Found(t *testing.T) {
+	t.Parallel()
+
+	berry := NewBerry(0, 0, types.ColorRed, false, false)
+	mushroom := NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+	c := &Character{Inventory: []*Item{berry, mushroom}}
+
+	found := c.FindInInventory(func(item *Item) bool {
+		return item.ItemType == "mushroom"
+	})
+
+	if found != mushroom {
+		t.Error("FindInInventory() should return the mushroom")
+	}
+}
+
+// TestFindInInventory_NotFound verifies nil when no match
+func TestFindInInventory_NotFound(t *testing.T) {
+	t.Parallel()
+
+	berry := NewBerry(0, 0, types.ColorRed, false, false)
+	c := &Character{Inventory: []*Item{berry}}
+
+	found := c.FindInInventory(func(item *Item) bool {
+		return item.ItemType == "gourd"
+	})
+
+	if found != nil {
+		t.Error("FindInInventory() should return nil when no match")
+	}
+}
+
+// TestFindInInventory_EmptyInventory verifies nil for empty inventory
+func TestFindInInventory_EmptyInventory(t *testing.T) {
+	t.Parallel()
+
+	c := &Character{Inventory: []*Item{}}
+
+	found := c.FindInInventory(func(item *Item) bool {
+		return true // match anything
+	})
+
+	if found != nil {
+		t.Error("FindInInventory() should return nil for empty inventory")
+	}
+}

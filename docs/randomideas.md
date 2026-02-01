@@ -15,6 +15,12 @@ then they can be removed from this list.
    a. Reorganize in order of gameflow
    b. remove anything that is unnessecary for user, or summarize where makes sense
    c. Put table of contents at top (can it link to header sections?)
+2. **Orders**:
+   a. if an order is not completable, ie abandoned, but its at the top of the list, characters assign and then abandon it over and over
+   b. ideally, if they can't do the first order, they move on to the next open order
+   c. ideally, if an order is unfufillable (either because no one has the knowledge anymore, or its missing a required component in the world)
+   d. then it should be shown as unfufullable on the orders screen, and characters should skip it without assigning themselves
+   e. Open to other approaches to solve the experience
 
 ## UI Improvements
 
@@ -53,13 +59,30 @@ Remove single/multi mode distinction from UI, add character count control, and i
 3. **Character Names File**
    - Put names in their own file for easy user/dev additions
    - Alphabetize all names to prevent duplicates
-   - Names to add: Bine, Bog, Bough, Brome, Cress, Daub, Fen, Fir, Frond, Furl, Gnarl, Grue, Log, Muld, Nook, Pad, Peat, Pod, Rye, Sod, Sprout, Tarn, Toady, Weir
+   - Names to add (if they aren't already on the list):
+     Oak, Ash, Elm, Birch,
+     Bine, Bit, Bole, Bog, Bough, Brome, Burr, Buzz,
+     Cress, Croft, Creft,
+     Daub, Dew, Duff, Eft, Egg,
+     Fen, Fir, Frond, Furl, Flax,
+     Gnarl, Grub, Grue,
+     Larch, Lil, Log,
+     Marsh, Marl, Mire, Mite, Mole, Mor, Moth, Muld, Mull
+     Newt, Nook, Olm, Nest,
+     Pad, Peat, Pitch, Pith, Pod, Phlom, Phlox,
+     Reed, Rime, Root, Rye,
+     Sap, Scamps, Scurf, Sedge, Shoot, Shrew, Snag, Sod, Sprig, Sprout, Stick, Stub, Stump,
+     Tad, Tarn, Toady, Twig,
+     Verd, Vetch, Vole, Waft, Ward, Weir, Web, Yew
 
 ## Tech Updates
 
 1. Create Code Review Agent
 2. Assess process docs for claude skills
 3. Consider sequential problem solving MCS
+4. review pre-gardening-audit for audit areas that were out of scope, and add any triggers for those deferred items to triggered-enhancements.md
+5. clean up triggered-enhacements.md to remove complete items or items no longer applicable (after gardening)
+6. Evaluate how to make architecture doc more useful
 
 ## Small Features
 

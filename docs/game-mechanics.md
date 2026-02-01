@@ -407,11 +407,11 @@ Characters can carry items in their inventory.
 
 ### Capacity
 
-Current inventory capacity: 1 item. Characters can carry one item at a time.
+Current inventory capacity: 2 slots. Each slot holds one item OR one vessel (with contents).
 
 ### Viewing Inventory
 
-Press `I` in select mode to toggle the Inventory panel (replaces action log). Shows "Carrying: [item description]" or "Carrying: nothing". If carrying a vessel, also shows the vessel's contents with stack count and capacity. Press `I` again to return to action log.
+Press `I` in select mode to toggle the Inventory panel (replaces action log). Shows "Inventory: N/2 slots" with list of carried items. If carrying a vessel, also shows the vessel's contents with stack count and capacity. Press `I` again to return to action log.
 
 ### Carried Item Properties
 
@@ -459,7 +459,7 @@ To craft items:
 3. If carrying a gourd: begin crafting immediately
 4. If not carrying a gourd: move to pick one up (dropping current item if needed)
 5. Crafting takes recipe duration (uses ActionProgress like eating/drinking)
-6. On completion: vessel goes to inventory, order completed
+6. On completion: crafted item drops on ground, order completed (allows other characters to use it)
 
 ### Crafted Items
 
@@ -492,10 +492,7 @@ When an item is added to an empty vessel, the vessel becomes "variety locked":
 
 When a character carrying a vessel forages:
 - Items are added to the vessel's stack instead of filling inventory
-- Foraging continues automatically until:
-  - Vessel is full (stack reached max size)
-  - No more matching items exist on the map
-- If the vessel is variety-locked and no matching items exist, foraging stops
+- **Autonomous foraging completes after picking up one growing item** (prevents world resource stripping)
 - Foraging skips items incompatible with the carried vessel
 
 ### Harvesting with Vessels
@@ -580,11 +577,13 @@ Characters seek out other characters doing idle activities (Idle, Looking, Talki
 
 Characters pick up edible items to carry in inventory:
 - Only available when inventory has room (not full, or carrying a vessel with space)
-- Uses preference/distance scoring (same weights as moderate hunger eating)
+- Uses unified scoring: `Score = (NetPreference × PrefWeight) - (Distance × DistWeight)`
+- **Vessel bonus scales with hunger**: `vesselBonus = PrefWeight × (1 - hunger/100)`
+  - Low hunger → higher vessel bonus (willing to plan ahead)
+  - High hunger → lower vessel bonus (grab immediate food)
 - Character moves to item, then picks it up (takes ActionDuration to complete)
 - Picked up item is removed from map and placed in inventory or vessel
-- If not carrying a vessel, looks for one on the ground first (see Vessels & Containers)
-- When carrying a vessel, continues foraging until vessel full or no matching items
+- **Foraging completes after one growing item** (casual activity, doesn't strip resources)
 - Logs "Foraging for [item type]" when starting, "Picked up [item]" on completion
 
 Idle activities are interruptible by any Moderate or higher tier need that can be fulfilled.

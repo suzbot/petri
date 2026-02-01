@@ -106,8 +106,8 @@ type CharacterSave struct {
 	KnownActivities []string         `json:"known_activities,omitempty"`
 	KnownRecipes    []string         `json:"known_recipes,omitempty"`
 
-	// Inventory
-	Carrying *ItemSave `json:"carrying,omitempty"` // Item being carried (nil if empty)
+	// Inventory (2 slots)
+	Inventory []ItemSave `json:"inventory,omitempty"`
 
 	// Orders
 	AssignedOrderID int `json:"assigned_order_id,omitempty"` // ID of assigned order (0 = none)

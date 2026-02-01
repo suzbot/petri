@@ -122,49 +122,52 @@ func findHarvestIntent(char *entity.Character, pos types.Position, items []*enti
 	registry := gameMap.Varieties()
 
 	// Check inventory state and handle vessel logic
-	if char.Carrying == nil {
-		// Not carrying anything - look for available vessel first (4d)
-		availableVessel := FindAvailableVessel(pos.X, pos.Y, items, target, registry)
-		if availableVessel != nil {
-			// Go pick up vessel first
-			vpos := availableVessel.Pos()
-			vx, vy := vpos.X, vpos.Y
-			if pos.X == vx && pos.Y == vy {
-				newActivity := "Picking up vessel"
-				if char.CurrentActivity != newActivity {
-					char.CurrentActivity = newActivity
-					if log != nil {
-						log.Add(char.ID, char.Name, "order", "Picking up vessel for harvesting")
+	carriedVessel := char.GetCarriedVessel()
+	if carriedVessel == nil {
+		// No vessel in inventory - look for available vessel first (4d) if we have space
+		if char.HasInventorySpace() {
+			availableVessel := FindAvailableVessel(pos.X, pos.Y, items, target, registry)
+			if availableVessel != nil {
+				// Go pick up vessel first
+				vpos := availableVessel.Pos()
+				vx, vy := vpos.X, vpos.Y
+				if pos.X == vx && pos.Y == vy {
+					newActivity := "Picking up vessel"
+					if char.CurrentActivity != newActivity {
+						char.CurrentActivity = newActivity
+						if log != nil {
+							log.Add(char.ID, char.Name, "order", "Picking up vessel for harvesting")
+						}
+					}
+					return &entity.Intent{
+						Target:     pos,
+						Dest:       pos, // Already at destination
+						Action:     entity.ActionPickup,
+						TargetItem: availableVessel,
 					}
 				}
+				// Move toward vessel
+				nx, ny := NextStep(pos.X, pos.Y, vx, vy)
+				newActivity := "Moving to pick up vessel"
+				if char.CurrentActivity != newActivity {
+					char.CurrentActivity = newActivity
+				}
 				return &entity.Intent{
-					Target:     pos,
-					Dest:       pos, // Already at destination
+					Target:     types.Position{X: nx, Y: ny},
+					Dest:       types.Position{X: vx, Y: vy}, // Destination is the vessel's position
 					Action:     entity.ActionPickup,
 					TargetItem: availableVessel,
 				}
 			}
-			// Move toward vessel
-			nx, ny := NextStep(pos.X, pos.Y, vx, vy)
-			newActivity := "Moving to pick up vessel"
-			if char.CurrentActivity != newActivity {
-				char.CurrentActivity = newActivity
-			}
-			return &entity.Intent{
-				Target:     types.Position{X: nx, Y: ny},
-				Dest:       types.Position{X: vx, Y: vy}, // Destination is the vessel's position
-				Action:     entity.ActionPickup,
-				TargetItem: availableVessel,
-			}
 		}
-		// No vessel available - proceed to harvest directly (single item)
-	} else if char.Carrying.Container != nil {
-		// Carrying a vessel - check if it can accept the target
-		if !CanVesselAccept(char.Carrying, target, registry) {
+		// No vessel available or no space - proceed to harvest directly (single item)
+	} else {
+		// Have a vessel - check if it can accept the target
+		if !CanVesselAccept(carriedVessel, target, registry) {
 			// Vessel cannot accept target (full or variety mismatch)
 			// Drop vessel since order takes priority (4e)
-			Drop(char, gameMap, log)
-			// Now not carrying anything - look for compatible vessel
+			DropItem(char, carriedVessel, gameMap, log)
+			// Now look for compatible vessel
 			availableVessel := FindAvailableVessel(pos.X, pos.Y, items, target, registry)
 			if availableVessel != nil {
 				vpos := availableVessel.Pos()
@@ -196,9 +199,6 @@ func findHarvestIntent(char *entity.Character, pos types.Position, items []*enti
 			// No compatible vessel - proceed to harvest directly
 		}
 		// Vessel can accept target - proceed to harvest (will add to vessel)
-	} else {
-		// Carrying non-vessel item - this case is handled by update.go
-		// which drops items when on order before pickup
 	}
 
 	tpos := target.Pos()
@@ -236,10 +236,12 @@ func findHarvestIntent(char *entity.Character, pos types.Position, items []*enti
 }
 
 // findCraftVesselIntent creates an intent to craft a vessel.
-// If carrying a gourd, returns ActionCraft. Otherwise returns ActionPickup for a gourd.
+// If carrying a gourd (in inventory or vessel contents), returns ActionCraft.
+// Otherwise returns ActionPickup for a gourd.
 func findCraftVesselIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog) *entity.Intent {
-	// Check if already carrying a gourd - ready to craft
-	if char.Carrying != nil && char.Carrying.ItemType == "gourd" {
+	// Check if already carrying a gourd in direct inventory - ready to craft
+	gourd := char.FindInInventory(func(i *entity.Item) bool { return i.ItemType == "gourd" })
+	if gourd != nil {
 		newActivity := "Crafting vessel"
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
@@ -248,7 +250,29 @@ func findCraftVesselIntent(char *entity.Character, pos types.Position, items []*
 			Target:     pos,
 			Dest:       pos, // Already at destination (crafting in place)
 			Action:     entity.ActionCraft,
-			TargetItem: char.Carrying, // The gourd being used
+			TargetItem: gourd, // The gourd being used
+		}
+	}
+
+	// Check if recipe input is inside a carried vessel - extract it first
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	if recipe != nil {
+		extractedItem := extractRecipeInputFromVessel(char, recipe)
+		if extractedItem != nil {
+			if log != nil {
+				log.Add(char.ID, char.Name, "activity", "Took "+extractedItem.ItemType+" from vessel for crafting")
+			}
+			// Now have input in inventory - ready to craft
+			newActivity := "Crafting vessel"
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+			}
+			return &entity.Intent{
+				Target:     pos,
+				Dest:       pos,
+				Action:     entity.ActionCraft,
+				TargetItem: extractedItem,
+			}
 		}
 	}
 
@@ -289,6 +313,49 @@ func findCraftVesselIntent(char *entity.Character, pos types.Position, items []*
 		Action:     entity.ActionPickup,
 		TargetItem: target,
 	}
+}
+
+// extractRecipeInputFromVessel checks if a carried vessel contains any required recipe input,
+// and if so, extracts one item to character inventory. Returns the extracted item or nil.
+func extractRecipeInputFromVessel(char *entity.Character, recipe *entity.Recipe) *entity.Item {
+	vessel := char.GetCarriedVessel()
+	if vessel == nil || vessel.Container == nil || recipe == nil {
+		return nil
+	}
+
+	// Check each recipe input against vessel contents
+	for _, input := range recipe.Inputs {
+		for i, stack := range vessel.Container.Contents {
+			if stack.Variety != nil && stack.Variety.ItemType == input.ItemType && stack.Count > 0 {
+				// Found matching input - extract one
+				vessel.Container.Contents[i].Count--
+
+				// Remove empty stack
+				if vessel.Container.Contents[i].Count <= 0 {
+					vessel.Container.Contents = append(
+						vessel.Container.Contents[:i],
+						vessel.Container.Contents[i+1:]...,
+					)
+				}
+
+				// Create item from variety
+				item := &entity.Item{
+					ItemType: stack.Variety.ItemType,
+					Color:    stack.Variety.Color,
+					Pattern:  stack.Variety.Pattern,
+					Texture:  stack.Variety.Texture,
+				}
+				item.EType = entity.TypeItem
+
+				// Add to inventory
+				char.AddToInventory(item)
+
+				return item
+			}
+		}
+	}
+
+	return nil
 }
 
 // findNearestItemByType finds the closest item of a specific type.
@@ -363,6 +430,42 @@ func CompleteOrder(char *entity.Character, order *entity.Order, log *ActionLog) 
 	// For now, just reset it - actual removal handled elsewhere
 	order.Status = entity.OrderOpen
 	order.AssignedTo = 0
+}
+
+// FindNextHarvestTarget finds the next item to harvest for order continuation.
+// Returns nil if inventory is full or no matching targets exist.
+func FindNextHarvestTarget(char *entity.Character, cx, cy int, items []*entity.Item, targetType string) *entity.Intent {
+	if !char.HasInventorySpace() {
+		return nil
+	}
+
+	// Find nearest item matching the target type
+	target := findNearestItemByType(cx, cy, items, targetType)
+	if target == nil {
+		return nil
+	}
+
+	tpos := target.Pos()
+	tx, ty := tpos.X, tpos.Y
+
+	if cx == tx && cy == ty {
+		// Already at target
+		return &entity.Intent{
+			Target:     types.Position{X: cx, Y: cy},
+			Dest:       types.Position{X: cx, Y: cy},
+			Action:     entity.ActionPickup,
+			TargetItem: target,
+		}
+	}
+
+	// Move toward target
+	nx, ny := NextStep(cx, cy, tx, ty)
+	return &entity.Intent{
+		Target:     types.Position{X: nx, Y: ny},
+		Dest:       types.Position{X: tx, Y: ty},
+		Action:     entity.ActionPickup,
+		TargetItem: target,
+	}
 }
 
 // PauseOrder marks an order as paused due to character needs interruption.

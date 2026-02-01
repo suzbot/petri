@@ -265,34 +265,56 @@ func TestIsVesselFull_GourdStack(t *testing.T) {
 
 func TestCanPickUpMore_EmptyInventory(t *testing.T) {
 	registry := createTestRegistry()
-	char := &entity.Character{Carrying: nil}
+	char := &entity.Character{Inventory: []*entity.Item{}}
 
 	if !CanPickUpMore(char, registry) {
 		t.Error("Should be able to pick up with empty inventory")
 	}
 }
 
-func TestCanPickUpMore_CarryingNonVessel(t *testing.T) {
+func TestCanPickUpMore_OneSlotUsed(t *testing.T) {
 	registry := createTestRegistry()
 	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
-	char := &entity.Character{Carrying: berry}
+	char := &entity.Character{Inventory: []*entity.Item{berry}}
+
+	if !CanPickUpMore(char, registry) {
+		t.Error("Should be able to pick up with one slot used (has second slot)")
+	}
+}
+
+func TestCanPickUpMore_FullInventoryNoVessel(t *testing.T) {
+	registry := createTestRegistry()
+	berry1 := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	berry2 := entity.NewBerry(0, 0, types.ColorBlue, false, false)
+	char := &entity.Character{Inventory: []*entity.Item{berry1, berry2}}
 
 	if CanPickUpMore(char, registry) {
-		t.Error("Should not be able to pick up when carrying non-vessel")
+		t.Error("Should not be able to pick up when both slots full with non-vessels")
 	}
 }
 
 func TestCanPickUpMore_CarryingEmptyVessel(t *testing.T) {
 	registry := createTestRegistry()
 	vessel := createTestVessel()
-	char := &entity.Character{Carrying: vessel}
+	char := &entity.Character{Inventory: []*entity.Item{vessel}}
 
 	if !CanPickUpMore(char, registry) {
 		t.Error("Should be able to pick up with empty vessel")
 	}
 }
 
-func TestCanPickUpMore_CarryingFullVessel(t *testing.T) {
+func TestCanPickUpMore_FullInventoryWithEmptyVessel(t *testing.T) {
+	registry := createTestRegistry()
+	vessel := createTestVessel()
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char := &entity.Character{Inventory: []*entity.Item{vessel, berry}}
+
+	if !CanPickUpMore(char, registry) {
+		t.Error("Should be able to pick up when full but vessel has space")
+	}
+}
+
+func TestCanPickUpMore_FullInventoryWithFullVessel(t *testing.T) {
 	registry := createTestRegistry()
 	vessel := createTestVessel()
 
@@ -300,10 +322,11 @@ func TestCanPickUpMore_CarryingFullVessel(t *testing.T) {
 	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	AddToVessel(vessel, gourd, registry)
 
-	char := &entity.Character{Carrying: vessel}
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char := &entity.Character{Inventory: []*entity.Item{vessel, berry}}
 
 	if CanPickUpMore(char, registry) {
-		t.Error("Should not be able to pick up with full vessel")
+		t.Error("Should not be able to pick up when full and vessel full")
 	}
 }
 
@@ -315,7 +338,7 @@ func TestFindNextVesselTarget_EmptyVessel(t *testing.T) {
 	vessel := createTestVessel()
 	registry := createTestRegistry()
 
-	char := &entity.Character{Carrying: vessel}
+	char := &entity.Character{Inventory: []*entity.Item{vessel}}
 	items := []*entity.Item{
 		entity.NewBerry(5, 5, types.ColorRed, false, false),
 	}
@@ -335,7 +358,7 @@ func TestFindNextVesselTarget_FindsMatchingVariety(t *testing.T) {
 	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
 	AddToVessel(vessel, berry, registry)
 
-	char := &entity.Character{Carrying: vessel}
+	char := &entity.Character{Inventory: []*entity.Item{vessel}}
 
 	// Create items on map - one matching, one different variety
 	redBerry := entity.NewBerry(5, 5, types.ColorRed, false, false)
@@ -360,7 +383,7 @@ func TestFindNextVesselTarget_IgnoresNonGrowing(t *testing.T) {
 	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
 	AddToVessel(vessel, berry, registry)
 
-	char := &entity.Character{Carrying: vessel}
+	char := &entity.Character{Inventory: []*entity.Item{vessel}}
 
 	// Create a dropped (non-growing) berry
 	droppedBerry := entity.NewBerry(5, 5, types.ColorRed, false, false)
@@ -383,7 +406,7 @@ func TestFindNextVesselTarget_VesselFull(t *testing.T) {
 	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	AddToVessel(vessel, gourd, registry)
 
-	char := &entity.Character{Carrying: vessel}
+	char := &entity.Character{Inventory: []*entity.Item{vessel}}
 
 	// Another gourd on map
 	gourd2 := entity.NewGourd(5, 5, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
@@ -406,9 +429,9 @@ func TestPickup_AddsToVessel(t *testing.T) {
 
 	vessel := createTestVessel()
 	char := &entity.Character{
-		ID:       1,
-		Name:     "Test",
-		Carrying: vessel,
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{vessel},
 	}
 
 	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
@@ -419,7 +442,7 @@ func TestPickup_AddsToVessel(t *testing.T) {
 	if result != PickupToVessel {
 		t.Error("Pickup should return PickupToVessel when adding to vessel")
 	}
-	if char.Carrying != vessel {
+	if char.GetCarriedVessel() != vessel {
 		t.Error("Character should still be carrying vessel")
 	}
 	if len(vessel.Container.Contents) != 1 {
@@ -438,9 +461,9 @@ func TestPickup_ToInventory(t *testing.T) {
 	gameMap := game.NewMap(10, 10)
 
 	char := &entity.Character{
-		ID:       1,
-		Name:     "Test",
-		Carrying: nil,
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
 	}
 
 	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
@@ -451,8 +474,8 @@ func TestPickup_ToInventory(t *testing.T) {
 	if result != PickupToInventory {
 		t.Error("Pickup should return PickupToInventory when not carrying vessel")
 	}
-	if char.Carrying != berry {
-		t.Error("Character should be carrying the berry")
+	if len(char.Inventory) != 1 || char.Inventory[0] != berry {
+		t.Error("Character should have berry in inventory")
 	}
 	if char.Intent != nil {
 		t.Error("Intent should be cleared")
@@ -602,10 +625,10 @@ func TestFindAvailableVessel_FindsNearest(t *testing.T) {
 }
 
 // =============================================================================
-// findForageTarget with Vessel Tests
+// scoreForageItems with Vessel Tests
 // =============================================================================
 
-func TestFindForageTarget_FiltersToVesselVariety(t *testing.T) {
+func TestScoreForageItems_FiltersToVesselVariety(t *testing.T) {
 	registry := createTestRegistry()
 	char := &entity.Character{ID: 1, Name: "Test"}
 
@@ -621,14 +644,14 @@ func TestFindForageTarget_FiltersToVesselVariety(t *testing.T) {
 
 	items := []*entity.Item{blueBerry, targetBerry}
 
-	target := findForageTarget(char, types.Position{X: 0, Y: 0}, items, vessel)
+	target, _ := scoreForageItems(char, types.Position{X: 0, Y: 0}, items, vessel)
 
 	if target != targetBerry {
 		t.Error("Should find red berry matching vessel variety, not closer blue berry")
 	}
 }
 
-func TestFindForageTarget_NoFilterWhenVesselEmpty(t *testing.T) {
+func TestScoreForageItems_NoFilterWhenVesselEmpty(t *testing.T) {
 	char := &entity.Character{ID: 1, Name: "Test"}
 
 	// Empty vessel
@@ -641,7 +664,7 @@ func TestFindForageTarget_NoFilterWhenVesselEmpty(t *testing.T) {
 
 	items := []*entity.Item{blueBerry, redBerry}
 
-	target := findForageTarget(char, types.Position{X: 0, Y: 0}, items, vessel)
+	target, _ := scoreForageItems(char, types.Position{X: 0, Y: 0}, items, vessel)
 
 	if target != blueBerry {
 		t.Error("Empty vessel should not filter - should find closest edible item")
