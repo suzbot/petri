@@ -105,6 +105,9 @@ type Model struct {
 
 	// Test mode config
 	testCfg TestConfig
+
+	// Speed control (1 = normal, 2 = half speed, 4 = quarter speed)
+	speedMultiplier int
 }
 
 // NewModel creates a new game model
@@ -117,12 +120,13 @@ func NewModel(testCfg TestConfig) Model {
 		actionLog:        system.NewActionLog(200),
 		width:            80,
 		height:           40,
-		paused:           true, // World starts paused
+		paused:           true,  // World starts paused
 		testCfg:          testCfg,
 		worlds:           worlds,
-		selectedWorld:    0,  // First world or "New World" if empty
-		confirmingDelete: -1, // Not confirming delete
-		nextOrderID:      1,  // Start at 1 so ID 0 means "no order"
+		selectedWorld:    0,     // First world or "New World" if empty
+		confirmingDelete: -1,    // Not confirming delete
+		nextOrderID:      1,     // Start at 1 so ID 0 means "no order"
+		speedMultiplier:  1,     // Normal speed
 	}
 }
 
@@ -135,8 +139,10 @@ func (m Model) Init() tea.Cmd {
 type tickMsg time.Time
 
 // tickCmd returns a command that sends a tick message
-func tickCmd() tea.Cmd {
-	return tea.Tick(config.UpdateInterval, func(t time.Time) tea.Msg {
+// speedMultiplier: 1 = normal, 2 = half speed, 4 = quarter speed
+func tickCmd(speedMultiplier int) tea.Cmd {
+	interval := config.UpdateInterval * time.Duration(speedMultiplier)
+	return tea.Tick(interval, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }

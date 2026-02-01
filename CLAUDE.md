@@ -113,8 +113,6 @@ Process docs:
 
 **Up Next:**
 
-- Show character speed in debug mode details view
-- Add `-characters=N` flag for character count control
 - Pre-Gardening extensibility audit (see [docs/pre-gardening-audit.md](docs/pre-gardening-audit.md))
 - Evaluation of docs/randomideas.md and docs/triggered-enhancements.md against future phases to prioritize anything opportunistically within or before upcoming phase
 - Simple Gardening planning (see [docs/Gardening-Reqs.txt](docs/Gardening-Reqs.txt))

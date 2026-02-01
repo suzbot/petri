@@ -447,12 +447,29 @@ func (m Model) viewGame() string {
 	// Horizontal layout: Map | Right Panel
 	gameArea := lipgloss.JoinHorizontal(lipgloss.Top, mapView, " ", rightPanel)
 
+	// World time display (120 game seconds = 1 world day)
+	worldDay := int(m.elapsedGameTime/120) + 1
+
 	// Status bar with mode-specific hints
 	status := "RUNNING"
 	stepHint := ""
 	if m.paused {
 		status = "PAUSED"
 		stepHint = " | .=step"
+	}
+
+	// Speed indicator and control hints
+	speedHint := ""
+	speedControls := ""
+	if m.speedMultiplier == 2 {
+		speedHint = " [½x]"
+		speedControls = " | > =fast"
+	} else if m.speedMultiplier == 4 {
+		speedHint = " [¼x]"
+		speedControls = " | > =fast"
+	}
+	if m.speedMultiplier < 4 {
+		speedControls = " | < =slow" + speedControls
 	}
 
 	// Saving indicator
@@ -483,7 +500,7 @@ func (m Model) viewGame() string {
 		hints = append(hints, "ESC=menu")
 	}
 
-	statusBar := fmt.Sprintf("\n[%s]%s SPACE=pause%s | %s", status, saveHint, stepHint, strings.Join(hints, " | "))
+	statusBar := fmt.Sprintf("\nDay %d | [%s]%s%s SPACE=pause%s%s | %s", worldDay, status, speedHint, saveHint, speedControls, stepHint, strings.Join(hints, " | "))
 
 	// Debug line (only shown with -debug flag)
 	debugLine := ""

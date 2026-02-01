@@ -27,10 +27,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tickMsg:
 		if m.phase != phasePlaying || m.paused {
-			return m, tickCmd()
+			return m, tickCmd(m.speedMultiplier)
 		}
 		newModel, _ := m.updateGame(time.Time(msg))
-		return newModel, tickCmd()
+		return newModel, tickCmd(newModel.speedMultiplier)
 	}
 
 	return m, nil
@@ -77,16 +77,16 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "r", "R":
 			m.selectedColor = types.ColorRed
-			return m.startGame(), tickCmd()
+			return m.startGame(), tickCmd(m.speedMultiplier)
 		case "l", "L":
 			m.selectedColor = types.ColorBlue
-			return m.startGame(), tickCmd()
+			return m.startGame(), tickCmd(m.speedMultiplier)
 		case "w", "W":
 			m.selectedColor = types.ColorWhite
-			return m.startGame(), tickCmd()
+			return m.startGame(), tickCmd(m.speedMultiplier)
 		case "n", "N":
 			m.selectedColor = types.ColorBrown
-			return m.startGame(), tickCmd()
+			return m.startGame(), tickCmd(m.speedMultiplier)
 		case "q", "esc", "ctrl+c":
 			return m, tea.Quit
 		}
@@ -164,6 +164,16 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else if m.viewMode == viewModeAllActivity {
 				m.activityFullScreen = !m.activityFullScreen
 				m.logScrollOffset = 0
+			}
+		case "<":
+			// Slow down: 1 -> 2 -> 4
+			if m.speedMultiplier < 4 {
+				m.speedMultiplier *= 2
+			}
+		case ">":
+			// Speed up: 4 -> 2 -> 1
+			if m.speedMultiplier > 1 {
+				m.speedMultiplier /= 2
 			}
 		case "+", "=":
 			// Start add order mode (= is unshifted + on most keyboards)
@@ -1164,7 +1174,7 @@ func (m Model) loadWorld(worldID string) (Model, tea.Cmd) {
 	m = FromSaveState(state, worldID, m.testCfg)
 	m.paused = true // Start paused
 
-	return m, tickCmd()
+	return m, tickCmd(m.speedMultiplier)
 }
 
 // handleCharacterCreationKey handles input during character creation phase
@@ -1178,7 +1188,7 @@ func (m Model) handleCharacterCreationKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyEnter:
 		// Start the game with current character settings
-		return m.startGameFromCreation(), tickCmd()
+		return m.startGameFromCreation(), tickCmd(m.speedMultiplier)
 
 	case tea.KeyLeft:
 		m.creationState.NavigateCharacter(-1)

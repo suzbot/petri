@@ -62,6 +62,7 @@ go run ./cmd/petri
 
 - `Space` - Pause/unpause (saves on pause)
 - `.` - Step forward one tick (while paused)
+- `<` / `>` - Slow down / speed up (½x, ¼x)
 - Arrow keys - Move cursor
 - `F` - Follow/unfollow character
 - `N` / `B` - Cycle next/previous character

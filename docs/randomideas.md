@@ -25,34 +25,46 @@ then they can be removed from this list.
    - Pain point: Scrolling through list every time, reopening menu for multiple orders.
    - Single keypress selection (underlined unique letter or numbered list)
    - Stay in add mode after adding an order (don't close menu)
-3. **Capitalization** consistency clean-up
+3. **Capitalization** consistency clean-up (not quick - lots of strings to sweep through)
 4. **Natural Language Descriptions**
    - Replace details view in regular mode, supplement in debug mode.
    - Key words shown in relevant color (color text is color, poison red, healing green, growing olive) and bolded
    - Everything non-null/non-false reflected in a sentence
    - Design must easily expand as new attribute types added
    - Example: "This is a hollow gourd. It is a vessel that can be used to carry things. It is warty and green."
-5. Show passage of world time below map
+
+## Streamlined Character Creation (combined scope)
+
+Remove single/multi mode distinction from UI, add character count control, and improve name management:
+
+1. **UI Streamlining**
+   - Remove single char mode from game start
+   - Adjust start screen title and keys:
+     - === Petri ===
+     - R to start with Random Characters
+     - C to create Characters
+   - "C for Create" creates first character, randomizes the rest
+
+2. **Character Count Flag**
+   - Add `-characters=N` flag to control spawn count (default 4)
+   - `-characters=0` equivalent to `-no-characters`
+   - Reasonable max cap (e.g., 20)
+
+3. **Character Names File**
+   - Put names in their own file for easy user/dev additions
+   - Alphabetize all names to prevent duplicates
+   - Names to add: Bine, Bog, Bough, Brome, Cress, Daub, Fen, Fir, Frond, Furl, Gnarl, Grue, Log, Muld, Nook, Pad, Peat, Pod, Rye, Sod, Sprout, Tarn, Toady, Weir
 
 ## Tech Updates
 
-1. **Character Names**: put in their own special file so its super easy for users/me to add more names.
-   - Names to remember to add next: Bog, Log, Fen, Pod, Bough, Toady, Tarn, Weir, Bine, Brome, Cress, Daub, Nook, Fir, Frond, Furl, Rye, Muld, Grue, Gnarl, Peat, Pad, Sod, Sprout
-   - Alphabetize all names, to make it easy for humans to not add duplicates
-2. Create Code Review Agent
-3. Assess process docs for claude skills
-4. Consider sequential problem solving MCS
+1. Create Code Review Agent
+2. Assess process docs for claude skills
+3. Consider sequential problem solving MCS
 
 ## Small Features
 
 1. Ability to edit name of existing character on map
-2. Remove single char mode from UI, streamline flow:
-   - Adjust start screen title and start keys
-   - === Petri ===
-   - R to start with Random Characters
-   - C to create Characters
-3. Edible Nuts drop from canopy
-4. Ability to slow down game speed
+2. Edible Nuts drop from canopy
 
 # Ideas that aren't ready yet:
 

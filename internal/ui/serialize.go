@@ -262,6 +262,7 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 		lastUpdate:       time.Now(),
 		worldID:          worldID,
 		lastSaveGameTime: state.ElapsedGameTime, // Treat load time as last save
+		speedMultiplier:  1,                     // Normal speed
 	}
 
 	// Create map

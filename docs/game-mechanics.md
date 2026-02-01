@@ -16,6 +16,16 @@ All durations in the game are tuned to feel narratively appropriate at this scal
 
 The time scale is documented in config comments and used consistently across all duration-based mechanics.
 
+The current world day is displayed in the status bar during gameplay.
+
+## Speed Control
+
+The simulation can be slowed down for easier observation:
+- `<` - Slow down (1x → ½x → ¼x)
+- `>` - Speed up (¼x → ½x → 1x)
+
+Current speed is shown in the status bar when not at normal speed.
+
 ## Stat Thresholds
 
 Stats have four severity tiers: Mild, Moderate, Severe, Crisis. Thresholds defined in `internal/entity/character.go`.
