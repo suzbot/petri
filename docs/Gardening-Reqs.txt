@@ -136,7 +136,15 @@ Food Turning
 
 ### Pattern Notes
 
-**Component procurement pattern** (Craft Hoe, Plant, Water Garden): Use the consolidated picking.go `PickupIntentBuilder` for the check-inventory → drop-non-components → seek-components → craft-or-abandon flow. This same pattern will be reused by Pigment and Construction.
+**Component procurement pattern** (Craft Hoe, Plant, Water Garden): Use picking.go prerequisite helpers for the check-inventory → drop-non-components → seek-components → craft-or-abandon flow. This same pattern will be reused by Pigment and Construction.
+
+Available in picking.go:
+- `EnsureHasVesselFor(char, target, items, gameMap, log, dropConflict, category)` - returns intent to get vessel for target, or nil if ready
+
+Deferred helpers to add when implementing:
+- `EnsureHasItem(char, itemType, items, gameMap, log, dropConflict, category)` - for procuring specific item type (e.g., hoe for tilling)
+- `EnsureHasItemByPreference(char, itemType, items, gameMap, log, dropConflict, category)` - for procuring by preference/distance (e.g., plantable items)
+- `EnsureHasRecipeInputs(char, recipe, items, gameMap, log, category)` - for multi-component gathering (e.g., stick + shell for hoe)
 
 **Area selection UI** (Till Soil): New UI pattern - document approach for reuse by Construction's fence/hut placement.
 

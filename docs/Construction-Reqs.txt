@@ -59,4 +59,23 @@ New Activity: Construct > Hut
 
 New Concept: Incomplete Order? Or Occupation? How do we handle supply chain issues when a construction task can't be finished? or is it assigned forever until done? but that blocks other orders they could do in the meanntime?
 
+---
+
+## Implementation Notes
+
+### Available Picking Helpers (internal/system/picking.go)
+
+Existing:
+- `EnsureHasVesselFor(char, target, items, gameMap, log, dropConflict, category)` - returns intent to get vessel for target, or nil if ready
+
+Deferred helpers to add when implementing:
+- `EnsureHasItem(char, itemType, items, gameMap, log, dropConflict, category)` - for procuring specific item type
+- `EnsureHasItemByPreference(char, itemType, items, gameMap, log, dropConflict, category)` - for procuring by preference/distance
+- `EnsureHasRecipeInputs(char, recipe, items, gameMap, log, category)` - for multi-component gathering
+- `EnsureHasBundle` - TBD, see bundle discussion below
+
+### Bundle and "too large for vessel" logic
+
+Before implementing bundles and the "too large for vessel" behavior, discuss with user. The picking.go prerequisite helpers may need extension, but the exact approach for bundles (stacking in hand vs inventory slot behavior) needs clarification before adding helpers like `EnsureHasBundle`.
+
 

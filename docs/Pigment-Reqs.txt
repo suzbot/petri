@@ -62,3 +62,24 @@ Story: Characterscan disover how to collect flowers in a vessel and turn them in
 	- Action: Character is 'face painting' for 5 seconds 
 	- Outcome: Pigment is decremented. Character now has a pattern (weighted by their preferece) in the color of the pigment (e.g. "Their face is painted with yellow stripes."). If the facepaint they applied interacts with one or more preferences, it should adjust their mood accordingly at the time of face painting completion.
 	- TBD: once their face is painted, should they still paint their face as an idle activity? or should they only select that activity if their face is unpainted?
+
+---
+
+## Implementation Notes
+
+### Available Picking Helpers (internal/system/picking.go)
+
+Existing:
+- `EnsureHasVesselFor(char, target, items, gameMap, log, dropConflict, category)` - returns intent to get vessel for target, or nil if ready
+
+Deferred helpers to add when implementing:
+- `EnsureHasItem(char, itemType, items, gameMap, log, dropConflict, category)` - for procuring specific item type
+- `EnsureHasItemByPreference(char, itemType, items, gameMap, log, dropConflict, category)` - for procuring by preference/distance (e.g., seeking flowers or pigment)
+- `EnsureHasRecipeInputs(char, recipe, items, gameMap, log, category)` - for multi-component gathering
+- `EnsureHasVesselContaining(char, contentType, items, gameMap, log, dropConflict, category)` - for vessel with specific contents (e.g., vessel containing flowers for pigment crafting)
+
+### Pattern Notes
+
+**Craft Pigment**: Uses `EnsureHasVesselContaining` pattern - need vessel with flowers inside. If no existing vessel-with-flowers, may need to first get empty vessel, then harvest flowers into it.
+
+**Decorate Item**: Uses `EnsureHasItem` or `EnsureHasItemByPreference` for both decoratable item and decoration. Two-component procurement where both can be preference-weighted.

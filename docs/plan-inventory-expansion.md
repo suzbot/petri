@@ -104,52 +104,88 @@ func (c *Character) FindInInventory(predicate func(*Item) bool) *Item
 
 ### Goal
 
-Consolidate duplicated vessel-seeking pattern (~70 lines in each of foraging.go and order_execution.go) into reusable `picking.go`.
+Create `picking.go` with composable prerequisite helpers that encapsulate the common "check inventory → find on map → drop if needed → create pickup intent" pattern. This reduces code in each activity's intent-finding function by ~40-50 lines and establishes patterns for Gardening, Construction, and Pigment phases.
 
-### Current Duplication
+### Design: Composable Helpers with Shared Core
 
-**Pattern in both files:**
-1. Check if carrying vessel
-2. If not, look for available vessel on ground
-3. If found, create intent to move to and pick up vessel
-4. If not, proceed to pick up target directly
+After analyzing patterns across Gardening-Reqs, Construction-Reqs, and Pigment-Reqs, we chose composable helpers over a full builder pattern because:
+- Patterns aren't fully orthogonal (some combinations don't make sense)
+- Clear, specific function names are easier to understand and debug
+- Easy to add new helpers as patterns emerge without modifying existing code
+- Incremental cost is low (~30 lines per new helper)
 
-**Differences:**
-- Target finding: preference/distance vs by-type
-- Conflict resolution: foraging skips, harvesting drops
-- Log category: "activity" vs "order"
+### Architecture
 
-### Proposed Structure
+**Layer 1: Low-level operations** (moved from foraging.go)
+- `Pickup`, `Drop`, `DropItem` - actual pickup/drop actions
+- `AddToVessel`, `IsVesselFull`, `CanVesselAccept`, `FindAvailableVessel`, `CanPickUpMore` - vessel utilities
 
+**Layer 2: Internal shared core** (new)
 ```go
-// internal/system/picking.go
-
-// PickupIntentBuilder creates intents for pickup-based activities
-type PickupIntentBuilder struct {
-    Char       *Character
-    Pos        types.Position
-    Items      []*Item
-    GameMap    *Map
-    Log        *ActionLog
-    Registry   *VarietyRegistry
-
-    // Configuration
-    TargetFinder     func() *Item           // How to find target item
-    ConflictResolver func(*Item) bool       // What to do when vessel incompatible (true = drop)
-    LogCategory      string                 // "activity" or "order"
-    ActivityPrefix   string                 // "Foraging" or "Harvesting"
+// Internal: common check → find → drop → pickup logic
+type pickupParams struct {
+    filter       func(*Item) bool
+    scorer       func(*Item) float64
+    dropConflict bool
+    category     string
+    activityName string
 }
+func findAndCreatePickupIntent(char, pos, items, gameMap, log, params) *Intent
+```
 
-func (b *PickupIntentBuilder) Build() *Intent
+**Layer 3: Public prerequisite helpers** (new)
+```go
+// EnsureHasItem returns intent to get item by type, or nil if already have it
+func EnsureHasItem(char, itemType, items, gameMap, log, dropConflict, category) *Intent
+
+// EnsureHasItemByPreference returns intent to get item weighted by preference/distance
+func EnsureHasItemByPreference(char, itemType, items, gameMap, log, dropConflict, category) *Intent
+
+// EnsureHasVesselFor returns intent to get vessel compatible with target, or nil if ready
+func EnsureHasVesselFor(char, target, items, gameMap, log, dropConflict, category) *Intent
+
+// EnsureHasRecipeInputs returns intent to get next missing recipe input, or nil if ready
+func EnsureHasRecipeInputs(char, recipe, items, gameMap, log, category) *Intent
+```
+
+### How This Simplifies Activity Code
+
+**Current `findHarvestIntent`** (~120 lines) becomes:
+```go
+func findHarvestIntent(...) *Intent {
+    target := findNearestItemByType(...)
+    if target == nil { return nil }
+
+    // One line handles all vessel-seeking logic
+    if intent := EnsureHasVesselFor(char, target, items, gameMap, log, "order"); intent != nil {
+        return intent
+    }
+
+    return createHarvestPickupIntent(char, pos, target, ...)
+}
+```
+
+**Future `findCraftHoeIntent`** will be simple:
+```go
+func findCraftHoeIntent(...) *Intent {
+    recipe := entity.RecipeRegistry["craft-hoe"]
+
+    // One line handles multi-component gathering
+    if intent := EnsureHasRecipeInputs(char, recipe, items, gameMap, log, "order"); intent != nil {
+        return intent
+    }
+
+    return &Intent{Action: ActionCraft, ...}
+}
 ```
 
 ### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `internal/system/picking.go` | NEW - vessel helpers + PickupIntentBuilder |
-| `internal/system/foraging.go` | Move vessel helpers, refactor findForageIntent |
-| `internal/system/order_execution.go` | Refactor findHarvestIntent to use builder |
+| `internal/system/picking.go` | NEW - vessel helpers + internal core + public helpers |
+| `internal/system/foraging.go` | Remove vessel helpers (moved to picking.go) |
+| `internal/system/order_execution.go` | Refactor `findHarvestIntent` to use `EnsureHasVesselFor` |
 
 ### Move to picking.go
 
@@ -159,13 +195,21 @@ From `foraging.go`:
 - `CanVesselAccept()`
 - `FindAvailableVessel()`
 - `CanPickUpMore()`
-- `Pickup()`
-- `Drop()`
+- `Pickup()`, `PickupResult`
+- `Drop()`, `DropItem()`
 
 Keep in `foraging.go`:
-- `findForageIntent()` (refactored to use builder)
-- `findForageTarget()`
+- `findForageIntent()` - uses unified scoring, not the prerequisite pattern
+- `scoreForageItems()`, `scoreForageVessels()`, `hasMatchingGrowingItems()`
+- `findForageItemIntent()`, `createPickupIntent()`
 - `FindNextVesselTarget()`
+
+### Future Extensions (not in scope now)
+
+Additional helpers will be added as needed:
+- `EnsureHasBundle` - for Construction bundles (discuss approach first, see Construction-Reqs.txt)
+- `EnsureHasVesselContaining` - for Pigment (vessel with flowers inside)
+- `EnsureHasFromCategory` - for Pigment decoration
 
 ---
 
@@ -189,11 +233,13 @@ Keep in `foraging.go`:
 
 ### Part 2: Pickup/Drop Unification
 
-- [ ] Create picking.go with moved helpers
-- [ ] Add PickupIntentBuilder
-- [ ] Refactor findForageIntent to use builder
-- [ ] Refactor findHarvestIntent to use builder
-- [ ] Update tests
+- [x] Create picking.go, move vessel helpers from foraging.go
+- [x] Add `EnsureHasVesselFor` helper
+- [x] Refactor `findHarvestIntent` to use `EnsureHasVesselFor`
+- [x] Update/add tests (9 tests for EnsureHasVesselFor)
+- [ ] Add `EnsureHasItem` helper (deferred - add when needed)
+- [ ] Add `EnsureHasItemByPreference` helper (deferred - add when needed)
+- [ ] Add `EnsureHasRecipeInputs` helper (deferred - add when needed)
 - [ ] Manual testing
 
 ---
@@ -370,6 +416,46 @@ Emergent behaviors:
 - Removed backward compatibility code for old `Carrying` field (state.go, serialize.go)
 
 **Part 1: Inventory Expansion - COMPLETE**
+
+### Session 4 (2026-02-01) - Part 2: Pickup/Drop Unification
+
+**TDD Implementation Plan:**
+
+**Phase A: Move existing functions to picking.go**
+Functions to move from `foraging.go`:
+- `AddToVessel`, `CanVesselAccept`, `IsVesselFull`, `FindAvailableVessel`
+- `CanPickUpMore`, `Pickup`, `PickupResult` + constants
+- `Drop`, `DropItem`
+
+Existing tests in `foraging_test.go` verify correctness (same package).
+
+**Phase B: Add new prerequisite helpers (TDD)**
+Write tests first, then implement:
+1. `EnsureHasVesselFor(char, target, items, gameMap, log, dropConflict, category) *Intent`
+   - Returns intent to get vessel for target, or nil if ready
+2. `EnsureHasItem(char, itemType, items, gameMap, log, dropConflict, category) *Intent`
+   - Returns intent to get item by type, or nil if already have it
+3. `EnsureHasItemByPreference(char, itemType, items, gameMap, log, dropConflict, category) *Intent`
+   - Weighted by preference/distance
+4. `EnsureHasRecipeInputs(char, recipe, items, gameMap, log, category) *Intent`
+   - Returns intent to get next missing recipe input
+
+**Phase C: Refactor findHarvestIntent**
+Replace ~90 lines of vessel-seeking logic with `EnsureHasVesselFor` call.
+
+**Progress:**
+- [x] Phase A: Created picking.go with moved functions (AddToVessel, CanVesselAccept, IsVesselFull, FindAvailableVessel, CanPickUpMore, Pickup, Drop, DropItem)
+- [x] Phase B: Added EnsureHasVesselFor with 9 tests
+- [x] Phase C: Refactored findHarvestIntent (~80 lines reduced to ~5)
+- All tests pass including race detection
+
+**Deferred helpers:**
+The following helpers were planned but deferred since they're not yet needed:
+- `EnsureHasItem` - returns intent to get item by type
+- `EnsureHasItemByPreference` - weighted by preference/distance
+- `EnsureHasRecipeInputs` - returns intent to get next missing recipe input
+
+These can be added when needed for Gardening, Construction, or Pigment phases.
 
 ---
 

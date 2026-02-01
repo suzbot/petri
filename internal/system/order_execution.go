@@ -111,7 +111,7 @@ func findOrderIntent(char *entity.Character, pos types.Position, items []*entity
 
 // findHarvestIntent creates an intent to harvest (pick up) a specific item type per order.
 // Returns nil if no matching items exist on the map.
-// Handles look-for-container (4d) and drop-when-blocked (4e) logic.
+// Uses EnsureHasVesselFor to handle vessel acquisition with drop-when-blocked logic.
 func findHarvestIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
 	// Find nearest item matching the order's target type
 	target := findNearestItemByType(pos.X, pos.Y, items, order.TargetType)
@@ -119,88 +119,13 @@ func findHarvestIntent(char *entity.Character, pos types.Position, items []*enti
 		return nil // No matching items - will trigger abandonment
 	}
 
-	registry := gameMap.Varieties()
-
-	// Check inventory state and handle vessel logic
-	carriedVessel := char.GetCarriedVessel()
-	if carriedVessel == nil {
-		// No vessel in inventory - look for available vessel first (4d) if we have space
-		if char.HasInventorySpace() {
-			availableVessel := FindAvailableVessel(pos.X, pos.Y, items, target, registry)
-			if availableVessel != nil {
-				// Go pick up vessel first
-				vpos := availableVessel.Pos()
-				vx, vy := vpos.X, vpos.Y
-				if pos.X == vx && pos.Y == vy {
-					newActivity := "Picking up vessel"
-					if char.CurrentActivity != newActivity {
-						char.CurrentActivity = newActivity
-						if log != nil {
-							log.Add(char.ID, char.Name, "order", "Picking up vessel for harvesting")
-						}
-					}
-					return &entity.Intent{
-						Target:     pos,
-						Dest:       pos, // Already at destination
-						Action:     entity.ActionPickup,
-						TargetItem: availableVessel,
-					}
-				}
-				// Move toward vessel
-				nx, ny := NextStep(pos.X, pos.Y, vx, vy)
-				newActivity := "Moving to pick up vessel"
-				if char.CurrentActivity != newActivity {
-					char.CurrentActivity = newActivity
-				}
-				return &entity.Intent{
-					Target:     types.Position{X: nx, Y: ny},
-					Dest:       types.Position{X: vx, Y: vy}, // Destination is the vessel's position
-					Action:     entity.ActionPickup,
-					TargetItem: availableVessel,
-				}
-			}
-		}
-		// No vessel available or no space - proceed to harvest directly (single item)
-	} else {
-		// Have a vessel - check if it can accept the target
-		if !CanVesselAccept(carriedVessel, target, registry) {
-			// Vessel cannot accept target (full or variety mismatch)
-			// Drop vessel since order takes priority (4e)
-			DropItem(char, carriedVessel, gameMap, log)
-			// Now look for compatible vessel
-			availableVessel := FindAvailableVessel(pos.X, pos.Y, items, target, registry)
-			if availableVessel != nil {
-				vpos := availableVessel.Pos()
-				vx, vy := vpos.X, vpos.Y
-				if pos.X == vx && pos.Y == vy {
-					newActivity := "Picking up vessel"
-					if char.CurrentActivity != newActivity {
-						char.CurrentActivity = newActivity
-					}
-					return &entity.Intent{
-						Target:     pos,
-						Dest:       pos, // Already at destination
-						Action:     entity.ActionPickup,
-						TargetItem: availableVessel,
-					}
-				}
-				nx, ny := NextStep(pos.X, pos.Y, vx, vy)
-				newActivity := "Moving to pick up vessel"
-				if char.CurrentActivity != newActivity {
-					char.CurrentActivity = newActivity
-				}
-				return &entity.Intent{
-					Target:     types.Position{X: nx, Y: ny},
-					Dest:       types.Position{X: vx, Y: vy}, // Destination is the vessel's position
-					Action:     entity.ActionPickup,
-					TargetItem: availableVessel,
-				}
-			}
-			// No compatible vessel - proceed to harvest directly
-		}
-		// Vessel can accept target - proceed to harvest (will add to vessel)
+	// Ensure we have a compatible vessel (or get one if available)
+	// dropConflict=true: orders take priority, drop incompatible vessels
+	if intent := EnsureHasVesselFor(char, target, items, gameMap, log, true, "order"); intent != nil {
+		return intent
 	}
 
+	// Ready to harvest - either have compatible vessel or will harvest directly
 	tpos := target.Pos()
 	tx, ty := tpos.X, tpos.Y
 
