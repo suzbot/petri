@@ -240,7 +240,7 @@ Additional helpers will be added as needed:
 - [ ] Add `EnsureHasItem` helper (deferred - add when needed)
 - [ ] Add `EnsureHasItemByPreference` helper (deferred - add when needed)
 - [ ] Add `EnsureHasRecipeInputs` helper (deferred - add when needed)
-- [ ] Manual testing
+- [x] Manual testing
 
 ---
 
@@ -456,6 +456,35 @@ The following helpers were planned but deferred since they're not yet needed:
 - `EnsureHasRecipeInputs` - returns intent to get next missing recipe input
 
 These can be added when needed for Gardening, Construction, or Pigment phases.
+
+### Session 5 (2026-02-01) - Bug fixes for 2-slot inventory with vessels
+
+**Bugs found during manual testing:**
+
+1. **Pickup only tried first vessel**: When picking up items, `Pickup` only checked `GetCarriedVessel()` (first vessel). If first vessel had variety mismatch, pickup failed even if second vessel could accept the item.
+   - Fix: Loop through all vessels in inventory to find one that can accept
+
+2. **Craft order extract-at-intent-time loop**: `findCraftVesselIntent` extracted gourd from vessel at intent creation. If intent was recalculated before crafting completed, gourd was "lost" and character would pick up another (into vessel), causing infinite loop.
+   - Fix: New pattern using `HasAccessibleItem`/`ConsumeAccessibleItem` - check availability without extraction, consume only when craft completes
+
+**New Character helpers added:**
+- `HasAccessibleItem(itemType)` - checks inventory AND vessel contents without extraction
+- `ConsumeAccessibleItem(itemType)` - finds and removes item from wherever it is (inventory or vessel)
+
+**Pattern established for future actions:**
+- Check availability at intent creation (no extraction)
+- Consume at action completion
+- Supports pause/resume (item stays accessible until consumed)
+
+**Removed:** `ExtractRecipeInputFromVessel` (replaced by new pattern)
+
+**Tests added:**
+- `TestPickup_UsesSecondVesselWhenFirstHasVarietyMismatch`
+- `TestApplyIntent_CraftConsumesGourdFromVessel`
+
+**Manual testing:** PASSED - Craft order with gourd in vessel completes successfully
+
+**Part 2: Pickup/Drop Unification - COMPLETE**
 
 ---
 

@@ -58,22 +58,23 @@ Remove single/multi mode distinction from UI, add character count control, and i
 
 3. **Character Names File**
    - Put names in their own file for easy user/dev additions
-   - Alphabetize all names to prevent duplicates
+   - Alphabetize all names to prevent duplicates, breaking lines by starting letter
    - Names to add (if they aren't already on the list):
      Oak, Ash, Elm, Birch,
-     Bine, Bit, Bole, Bog, Bough, Brome, Burr, Buzz,
-     Cress, Croft, Creft,
-     Daub, Dew, Duff, Eft, Egg,
-     Fen, Fir, Frond, Furl, Flax,
-     Gnarl, Grub, Grue,
+     Bine, Bit, Bole, Bog, Bough, Brome, Burr, Buzz, Briar, Branch, Brush
+     Cress, Croft, Creft, Chert, Claw,
+     Daub, Dew, Dock, Dray, Duff, Eft, Egg,
+     Fen, Fir, Frond, Furl, Flax, Flit, Fitch,
+     Gnarl, Grub, Grue, Hedge, Herb, Knoll
      Larch, Lil, Log,
-     Marsh, Marl, Mire, Mite, Mole, Mor, Moth, Muld, Mull
-     Newt, Nook, Olm, Nest,
+     Marsh, Marl, Mite, Mole, Mor, Moth, Muld, Mull, Midge, Mouse
+     Newt, Nook, Olm, Nest, Ov,
      Pad, Peat, Pitch, Pith, Pod, Phlom, Phlox,
-     Reed, Rime, Root, Rye,
-     Sap, Scamps, Scurf, Sedge, Shoot, Shrew, Snag, Sod, Sprig, Sprout, Stick, Stub, Stump,
-     Tad, Tarn, Toady, Twig,
-     Verd, Vetch, Vole, Waft, Ward, Weir, Web, Yew
+     Reed, Rime, Root, Rye, Quill, Quitch,
+     Sap, Scamps, Scrub, Scurf, Sedge, Shoot, Shrew, Skink, Sod, Sprig, Sprout,
+     Stick, Stub, Stump, Snug, Skunk, Spud, Stoat, Swale
+     Tarn, Toady, Twig, Tuff, Tuft,
+     Verd, Vetch, Vole, Weir, Web, Yew, Wort, Weed
 
 ## Tech Updates
 

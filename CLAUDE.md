@@ -70,7 +70,8 @@ internal/
 - `internal/system/talking.go` - Idle activity selection, talking state, knowledge transmission (LearnKnowledgeWithEffects)
 - `internal/system/order_execution.go` - Order assignment, intent finding, completion/abandonment
 - `internal/system/crafting.go` - CreateVessel, crafted item creation
-- `internal/system/foraging.go` - Pickup, Drop, foraging intent
+- `internal/system/picking.go` - Pickup, Drop, vessel helpers, EnsureHasVesselFor
+- `internal/system/foraging.go` - Foraging intent, unified scoring
 
 **World & Generation**
 
@@ -113,10 +114,6 @@ Process docs:
 
 **Up Next:**
 
-- ~~Pre-Gardening extensibility audit (see [docs/pre-gardening-audit.md](docs/pre-gardening-audit.md))~~ Complete
-- **Pre-Gardening refactors** (see [docs/plan-inventory-expansion.md](docs/plan-inventory-expansion.md)):
-  - ~~Inventory expansion to 2 slots (Gardening prerequisite)~~ Complete
-  - Pickup/drop unification (`internal/system/picking.go`) - consolidates vessel-seeking pattern
 - Evaluation of docs/randomideas.md against future phases to prioritize anything opportunistically
 - Simple Gardening planning and implementation (see [docs/Gardening-Reqs.txt](docs/Gardening-Reqs.txt))
 

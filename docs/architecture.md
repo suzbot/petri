@@ -198,10 +198,11 @@ Picking up items is shared across multiple activities (foraging, harvesting) wit
 
 | File | Contents | Responsibility |
 |------|----------|----------------|
-| `foraging.go` | `Pickup()`, `Drop()`, vessel helpers, foraging intent | Physical pickup, vessel logic, foraging targeting |
-| `order_execution.go` | `findHarvestIntent()`, `findNearestItemByType()` | Harvesting target selection (by item type) |
+| `picking.go` | `Pickup()`, `Drop()`, `DropItem()`, vessel helpers, `EnsureHasVesselFor()` | Physical pickup/drop, vessel operations, prerequisite helpers |
+| `foraging.go` | `findForageIntent()`, scoring functions | Foraging targeting and unified scoring |
+| `order_execution.go` | `findHarvestIntent()`, `findCraftVesselIntent()`, `findNearestItemByType()` | Order-specific intent finding |
 | `idle.go` | `selectIdleActivity()` | Calls foraging as one idle option |
-| `update.go` | `applyIntent()` ActionPickup case | Executes pickup, handles vessel continuation |
+| `update.go` | `applyIntent()` ActionPickup/ActionCraft cases | Executes actions, handles continuation |
 
 ### Pickup Result Pattern
 
@@ -212,7 +213,7 @@ Picking up items is shared across multiple activities (foraging, harvesting) wit
 
 Callers handle continuation differently based on result and context (foraging vs harvesting).
 
-### Vessel Helper Functions
+### Vessel Helper Functions (picking.go)
 
 | Function | Purpose |
 |----------|---------|
@@ -220,9 +221,19 @@ Callers handle continuation differently based on result and context (foraging vs
 | `IsVesselFull()` | Check if vessel stack at max capacity |
 | `CanVesselAccept()` | Check if vessel can accept specific item (empty or matching variety) |
 | `FindAvailableVessel()` | Find nearest vessel on ground that can hold target item |
-| `FindNextVesselTarget()` | Find next growing item matching vessel's variety |
 | `CanPickUpMore()` | Check if character can pick up more (has room or has vessel with space) |
-| `ConsumeFromVessel()` | Eat from vessel contents, decrement stack, apply effects from variety |
+| `EnsureHasVesselFor()` | Returns intent to get compatible vessel, or nil if already have one |
+
+### Accessible Item Helpers (character.go)
+
+For actions that consume items from inventory or vessel contents:
+
+| Function | Purpose |
+|----------|---------|
+| `HasAccessibleItem(itemType)` | Check if item exists in inventory OR inside carried vessel |
+| `ConsumeAccessibleItem(itemType)` | Remove and return item from inventory or vessel contents |
+
+**Pattern**: Check availability at intent creation (no extraction), consume at action completion. This supports pause/resume - item stays accessible until actually consumed.
 
 ### Look-for-Container Pattern
 
@@ -436,9 +447,14 @@ Begin activity    Drop non-components
 - Drop logic: `Drop()` places item on ground at character position
 - Abandonment: `abandonOrder()` clears assignment, resets order status
 
-### Future: picking.go Consolidation
+### picking.go Helpers
 
-The vessel-seeking pattern (~70 lines) is duplicated between `findForageIntent()` and `findHarvestIntent()`. This will be consolidated into `picking.go` with a `PickupIntentBuilder` that encapsulates the pattern with configurable target-finding and conflict-resolution strategies.
+`EnsureHasVesselFor()` consolidates the vessel-seeking pattern used by harvest orders. It handles:
+- Checking if character already has compatible vessel
+- Dropping incompatible vessels when `dropConflict=true`
+- Finding and creating pickup intent for available vessels on map
+
+Additional helpers (`EnsureHasItem`, `EnsureHasRecipeInputs`) can be added as needed for future activities.
 
 ## Feature Types
 

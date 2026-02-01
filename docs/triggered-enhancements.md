@@ -16,7 +16,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **ItemType constants**                 | Adding new item types; Want compile-time safety for item type checks              |
 | **Activity enum**                      | Need to enumerate/filter activities; Activity-based game logic beyond display     |
 | **Order completion criteria refactor** | Adding new order types; Completion logic scattered across update.go becomes unwieldy |
-| ~~**Unify pickup/drop code (picking.go)**~~ | ~~Adding order/activity that involves picking up items~~ **TRIGGERED by Gardening audit - implement before Gardening** |
+| **Action pattern unification investigation** | Post-Gardening; Have 3+ action types with item consumption; Patterns diverge or duplicate |
 | **Feature capability derivation**      | Adding new feature types; DrinkSource/Bed bools become redundant                  |
 | **Action log retention policy**        | Implementing character memory; May need world time vs real time consideration     |
 | **UI color style map**                 | Adding new colors frequently; Switch statement maintenance becomes tedious        |
@@ -42,25 +42,6 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 - Skip wake checks for sleeping characters unless tier changed
 - Dead character filtering at map level
 - Cache nearest features if map static-
-
----
-
-**Unify pickup/drop code (picking.go):**
-
-Current concerns identified in Phase 6 Clean-up:
-
-1. **Mixed abstraction levels in foraging.go**: Contains both low-level helpers (`AddToVessel`, `IsVesselFull`) and high-level intent finding (`findForageIntent`). File name suggests foraging-specific but functions are used by harvesting.
-
-2. **Duplicated "vessel-seeking" pattern**: Both `findForageIntent` and `findHarvestIntent` have ~30 lines of similar code: check if carrying vessel → look for available vessel → create intent to move/pickup vessel. Different only in: target finding method, conflict resolution (skip vs drop), log category.
-
-3. **update.go ActionPickup knows too much**: Handler has order-specific completion logic (harvest), vessel continuation logic, drop-before-pickup logic. Each new order type would add more conditionals here.
-
-4. **Scattered vessel logic**: `AddToVessel`, `IsVesselFull`, `CanVesselAccept`, `FindAvailableVessel`, `FindNextVesselTarget` all in foraging.go but used across activities.
-
-Suggested refactor approach:
-- Create `picking.go` with: `Pickup()`, `Drop()`, vessel helpers, and a `PickupIntentBuilder` that encapsulates the vessel-seeking pattern with configurable target-finding and conflict-resolution strategies
-- Move completion logic out of update.go into order-specific handlers or a completion criteria system
-- Consider `vessel.go` for container-specific logic if it grows further
 
 ---
 
@@ -137,6 +118,24 @@ When Construction begins, formalize categories to enable:
 - Category-based spawning (plants spawn naturally, tools don't)
 - Category-based inventory rules (tools can't go in vessels)
 - Category-based preference formation
+
+---
+
+**Action pattern unification investigation (post-Gardening):**
+
+Current action patterns for item consumption:
+- **Eating**: Pre-selects specific item via `FindFoodTarget` scoring, passes as `TargetItem`, consumes via `Consume`/`ConsumeFromVessel`/`ConsumeFromInventory`
+- **Crafting**: Uses `HasAccessibleItem` to check availability, `ConsumeAccessibleItem` to consume when complete
+
+Both defer consumption to execution time (good), but use different patterns for checking/consuming.
+
+After Gardening adds more actions (planting seeds, watering, tool usage), investigate:
+1. Are there common patterns that could share helpers?
+2. Should `HasAccessibleItem`/`ConsumeAccessibleItem` be generalized for all item consumption?
+3. Do any actions have the "extract at intent time" anti-pattern that caused the craft loop bug?
+4. Could a unified `ItemConsumer` interface simplify action handlers?
+
+Only investigate if patterns are diverging or duplicating. If each action's needs are sufficiently different, the current approach may be fine.
 
 ---
 
