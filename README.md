@@ -17,7 +17,7 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## How It Works
 
-1. Create characters with names and preferences, then start the simulation
+1. Create characters with names, favorite food, and favorite color, then start the simulation
 2. The world contains edible items (berries, mushrooms, gourds), decorative flowers, springs for water, and leaf piles for sleep
 3. Characters manage needs (hunger, thirst, energy, health) prioritized by urgency
 4. Mood reflects emotional state, affected by need urgency and preferences

@@ -295,7 +295,7 @@ func (m Model) viewCharacterCreate() string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("240")).
 		Padding(0, 1).
-		Width(18)
+		Width(22)
 
 	selectedCardStyle := cardStyle.Copy().
 		BorderForeground(lipgloss.Color("45")) // cyan highlight
@@ -314,8 +314,8 @@ func (m Model) viewCharacterCreate() string {
 
 		// Build field displays
 		nameLabel := "Name:"
-		foodLabel := "Food:"
-		colorLabel := "Color:"
+		foodLabel := "Fav Food:"
+		colorLabel := "Fav Color:"
 
 		nameValue := charData.Name
 		foodValue := charData.Food
@@ -328,10 +328,10 @@ func (m Model) viewCharacterCreate() string {
 				nameLabel = selectedFieldStyle.Render("Name:")
 				nameValue = selectedFieldStyle.Render(charData.Name + "_")
 			case FieldFood:
-				foodLabel = selectedFieldStyle.Render("Food:")
+				foodLabel = selectedFieldStyle.Render("Fav Food:")
 				foodValue = selectedFieldStyle.Render("[" + charData.Food + "]")
 			case FieldColor:
-				colorLabel = selectedFieldStyle.Render("Color:")
+				colorLabel = selectedFieldStyle.Render("Fav Color:")
 				colorValue = selectedFieldStyle.Render("[" + charData.Color + "]")
 			}
 		} else {
