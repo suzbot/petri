@@ -651,7 +651,13 @@ func (m Model) renderDetails() string {
 			lines = append(lines, fmt.Sprintf(" Pos: (%d, %d)", m.cursorX, m.cursorY))
 		}
 	} else if char, ok := e.(*entity.Character); ok {
-		lines = append(lines, fmt.Sprintf(" Name: %s", char.Name))
+		// Show name with edit UI if editing this character
+		if m.editingCharacterName && m.editingCharacterID == char.ID {
+			lines = append(lines, fmt.Sprintf(" Name: %s_", m.editingNameBuffer))
+			lines = append(lines, " [Enter=save, Esc=cancel]")
+		} else {
+			lines = append(lines, fmt.Sprintf(" Name: %s", char.Name))
+		}
 		lines = append(lines, " Type: Character")
 		if m.testCfg.Debug {
 			lines = append(lines, fmt.Sprintf(" Pos: (%d, %d)", m.cursorX, m.cursorY))
@@ -756,6 +762,9 @@ func (m Model) renderDetails() string {
 		}
 		lines = append(lines, " Press K for Knowledge")
 		lines = append(lines, " Press I for Inventory")
+		if !m.editingCharacterName {
+			lines = append(lines, " Press E to edit name")
+		}
 
 	} else if item != nil {
 		lines = append(lines, " Type: Item")

@@ -715,3 +715,289 @@ func TestReturnToWorldSelect_ClearsWorldState(t *testing.T) {
 		t.Errorf("Expected phase to be phaseWorldSelect, got %d", m2.phase)
 	}
 }
+
+// =============================================================================
+// Edit Character Name Tests
+// =============================================================================
+
+func TestEditName_PressE_EntersEditMode(t *testing.T) {
+	t.Parallel()
+
+	// Setup: character at cursor position in select mode
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	m := Model{
+		phase:     phasePlaying,
+		viewMode:  viewModeSelect,
+		gameMap:   gameMap,
+		cursorX:   5,
+		cursorY:   5,
+		actionLog: system.NewActionLog(100),
+	}
+
+	// Act: press E
+	newModel, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+	m2 := newModel.(Model)
+
+	// Assert: should be in edit mode with name buffer populated
+	if !m2.editingCharacterName {
+		t.Error("Expected editingCharacterName to be true")
+	}
+	if m2.editingNameBuffer != "Alice" {
+		t.Errorf("Expected editingNameBuffer to be 'Alice', got %q", m2.editingNameBuffer)
+	}
+	if m2.editingCharacterID != 1 {
+		t.Errorf("Expected editingCharacterID to be 1, got %d", m2.editingCharacterID)
+	}
+}
+
+func TestEditName_PressE_NoCharacterAtCursor_DoesNothing(t *testing.T) {
+	t.Parallel()
+
+	// Setup: no character at cursor position
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 10, 10, "Alice", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	m := Model{
+		phase:     phasePlaying,
+		viewMode:  viewModeSelect,
+		gameMap:   gameMap,
+		cursorX:   5,
+		cursorY:   5, // No character here
+		actionLog: system.NewActionLog(100),
+	}
+
+	// Act: press E
+	newModel, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+	m2 := newModel.(Model)
+
+	// Assert: should NOT be in edit mode
+	if m2.editingCharacterName {
+		t.Error("Expected editingCharacterName to be false when no character at cursor")
+	}
+}
+
+func TestEditName_PressE_NotInSelectMode_DoesNothing(t *testing.T) {
+	t.Parallel()
+
+	// Setup: character at cursor but in AllActivity mode (not select mode)
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	m := Model{
+		phase:     phasePlaying,
+		viewMode:  viewModeAllActivity, // Not in select mode
+		gameMap:   gameMap,
+		cursorX:   5,
+		cursorY:   5,
+		actionLog: system.NewActionLog(100),
+	}
+
+	// Act: press E
+	newModel, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+	m2 := newModel.(Model)
+
+	// Assert: should NOT be in edit mode
+	if m2.editingCharacterName {
+		t.Error("Expected editingCharacterName to be false when not in select mode")
+	}
+}
+
+func TestEditName_TypeCharacter_AddsToBuffer(t *testing.T) {
+	t.Parallel()
+
+	// Setup: in edit mode
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Ali", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	m := Model{
+		phase:                phasePlaying,
+		gameMap:              gameMap,
+		cursorX:              5,
+		cursorY:              5,
+		actionLog:            system.NewActionLog(100),
+		editingCharacterName: true,
+		editingCharacterID:   1,
+		editingNameBuffer:    "Ali",
+	}
+
+	// Act: type 'c' and 'e'
+	newModel, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	m2 := newModel.(Model)
+	newModel, _ = m2.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+	m3 := newModel.(Model)
+
+	// Assert: buffer should be updated
+	if m3.editingNameBuffer != "Alice" {
+		t.Errorf("Expected editingNameBuffer to be 'Alice', got %q", m3.editingNameBuffer)
+	}
+	// Character name should NOT be updated yet
+	if char.Name != "Ali" {
+		t.Errorf("Expected character name to still be 'Ali', got %q", char.Name)
+	}
+}
+
+func TestEditName_Backspace_RemovesFromBuffer(t *testing.T) {
+	t.Parallel()
+
+	// Setup: in edit mode
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	m := Model{
+		phase:                phasePlaying,
+		gameMap:              gameMap,
+		cursorX:              5,
+		cursorY:              5,
+		actionLog:            system.NewActionLog(100),
+		editingCharacterName: true,
+		editingCharacterID:   1,
+		editingNameBuffer:    "Alice",
+	}
+
+	// Act: press backspace
+	newModel, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyBackspace})
+	m2 := newModel.(Model)
+
+	// Assert: buffer should have last char removed
+	if m2.editingNameBuffer != "Alic" {
+		t.Errorf("Expected editingNameBuffer to be 'Alic', got %q", m2.editingNameBuffer)
+	}
+}
+
+func TestEditName_Enter_ConfirmsAndUpdatesCharacter(t *testing.T) {
+	t.Parallel()
+
+	// Setup: in edit mode with modified buffer
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	m := Model{
+		phase:                phasePlaying,
+		gameMap:              gameMap,
+		cursorX:              5,
+		cursorY:              5,
+		actionLog:            system.NewActionLog(100),
+		editingCharacterName: true,
+		editingCharacterID:   1,
+		editingNameBuffer:    "Bob",
+	}
+
+	// Act: press Enter
+	newModel, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	m2 := newModel.(Model)
+
+	// Assert: edit mode should be exited
+	if m2.editingCharacterName {
+		t.Error("Expected editingCharacterName to be false after Enter")
+	}
+	// Character name should be updated
+	if char.Name != "Bob" {
+		t.Errorf("Expected character name to be 'Bob', got %q", char.Name)
+	}
+}
+
+func TestEditName_Escape_CancelsAndReverts(t *testing.T) {
+	t.Parallel()
+
+	// Setup: in edit mode with modified buffer
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	m := Model{
+		phase:                phasePlaying,
+		gameMap:              gameMap,
+		cursorX:              5,
+		cursorY:              5,
+		actionLog:            system.NewActionLog(100),
+		editingCharacterName: true,
+		editingCharacterID:   1,
+		editingNameBuffer:    "Bob",
+	}
+
+	// Act: press Escape
+	newModel, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
+	m2 := newModel.(Model)
+
+	// Assert: edit mode should be exited
+	if m2.editingCharacterName {
+		t.Error("Expected editingCharacterName to be false after Escape")
+	}
+	// Character name should NOT be changed
+	if char.Name != "Alice" {
+		t.Errorf("Expected character name to remain 'Alice', got %q", char.Name)
+	}
+}
+
+func TestEditName_MaxLength_EnforcedAt16(t *testing.T) {
+	t.Parallel()
+
+	// Setup: in edit mode with 16-char name
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	m := Model{
+		phase:                phasePlaying,
+		gameMap:              gameMap,
+		cursorX:              5,
+		cursorY:              5,
+		actionLog:            system.NewActionLog(100),
+		editingCharacterName: true,
+		editingCharacterID:   1,
+		editingNameBuffer:    "1234567890123456", // 16 chars - max
+	}
+
+	// Act: try to type another character
+	newModel, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'X'}})
+	m2 := newModel.(Model)
+
+	// Assert: buffer should not exceed 16 chars
+	if len(m2.editingNameBuffer) != 16 {
+		t.Errorf("Expected buffer length to remain 16, got %d", len(m2.editingNameBuffer))
+	}
+	if m2.editingNameBuffer != "1234567890123456" {
+		t.Errorf("Expected buffer unchanged, got %q", m2.editingNameBuffer)
+	}
+}
+
+func TestEditName_EmptyName_NotAllowed(t *testing.T) {
+	t.Parallel()
+
+	// Setup: in edit mode with empty buffer
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	m := Model{
+		phase:                phasePlaying,
+		gameMap:              gameMap,
+		cursorX:              5,
+		cursorY:              5,
+		actionLog:            system.NewActionLog(100),
+		editingCharacterName: true,
+		editingCharacterID:   1,
+		editingNameBuffer:    "",
+	}
+
+	// Act: press Enter with empty name
+	newModel, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	m2 := newModel.(Model)
+
+	// Assert: should still be in edit mode (empty name not allowed)
+	if !m2.editingCharacterName {
+		t.Error("Expected to remain in edit mode when name is empty")
+	}
+	// Character name should be unchanged
+	if char.Name != "Alice" {
+		t.Errorf("Expected character name to remain 'Alice', got %q", char.Name)
+	}
+}

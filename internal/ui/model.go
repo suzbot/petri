@@ -98,6 +98,11 @@ type Model struct {
 	// Character creation state
 	creationState *CharacterCreationState
 
+	// Character name editing state (during gameplay)
+	editingCharacterName bool
+	editingCharacterID   int
+	editingNameBuffer    string
+
 	// World selection state
 	worlds           []save.WorldMeta
 	selectedWorld    int // Index into worlds slice, len(worlds) = "New World"

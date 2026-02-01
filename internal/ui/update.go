@@ -92,6 +92,11 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case phasePlaying:
+		// Handle character name editing mode
+		if m.editingCharacterName {
+			return m.handleNameEditKey(msg)
+		}
+
 		switch msg.String() {
 		case "q", "ctrl+c":
 			m.saveGame() // Save before quitting
@@ -294,6 +299,15 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "b", "B":
 			// Cycle to previous alive character
 			m.cycleToPreviousCharacter()
+		case "e", "E":
+			// Enter character name edit mode (only in select mode with details panel)
+			if m.viewMode == viewModeSelect {
+				if char := m.characterAtCursor(); char != nil {
+					m.editingCharacterName = true
+					m.editingCharacterID = char.ID
+					m.editingNameBuffer = char.Name
+				}
+			}
 		case "up":
 			if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
 				// Handle orders panel navigation inline
@@ -887,15 +901,73 @@ func (m *Model) moveCursor(dx, dy int) {
 
 // toggleFollow toggles following the character at cursor
 func (m *Model) toggleFollow() {
-	if e := m.gameMap.EntityAt(types.Position{X: m.cursorX, Y: m.cursorY}); e != nil {
-		if char, ok := e.(*entity.Character); ok {
-			if m.following == char {
-				m.following = nil
-			} else {
-				m.following = char
-			}
+	if char := m.characterAtCursor(); char != nil {
+		if m.following == char {
+			m.following = nil
+		} else {
+			m.following = char
 		}
 	}
+}
+
+// characterAtCursor returns the character at cursor position, or nil if none
+func (m *Model) characterAtCursor() *entity.Character {
+	if e := m.gameMap.EntityAt(types.Position{X: m.cursorX, Y: m.cursorY}); e != nil {
+		if char, ok := e.(*entity.Character); ok {
+			return char
+		}
+	}
+	return nil
+}
+
+// handleNameEditKey processes keyboard input during character name editing
+func (m Model) handleNameEditKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyEsc:
+		// Cancel editing, discard changes
+		m.editingCharacterName = false
+		m.editingCharacterID = 0
+		m.editingNameBuffer = ""
+		return m, nil
+
+	case tea.KeyEnter:
+		// Confirm editing if name is not empty
+		if m.editingNameBuffer == "" {
+			// Don't allow empty names, stay in edit mode
+			return m, nil
+		}
+		// Find and update the character
+		for _, char := range m.gameMap.Characters() {
+			if char.ID == m.editingCharacterID {
+				char.Name = m.editingNameBuffer
+				break
+			}
+		}
+		m.editingCharacterName = false
+		m.editingCharacterID = 0
+		m.editingNameBuffer = ""
+		return m, nil
+
+	case tea.KeyBackspace:
+		// Remove last character from buffer
+		if len(m.editingNameBuffer) > 0 {
+			m.editingNameBuffer = m.editingNameBuffer[:len(m.editingNameBuffer)-1]
+		}
+		return m, nil
+
+	case tea.KeyRunes:
+		// Add character to buffer (respecting max length)
+		if len(m.editingNameBuffer) < MaxNameLength {
+			for _, r := range msg.Runes {
+				if len(m.editingNameBuffer) < MaxNameLength {
+					m.editingNameBuffer += string(r)
+				}
+			}
+		}
+		return m, nil
+	}
+
+	return m, nil
 }
 
 // cycleToNextCharacter moves cursor and follow to the next alive character

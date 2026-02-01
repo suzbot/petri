@@ -219,6 +219,14 @@ Characters start with two positive preferences based on character creation:
 
 Random character names are drawn from `internal/entity/names.go`. Edit this file to add or remove names from the pool. Names are organized alphabetically by starting letter.
 
+### Editing Character Names
+
+Character names can be edited during gameplay:
+- Press `E` in select mode when cursor is on a character
+- Type to edit the name (max 16 characters)
+- Press `Enter` to save, `Esc` to cancel
+- Empty names are not allowed
+
 ### Preference Formation
 
 Preferences form dynamically when consuming or looking at items, based on current mood:

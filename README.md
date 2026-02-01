@@ -68,6 +68,7 @@ go run ./cmd/petri
 - Arrow keys - Move cursor
 - `F` - Follow/unfollow character
 - `N` / `B` - Cycle next/previous character
+- `E` - Edit character name (select mode)
 - `I` - Toggle inventory panel (select mode)
 - `K` - Toggle knowledge panel (select mode)
 - `O` - Toggle orders panel (+: add, c: cancel, x: expand)

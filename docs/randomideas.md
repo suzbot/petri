@@ -55,6 +55,7 @@ Remove single/multi mode distinction from UI and add character count control:
    - Add `-characters=N` flag to control spawn count (default 4)
    - `-characters=0` equivalent to `-no-characters`
    - Reasonable max cap (e.g., 20)
+   - Note: Not a quick standalone win - requires refactoring the current character creation flow, which is why it's scoped together with UI Streamlining above
 
 ## Tech Updates
 
@@ -67,8 +68,7 @@ Remove single/multi mode distinction from UI and add character count control:
 
 ## Small Features
 
-1. Ability to edit name of existing character on map
-2. Edible Nuts drop from canopy
+1. Edible Nuts drop from canopy
 
 # Ideas that aren't ready yet:
 
