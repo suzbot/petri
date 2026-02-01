@@ -909,8 +909,10 @@ func TestFindCraftVesselIntent_WithGourdInInventory(t *testing.T) {
 	if intent.Action != entity.ActionCraft {
 		t.Errorf("Expected ActionCraft, got %d", intent.Action)
 	}
-	if intent.TargetItem != gourd {
-		t.Error("Expected TargetItem to be the carried gourd")
+	// TargetItem is no longer set - gourd is consumed when craft completes
+	// Gourd should still be in inventory (not extracted yet)
+	if char.FindInInventory(func(i *entity.Item) bool { return i.ItemType == "gourd" }) == nil {
+		t.Error("Gourd should still be in inventory (consumed only when craft completes)")
 	}
 }
 

@@ -524,3 +524,68 @@ func (c *Character) FindInInventory(predicate func(*Item) bool) *Item {
 	}
 	return nil
 }
+
+// HasAccessibleItem returns true if the character has an item of the given type
+// either directly in inventory OR inside a carried vessel.
+// Use this for checking availability without extraction.
+func (c *Character) HasAccessibleItem(itemType string) bool {
+	// Check direct inventory
+	for _, item := range c.Inventory {
+		if item != nil && item.ItemType == itemType {
+			return true
+		}
+	}
+	// Check vessel contents
+	for _, item := range c.Inventory {
+		if item != nil && item.Container != nil {
+			for _, stack := range item.Container.Contents {
+				if stack.Variety != nil && stack.Variety.ItemType == itemType && stack.Count > 0 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// ConsumeAccessibleItem finds and removes one item of the given type from
+// inventory or vessel contents. Returns the consumed item, or nil if not found.
+// For items in vessels, creates a new Item from the variety.
+func (c *Character) ConsumeAccessibleItem(itemType string) *Item {
+	// First check direct inventory (prefer loose items)
+	for _, item := range c.Inventory {
+		if item != nil && item.ItemType == itemType {
+			c.RemoveFromInventory(item)
+			return item
+		}
+	}
+	// Check vessel contents
+	for _, vessel := range c.Inventory {
+		if vessel == nil || vessel.Container == nil {
+			continue
+		}
+		for i, stack := range vessel.Container.Contents {
+			if stack.Variety != nil && stack.Variety.ItemType == itemType && stack.Count > 0 {
+				// Decrement count
+				vessel.Container.Contents[i].Count--
+				// Remove empty stack
+				if vessel.Container.Contents[i].Count <= 0 {
+					vessel.Container.Contents = append(
+						vessel.Container.Contents[:i],
+						vessel.Container.Contents[i+1:]...,
+					)
+				}
+				// Create item from variety
+				item := &Item{
+					ItemType: stack.Variety.ItemType,
+					Color:    stack.Variety.Color,
+					Pattern:  stack.Variety.Pattern,
+					Texture:  stack.Variety.Texture,
+				}
+				item.EType = TypeItem
+				return item
+			}
+		}
+	}
+	return nil
+}

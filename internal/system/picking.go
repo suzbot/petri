@@ -315,9 +315,11 @@ const (
 func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *ActionLog, registry *game.VarietyRegistry) PickupResult {
 	itemName := item.Description()
 
-	// Check if carrying a vessel with space
-	vessel := char.GetCarriedVessel()
-	if vessel != nil {
+	// Try to add to any vessel that can accept the item
+	for _, vessel := range char.Inventory {
+		if vessel == nil || vessel.Container == nil {
+			continue
+		}
 		if AddToVessel(vessel, item, registry) {
 			// Successfully added to vessel
 			gameMap.RemoveItem(item)
@@ -342,12 +344,12 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 			// DON'T clear intent - caller will decide if foraging continues
 			return PickupToVessel
 		}
-		// Vessel full or variety mismatch - check if there's inventory space for loose pickup
-		if !char.HasInventorySpace() {
-			// No space - return failure so caller can decide
-			return PickupFailed
-		}
-		// Fall through to standard pickup
+	}
+
+	// No vessel could accept - check if there's inventory space for loose pickup
+	if !char.HasInventorySpace() {
+		// No space - return failure so caller can decide
+		return PickupFailed
 	}
 
 	// Check if inventory has space

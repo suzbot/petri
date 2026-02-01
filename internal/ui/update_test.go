@@ -258,6 +258,116 @@ func TestApplyIntent_CraftOrderNotCompletedOnPickup(t *testing.T) {
 	}
 }
 
+func TestApplyIntent_CraftConsumesGourdFromVessel(t *testing.T) {
+	t.Parallel()
+
+	// Setup: character with full inventory (2 vessels), one vessel contains a gourd
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftVessel"}
+	char.KnownRecipes = []string{"hollow-gourd"}
+	gameMap.AddCharacter(char)
+
+	// Create variety registry with gourd
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("gourd", types.ColorGreen, types.PatternNone, types.TextureNone),
+		ItemType: "gourd",
+		Color:    types.ColorGreen,
+	})
+	gameMap.SetVarieties(registry)
+
+	// First vessel is empty
+	vessel1 := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Vessel 1",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	// Second vessel contains a gourd
+	gourdVariety := registry.GetByAttributes("gourd", types.ColorGreen, types.PatternNone, types.TextureNone)
+	vessel2 := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Vessel 2",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{
+				{Variety: gourdVariety, Count: 1},
+			},
+		},
+	}
+	char.AddToInventory(vessel1)
+	char.AddToInventory(vessel2)
+
+	// Verify gourd is accessible (in vessel, not loose)
+	if !char.HasAccessibleItem("gourd") {
+		t.Fatal("Test setup error: gourd should be accessible in vessel")
+	}
+	if char.FindInInventory(func(i *entity.Item) bool { return i.ItemType == "gourd" }) != nil {
+		t.Fatal("Test setup error: gourd should NOT be loose in inventory")
+	}
+
+	// Create craft order and assign to character
+	order := entity.NewOrder(1, "craftVessel", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	// Set craft intent (no TargetItem - gourd consumed when craft completes)
+	char.Intent = &entity.Intent{
+		Action: entity.ActionCraft,
+		Target: types.Position{X: 5, Y: 5},
+		Dest:   types.Position{X: 5, Y: 5},
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	// Act: apply intent with enough time to complete crafting
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	if recipe == nil {
+		t.Fatal("hollow-gourd recipe not found")
+	}
+	iterations := int(recipe.Duration/0.1) + 5
+	for i := 0; i < iterations; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Assert: crafting should have completed
+	if char.Intent != nil {
+		t.Error("Intent should be cleared after crafting completes")
+	}
+
+	// Assert: gourd should have been consumed from vessel
+	if char.HasAccessibleItem("gourd") {
+		t.Error("Gourd should have been consumed from vessel")
+	}
+
+	// Assert: a new vessel should have been dropped on the map
+	items := gameMap.Items()
+	newVesselFound := false
+	for _, item := range items {
+		if item.Container != nil && item.X == 5 && item.Y == 5 {
+			newVesselFound = true
+			break
+		}
+	}
+	if !newVesselFound {
+		t.Error("Expected crafted vessel to be dropped at character's position")
+	}
+
+	// Assert: order should be completed
+	if order.Status == entity.OrderAssigned {
+		t.Error("Order should be completed after crafting")
+	}
+}
+
 // =============================================================================
 // Harvest Order with Vessel Tests
 // =============================================================================

@@ -482,6 +482,43 @@ func TestPickup_ToInventory(t *testing.T) {
 	}
 }
 
+func TestPickup_UsesSecondVesselWhenFirstHasVarietyMismatch(t *testing.T) {
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+
+	// First vessel has mushrooms (variety mismatch for gourd)
+	// Registry has: mushroom (brown, spotted, slimy)
+	mushroomVessel := createTestVessel()
+	mushroom := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternSpotted, types.TextureSlimy, false, false)
+	AddToVessel(mushroomVessel, mushroom, registry)
+
+	// Second vessel is empty (can accept gourd)
+	emptyVessel := createTestVessel()
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{mushroomVessel, emptyVessel},
+	}
+
+	// Try to pick up a gourd - should go into empty vessel, not fail
+	// Registry has: gourd (green, striped, warty)
+	gourd := entity.NewGourd(5, 5, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
+	gameMap.AddItem(gourd)
+
+	result := Pickup(char, gourd, gameMap, nil, registry)
+
+	if result != PickupToVessel {
+		t.Error("Pickup should succeed by using empty vessel when first vessel has variety mismatch")
+	}
+	if len(emptyVessel.Container.Contents) != 1 {
+		t.Error("Empty vessel should now contain the gourd")
+	}
+	if emptyVessel.Container.Contents[0].Variety.ItemType != "gourd" {
+		t.Error("Empty vessel should contain gourd type")
+	}
+}
+
 // =============================================================================
 // CanVesselAccept Tests
 // =============================================================================

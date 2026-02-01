@@ -161,43 +161,21 @@ func findHarvestIntent(char *entity.Character, pos types.Position, items []*enti
 }
 
 // findCraftVesselIntent creates an intent to craft a vessel.
-// If carrying a gourd (in inventory or vessel contents), returns ActionCraft.
+// If character has accessible gourd (in inventory or vessel), returns ActionCraft.
 // Otherwise returns ActionPickup for a gourd.
 func findCraftVesselIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog) *entity.Intent {
-	// Check if already carrying a gourd in direct inventory - ready to craft
-	gourd := char.FindInInventory(func(i *entity.Item) bool { return i.ItemType == "gourd" })
-	if gourd != nil {
+	// Check if character has a gourd accessible (inventory or vessel contents)
+	// Don't extract yet - consumption happens when craft completes
+	if char.HasAccessibleItem("gourd") {
 		newActivity := "Crafting vessel"
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
 		}
 		return &entity.Intent{
-			Target:     pos,
-			Dest:       pos, // Already at destination (crafting in place)
-			Action:     entity.ActionCraft,
-			TargetItem: gourd, // The gourd being used
-		}
-	}
-
-	// Check if recipe input is inside a carried vessel - extract it first
-	recipe := entity.RecipeRegistry["hollow-gourd"]
-	if recipe != nil {
-		extractedItem := extractRecipeInputFromVessel(char, recipe)
-		if extractedItem != nil {
-			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Took "+extractedItem.ItemType+" from vessel for crafting")
-			}
-			// Now have input in inventory - ready to craft
-			newActivity := "Crafting vessel"
-			if char.CurrentActivity != newActivity {
-				char.CurrentActivity = newActivity
-			}
-			return &entity.Intent{
-				Target:     pos,
-				Dest:       pos,
-				Action:     entity.ActionCraft,
-				TargetItem: extractedItem,
-			}
+			Target: pos,
+			Dest:   pos, // Crafting in place
+			Action: entity.ActionCraft,
+			// No TargetItem - gourd will be consumed when craft completes
 		}
 	}
 
@@ -238,49 +216,6 @@ func findCraftVesselIntent(char *entity.Character, pos types.Position, items []*
 		Action:     entity.ActionPickup,
 		TargetItem: target,
 	}
-}
-
-// extractRecipeInputFromVessel checks if a carried vessel contains any required recipe input,
-// and if so, extracts one item to character inventory. Returns the extracted item or nil.
-func extractRecipeInputFromVessel(char *entity.Character, recipe *entity.Recipe) *entity.Item {
-	vessel := char.GetCarriedVessel()
-	if vessel == nil || vessel.Container == nil || recipe == nil {
-		return nil
-	}
-
-	// Check each recipe input against vessel contents
-	for _, input := range recipe.Inputs {
-		for i, stack := range vessel.Container.Contents {
-			if stack.Variety != nil && stack.Variety.ItemType == input.ItemType && stack.Count > 0 {
-				// Found matching input - extract one
-				vessel.Container.Contents[i].Count--
-
-				// Remove empty stack
-				if vessel.Container.Contents[i].Count <= 0 {
-					vessel.Container.Contents = append(
-						vessel.Container.Contents[:i],
-						vessel.Container.Contents[i+1:]...,
-					)
-				}
-
-				// Create item from variety
-				item := &entity.Item{
-					ItemType: stack.Variety.ItemType,
-					Color:    stack.Variety.Color,
-					Pattern:  stack.Variety.Pattern,
-					Texture:  stack.Variety.Texture,
-				}
-				item.EType = entity.TypeItem
-
-				// Add to inventory
-				char.AddToInventory(item)
-
-				return item
-			}
-		}
-	}
-
-	return nil
 }
 
 // findNearestItemByType finds the closest item of a specific type.

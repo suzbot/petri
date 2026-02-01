@@ -821,9 +821,11 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 
 	case entity.ActionCraft:
 		// Crafting - uses recipe duration
-		gourd := char.FindInInventory(func(i *entity.Item) bool { return i.ItemType == "gourd" })
-		if gourd == nil {
-			// No gourd to craft with - clear intent
+		// Gourd stays in inventory/vessel until craft completes
+
+		// Verify gourd is still accessible (might have been eaten during pause)
+		if !char.HasAccessibleItem("gourd") {
+			// Gourd was consumed (eaten?) - clear intent, will re-evaluate
 			char.Intent = nil
 			return
 		}
@@ -839,9 +841,16 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		if char.ActionProgress >= recipe.Duration {
 			char.ActionProgress = 0
 
-			// Complete the craft - remove gourd, drop vessel on ground for any character to use
+			// Consume the gourd now that craft is complete
+			gourd := char.ConsumeAccessibleItem("gourd")
+			if gourd == nil {
+				// Shouldn't happen since we checked above, but handle gracefully
+				char.Intent = nil
+				return
+			}
+
+			// Create the vessel
 			vessel := system.CreateVessel(gourd, recipe)
-			char.RemoveFromInventory(gourd)
 			vessel.X = char.X
 			vessel.Y = char.Y
 			m.gameMap.AddItem(vessel)
