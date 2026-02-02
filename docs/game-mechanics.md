@@ -2,6 +2,31 @@
 
 Detailed game mechanics. For exact values, see `internal/config/config.go`.
 
+## Table of Contents
+
+- [World Time](#world-time)
+- [Speed Control](#speed-control)
+- [Stat Thresholds](#stat-thresholds)
+- [Stat Rates](#stat-rates)
+- [Frustration System](#frustration-system)
+- [Intent Re-evaluation Guards](#intent-re-evaluation-guards)
+- [Sleep Mechanics](#sleep-mechanics)
+- [Satisfaction Cooldown](#satisfaction-cooldown)
+- [Speed System](#speed-system)
+- [Action Duration](#action-duration)
+- [Continuous Drinking](#continuous-drinking)
+- [Mood System](#mood-system)
+- [Item Varieties](#item-varieties)
+- [Preference System](#preference-system)
+- [Knowledge System](#knowledge-system)
+- [Know-how System](#know-how-system)
+- [Orders System](#orders-system)
+- [Inventory](#inventory)
+- [Crafting](#crafting)
+- [Vessels & Containers](#vessels--containers)
+- [Idle Activities](#idle-activities)
+- [View Modes](#view-modes)
+
 ## World Time
 
 The simulation uses a compressed time scale where game time passes faster than "world time" (the narrative time experienced by characters). This allows observing multi-day events in minutes of real time.

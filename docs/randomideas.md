@@ -11,10 +11,9 @@ then they can be removed from this list.
 
 ## Issues To resolve
 
-1. **Game Mechanics**: they are little disorganized, inconsistent about what level of detail it share, not in the most intuitive order.
+1. **Game Mechanics**: they are little disorganized, inconsistent about what level of detail it shares, not in the most intuitive order.
    a. Reorganize in order of gameflow
-   b. remove anything that is unnessecary for user, or summarize where makes sense
-   c. Put table of contents at top (can it link to header sections?)
+   b. Remove anything unnecessary for user, or summarize where makes sense
 2. **Orders**:
    a. if an order is not completable, ie abandoned, but its at the top of the list, characters assign and then abandon it over and over
    b. ideally, if they can't do the first order, they move on to the next open order
@@ -25,9 +24,9 @@ then they can be removed from this list.
 ## UI Improvements
 
 1. **Order Selection UX**
-   - Pain point: Scrolling through list every time, reopening menu for multiple orders.
+   - Pain point: Scrolling through list every time
    - Single keypress selection (underlined unique letter or numbered list)
-   - Stay in add mode after adding an order (don't close menu)
+   - Add confirmation feedback when order is created (flash message or highlight new order)
 2. **Capitalization** consistency clean-up (not quick - lots of strings to sweep through)
 3. **Natural Language Descriptions**
    - Replace details view in regular mode, supplement in debug mode.
