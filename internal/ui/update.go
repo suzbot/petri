@@ -108,6 +108,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.ordersCancelMode = false
 				return m, nil
 			}
+			// If in a details subpanel, close it and return to action log
+			if m.showKnowledgePanel || m.showInventoryPanel || m.showPreferencesPanel {
+				m.showKnowledgePanel = false
+				m.showInventoryPanel = false
+				m.showPreferencesPanel = false
+				m.logScrollOffset = 0
+				return m, nil
+			}
 			// Save and return to world select screen
 			m.saveGame()
 			m.phase = phaseWorldSelect
@@ -122,6 +130,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.activityFullScreen = false
 			m.showKnowledgePanel = false
 			m.showInventoryPanel = false
+			m.showPreferencesPanel = false
 			m.showOrdersPanel = false
 			m.logScrollOffset = 0
 			// Clear world state so new worlds get fresh IDs and logs
@@ -278,19 +287,33 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		case "k", "K":
-			// Toggle knowledge panel (only in select mode, mutually exclusive with inventory)
+			// Toggle knowledge panel (only in select mode, mutually exclusive with others)
 			if m.viewMode == viewModeSelect {
 				m.showKnowledgePanel = !m.showKnowledgePanel
+				m.logScrollOffset = 0
 				if m.showKnowledgePanel {
 					m.showInventoryPanel = false
+					m.showPreferencesPanel = false
 				}
 			}
 		case "i", "I":
-			// Toggle inventory panel (only in select mode, mutually exclusive with knowledge)
+			// Toggle inventory panel (only in select mode, mutually exclusive with others)
 			if m.viewMode == viewModeSelect {
 				m.showInventoryPanel = !m.showInventoryPanel
+				m.logScrollOffset = 0
 				if m.showInventoryPanel {
 					m.showKnowledgePanel = false
+					m.showPreferencesPanel = false
+				}
+			}
+		case "p":
+			// Toggle preferences panel (only in select mode, mutually exclusive with others)
+			if m.viewMode == viewModeSelect {
+				m.showPreferencesPanel = !m.showPreferencesPanel
+				m.logScrollOffset = 0
+				if m.showPreferencesPanel {
+					m.showKnowledgePanel = false
+					m.showInventoryPanel = false
 				}
 			}
 		case "n":

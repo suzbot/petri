@@ -78,8 +78,9 @@ type Model struct {
 	activityFullScreen bool // When true and in AllActivity mode, show full-screen log
 
 	// Bottom panel toggles (mutually exclusive, replaces action log in select mode)
-	showKnowledgePanel bool
-	showInventoryPanel bool
+	showKnowledgePanel    bool
+	showInventoryPanel    bool
+	showPreferencesPanel  bool
 
 	// Orders system
 	orders      []*entity.Order

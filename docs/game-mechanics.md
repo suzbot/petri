@@ -215,6 +215,14 @@ Characters start with two positive preferences based on character creation:
 - Likes [selected food type]
 - Likes [selected color]
 
+### Viewing Preferences
+
+Press `P` in select mode to toggle the Preferences panel (replaces action log). Shows all character preferences with color coding:
+- **Likes** (positive): shown in green
+- **Dislikes** (negative): shown in yellow
+
+The panel is scrollable with `PgUp`/`PgDn` when preferences exceed the panel height. Press `P` or `Esc` to return to the action log.
+
 ### Character Names
 
 Random character names are drawn from `internal/entity/names.go`. Edit this file to add or remove names from the pool. Names are organized alphabetically by starting letter.

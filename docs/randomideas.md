@@ -24,15 +24,12 @@ then they can be removed from this list.
 
 ## UI Improvements
 
-1. **Preferences Panel Restructure**
-   - Move preferences list to lower panel (viewable with keypress 'p')
-   - Make lower panel scrollable
-2. **Order Selection UX**
+1. **Order Selection UX**
    - Pain point: Scrolling through list every time, reopening menu for multiple orders.
    - Single keypress selection (underlined unique letter or numbered list)
    - Stay in add mode after adding an order (don't close menu)
-3. **Capitalization** consistency clean-up (not quick - lots of strings to sweep through)
-4. **Natural Language Descriptions**
+2. **Capitalization** consistency clean-up (not quick - lots of strings to sweep through)
+3. **Natural Language Descriptions**
    - Replace details view in regular mode, supplement in debug mode.
    - Key words shown in relevant color (color text is color, poison red, healing green, growing olive) and bolded
    - Everything non-null/non-false reflected in a sentence

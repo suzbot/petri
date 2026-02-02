@@ -10,12 +10,12 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Latest Updates
 
+- **Preferences Panel**: Character preferences moved to dedicated scrollable panel (press P)
 - **Character Names File**: Random character names now in separate file for easy customization
 - **Two-Slot Inventory**: Characters can now carry two items (or vessels) at once
 - **Foraging Redesign**: Foraging uses hunger-scaled scoring for vessel vs loose item selection
 - **Crafted Items Auto-Drop**: Crafted vessels drop on ground for any character to use
 - **Crafting from Vessel Contents**: Craft orders can use materials stored inside carried vessels
-- **Impassable Springs**: Springs are now impassable terrain. Characters drink from cardinally adjacent tiles (N/E/S/W), allowing multiple characters to drink from the same spring simultaneously.
 
 ## How It Works
 
@@ -69,12 +69,13 @@ go run ./cmd/petri
 - `F` - Follow/unfollow character
 - `N` / `B` - Cycle next/previous character
 - `E` - Edit character name (select mode)
+- `P` - Toggle preferences panel (select mode)
 - `I` - Toggle inventory panel (select mode)
 - `K` - Toggle knowledge panel (select mode)
 - `O` - Toggle orders panel (+: add, c: cancel, x: expand)
 - `A` / `S` - All Activity / Select mode (x: expand to full screen)
-- `PgUp` / `PgDn` - Scroll action log
-- `ESC` - Save and return to world selection
+- `PgUp` / `PgDn` - Scroll panels
+- `ESC` - Close panel, or save and return to world selection
 - `Q` - Save and quit
 
 

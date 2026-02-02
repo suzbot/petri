@@ -438,6 +438,8 @@ func (m Model) viewGame() string {
 			bottomPanel = borderStyle.Width(panelWidth).Height(logHeight).Render(m.renderKnowledgePanel())
 		} else if m.showInventoryPanel {
 			bottomPanel = borderStyle.Width(panelWidth).Height(logHeight).Render(m.renderInventoryPanel())
+		} else if m.showPreferencesPanel {
+			bottomPanel = borderStyle.Width(panelWidth).Height(logHeight).Render(m.renderPreferencesPanel(logHeight))
 		} else {
 			bottomPanel = borderStyle.Width(panelWidth).Height(logHeight).Render(m.renderActionLog())
 		}
@@ -495,8 +497,9 @@ func (m Model) viewGame() string {
 		hints = append(hints, "ARROWS=cursor")
 	}
 
-	// ESC goes to menu unless in orders input mode (where it means "back")
-	if !inOrdersInput {
+	// ESC goes to menu unless it would do something else first
+	inSubpanel := m.showKnowledgePanel || m.showInventoryPanel || m.showPreferencesPanel
+	if !inOrdersInput && !inSubpanel {
 		hints = append(hints, "ESC=menu")
 	}
 
@@ -740,28 +743,12 @@ func (m Model) renderDetails() string {
 			}
 		}
 
-		lines = append(lines,
-			"",
-			" Preferences:",
-		)
-		for _, pref := range char.Preferences {
-			verb := "Likes"
-			if !pref.IsPositive() {
-				verb = "Dislikes"
-			}
-			lines = append(lines, fmt.Sprintf("   %s %s", verb, pref.Description()))
-		}
-		if len(char.Preferences) == 0 {
-			lines = append(lines, "   (none)")
-		}
-
 		if m.following == char {
 			lines = append(lines, "", highlightStyle.Render(" [FOLLOWING]"), " Press F to unfollow")
 		} else {
 			lines = append(lines, "", " Press F to follow")
 		}
-		lines = append(lines, " Press K for Knowledge")
-		lines = append(lines, " Press I for Inventory")
+		lines = append(lines, " P: Preferences  K: Knowledge  I: Inventory")
 		if !m.editingCharacterName {
 			lines = append(lines, " Press E to edit name")
 		}
@@ -1125,7 +1112,7 @@ func (m Model) renderKnowledgePanel() string {
 		lines = append(lines, " Select a character")
 	}
 
-	lines = append(lines, "", " Press K to return")
+	lines = append(lines, "", " K or Esc to return")
 
 	return strings.Join(lines, "\n")
 }
@@ -1168,7 +1155,73 @@ func (m Model) renderInventoryPanel() string {
 		lines = append(lines, " Select a character")
 	}
 
-	lines = append(lines, "", " Press I to return")
+	lines = append(lines, "", " I or Esc to return")
+
+	return strings.Join(lines, "\n")
+}
+
+// renderPreferencesPanel renders the preferences panel for the selected character
+func (m Model) renderPreferencesPanel(panelHeight int) string {
+	var lines []string
+	lines = append(lines, titleStyle.Render("      PREFERENCES"), "")
+
+	// Get character at cursor
+	if e := m.gameMap.EntityAt(types.Position{X: m.cursorX, Y: m.cursorY}); e != nil {
+		if char, ok := e.(*entity.Character); ok {
+			if len(char.Preferences) == 0 {
+				lines = append(lines, " No preferences yet")
+			} else {
+				// Calculate display range for scrolling
+				maxDisplay := panelHeight - 5 // Account for header, footer, borders
+				total := len(char.Preferences)
+
+				// Apply scroll offset
+				endIdx := total - m.logScrollOffset
+				if endIdx < 0 {
+					endIdx = 0
+				}
+				startIdx := endIdx - maxDisplay
+				if startIdx < 0 {
+					startIdx = 0
+				}
+				if endIdx > total {
+					endIdx = total
+				}
+
+				// Show scroll indicator if scrolled
+				if m.logScrollOffset > 0 {
+					lines = append(lines, fmt.Sprintf(" [Scrolled: -%d]", m.logScrollOffset))
+				}
+
+				// Display preferences in range
+				for i := startIdx; i < endIdx; i++ {
+					pref := char.Preferences[i]
+					verb := "Likes"
+					if !pref.IsPositive() {
+						verb = "Dislikes"
+					}
+					line := fmt.Sprintf("   %s %s", verb, pref.Description())
+					// Color based on valence
+					if pref.IsPositive() {
+						lines = append(lines, optimalStyle.Render(line))
+					} else {
+						lines = append(lines, severeStyle.Render(line))
+					}
+				}
+
+				// Show hint if more items exist
+				if total > maxDisplay {
+					lines = append(lines, fmt.Sprintf(" (%d total, PgUp/PgDn to scroll)", total))
+				}
+			}
+		} else {
+			lines = append(lines, " Select a character")
+		}
+	} else {
+		lines = append(lines, " Select a character")
+	}
+
+	lines = append(lines, "", " P or Esc to return")
 
 	return strings.Join(lines, "\n")
 }
