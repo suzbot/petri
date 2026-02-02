@@ -9,19 +9,13 @@ then they can be removed from this list.
 
 # Ready Ideas
 
-## Issues To resolve
+## Issues To resolve (after Gardening)
 
-1. **Game Mechanics**: they are little disorganized, inconsistent about what level of detail it shares, not in the most intuitive order.
+1. **Game Mechanics Doc Reorg**: they are little disorganized, inconsistent about what level of detail it shares, not in the most intuitive order.
    a. Reorganize in order of gameflow
    b. Remove anything unnecessary for user, or summarize where makes sense
-2. **Orders**:
-   a. if an order is not completable, ie abandoned, but its at the top of the list, characters assign and then abandon it over and over
-   b. ideally, if they can't do the first order, they move on to the next open order
-   c. ideally, if an order is unfufillable (either because no one has the knowledge anymore, or its missing a required component in the world)
-   d. then it should be shown as unfufullable on the orders screen, and characters should skip it without assigning themselves
-   e. Open to other approaches to solve the experience
 
-## UI Improvements
+## UI Improvements (after Gardening)
 
 1. **Order Selection UX**
    - Pain point: Scrolling through list every time
@@ -35,7 +29,7 @@ then they can be removed from this list.
    - Design must easily expand as new attribute types added
    - Example: "This is a hollow gourd. It is a vessel that can be used to carry things. It is warty and green."
 
-## Streamlined Character Creation (combined scope)
+## Streamlined Character Creation (after Gardening)
 
 Remove single/multi mode distinction from UI and add character count control:
 
@@ -58,27 +52,25 @@ Remove single/multi mode distinction from UI and add character count control:
 1. Create Code Review Agent
 2. Assess process docs for claude skills
 3. Consider sequential problem solving MCS
-4. review pre-gardening-audit for audit areas that were out of scope, and add any triggers for those deferred items to triggered-enhancements.md
-5. clean up triggered-enhacements.md to remove complete items or items no longer applicable (after gardening)
-6. Evaluate how to make architecture doc more useful
+4. Evaluate how to make architecture doc more useful
 
-## Small Features
+## Small Features (consider after Gardening)
 
-1. Edible Nuts drop from canopy
+1. Edible Nuts drop from canopy - uses same "drop from canopy" pattern as sticks; nuts are plantable per Gardening-Reqs
 
-# Ideas that aren't ready yet:
+# Ideas that aren't ready yet
 
 - hello world loading screen
 - Extended ascii art mushrooms on title screen
 - Reorder the fields in the Details panel (low - still needs product decision)
 - Auto pause at certain events?
-- Fire for cooking
+- Fire for cooking (consider after Gardening - depends on water carrying)
   - Pumpkin Pie recipe to use those hollow gourds that contain 1 gourd
   - Porridge! made out of tall grass seeds or nuts or berries + water
   - Soup! made out of mushrooms + water
   - feed fire with fuel?
   - food quality for mood
   - satiety of food items
-- Streams and Bridges (requires construction)
-- Use moss, feathers, and leaves to make beds
-- Baskets, Bags, and Bins
+- Streams and Bridges (requires Construction)
+- Use moss, feathers, and leaves to make beds (requires Construction)
+- Baskets, Bags, and Bins (consider after Gardening)

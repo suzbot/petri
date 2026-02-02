@@ -114,7 +114,8 @@ Process docs:
 
 **Up Next:**
 
-- Evaluation of docs/randomideas.md against future phases to prioritize anything opportunistically
+- Review pre-gardening-audit for out-of-scope items; add triggers to triggered-enhancements.md
+- Clean up triggered-enhancements.md to remove complete or no-longer-applicable items
 - Simple Gardening planning and implementation (see [docs/Gardening-Reqs.txt](docs/Gardening-Reqs.txt))
 
 ## Reference and Planning Documents

@@ -134,6 +134,18 @@ Food Turning
 
 **Preference formation for beverages**: Fetch Water introduces water-filled vessels as drinkable. This triggers "Other beverages (non-spring) introduced" - evaluate whether preference formation should apply to water vessels.
 
+### Orders Unfulfillable Logic
+
+Gardening introduces orders (Till Soil, Plant, Water Garden) that are more likely to become unfulfillable due to missing components (no hoe, no seeds, no water source). Address the repeated assign/abandon problem:
+
+Current issue: If an order is not completable (abandoned), but it's at the top of the list, characters assign and then abandon it repeatedly.
+
+Requirements:
+- If a character can't complete the first order, they should move on to the next open order
+- If an order is unfulfillable (no one has the knowledge, or missing required components in the world), it should be shown as unfulfillable on the orders screen
+- Characters should skip unfulfillable orders without assigning themselves
+- Open to alternative approaches that solve the user experience
+
 ### Pattern Notes
 
 **Component procurement pattern** (Craft Hoe, Plant, Water Garden): Use picking.go prerequisite helpers for the check-inventory → drop-non-components → seek-components → craft-or-abandon flow. This same pattern will be reused by Pigment and Construction.
