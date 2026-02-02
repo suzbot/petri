@@ -236,8 +236,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 									m.nextOrderID++
 									m.orders = append(m.orders, order)
 
-									m.ordersAddMode = false
+									// Stay in add mode, return to activity selection
 									m.ordersAddStep = 0
+									m.selectedActivityIndex = 0
 								}
 							} else {
 								// Harvest - get selected target type
@@ -248,8 +249,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 									m.nextOrderID++
 									m.orders = append(m.orders, order)
 
-									m.ordersAddMode = false
+									// Stay in add mode, return to activity selection
 									m.ordersAddStep = 0
+									m.selectedActivityIndex = 0
 								}
 							}
 						}
