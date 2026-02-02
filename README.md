@@ -1,21 +1,22 @@
 # Petri Project
 
-A simulation game inspired by Dwarf Fortress, as a project to explore the emergent development of culture within a community.
+A simulation game inspired by Dwarf Fortress, with dreams to eventually model emergent development of culture within a community.
 
-Currently, players can observe and interact with a cozy forest world. Watch as characters form opinions about the things around them, and as they try to stay happy while managing their basic survival needs.
+Currently, players can observe and interact with characters in a cozy forest world. Watch as they form opinions and try to stay happy while managing their basic survival needs.
 
 Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ![Petri Screenshot](docs/Screenshot.png)
+
+## Project Vision
+
+See [VISION.txt](docs/VISION.txt) for the full vision statement and development roadmap.
 
 ## Latest Updates
 
 - **Preferences Panel**: Character preferences moved to dedicated scrollable panel (press P)
 - **Character Names File**: Random character names now in separate file for easy customization
 - **Two-Slot Inventory**: Characters can now carry two items (or vessels) at once
-- **Foraging Redesign**: Foraging uses hunger-scaled scoring for vessel vs loose item selection
-- **Crafted Items Auto-Drop**: Crafted vessels drop on ground for any character to use
-- **Crafting from Vessel Contents**: Craft orders can use materials stored inside carried vessels
 
 ## How It Works
 
@@ -24,24 +25,23 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 3. Characters manage needs (hunger, thirst, energy, health) prioritized by urgency
 4. Mood reflects emotional state, affected by need urgency and preferences
 5. Characters form preferences based on their mood when interacting with items
-6. When idle, characters may look at items, talk with each other, or forage (pick up items to carry)
-7. Characters learn from experience: eating poison/healing items creates knowledge that affects future behavior
-8. Characters discover crafting know-how through interacting with gourds or drinking at springs
+6. When idle, characters may look at items, talk with each other, or forage.
+7. Characters learn from experience, gaining knowledge that affects future behavior
+8. Characters gain 'know-how' by making discoveries during item interactions
 9. Player can issue orders (harvest, craft) that characters with relevant know-how will complete
 
-For detailed mechanics, see [docs/game-mechanics.md](docs/game-mechanics.md). For configuration values, see `internal/config/config.go`.
+For detailed mechanics, see [docs/game-mechanics.md](docs/game-mechanics.md). 
+
+## Requirements
+
+- Go version go1.25.5 or higher (https://go.dev/learn/)
+- Command line curiosity or higher
 
 ## Running the Game
 
 ```bash
 go build ./cmd/petri
 ./petri
-```
-
-Or directly:
-
-```bash
-go run ./cmd/petri
 ```
 
 ## Controls
@@ -128,6 +128,6 @@ cp -r ~/.petri ~/petri-backup
 
 **Character Names:** Edit `internal/entity/names.go` to add or remove names from the random name pool. Names are alphabetized by starting letter for easy maintenance.
 
-## Project Vision
+**Configuration Values:** see `internal/config/config.go`.
 
-See [VISION.txt](docs/VISION.txt) for the full vision statement and development roadmap.
+
