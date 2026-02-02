@@ -22,6 +22,9 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **UI color style map**                 | Adding new colors frequently; Switch statement maintenance becomes tedious        |
 | **Cobra CLI migration**                | Next time we want to add a flag; Current flag parsing becomes unwieldy            |
 | **Kind field for fine-grained preferences** | Adding second recipe with same ItemType (e.g., clay pot vessel); Preferences need to distinguish recipe outputs |
+| **Knowledge/Learning pattern review** | Enhanced Learning phase begins; Adding new knowledge types or transmission methods |
+| **UI extensibility refactoring** | UI structure blocks adding new activities or features; Area selection pattern needs generalization |
+| **applyIntent duplication (simulation.go)** | INTENTIONALLY SEPARATE - simulation.go is lighter test harness; only unify if maintaining both becomes burdensome |
 
 ### Future Enhancement Details
 

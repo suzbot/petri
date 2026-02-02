@@ -26,37 +26,43 @@ Items have two types of attributes with different roles:
 | Attribute Type | Examples | Can form opinions? | Purpose |
 |----------------|----------|-------------------|---------|
 | **Descriptive** | ItemType, Color, Pattern, Texture | Yes | Identity, appearance |
-| **Functional** | Edible, Poisonous, Healing | No | Capabilities, effects |
+| **Functional** | Edible (nil/non-nil), Poisonous, Healing | No | Capabilities, effects |
 
-This separation is important for the preference/opinion system - characters form opinions about what things *are*, not what they *do*.
+This separation is important for the preference/opinion system - characters form opinions about what things *are*, not what they *do*. Functional attributes are now in optional property structs (`EdibleProperties`, `PlantProperties`, `ContainerData`).
 
 ### Current Item Structure
 
 ```go
 type Item struct {
-    // Display name (crafted items override Description())
-    Name      string         // "Hollow Gourd" for crafted items, empty for natural items
+    BaseEntity
+    ID       int     // Unique identifier for save/load
+    Name     string  // "Hollow Gourd" for crafted items, empty for natural items
 
     // Descriptive attributes (opinion-formable)
-    ItemType  string         // "berry", "mushroom", "gourd", "flower", "vessel"
-    Color     types.Color
-    Pattern   types.Pattern  // mushrooms, gourds, vessels
-    Texture   types.Texture  // mushrooms, gourds, vessels
+    ItemType string         // "berry", "mushroom", "gourd", "flower", "vessel"
+    Color    types.Color
+    Pattern  types.Pattern  // mushrooms, gourds, vessels
+    Texture  types.Texture  // mushrooms, gourds, vessels
 
-    // Functional attributes (not opinion-formable)
-    Edible    bool
+    // Optional property structs (nil if not applicable)
+    Plant     *PlantProperties   // Growing/spawning behavior (nil for crafted items)
+    Container *ContainerData     // Storage capacity (nil for non-containers)
+    Edible    *EdibleProperties  // Edible items (nil for vessels, flowers)
+
+    DeathTimer float64  // countdown until death (0 = immortal)
+}
+
+type EdibleProperties struct {
     Poisonous bool
     Healing   bool
-
-    // Optional properties (nil if not applicable)
-    Plant     *PlantProperties  // Growing/spawning behavior (nil for crafted items)
-    Container *ContainerData    // Storage capacity (nil for non-containers)
 }
 ```
 
 **PlantProperties** controls spawning behavior - items with `Plant.IsGrowing = true` can spawn new items of their variety. When picked up, `IsGrowing` is set to false.
 
 **ContainerData** enables storage - vessels have `Capacity: 1` (one stack). Contents tracked as `[]Stack` where each Stack has a Variety pointer and count.
+
+**EdibleProperties** marks items as edible with optional effects. Items with `Edible != nil` can be eaten; Poisonous/Healing determine effects.
 
 ### Adding New Plant Types
 
@@ -88,13 +94,13 @@ When adding new item types (tools, materials):
 
 Per BUILD CONCEPT in VISION.txt - history exists only in character memories and artifacts.
 
-### Current: ActionLog (Working Memory)
+### ActionLog (Working Memory)
 
 - Per-character recent events, bounded by count
 - Displayed in UI, provides player visibility into character experience
 - No omniscient world log - player sees aggregate of character experiences
 
-### Future: Knowledge System (Phase 4)
+### Knowledge System
 
 Knowledge is discovered through experience and stored per-character:
 
@@ -103,19 +109,26 @@ Character eats poisonous mushroom
     → Takes damage, event logged
     → Gains knowledge: "Spotted Red Mushrooms are poisonous"
     → Knowledge may trigger opinion formation (dislike)
-    → Future: Knowledge can be shared via talking
+    → Knowledge can be shared via talking
 ```
 
 Key distinction:
-- **Poisonous** is an objective property on the Item
+- **Poisonous** is an objective property on the Item (`Edible.Poisonous`)
 - **Knowledge of poisonousness** is stored per-character, discovered through experience
 - **Opinion about the item** may form based on the experience (separate from knowledge)
+
+Characters track three types of learned information:
+- `Knowledge []Knowledge` - Facts about items (poison, healing properties)
+- `KnownActivities []string` - Activity IDs discovered (know-how like "harvest", "craftVessel")
+- `KnownRecipes []string` - Recipe IDs learned (e.g., "hollow-gourd")
+
+Knowledge transmission happens through talking - idle characters can share knowledge with each other.
 
 ### Future: Long-Term Memory
 
 - Selective storage of notable events
 - Persists until character death
-- Basis for knowledge transmission, storytelling, artifact creation
+- Basis for storytelling, artifact creation
 
 ## Save/Load Serialization
 
@@ -487,10 +500,10 @@ type Feature struct {
 4. If impassable: pathfinding already handles via `IsBlocked()`
 5. If new interaction type: add intent handling
 
-### Future: Tile States
+### Gardening: Tile States (Upcoming)
 
-Gardening introduces tile states (tilled soil) that modify ground behavior. This may evolve into a tile property system separate from features:
-- Tilled soil: affects plant growth rate
+Gardening will introduce tile states (tilled soil) that modify ground behavior. This may evolve into a tile property system separate from features:
+- Tilled soil: affects plant growth rate, visual style change
 - Water tiles (ponds): impassable, allow drinking from adjacent
 
 ## Common Implementation Pitfalls

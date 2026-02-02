@@ -91,21 +91,15 @@ internal/
 
 ## Collaboration
 
-**Discussion → Implementation → Human Testing → Documentation**
+**Discussion → Tests -> Implementation → Human Testing → Documentation**
 
 - **Discussion first**: Always discuss approach before writing code. Present options with trade-offs.
-- **TDD**: Write tests before implementation (see docs/testingProcess)
-- **Human testing required**: Do NOT mark features or fixes complete until user has manually tested. Passing unit tests is not sufficient - the user must confirm the fix works in actual gameplay before updating docs or marking complete.
-- **Keep docs current**: Update claude.md, README, game-mechanics as part of feature work
-
-Process docs:
-
-- When starting a new Phase, always read docs/new-phase-process.md
-- When starting a new feature within a phase, always read docs/feature-dev-process.md
+- **TDD**: Write tests before implementation
+- **User testing required**: Do NOT mark features or fixes complete until user has manually tested.
+- **Keep docs current**: Update claude.md, README, game-mechanics, and architecture.md as part of feature work
 
 ## Testing
 
-- TDD process. See docs/testingProcess for details
 - Add regression tests when making bug fixes
 - No tests needed for UI rendering, Bubble Tea integration, brittle log wording, configuration constants
 - Headless simulation tests for measuring game balance. Located in `internal/simulation/observation_test.go`.
@@ -114,8 +108,6 @@ Process docs:
 
 **Up Next:**
 
-- Review pre-gardening-audit for out-of-scope items; add triggers to triggered-enhancements.md
-- Clean up triggered-enhancements.md to remove complete or no-longer-applicable items
 - Simple Gardening planning and implementation (see [docs/Gardening-Reqs.txt](docs/Gardening-Reqs.txt))
 
 ## Reference and Planning Documents
@@ -126,4 +118,3 @@ Process docs:
 | [docs/architecture.md](docs/architecture.md)                     | Design patterns, data flow, item/memory model |
 | [docs/game-mechanics.md](docs/game-mechanics.md)                 | Detailed stat thresholds, rates, systems      |
 | [docs/triggered-enhancements.md](docs/triggered-enhancements.md) | Deferred items with triggers, balance tuning  |
-| [docs/failed-approaches.md](docs/failed-approaches.md)           | Approaches tried and abandoned                |

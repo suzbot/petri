@@ -180,8 +180,8 @@ Gardening introduces hoe (tool). Construction introduces more non-plant items.
 - [x] Identified duplication patterns and quantified savings
 - [x] Findings from triggered-enhancements.md integrated
 - [x] Clear before/during/after categorization
-- [ ] Inventory expansion implemented
-- [ ] Pickup/drop unification implemented (picking.go)
+- [x] Inventory expansion implemented
+- [x] Pickup/drop unification implemented (picking.go)
 - [ ] Patterns established benefit Construction, Threats, and Pigment features
 
 ## Next Steps

@@ -49,7 +49,6 @@ Remove single/multi mode distinction from UI and add character count control:
 
 ## Tech Updates
 
-1. Create Code Review Agent
 2. Assess process docs for claude skills
 3. Consider sequential problem solving MCS
 4. Evaluate how to make architecture doc more useful
