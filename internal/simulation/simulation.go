@@ -21,8 +21,9 @@ type WorldOptions struct {
 
 // TestWorld holds all components needed to run a simulation
 type TestWorld struct {
-	GameMap   *game.Map
-	ActionLog *system.ActionLog
+	GameMap           *game.Map
+	ActionLog         *system.ActionLog
+	GroundSpawnTimers system.GroundSpawnTimers
 }
 
 // CreateTestWorld creates a world configured for testing
@@ -63,10 +64,16 @@ func CreateTestWorld(opts WorldOptions) *TestWorld {
 	if !opts.NoFood {
 		game.SpawnItems(gameMap, false) // mushroomsOnly=false for tests
 	}
+	game.SpawnGroundItems(gameMap)
 
 	return &TestWorld{
 		GameMap:   gameMap,
 		ActionLog: actionLog,
+		GroundSpawnTimers: system.GroundSpawnTimers{
+			Stick: system.RandomGroundSpawnInterval(),
+			Nut:   system.RandomGroundSpawnInterval(),
+			Shell: system.RandomGroundSpawnInterval(),
+		},
 	}
 }
 
@@ -100,6 +107,9 @@ func RunTick(world *TestWorld, delta float64) {
 	initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers
 	system.UpdateSpawnTimers(world.GameMap, initialItemCount, delta)
 	system.UpdateDeathTimers(world.GameMap, delta)
+
+	// Phase 5: Update ground spawning (sticks, nuts, shells)
+	system.UpdateGroundSpawning(world.GameMap, delta, &world.GroundSpawnTimers)
 }
 
 // RunTicks runs n simulation ticks

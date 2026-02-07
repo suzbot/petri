@@ -112,6 +112,9 @@ type Model struct {
 	// Test mode config
 	testCfg TestConfig
 
+	// Ground spawning timers (sticks, nuts, shells)
+	groundSpawnTimers system.GroundSpawnTimers
+
 	// Speed control (1 = normal, 2 = half speed, 4 = quarter speed)
 	speedMultiplier int
 }

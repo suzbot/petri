@@ -66,7 +66,7 @@ func GetItemTypeConfigs() map[string]ItemTypeConfig {
 			Edible:               false,
 			CanBePoisonOrHealing: false,
 			Sym:                  config.CharShell,
-			SpawnCount:           config.ShellSpawnCount,
+			SpawnCount:           config.GetGroundSpawnCount("shell"),
 			NonPlantSpawned:      true, // spawned by ground spawning, not SpawnItems
 		},
 	}

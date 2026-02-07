@@ -1,6 +1,6 @@
 ---
 name: new-feature
-description: "Start implementing any feature either within the current phase or as a stand-alone. Enforces discussion-first, TDD, and human testing checkpoints."
+description: "Start implementing a feature, step, or task — whether part of a phase plan or stand-alone. Enforces discussion-first, TDD, and human testing checkpoints. Trigger phrases: 'start the next step', 'implement', 'work on', 'build'."
 ---
 
 ## Starting a New Feature

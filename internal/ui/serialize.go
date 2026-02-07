@@ -27,6 +27,10 @@ func (m Model) ToSaveState() *save.SaveState {
 		ActionLogs:      actionLogsToSave(m.actionLog),
 		Orders:          ordersToSave(m.orders),
 		NextOrderID:     m.nextOrderID,
+
+		GroundSpawnStick: m.groundSpawnTimers.Stick,
+		GroundSpawnNut:   m.groundSpawnTimers.Nut,
+		GroundSpawnShell: m.groundSpawnTimers.Shell,
 	}
 	return state
 }
@@ -355,6 +359,22 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 	// Ensure nextOrderID is at least 1 (ID 0 means "no order assigned")
 	if m.nextOrderID < 1 {
 		m.nextOrderID = 1
+	}
+
+	// Restore ground spawn timers (default to random if loading old save without them)
+	m.groundSpawnTimers = system.GroundSpawnTimers{
+		Stick: state.GroundSpawnStick,
+		Nut:   state.GroundSpawnNut,
+		Shell: state.GroundSpawnShell,
+	}
+	if m.groundSpawnTimers.Stick <= 0 {
+		m.groundSpawnTimers.Stick = system.RandomGroundSpawnInterval()
+	}
+	if m.groundSpawnTimers.Nut <= 0 {
+		m.groundSpawnTimers.Nut = system.RandomGroundSpawnInterval()
+	}
+	if m.groundSpawnTimers.Shell <= 0 {
+		m.groundSpawnTimers.Shell = system.RandomGroundSpawnInterval()
 	}
 
 	// Set cursor to first character position if any

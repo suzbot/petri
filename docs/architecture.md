@@ -90,6 +90,34 @@ When adding new item types (tools, materials):
 - Descriptive attributes remain the basis for preference formation
 - Use `Name` field for crafted item display names
 
+## Item Lifecycle
+
+Items have lifecycle stages managed by timers and spawning systems.
+
+### Plant-Based Spawning
+
+Items with `Plant.IsGrowing = true` can spawn new items via `UpdateSpawnTimers()`. When total item count drops below target, spawn timers countdown. When they fire, `spawnItem()` creates a copy of a growing parent at a random empty adjacent tile. See `internal/system/lifecycle.go`.
+
+Spawning is controlled by `ItemLifecycle` map in `config.go` which defines spawn/death intervals for each item type.
+
+### Ground Spawning
+
+Non-plant items (sticks, nuts, shells) spawn periodically via independent timers:
+
+- **Sticks**: Fall from the canopy onto random empty tiles
+- **Nuts**: Fall from the canopy onto random empty tiles
+- **Shells**: Wash up adjacent to pond tiles
+
+Each item type has its own timer (`GroundSpawnTimers` struct) with ~5 world day intervals (see `config.GroundSpawnInterval`). When a timer fires, one item spawns and the timer resets to a new random interval.
+
+Ground spawning is count-independent - items continue spawning periodically regardless of how many exist in the world. This matches the simulation fiction of natural processes (canopy drops, tidal washing).
+
+See `internal/system/ground_spawning.go`.
+
+### Death Timers
+
+Items with `DeathTimer > 0` decay over time via `UpdateDeathTimers()`. When the timer reaches zero, the item is removed from the world.
+
 ## Memory & Knowledge Model
 
 Per BUILD CONCEPT in VISION.txt - history exists only in character memories and artifacts.

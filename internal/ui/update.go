@@ -446,6 +446,11 @@ func (m Model) startGame() Model {
 		game.SpawnItems(m.gameMap, m.testCfg.MushroomsOnly)
 	}
 	game.SpawnGroundItems(m.gameMap)
+	m.groundSpawnTimers = system.GroundSpawnTimers{
+		Stick: system.RandomGroundSpawnInterval(),
+		Nut:   system.RandomGroundSpawnInterval(),
+		Shell: system.RandomGroundSpawnInterval(),
+	}
 
 	return m
 }
@@ -494,6 +499,11 @@ func (m Model) startGameMulti() Model {
 		game.SpawnItems(m.gameMap, m.testCfg.MushroomsOnly)
 	}
 	game.SpawnGroundItems(m.gameMap)
+	m.groundSpawnTimers = system.GroundSpawnTimers{
+		Stick: system.RandomGroundSpawnInterval(),
+		Nut:   system.RandomGroundSpawnInterval(),
+		Shell: system.RandomGroundSpawnInterval(),
+	}
 
 	return m
 }
@@ -538,6 +548,9 @@ func (m Model) updateGame(now time.Time) (Model, tea.Cmd) {
 
 	// Update item death timers (flowers die regardless of no-food mode)
 	system.UpdateDeathTimers(m.gameMap, delta)
+
+	// Update ground spawning (sticks, nuts, shells)
+	system.UpdateGroundSpawning(m.gameMap, delta, &m.groundSpawnTimers)
 
 	// Calculate intents (Phase II ready: can parallelize this)
 	items := m.gameMap.Items()
@@ -1106,6 +1119,9 @@ func (m *Model) stepForward() {
 	// Update item death timers (flowers die regardless of no-food mode)
 	system.UpdateDeathTimers(m.gameMap, delta)
 
+	// Update ground spawning (sticks, nuts, shells)
+	system.UpdateGroundSpawning(m.gameMap, delta, &m.groundSpawnTimers)
+
 	// Calculate and apply intents
 	items := m.gameMap.Items()
 	for _, char := range m.gameMap.Characters() {
@@ -1406,6 +1422,11 @@ func (m Model) startGameFromCreation() Model {
 		game.SpawnItems(m.gameMap, m.testCfg.MushroomsOnly)
 	}
 	game.SpawnGroundItems(m.gameMap)
+	m.groundSpawnTimers = system.GroundSpawnTimers{
+		Stick: system.RandomGroundSpawnInterval(),
+		Nut:   system.RandomGroundSpawnInterval(),
+		Shell: system.RandomGroundSpawnInterval(),
+	}
 
 	// Create world for saving if not already set
 	if m.worldID == "" {

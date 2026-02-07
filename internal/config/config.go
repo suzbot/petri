@@ -16,10 +16,7 @@ const (
 	PondMaxCount     = 5
 	PondMinSize      = 4
 	PondMaxSize      = 16
-	StickSpawnCount  = 6
-	NutSpawnCount    = 6
-	ShellSpawnCount  = 6
-	UpdateInterval   = 150 * time.Millisecond
+	UpdateInterval = 150 * time.Millisecond
 
 	// Symbols
 	CharRobot    = '@'
@@ -109,6 +106,9 @@ const (
 	VarietyPoisonPercent  = 0.20 // 20% of edible varieties are poisonous
 	VarietyHealingPercent = 0.20 // 20% of edible varieties are healing
 
+	// Ground spawning (sticks, nuts, shells)
+	GroundSpawnInterval = 600.0 // ~5 world days between spawns per item type (±LifecycleIntervalVariance)
+
 	// Auto-save
 	AutoSaveInterval = 60.0 // seconds of game time between auto-saves
 
@@ -160,6 +160,21 @@ var StackSize = map[string]int{
 func GetStackSize(itemType string) int {
 	if size, ok := StackSize[itemType]; ok {
 		return size
+	}
+	return 1
+}
+
+// GroundSpawnCount maps ground-spawned item types to their initial world-gen count.
+// Types not listed default to 1 (via GetGroundSpawnCount).
+var GroundSpawnCount = map[string]int{
+	"stick": 6,
+	"nut":   6,
+}
+
+// GetGroundSpawnCount returns the initial spawn count for a ground item type, defaulting to 1
+func GetGroundSpawnCount(itemType string) int {
+	if count, ok := GroundSpawnCount[itemType]; ok {
+		return count
 	}
 	return 1
 }

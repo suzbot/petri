@@ -255,21 +255,21 @@ func isMapConnected(m *Map) bool {
 // Sticks and nuts go on random empty tiles; shells go adjacent to pond tiles.
 func SpawnGroundItems(m *Map) {
 	// Spawn sticks on random empty tiles
-	for i := 0; i < config.StickSpawnCount; i++ {
+	for i := 0; i < config.GetGroundSpawnCount("stick"); i++ {
 		x, y := findEmptySpot(m)
 		m.AddItem(entity.NewStick(x, y))
 	}
 
 	// Spawn nuts on random empty tiles
-	for i := 0; i < config.NutSpawnCount; i++ {
+	for i := 0; i < config.GetGroundSpawnCount("nut"); i++ {
 		x, y := findEmptySpot(m)
 		m.AddItem(entity.NewNut(x, y))
 	}
 
 	// Spawn shells adjacent to pond tiles
-	pondAdjacentTiles := findPondAdjacentEmptyTiles(m)
+	pondAdjacentTiles := FindPondAdjacentEmptyTiles(m)
 	shellColors := types.ShellColors
-	for i := 0; i < config.ShellSpawnCount && len(pondAdjacentTiles) > 0; i++ {
+	for i := 0; i < config.GetGroundSpawnCount("shell") && len(pondAdjacentTiles) > 0; i++ {
 		// Pick a random pond-adjacent tile
 		idx := rand.Intn(len(pondAdjacentTiles))
 		pos := pondAdjacentTiles[idx]
@@ -281,8 +281,8 @@ func SpawnGroundItems(m *Map) {
 	}
 }
 
-// findPondAdjacentEmptyTiles returns all empty tiles cardinally adjacent to pond water tiles
-func findPondAdjacentEmptyTiles(m *Map) []types.Position {
+// FindPondAdjacentEmptyTiles returns all empty tiles cardinally adjacent to pond water tiles
+func FindPondAdjacentEmptyTiles(m *Map) []types.Position {
 	cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
 	seen := make(map[types.Position]bool)
 	var result []types.Position

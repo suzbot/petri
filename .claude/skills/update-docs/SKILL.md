@@ -22,9 +22,9 @@ Read each of these files, then apply only the changes warranted by the summary:
 
 | File | Audience | Update Rules |
 |------|----------|-------------|
-| `README.md` | **Players** | Latest Updates section only. Player-visible changes only. No implementation details (pathfinding, refactors, internal restructuring). Plain, minimal descriptions. |
+| `README.md` | **Players** | Latest Updates section only. Player-visible changes only. No implementation details, no specific counts or enumerations (not "seven variants" — just "multiple variants" or omit). One line per feature, plain language. |
 | `CLAUDE.md` | **AI context (always loaded)** | Current features line and roadmap only. Generalize into categories, never enumerate specifics. Keep lightweight — detailed docs exist elsewhere. |
-| `docs/game-mechanics.md` | **Detailed reference** | Add new mechanics, update existing sections. Never duplicate config values — reference config source instead (e.g., "See `config.GetStackSize()`"). |
+| `docs/game-mechanics.md` | **Detailed reference** | Add new mechanics, update existing sections. Never duplicate config values — reference config source instead (e.g., "See `config.GroundSpawnInterval`"). This includes approximate values like "~5 days" — if the number comes from config, reference the config. |
 | `docs/architecture.md` | **Developer reference** | Update design patterns, data flow, code organization. Implementation details welcome here. |
 | `docs/gardening-phase-plan.md` | **Planning artifact** | Mark completed steps with ✅. Add notes about bugs found/fixed during testing. Do not modify future steps. |
 

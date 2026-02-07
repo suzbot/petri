@@ -161,10 +161,9 @@ Items are generated from varieties at world creation. Each variety defines a uni
 - **Mushrooms**: Color + optional Pattern + optional Texture, optional poisonous/healing; edible
 - **Gourds**: Color + optional Pattern + optional Texture; edible, never poisonous/healing
 - **Flowers**: Color; non-edible (decorative)
-- **Sticks**: Brown `/`; non-edible, non-plant. Spawns on random empty tiles at world start.
-- **Nuts**: Brown `o`; edible (not poisonous/healing), non-plant. Spawns on random empty tiles at world start.
-- **Shells**: Colored `<`; non-edible, non-plant. Seven color variants (white, pale pink, tan, pale yellow, silver, gray, lavender). Spawns adjacent to pond tiles at world start.
-- **Nuts**: Brown `o`; edible (not poisonous/healing), non-plant. Spawns on random empty tiles at world start. Forageable by characters seeking food.
+- **Sticks**: Brown `/`; non-edible, non-plant. Periodically falls from the canopy onto random empty tiles (see `config.GroundSpawnInterval`).
+- **Nuts**: Brown `o`; edible (not poisonous/healing), non-plant. Periodically falls from the canopy onto random empty tiles (see `config.GroundSpawnInterval`). Forageable by characters seeking food.
+- **Shells**: Colored `<`; non-edible, non-plant. Multiple color variants (see `types.ShellColors`). Periodically washes up adjacent to pond tiles (see `config.GroundSpawnInterval`).
 
 ### World Features
 

@@ -234,43 +234,45 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 
 ##### Step 5: Non-Plant Spawning
 
-**Tests** (in `internal/system/ground_spawning_test.go`):
-- Timer fires at correct interval, does not fire before interval elapses
-- Spawns sticks and nuts on empty tiles when below target count
-- Spawns shells adjacent to pond tiles only
-- Does not spawn when already at target count
+#### Design: Periodic Ground Spawning (no count cap)
 
-**Config** needed: `NonPlantSpawnInterval = 600.0`
+Sticks and nuts fall from the canopy periodically; shells wash up near ponds. Each item type has its own independent timer on a random ~5 world day cycle. Items accumulate naturally — there is no target count or cap. This matches the simulation fiction: sticks fall from trees whether or not there are already sticks on the ground.
+
+- Three independent timers (`GroundSpawnTimers` struct): `Stick`, `Nut`, `Shell`
+- Each timer uses `GroundSpawnInterval` (600s / ~5 world days) ± `LifecycleIntervalVariance` (±20%), giving a 4-6 world day range per spawn
+- When a timer fires: spawn one item, reset timer to new random interval
+- Sticks/nuts: random empty tile (try up to 10 times, skip if no spot found)
+- Shells: random pond-adjacent empty tile (skip if no ponds or no valid spots)
+- Initial timer values randomized at world gen so all three don't fire simultaneously
+- Export `FindPondAdjacentEmptyTiles` from world.go for reuse by ground spawning
+
+**Tests** (in `internal/system/ground_spawning_test.go`):
+- Timer does not fire before interval elapses
+- Timer fires after interval elapses, spawns item, resets timer
+- Spawns stick on empty tile (not on water)
+- Spawns nut on empty tile (not on water)
+- Spawns shell adjacent to pond tile only
+- No shells spawn when no ponds exist
+- Each type spawns independently (one type firing doesn't affect others)
+
+**Config** needed: `GroundSpawnInterval = 600.0` (reuses existing `LifecycleIntervalVariance`)
 
 **Implementation**:
-- New file `internal/system/ground_spawning.go`: `UpdateGroundSpawning()` — timer-based, count-based spawning
-- `internal/ui/model.go`: Add `groundSpawnTimer float64` to Model
-- `internal/ui/update.go`: Call `UpdateGroundSpawning()` from `updateGame()` after `UpdateDeathTimers()`
+- New file `internal/system/ground_spawning.go`: `GroundSpawnTimers` struct, `UpdateGroundSpawning()`, `RandomGroundSpawnInterval()` helper
+- `internal/game/world.go`: Export `FindPondAdjacentEmptyTiles` (rename from `findPondAdjacentEmptyTiles`)
+- `internal/ui/model.go`: Add `groundSpawnTimers GroundSpawnTimers` to Model, initialize with random values at world gen
+- `internal/ui/update.go`: Call `UpdateGroundSpawning()` from `updateGame()` and `stepForward()` after `UpdateDeathTimers()`
+- `internal/save/state.go`: Add `GroundSpawnTimers` fields to `SaveState`
+- `internal/ui/serialize.go`: Save/load ground spawn timers
 
 **[TEST] Checkpoint — Respawning:**
 - `go test ./...` passes
-- Build and run with `-debug` flag, let simulation run for extended time
-- Sticks, nuts, and shells respawn when below target count
+- Build and run, let simulation run for extended time
+- New sticks, nuts, and shells appear periodically
 - Shells only appear near ponds, sticks/nuts anywhere
-- Item counts stabilize around target values
+- Items accumulate over time (no cap)
 
 **Reqs reconciliation:** Gardening-Reqs line 19 _"occasionally spawn"_ ✓, line 23 _"occasionally spawn"_ ✓.
-
-**[DOCS]** Update README, game-mechanics as needed for respawning mechanic.
-
-**[RETRO]** Run /retro.
-
-##### Step 6: Serialization for New Items + Ground Spawning
-
-**Implementation** (`internal/save/state.go`, `internal/ui/serialize.go`):
-- Add `GroundSpawnTimer float64` to `SaveState`
-- In `itemFromSave()`: add cases for "stick", "nut", "shell" symbols
-
-Note: Water tile serialization and spring migration were pulled forward to Step 1.
-
-**[TEST] Checkpoint — Save/load:**
-- Build and run: create world, save, load — sticks, nuts, shells persist correctly
-- Ground spawn timer resumes correctly after load
 
 ---
 

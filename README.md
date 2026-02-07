@@ -14,7 +14,8 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 
 ## Latest Updates
 
-- **Sticks, Nuts, and Shells**: New item types scattered across the world. Nuts are edible; shells spawn near ponds in seven color variants.
+- **Sticks and Nuts**: Items periodically fall from the canopy onto empty tiles. Nuts are edible; sticks can be collected.
+- **Shells**: Colored shells periodically wash up near pond shores
 - **Ponds**: Water terrain that characters can drink from
 - **Preferences Panel**: Character preferences moved to dedicated scrollable panel (press P)
 - **Two-Slot Inventory**: Characters can now carry two items (or vessels) at once

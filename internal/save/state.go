@@ -26,6 +26,11 @@ type SaveState struct {
 	ActionLogs  map[int][]EventSave      `json:"action_logs"` // Per-character event logs, keyed by char ID
 	Orders      []OrderSave              `json:"orders,omitempty"`
 	NextOrderID int                      `json:"next_order_id,omitempty"`
+
+	// Ground spawning timers
+	GroundSpawnStick float64 `json:"ground_spawn_stick,omitempty"`
+	GroundSpawnNut   float64 `json:"ground_spawn_nut,omitempty"`
+	GroundSpawnShell float64 `json:"ground_spawn_shell,omitempty"`
 }
 
 // OrderSave represents an order for serialization

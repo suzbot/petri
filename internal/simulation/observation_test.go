@@ -24,6 +24,7 @@ func TestObserveBalanceMetrics(t *testing.T) {
 
 	var totalDeaths, totalSurvivors int
 	var totalEdibleEnd, totalFlowerEnd int
+	var totalSticksEnd, totalNutsEnd, totalShellsEnd int
 	var totalPreferences int
 	deathCauses := make(map[string]int)
 	moodAtEnd := make(map[string]int)
@@ -64,25 +65,31 @@ func TestObserveBalanceMetrics(t *testing.T) {
 		}
 		deaths := startChars - alive
 
-		edibleEnd, flowerEnd := countItems(world)
+		endCounts := countItemsByType(world)
 
 		fmt.Printf("End: %d alive, %d dead\n", alive, deaths)
-		fmt.Printf("Items: %d edible, %d flowers\n", edibleEnd, flowerEnd)
+		fmt.Printf("Items: %d edible, %d flowers, %d sticks, %d nuts, %d shells\n",
+			endCounts.edible, endCounts.flowers, endCounts.sticks, endCounts.nuts, endCounts.shells)
 		fmt.Printf("Item trend - Edible: %d→%d, Flowers: %d→%d\n",
-			edibleCounts[0], edibleEnd, flowerCounts[0], flowerEnd)
+			edibleCounts[0], endCounts.edible, flowerCounts[0], endCounts.flowers)
 
 		totalDeaths += deaths
 		totalSurvivors += alive
-		totalEdibleEnd += edibleEnd
-		totalFlowerEnd += flowerEnd
+		totalEdibleEnd += endCounts.edible
+		totalFlowerEnd += endCounts.flowers
+		totalSticksEnd += endCounts.sticks
+		totalNutsEnd += endCounts.nuts
+		totalShellsEnd += endCounts.shells
 	}
 
 	fmt.Println("\n=== AGGREGATE RESULTS ===")
 	fmt.Printf("Total characters: %d (%d survived, %d died)\n",
 		totalSurvivors+totalDeaths, totalSurvivors, totalDeaths)
 	fmt.Printf("Survival rate: %.1f%%\n", float64(totalSurvivors)/float64(totalSurvivors+totalDeaths)*100)
-	fmt.Printf("Avg end items: %.1f edible, %.1f flowers\n",
-		float64(totalEdibleEnd)/float64(numRuns), float64(totalFlowerEnd)/float64(numRuns))
+	fmt.Printf("Avg end items: %.1f edible, %.1f flowers, %.1f sticks, %.1f nuts, %.1f shells\n",
+		float64(totalEdibleEnd)/float64(numRuns), float64(totalFlowerEnd)/float64(numRuns),
+		float64(totalSticksEnd)/float64(numRuns), float64(totalNutsEnd)/float64(numRuns),
+		float64(totalShellsEnd)/float64(numRuns))
 	fmt.Printf("Avg preferences formed per survivor: %.1f\n",
 		float64(totalPreferences)/float64(totalSurvivors))
 
@@ -209,15 +216,42 @@ func TestObserveFlowerGrowth(t *testing.T) {
 	}
 }
 
-func countItems(world *TestWorld) (edible, flowers int) {
+// itemCounts holds per-type item counts for observation reporting
+type itemCounts struct {
+	edible  int // edible items (berries, mushrooms, gourds, nuts)
+	flowers int
+	sticks  int
+	nuts    int
+	shells  int
+}
+
+func countItemsByType(world *TestWorld) itemCounts {
+	var c itemCounts
 	for _, item := range world.GameMap.Items() {
-		if item.ItemType == "flower" {
-			flowers++
-		} else {
-			edible++
+		switch item.ItemType {
+		case "flower":
+			c.flowers++
+		case "stick":
+			c.sticks++
+		case "nut":
+			c.nuts++
+		case "shell":
+			c.shells++
+		default:
+			if item.IsEdible() {
+				c.edible++
+			}
 		}
 	}
-	return
+	// Include nuts in edible count too (they're edible ground items)
+	c.edible += c.nuts
+	return c
+}
+
+// countItems is a backward-compatible wrapper returning (edible, flowers)
+func countItems(world *TestWorld) (edible, flowers int) {
+	c := countItemsByType(world)
+	return c.edible, c.flowers
 }
 
 func countAliveChars(world *TestWorld) int {

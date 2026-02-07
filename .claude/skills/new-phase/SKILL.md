@@ -33,6 +33,8 @@ Save the high-level phase plan to `docs/[name]-phase-plan.md` — this is the **
 
 Aim for shippable steps — plan to avoid regressions where reasonably feasible, so each step leaves the codebase in a working state.
 
+**Assumption discipline**: Plan steps should reflect what the requirements say, not invent mechanics or constraints beyond them. If a design decision is needed that the requirements don't address, flag it explicitly as a deferred question for the implementation discussion (Step 5), not as a baked-in assumption.
+
 ### Step 5: Note Feature Questions
 For clarifications that don't impact the high-level approach, save those questions in feature plan docs to ask in context during implementation.
 
