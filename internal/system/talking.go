@@ -117,7 +117,7 @@ func findTalkIntent(char *entity.Character, pos types.Position, gameMap *game.Ma
 		// No accessible adjacent tile, try moving directly toward target
 		adjX, adjY = tx, ty
 	}
-	nx, ny := NextStep(pos.X, pos.Y, adjX, adjY)
+	nx, ny := NextStepBFS(pos.X, pos.Y, adjX, adjY, gameMap)
 
 	newActivity := "Moving to talk with " + closest.Name
 	if char.CurrentActivity != newActivity {

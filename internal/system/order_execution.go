@@ -145,7 +145,7 @@ func findHarvestIntent(char *entity.Character, pos types.Position, items []*enti
 	}
 
 	// Move toward target
-	nx, ny := NextStep(pos.X, pos.Y, tx, ty)
+	nx, ny := NextStepBFS(pos.X, pos.Y, tx, ty, gameMap)
 
 	newActivity := "Moving to harvest " + target.Description()
 	if char.CurrentActivity != newActivity {

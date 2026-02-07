@@ -51,11 +51,11 @@ func EnsureHasVesselFor(char *entity.Character, target *entity.Item, items []*en
 	}
 
 	// Create intent to pick up the vessel
-	return createVesselPickupIntent(char, pos, availableVessel, log, category)
+	return createVesselPickupIntent(char, pos, availableVessel, log, category, gameMap)
 }
 
 // createVesselPickupIntent creates an intent to move to and pick up a vessel.
-func createVesselPickupIntent(char *entity.Character, pos types.Position, vessel *entity.Item, log *ActionLog, category string) *entity.Intent {
+func createVesselPickupIntent(char *entity.Character, pos types.Position, vessel *entity.Item, log *ActionLog, category string, gameMap *game.Map) *entity.Intent {
 	vpos := vessel.Pos()
 	vx, vy := vpos.X, vpos.Y
 
@@ -77,7 +77,7 @@ func createVesselPickupIntent(char *entity.Character, pos types.Position, vessel
 	}
 
 	// Move toward vessel
-	nx, ny := NextStep(pos.X, pos.Y, vx, vy)
+	nx, ny := NextStepBFS(pos.X, pos.Y, vx, vy, gameMap)
 	newActivity := "Moving to pick up vessel"
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity

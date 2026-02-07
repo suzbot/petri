@@ -1830,3 +1830,122 @@ func TestContinueIntent_DrinkFromAdjacentTile(t *testing.T) {
 		t.Errorf("Target: got (%d,%d), want (6,5) - should stay in place to drink", intent.Target.X, intent.Target.Y)
 	}
 }
+
+// =============================================================================
+// BFS Pathfinding
+// =============================================================================
+
+func TestNextStepBFS_ClearPath_MatchesGreedy(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+
+	// No obstacles - BFS should match greedy NextStep
+	nx, ny := NextStepBFS(5, 5, 10, 5, gameMap)
+	gx, gy := NextStep(5, 5, 10, 5)
+	if nx != gx || ny != gy {
+		t.Errorf("Clear path: BFS got (%d,%d), greedy got (%d,%d)", nx, ny, gx, gy)
+	}
+}
+
+func TestNextStepBFS_RoutesAroundWater(t *testing.T) {
+	t.Parallel()
+
+	// Character at (5,5), target at (5,2), water wall at y=3 from x=3 to x=7
+	gameMap := game.NewMap(20, 20)
+	for x := 3; x <= 7; x++ {
+		gameMap.AddWater(types.Position{X: x, Y: 3}, game.WaterPond)
+	}
+
+	nx, ny := NextStepBFS(5, 5, 5, 2, gameMap)
+
+	// Greedy would try (5,4) then get stuck at (5,3). BFS should route around.
+	// The first step should NOT be directly toward the target (which leads to water wall).
+	// It should go sideways toward an end of the wall.
+	// Valid first steps: (4,5) or (6,5) — moving laterally to go around
+	// OR (5,4) is also valid if BFS finds a path through (5,4) then sideways
+	// The key test: the step should be part of a valid path (not into water)
+	stepPos := types.Position{X: nx, Y: ny}
+	if gameMap.IsWater(stepPos) {
+		t.Errorf("BFS stepped into water at (%d,%d)", nx, ny)
+	}
+	// Step should be adjacent to start
+	start := types.Position{X: 5, Y: 5}
+	if start.DistanceTo(stepPos) != 1 {
+		t.Errorf("BFS step (%d,%d) is not adjacent to start (5,5)", nx, ny)
+	}
+}
+
+func TestNextStepBFS_RoutesAroundPond(t *testing.T) {
+	t.Parallel()
+
+	// Character at (5,5), target at (5,1)
+	// 2x2 pond blocking direct path at (5,3),(6,3),(5,4),(6,4)
+	gameMap := game.NewMap(20, 20)
+	gameMap.AddWater(types.Position{X: 5, Y: 3}, game.WaterPond)
+	gameMap.AddWater(types.Position{X: 6, Y: 3}, game.WaterPond)
+	gameMap.AddWater(types.Position{X: 5, Y: 4}, game.WaterPond)
+	gameMap.AddWater(types.Position{X: 6, Y: 4}, game.WaterPond)
+
+	nx, ny := NextStepBFS(5, 5, 5, 1, gameMap)
+
+	// Should step sideways (left) to route around the pond
+	// (4,5) is the expected first step to go around the left side
+	if nx != 4 || ny != 5 {
+		t.Errorf("Route around pond: got (%d,%d), want (4,5)", nx, ny)
+	}
+}
+
+func TestNextStepBFS_AlreadyAtTarget(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	nx, ny := NextStepBFS(5, 5, 5, 5, gameMap)
+	if nx != 5 || ny != 5 {
+		t.Errorf("At target: got (%d,%d), want (5,5)", nx, ny)
+	}
+}
+
+func TestNextStepBFS_NoPath_FallsBackToGreedy(t *testing.T) {
+	t.Parallel()
+
+	// Surround character with water (no path possible)
+	gameMap := game.NewMap(20, 20)
+	gameMap.AddWater(types.Position{X: 4, Y: 5}, game.WaterPond)
+	gameMap.AddWater(types.Position{X: 6, Y: 5}, game.WaterPond)
+	gameMap.AddWater(types.Position{X: 5, Y: 4}, game.WaterPond)
+	gameMap.AddWater(types.Position{X: 5, Y: 6}, game.WaterPond)
+
+	nx, ny := NextStepBFS(5, 5, 10, 10, gameMap)
+
+	// Falls back to greedy (which doesn't check obstacles)
+	gx, gy := NextStep(5, 5, 10, 10)
+	if nx != gx || ny != gy {
+		t.Errorf("No path fallback: got (%d,%d), want greedy (%d,%d)", nx, ny, gx, gy)
+	}
+}
+
+func TestNextStepBFS_LShapedPond(t *testing.T) {
+	t.Parallel()
+
+	// L-shaped pond forcing character to go around
+	// Character at (3,5), target at (3,1)
+	// Pond: (3,3),(3,4),(4,3),(4,4),(5,3),(5,4) - wide horizontal wall
+	gameMap := game.NewMap(20, 20)
+	for x := 3; x <= 5; x++ {
+		gameMap.AddWater(types.Position{X: x, Y: 3}, game.WaterPond)
+		gameMap.AddWater(types.Position{X: x, Y: 4}, game.WaterPond)
+	}
+
+	nx, ny := NextStepBFS(3, 5, 3, 1, gameMap)
+
+	// Should go sideways to route around (either left or right)
+	stepPos := types.Position{X: nx, Y: ny}
+	if gameMap.IsWater(stepPos) {
+		t.Errorf("BFS stepped into water at (%d,%d)", nx, ny)
+	}
+	start := types.Position{X: 3, Y: 5}
+	if start.DistanceTo(stepPos) != 1 {
+		t.Errorf("BFS step (%d,%d) is not adjacent to start (3,5)", nx, ny)
+	}
+}

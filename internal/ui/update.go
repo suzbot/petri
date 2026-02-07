@@ -840,7 +840,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			newPos := char.Pos()
 			if newPos.X != ipos.X || newPos.Y != ipos.Y {
 				// Not at item yet, calculate next step
-				nx, ny := system.NextStep(newPos.X, newPos.Y, ipos.X, ipos.Y)
+				nx, ny := system.NextStepBFS(newPos.X, newPos.Y, ipos.X, ipos.Y, m.gameMap)
 				char.Intent.Target.X = nx
 				char.Intent.Target.Y = ny
 			}

@@ -425,7 +425,7 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		}
 	}
 
-	nx, ny := NextStep(cx, cy, tx, ty)
+	nx, ny := NextStepBFS(cx, cy, tx, ty, gameMap)
 
 	return &entity.Intent{
 		Target:          types.Position{X: nx, Y: ny},
@@ -489,7 +489,7 @@ func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.M
 	}
 
 	// Move toward adjacent tile (not the water itself)
-	nx, ny := NextStep(pos.X, pos.Y, adjX, adjY)
+	nx, ny := NextStepBFS(pos.X, pos.Y, adjX, adjY, gameMap)
 	newActivity := "Moving to water"
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
@@ -674,7 +674,7 @@ func findSleepIntent(char *entity.Character, pos types.Position, gameMap *game.M
 	}
 
 	// Move toward bed
-	nx, ny := NextStep(pos.X, pos.Y, tx, ty)
+	nx, ny := NextStepBFS(pos.X, pos.Y, tx, ty, gameMap)
 	newActivity := "Moving to leaf pile"
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
@@ -856,6 +856,76 @@ func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 	}
 }
 
+// NextStepBFS calculates the next position moving toward target using BFS pathfinding.
+// Routes around permanent obstacles (water, impassable features). Ignores characters
+// since they move and per-tick collision is handled separately.
+// Falls back to greedy NextStep if no path exists.
+func NextStepBFS(fromX, fromY, toX, toY int, gameMap *game.Map) (int, int) {
+	if fromX == toX && fromY == toY {
+		return fromX, fromY
+	}
+
+	from := types.Position{X: fromX, Y: fromY}
+	to := types.Position{X: toX, Y: toY}
+
+	// BFS tracking the first step from origin that leads to each visited tile
+	type node struct {
+		pos       types.Position
+		firstStep types.Position
+	}
+
+	visited := make(map[types.Position]bool)
+	visited[from] = true
+
+	cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+
+	// Seed queue with walkable neighbors of start
+	var queue []node
+	for _, dir := range cardinalDirs {
+		neighbor := types.Position{X: fromX + dir[0], Y: fromY + dir[1]}
+		if !gameMap.IsValid(neighbor) || visited[neighbor] {
+			continue
+		}
+		if gameMap.IsWater(neighbor) {
+			continue
+		}
+		if f := gameMap.FeatureAt(neighbor); f != nil && !f.IsPassable() {
+			continue
+		}
+		visited[neighbor] = true
+		if neighbor == to {
+			return neighbor.X, neighbor.Y
+		}
+		queue = append(queue, node{pos: neighbor, firstStep: neighbor})
+	}
+
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+
+		for _, dir := range cardinalDirs {
+			neighbor := types.Position{X: cur.pos.X + dir[0], Y: cur.pos.Y + dir[1]}
+			if !gameMap.IsValid(neighbor) || visited[neighbor] {
+				continue
+			}
+			if gameMap.IsWater(neighbor) {
+				continue
+			}
+			if f := gameMap.FeatureAt(neighbor); f != nil && !f.IsPassable() {
+				continue
+			}
+			visited[neighbor] = true
+			if neighbor == to {
+				return cur.firstStep.X, cur.firstStep.Y
+			}
+			queue = append(queue, node{pos: neighbor, firstStep: cur.firstStep})
+		}
+	}
+
+	// No path found - fall back to greedy
+	return NextStep(fromX, fromY, toX, toY)
+}
+
 // NextStep calculates the next position moving toward target
 func NextStep(fromX, fromY, toX, toY int) (int, int) {
 	dx := toX - fromX
@@ -935,7 +1005,7 @@ func findLookIntent(char *entity.Character, pos types.Position, items []*entity.
 	}
 
 	// Move toward adjacent tile
-	nx, ny := NextStep(pos.X, pos.Y, adjX, adjY)
+	nx, ny := NextStepBFS(pos.X, pos.Y, adjX, adjY, gameMap)
 
 	newActivity := "Moving to look at " + target.Description()
 	if char.CurrentActivity != newActivity {
