@@ -437,11 +437,14 @@ func (m Model) startGame() Model {
 	m.cursorX, m.cursorY = cx, cy
 	m.following = char
 
-	// Spawn items and features (respecting test config)
+	// Spawn world: ponds first (before items/features), then features, then items
+	if !m.testCfg.NoWater {
+		game.SpawnPonds(m.gameMap)
+	}
+	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 	if !m.testCfg.NoFood {
 		game.SpawnItems(m.gameMap, m.testCfg.MushroomsOnly)
 	}
-	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 
 	return m
 }
@@ -481,11 +484,14 @@ func (m Model) startGameMulti() Model {
 		m.cursorX, m.cursorY = pos.X, pos.Y
 	}
 
-	// Spawn items and features (respecting test config)
+	// Spawn world: ponds first (before items/features), then features, then items
+	if !m.testCfg.NoWater {
+		game.SpawnPonds(m.gameMap)
+	}
+	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 	if !m.testCfg.NoFood {
 		game.SpawnItems(m.gameMap, m.testCfg.MushroomsOnly)
 	}
-	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 
 	return m
 }
@@ -1131,6 +1137,8 @@ func (m *Model) findAlternateStep(char *entity.Character, cx, cy int, triedPosit
 		if char.Intent.TargetItem != nil {
 			gpos := char.Intent.TargetItem.Pos()
 			goalX, goalY = gpos.X, gpos.Y
+		} else if char.Intent.TargetWaterPos != nil {
+			goalX, goalY = char.Intent.TargetWaterPos.X, char.Intent.TargetWaterPos.Y
 		} else if char.Intent.TargetFeature != nil {
 			gpos := char.Intent.TargetFeature.Pos()
 			goalX, goalY = gpos.X, gpos.Y
@@ -1387,11 +1395,14 @@ func (m Model) startGameFromCreation() Model {
 	// Clear creation state
 	m.creationState = nil
 
-	// Spawn items and features (respecting test config)
+	// Spawn world: ponds first (before items/features), then features, then items
+	if !m.testCfg.NoWater {
+		game.SpawnPonds(m.gameMap)
+	}
+	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 	if !m.testCfg.NoFood {
 		game.SpawnItems(m.gameMap, m.testCfg.MushroomsOnly)
 	}
-	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 
 	// Create world for saving if not already set
 	if m.worldID == "" {

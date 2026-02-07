@@ -297,39 +297,41 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		}
 	}
 
-	// Check if target feature is still available
+	// Check if target water tile is still available (for drinking)
+	if intent.TargetWaterPos != nil {
+		wpos := *intent.TargetWaterPos
+		hasAvailableTile := false
+		cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+		for _, dir := range cardinalDirs {
+			adjPos := types.Position{X: wpos.X + dir[0], Y: wpos.Y + dir[1]}
+			if !gameMap.IsValid(adjPos) {
+				continue
+			}
+			occupant := gameMap.CharacterAt(adjPos)
+			if occupant == nil || occupant == char {
+				if adjFeature := gameMap.FeatureAt(adjPos); adjFeature != nil && !adjFeature.IsPassable() {
+					continue
+				}
+				if gameMap.IsWater(adjPos) {
+					continue
+				}
+				hasAvailableTile = true
+				break
+			}
+		}
+		if !hasAvailableTile {
+			return nil // All cardinal tiles blocked, find new water
+		}
+	}
+
+	// Check if target feature is still available (for beds)
 	if intent.TargetFeature != nil {
 		feature := intent.TargetFeature
 		fpos := feature.Pos()
-
-		// For drink sources (impassable), check if any cardinal tile is available
-		if feature.IsDrinkSource() {
-			hasAvailableTile := false
-			cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
-			for _, dir := range cardinalDirs {
-				adjPos := types.Position{X: fpos.X + dir[0], Y: fpos.Y + dir[1]}
-				if !gameMap.IsValid(adjPos) {
-					continue
-				}
-				occupant := gameMap.CharacterAt(adjPos)
-				if occupant == nil || occupant == char {
-					// Also check for impassable features at adjacent tile
-					if adjFeature := gameMap.FeatureAt(adjPos); adjFeature != nil && !adjFeature.IsPassable() {
-						continue
-					}
-					hasAvailableTile = true
-					break
-				}
-			}
-			if !hasAvailableTile {
-				return nil // All cardinal tiles blocked, find new spring
-			}
-		} else {
-			// For passable features (beds), check if occupied by another character
-			occupant := gameMap.CharacterAt(fpos)
-			if occupant != nil && occupant != char {
-				return nil // Target occupied by someone else, find new target
-			}
+		// For passable features (beds), check if occupied by another character
+		occupant := gameMap.CharacterAt(fpos)
+		if occupant != nil && occupant != char {
+			return nil // Target occupied by someone else, find new target
 		}
 	}
 
@@ -338,6 +340,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	if intent.TargetItem != nil {
 		tpos := intent.TargetItem.Pos()
 		tx, ty = tpos.X, tpos.Y
+	} else if intent.TargetWaterPos != nil {
+		tx, ty = intent.TargetWaterPos.X, intent.TargetWaterPos.Y
 	} else if intent.TargetFeature != nil {
 		tpos := intent.TargetFeature.Pos()
 		tx, ty = tpos.X, tpos.Y
@@ -348,38 +352,36 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		tx, ty = intent.Target.X, intent.Target.Y
 	}
 
+	// Check if we've arrived at a water target - switch to drink action
+	if intent.TargetWaterPos != nil {
+		if isCardinallyAdjacent(cx, cy, tx, ty) {
+			newActivity := "Drinking"
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+				if log != nil {
+					log.Add(char.ID, char.Name, "thirst", "Drinking from water")
+				}
+			}
+			return &entity.Intent{
+				Target:         types.Position{X: cx, Y: cy}, // Stay in place
+				Dest:           types.Position{X: cx, Y: cy}, // Already at destination
+				Action:         entity.ActionDrink,
+				TargetWaterPos: intent.TargetWaterPos,
+				DrivingStat:    intent.DrivingStat,
+				DrivingTier:    intent.DrivingTier,
+			}
+		}
+		// Not adjacent yet - check if any cardinal tile is still available
+		adjX, adjY := findClosestCardinalTile(cx, cy, tx, ty, gameMap)
+		if adjX == -1 {
+			return nil // All cardinal tiles blocked, find new water
+		}
+		tx, ty = adjX, adjY
+	}
+
 	// Check if we've arrived at a feature target - switch to appropriate action
 	if intent.TargetFeature != nil {
 		feature := intent.TargetFeature
-
-		// Drink sources are impassable - drink from cardinally adjacent tile
-		if feature.IsDrinkSource() {
-			if isCardinallyAdjacent(cx, cy, tx, ty) {
-				newActivity := "Drinking"
-				if char.CurrentActivity != newActivity {
-					char.CurrentActivity = newActivity
-					if log != nil {
-						log.Add(char.ID, char.Name, "thirst", "Drinking from spring")
-					}
-				}
-				return &entity.Intent{
-					Target:          types.Position{X: cx, Y: cy}, // Stay in place
-					Dest:            types.Position{X: cx, Y: cy}, // Already at destination
-					Action:        entity.ActionDrink,
-					TargetFeature: feature,
-					DrivingStat:   intent.DrivingStat,
-					DrivingTier:   intent.DrivingTier,
-				}
-			}
-			// Not adjacent yet - check if any cardinal tile is still available
-			adjX, adjY := findClosestCardinalTile(cx, cy, tx, ty, gameMap)
-			if adjX == -1 {
-				// All cardinal tiles blocked - find new spring
-				return nil
-			}
-			// Update target to move toward adjacent tile
-			tx, ty = adjX, adjY
-		}
 
 		// Beds are passable - arrive when at the feature position
 		if feature.IsBed() && cx == tx && cy == ty {
@@ -388,8 +390,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 				char.CurrentActivity = newActivity
 			}
 			return &entity.Intent{
-				Target:          types.Position{X: tx, Y: ty},
-				Dest:            types.Position{X: tx, Y: ty}, // Destination is the bed
+				Target:        types.Position{X: tx, Y: ty},
+				Dest:          types.Position{X: tx, Y: ty}, // Destination is the bed
 				Action:        entity.ActionSleep,
 				TargetFeature: feature,
 				DrivingStat:   intent.DrivingStat,
@@ -431,17 +433,18 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		Action:          intent.Action,
 		TargetItem:      intent.TargetItem,
 		TargetFeature:   intent.TargetFeature,
+		TargetWaterPos:  intent.TargetWaterPos,
 		TargetCharacter: intent.TargetCharacter,
 		DrivingStat:     intent.DrivingStat,
 		DrivingTier:     intent.DrivingTier,
 	}
 }
 
-// findDrinkIntent finds a spring to drink from
-// Springs are impassable - characters drink from cardinally adjacent tiles
+// findDrinkIntent finds water to drink from
+// Water tiles are impassable - characters drink from cardinally adjacent tiles
 func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.Map, tier int, log *ActionLog) *entity.Intent {
-	spring := gameMap.FindNearestDrinkSource(pos)
-	if spring == nil {
+	waterPos, found := gameMap.FindNearestWater(pos)
+	if !found {
 		if char.CurrentActivity != "Idle" {
 			char.CurrentActivity = "Idle"
 			if log != nil {
@@ -451,58 +454,57 @@ func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.M
 		return nil
 	}
 
-	spos := spring.Pos()
-	tx, ty := spos.X, spos.Y
+	tx, ty := waterPos.X, waterPos.Y
 
-	// Already cardinally adjacent to spring - drink from current position
+	// Already cardinally adjacent to water - drink from current position
 	if isCardinallyAdjacent(pos.X, pos.Y, tx, ty) {
 		newActivity := "Drinking"
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
 			if log != nil {
-				log.Add(char.ID, char.Name, "thirst", "Drinking from spring")
+				log.Add(char.ID, char.Name, "thirst", "Drinking from water")
 			}
 		}
 		return &entity.Intent{
-			Target:        pos, // Stay in place
-			Dest:          pos, // Already at destination
-			Action:        entity.ActionDrink,
-			TargetFeature: spring,
-			DrivingStat:   types.StatThirst,
-			DrivingTier:   tier,
+			Target:         pos, // Stay in place
+			Dest:           pos, // Already at destination
+			Action:         entity.ActionDrink,
+			TargetWaterPos: &waterPos,
+			DrivingStat:    types.StatThirst,
+			DrivingTier:    tier,
 		}
 	}
 
-	// Find closest cardinal tile adjacent to spring and move toward it
+	// Find closest cardinal tile adjacent to water and move toward it
 	adjX, adjY := findClosestCardinalTile(pos.X, pos.Y, tx, ty, gameMap)
 	if adjX == -1 {
-		// No available adjacent tile - spring is blocked
+		// No available adjacent tile - water is blocked
 		if char.CurrentActivity != "Idle" {
 			char.CurrentActivity = "Idle"
 			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Idle (spring blocked)")
+				log.Add(char.ID, char.Name, "activity", "Idle (water blocked)")
 			}
 		}
 		return nil
 	}
 
-	// Move toward adjacent tile (not the spring itself)
+	// Move toward adjacent tile (not the water itself)
 	nx, ny := NextStep(pos.X, pos.Y, adjX, adjY)
-	newActivity := "Moving to spring"
+	newActivity := "Moving to water"
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
 		if log != nil {
-			log.Add(char.ID, char.Name, "movement", "Heading to spring")
+			log.Add(char.ID, char.Name, "movement", "Heading to water")
 		}
 	}
 
 	return &entity.Intent{
-		Target:        types.Position{X: nx, Y: ny},
-		Dest:          types.Position{X: adjX, Y: adjY}, // Destination is the cardinal tile, not the spring
-		Action:        entity.ActionMove,
-		TargetFeature: spring,
-		DrivingStat:   types.StatThirst,
-		DrivingTier:   tier,
+		Target:         types.Position{X: nx, Y: ny},
+		Dest:           types.Position{X: adjX, Y: adjY}, // Destination is the cardinal tile, not the water
+		Action:         entity.ActionMove,
+		TargetWaterPos: &waterPos,
+		DrivingStat:    types.StatThirst,
+		DrivingTier:    tier,
 	}
 }
 
@@ -872,7 +874,8 @@ func NextStep(fromX, fromY, toX, toY int) (int, int) {
 
 // canFulfillThirst checks if thirst can be addressed (water source exists)
 func canFulfillThirst(gameMap *game.Map, pos types.Position) bool {
-	return gameMap.FindNearestDrinkSource(pos) != nil
+	_, found := gameMap.FindNearestWater(pos)
+	return found
 }
 
 // canFulfillHunger checks if hunger can be addressed (suitable food exists)

@@ -83,13 +83,13 @@ func createItemFromVariety(v *entity.ItemVariety, x, y int) *entity.Item {
 	}
 }
 
-// SpawnFeatures populates the map with landscape features (springs, leaf piles)
+// SpawnFeatures populates the map with landscape features (leaf piles) and water (springs)
 func SpawnFeatures(m *Map, noWater, noBeds bool) {
-	// Spawn springs (drink sources)
+	// Spawn springs as water terrain (drink sources)
 	if !noWater {
 		for i := 0; i < config.SpringCount; i++ {
 			x, y := findEmptySpot(m)
-			m.AddFeature(entity.NewSpring(x, y))
+			m.AddWater(types.Position{X: x, Y: y}, WaterSpring)
 		}
 	}
 
@@ -102,12 +102,157 @@ func SpawnFeatures(m *Map, noWater, noBeds bool) {
 	}
 }
 
-// findEmptySpot finds a random unoccupied position on the map
+// SpawnPonds generates 1-5 ponds of 4-16 contiguous water tiles each.
+// Retries if the resulting map is not fully connected (max 10 attempts).
+func SpawnPonds(m *Map) {
+	maxRetries := 10
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pondCount := config.PondMinCount + rand.Intn(config.PondMaxCount-config.PondMinCount+1)
+
+		for i := 0; i < pondCount; i++ {
+			pondSize := config.PondMinSize + rand.Intn(config.PondMaxSize-config.PondMinSize+1)
+			spawnPondBlob(m, pondSize)
+		}
+
+		if isMapConnected(m) {
+			return
+		}
+
+		// Clear all pond tiles and retry
+		clearPondTiles(m)
+	}
+}
+
+// spawnPondBlob grows a single contiguous pond of the given size from a random starting tile.
+func spawnPondBlob(m *Map, size int) {
+	// Pick a random starting position that's not already water
+	var startX, startY int
+	for {
+		startX = rand.Intn(m.Width)
+		startY = rand.Intn(m.Height)
+		pos := types.Position{X: startX, Y: startY}
+		if !m.IsWater(pos) {
+			break
+		}
+	}
+
+	start := types.Position{X: startX, Y: startY}
+	m.AddWater(start, WaterPond)
+	blob := []types.Position{start}
+
+	cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+
+	for len(blob) < size {
+		// Pick a random tile already in the blob
+		source := blob[rand.Intn(len(blob))]
+
+		// Collect valid cardinal neighbors
+		var candidates []types.Position
+		for _, dir := range cardinalDirs {
+			neighbor := types.Position{X: source.X + dir[0], Y: source.Y + dir[1]}
+			if m.IsValid(neighbor) && !m.IsWater(neighbor) {
+				candidates = append(candidates, neighbor)
+			}
+		}
+
+		if len(candidates) == 0 {
+			// This tile is fully surrounded — try a different blob tile
+			// If no tile in the blob can grow, stop early
+			canGrow := false
+			for _, tile := range blob {
+				for _, dir := range cardinalDirs {
+					neighbor := types.Position{X: tile.X + dir[0], Y: tile.Y + dir[1]}
+					if m.IsValid(neighbor) && !m.IsWater(neighbor) {
+						canGrow = true
+						break
+					}
+				}
+				if canGrow {
+					break
+				}
+			}
+			if !canGrow {
+				break
+			}
+			continue
+		}
+
+		chosen := candidates[rand.Intn(len(candidates))]
+		m.AddWater(chosen, WaterPond)
+		blob = append(blob, chosen)
+	}
+}
+
+// clearPondTiles removes all pond water tiles from the map (preserves springs).
+func clearPondTiles(m *Map) {
+	for _, pos := range m.WaterPositions() {
+		if m.WaterAt(pos) == WaterPond {
+			m.RemoveWater(pos)
+		}
+	}
+}
+
+// isMapConnected returns true if all non-blocked tiles on the map are reachable from each other.
+// Uses BFS from the first walkable tile and verifies all walkable tiles are reached.
+func isMapConnected(m *Map) bool {
+	// Find first walkable tile
+	var start types.Position
+	found := false
+	for y := 0; y < m.Height; y++ {
+		for x := 0; x < m.Width; x++ {
+			pos := types.Position{X: x, Y: y}
+			if !m.IsWater(pos) {
+				start = pos
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+	if !found {
+		return true // entirely water — vacuously connected
+	}
+
+	// BFS from start
+	visited := make(map[types.Position]bool)
+	queue := []types.Position{start}
+	visited[start] = true
+
+	cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+
+		for _, dir := range cardinalDirs {
+			neighbor := types.Position{X: cur.X + dir[0], Y: cur.Y + dir[1]}
+			if m.IsValid(neighbor) && !visited[neighbor] && !m.IsWater(neighbor) {
+				visited[neighbor] = true
+				queue = append(queue, neighbor)
+			}
+		}
+	}
+
+	// Verify all non-water tiles were reached
+	for y := 0; y < m.Height; y++ {
+		for x := 0; x < m.Width; x++ {
+			pos := types.Position{X: x, Y: y}
+			if !m.IsWater(pos) && !visited[pos] {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// findEmptySpot finds a random position on the map with no character, water, or feature
 func findEmptySpot(m *Map) (int, int) {
 	for {
 		x := rand.Intn(m.Width)
 		y := rand.Intn(m.Height)
-		if !m.IsOccupied(types.Position{X: x, Y: y}) {
+		pos := types.Position{X: x, Y: y}
+		if !m.IsOccupied(pos) && !m.IsWater(pos) && m.FeatureAt(pos) == nil {
 			return x, y
 		}
 	}

@@ -1,25 +1,14 @@
-# skills/retro
-
+---
 name: retro
-description: "Post-feature relfection to identify any process changes that reduce future friction and context overhead."
-
-trigger:
-  when: a feature is marked complete
-  automatic: true
-scope:
-  - collaboration
-  - reflection
-  - process-improvement
-principles:
-  - evidence-based
-  - cost-aware
-  - user-approved
-  - minimal-overhead
+description: "Post-feature reflection to identify process changes that reduce future friction and context overhead. Run after a feature is marked complete, or mid-session when the user wants a process check-in."
 ---
 
 ## Retro Skill
 
-When a feature has been explicitly marked as complete, perform a brief automatic reflection. 
+Perform a reflection on collaboration friction. Can be triggered:
+- **Post-feature**: after a feature is explicitly marked complete
+- **Mid-session**: when the user requests a process check-in (e.g., after a rocky planning phase)
+
 This reflection must not interrupt forward progress unless the user requested the retro,
 or unless the threshold for proposed changes has been met.
 
@@ -27,13 +16,13 @@ The goal is to identify **high-confidence, high-leverage refinements** to
 collaboration that are likely to save more context in the future than they
 cost to reflect on, suggest, and implement.
 
-Avoid speculative or “nice-to-have” improvements.
+Avoid speculative or "nice-to-have" improvements.
 
 ---
 
 ### Step 1: Collaboration Assessment
 
-Reflect **only on observable signals from this session**.  
+Reflect **only on observable signals from this session**.
 Do not infer intent beyond what the user explicitly stated or did.
 
 Address the following **only if applicable**:
@@ -91,8 +80,9 @@ Assess whether Step 1 insights revealed **clear, recurring, or token/context-hea
     - Explain **why it is worth the cost**
     - Specify **what future context, effort, or friction it saves**
     - Keep recommendations minimal, concrete, and scoped
+    - **Prefer docs, skills, or agents over CLAUDE.md** — CLAUDE.md is always-loaded context and should stay lightweight. Place refinements where they'll be loaded contextually.
 
-- If No: changes do not clearly pass the cost–benefit threshold
+- If No: changes do not clearly pass the cost-benefit threshold
   - Did the user request the retro? If so, provide the analysis and the reasoning for no change.
   - Was the retro automatic? No output is needed, do not solicit user response.
 
@@ -106,5 +96,3 @@ Assess whether Step 1 insights revealed **clear, recurring, or token/context-hea
 - All suggestions require **explicit user approval**
 
 End by asking the user to approve, reject, or modify each proposal.
-
-

@@ -43,7 +43,7 @@ func TestCalculateIntent_TieBreakerFavorsThirstOverHunger(t *testing.T) {
 	char.Energy = 100
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
-	gameMap.AddFeature(entity.NewSpring(5, 5))
+	gameMap.AddWater(types.Position{X: 5, Y: 5}, game.WaterSpring)
 	items := []*entity.Item{entity.NewBerry(10, 10, types.ColorRed, false, false)}
 
 	intent := CalculateIntent(char, items, gameMap, nil, nil)
@@ -707,34 +707,34 @@ func TestContinueIntent_AbandonsIfTargetItemConsumed(t *testing.T) {
 	}
 }
 
-func TestContinueIntent_AbandonsIfAllSpringAdjacentTilesBlocked(t *testing.T) {
+func TestContinueIntent_AbandonsIfAllWaterAdjacentTilesBlocked(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
 	char.SetPos(types.Position{X: 0, Y: 0})
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
-	spring := entity.NewSpring(5, 5)
-	gameMap.AddFeature(spring)
+	waterPos := types.Position{X: 5, Y: 5}
+	gameMap.AddWater(waterPos, game.WaterSpring)
 
-	// Block all 4 cardinal-adjacent tiles of the spring
+	// Block all 4 cardinal-adjacent tiles of the water
 	gameMap.AddCharacter(entity.NewCharacter(2, 5, 4, "N", "berry", types.ColorBlue))
 	gameMap.AddCharacter(entity.NewCharacter(3, 6, 5, "E", "berry", types.ColorBlue))
 	gameMap.AddCharacter(entity.NewCharacter(4, 5, 6, "S", "berry", types.ColorBlue))
 	gameMap.AddCharacter(entity.NewCharacter(5, 4, 5, "W", "berry", types.ColorBlue))
 
 	char.Intent = &entity.Intent{
-		Target:        types.Position{X: 1, Y: 0},
-		Action:        entity.ActionMove,
-		TargetFeature: spring,
-		DrivingStat:   types.StatThirst,
-		DrivingTier:   2,
+		Target:         types.Position{X: 1, Y: 0},
+		Action:         entity.ActionMove,
+		TargetWaterPos: &waterPos,
+		DrivingStat:    types.StatThirst,
+		DrivingTier:    2,
 	}
 
 	intent := continueIntent(char, 0, 0, gameMap, nil)
 
 	if intent != nil {
-		t.Error("Should abandon intent when all spring adjacent tiles are blocked")
+		t.Error("Should abandon intent when all water adjacent tiles are blocked")
 	}
 }
 
@@ -771,25 +771,25 @@ func TestContinueIntent_OwnPositionDoesNotAbandon(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.SetPos(types.Position{X: 5, Y: 5})
+	char.SetPos(types.Position{X: 5, Y: 4}) // Adjacent to water (cardinal north)
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
-	spring := entity.NewSpring(5, 5)
-	gameMap.AddFeature(spring)
-	gameMap.AddCharacter(char) // Character is at the spring
+	waterPos := types.Position{X: 5, Y: 5}
+	gameMap.AddWater(waterPos, game.WaterSpring)
+	gameMap.AddCharacter(char)
 
 	char.Intent = &entity.Intent{
-		Target:        types.Position{X: 5, Y: 5},
-		Action:        entity.ActionDrink,
-		TargetFeature: spring,
-		DrivingStat:   types.StatThirst,
-		DrivingTier:   2,
+		Target:         types.Position{X: 5, Y: 4},
+		Action:         entity.ActionDrink,
+		TargetWaterPos: &waterPos,
+		DrivingStat:    types.StatThirst,
+		DrivingTier:    2,
 	}
 
-	intent := continueIntent(char, 5, 5, gameMap, nil)
+	intent := continueIntent(char, 5, 4, gameMap, nil)
 
 	if intent == nil {
-		t.Error("Should not abandon intent when character is at their own target")
+		t.Error("Should not abandon intent when character is adjacent to their water target")
 	}
 	if intent.Action != entity.ActionDrink {
 		t.Errorf("Action: got %d, want ActionDrink", intent.Action)
@@ -1732,21 +1732,20 @@ func TestFindDrinkIntent_DrinksWhenCardinallyAdjacent(t *testing.T) {
 
 	char := newTestCharacter()
 	char.Thirst = 75 // Moderate
-	char.SetPos(types.Position{X: 5, Y: 4}) // North of spring at (5,5)
+	char.SetPos(types.Position{X: 5, Y: 4}) // North of water at (5,5)
 
 	gameMap := game.NewMap(20, 20)
-	spring := entity.NewSpring(5, 5)
-	gameMap.AddFeature(spring)
+	gameMap.AddWater(types.Position{X: 5, Y: 5}, game.WaterSpring)
 
 	intent := findDrinkIntent(char, types.Position{X: 5, Y: 4}, gameMap, entity.TierModerate, nil)
 
 	if intent == nil {
-		t.Fatal("Expected drink intent when cardinally adjacent to spring")
+		t.Fatal("Expected drink intent when cardinally adjacent to water")
 	}
 	if intent.Action != entity.ActionDrink {
 		t.Errorf("Action: got %d, want ActionDrink", intent.Action)
 	}
-	// Should stay in place (not move onto spring)
+	// Should stay in place (not move onto water)
 	if intent.Target.X != 5 || intent.Target.Y != 4 {
 		t.Errorf("Target: got (%d,%d), want (5,4) - should stay in place", intent.Target.X, intent.Target.Y)
 	}
@@ -1757,11 +1756,10 @@ func TestFindDrinkIntent_DoesNotDrinkWhenDiagonallyAdjacent(t *testing.T) {
 
 	char := newTestCharacter()
 	char.Thirst = 75
-	char.SetPos(types.Position{X: 4, Y: 4}) // Diagonally adjacent to spring at (5,5)
+	char.SetPos(types.Position{X: 4, Y: 4}) // Diagonally adjacent to water at (5,5)
 
 	gameMap := game.NewMap(20, 20)
-	spring := entity.NewSpring(5, 5)
-	gameMap.AddFeature(spring)
+	gameMap.AddWater(types.Position{X: 5, Y: 5}, game.WaterSpring)
 
 	intent := findDrinkIntent(char, types.Position{X: 4, Y: 4}, gameMap, entity.TierModerate, nil)
 
@@ -1782,11 +1780,10 @@ func TestFindDrinkIntent_MovesToAdjacentTile(t *testing.T) {
 
 	char := newTestCharacter()
 	char.Thirst = 75
-	char.SetPos(types.Position{X: 0, Y: 5}) // Far from spring at (5,5)
+	char.SetPos(types.Position{X: 0, Y: 5}) // Far from water at (5,5)
 
 	gameMap := game.NewMap(20, 20)
-	spring := entity.NewSpring(5, 5)
-	gameMap.AddFeature(spring)
+	gameMap.AddWater(types.Position{X: 5, Y: 5}, game.WaterSpring)
 
 	intent := findDrinkIntent(char, types.Position{X: 0, Y: 5}, gameMap, entity.TierModerate, nil)
 
@@ -1796,8 +1793,8 @@ func TestFindDrinkIntent_MovesToAdjacentTile(t *testing.T) {
 	if intent.Action != entity.ActionMove {
 		t.Errorf("Action: got %d, want ActionMove", intent.Action)
 	}
-	if intent.TargetFeature != spring {
-		t.Error("Should target the spring")
+	if intent.TargetWaterPos == nil || intent.TargetWaterPos.X != 5 || intent.TargetWaterPos.Y != 5 {
+		t.Error("Should target the water position")
 	}
 }
 
@@ -1805,19 +1802,19 @@ func TestContinueIntent_DrinkFromAdjacentTile(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.SetPos(types.Position{X: 6, Y: 5}) // East of spring at (5,5)
+	char.SetPos(types.Position{X: 6, Y: 5}) // East of water at (5,5)
 
 	gameMap := game.NewMap(20, 20)
-	spring := entity.NewSpring(5, 5)
-	gameMap.AddFeature(spring)
+	waterPos := types.Position{X: 5, Y: 5}
+	gameMap.AddWater(waterPos, game.WaterSpring)
 
-	// Set up intent targeting the spring
+	// Set up intent targeting the water
 	char.Intent = &entity.Intent{
-		Target:        types.Position{X: 5, Y: 5}, // Was moving toward spring
-		Action:        entity.ActionMove,
-		TargetFeature: spring,
-		DrivingStat:   types.StatThirst,
-		DrivingTier:   entity.TierModerate,
+		Target:         types.Position{X: 5, Y: 5}, // Was moving toward water
+		Action:         entity.ActionMove,
+		TargetWaterPos: &waterPos,
+		DrivingStat:    types.StatThirst,
+		DrivingTier:    entity.TierModerate,
 	}
 
 	intent := continueIntent(char, 6, 5, gameMap, nil)

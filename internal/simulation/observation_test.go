@@ -497,6 +497,8 @@ func TestObserveDeathProgression(t *testing.T) {
 				intent = actionName(trackChar.Intent.Action)
 				if trackChar.Intent.TargetItem != nil {
 					intent += " -> " + trackChar.Intent.TargetItem.Description()
+				} else if trackChar.Intent.TargetWaterPos != nil {
+					intent += " -> water"
 				} else if trackChar.Intent.TargetFeature != nil {
 					intent += " -> feature"
 				}

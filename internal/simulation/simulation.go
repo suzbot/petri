@@ -55,11 +55,14 @@ func CreateTestWorld(opts WorldOptions) *TestWorld {
 		}
 	}
 
-	// Spawn resources based on options
+	// Spawn world: ponds first (before items/features), then features, then items
+	if !opts.NoWater {
+		game.SpawnPonds(gameMap)
+	}
+	game.SpawnFeatures(gameMap, opts.NoWater, opts.NoBeds)
 	if !opts.NoFood {
 		game.SpawnItems(gameMap, false) // mushroomsOnly=false for tests
 	}
-	game.SpawnFeatures(gameMap, opts.NoWater, opts.NoBeds)
 
 	return &TestWorld{
 		GameMap:   gameMap,
@@ -308,6 +311,8 @@ func findAlternateStep(char *entity.Character, gameMap *game.Map, cx, cy int, tr
 		if char.Intent.TargetItem != nil {
 			gpos := char.Intent.TargetItem.Pos()
 			goalX, goalY = gpos.X, gpos.Y
+		} else if char.Intent.TargetWaterPos != nil {
+			goalX, goalY = char.Intent.TargetWaterPos.X, char.Intent.TargetWaterPos.Y
 		} else if char.Intent.TargetFeature != nil {
 			gpos := char.Intent.TargetFeature.Pos()
 			goalX, goalY = gpos.X, gpos.Y

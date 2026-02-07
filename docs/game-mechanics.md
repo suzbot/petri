@@ -112,7 +112,7 @@ Drinking, eating, and falling asleep have a duration before completing. Collapse
 
 ## Continuous Drinking
 
-At springs, characters drink until thirst == 0 (not just until tier boundary).
+At water sources (springs and ponds), characters drink until thirst == 0 (not just until tier boundary).
 
 ## Mood System
 
@@ -161,6 +161,12 @@ Items are generated from varieties at world creation. Each variety defines a uni
 - **Mushrooms**: Color + optional Pattern + optional Texture, optional poisonous/healing; edible
 - **Gourds**: Color + optional Pattern + optional Texture; edible, never poisonous/healing
 - **Flowers**: Color; non-edible (decorative)
+
+### World Features
+
+- **Springs**: Single water tiles (`☉`), impassable, drink from adjacent tile
+- **Ponds**: Contiguous blob-shaped clusters of 4-16 water tiles (`≈`), impassable, drink from adjacent tile. 1-5 ponds generated per world. Map connectivity verified after generation.
+- **Leaf Piles**: Passable, used as beds for sleeping
 
 ### Variety Generation
 

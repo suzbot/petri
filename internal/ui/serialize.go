@@ -23,6 +23,7 @@ func (m Model) ToSaveState() *save.SaveState {
 		Characters:      charactersToSave(m.gameMap.Characters()),
 		Items:           itemsToSave(m.gameMap.Items()),
 		Features:        featuresToSave(m.gameMap.Features()),
+		WaterTiles:      waterTilesToSave(m.gameMap),
 		ActionLogs:      actionLogsToSave(m.actionLog),
 		Orders:          ordersToSave(m.orders),
 		NextOrderID:     m.nextOrderID,
@@ -251,6 +252,19 @@ func featuresToSave(features []*entity.Feature) []save.FeatureSave {
 	return result
 }
 
+// waterTilesToSave converts water tiles to save format
+func waterTilesToSave(gameMap *game.Map) []save.WaterTileSave {
+	positions := gameMap.WaterPositions()
+	result := make([]save.WaterTileSave, len(positions))
+	for i, pos := range positions {
+		result[i] = save.WaterTileSave{
+			Position:  pos,
+			WaterType: int(gameMap.WaterAt(pos)),
+		}
+	}
+	return result
+}
+
 // FromSaveState creates a Model from a SaveState
 func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Model {
 	// Create base model
@@ -307,8 +321,19 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 		}
 	}
 
+	// Restore water tiles
+	for _, ws := range state.WaterTiles {
+		m.gameMap.AddWater(ws.Position, game.WaterType(ws.WaterType))
+	}
+
 	// Restore features (without auto-assigning IDs)
+	// Migrate old spring features to water tiles
 	for _, fs := range state.Features {
+		if fs.DrinkSource {
+			// Old save: spring was stored as feature — migrate to water tile
+			m.gameMap.AddWater(fs.Position, game.WaterSpring)
+			continue
+		}
 		feature := featureFromSave(fs)
 		m.gameMap.AddFeatureDirect(feature)
 		if fs.ID > maxFeatureID {

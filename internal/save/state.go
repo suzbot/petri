@@ -22,6 +22,7 @@ type SaveState struct {
 	Characters  []CharacterSave          `json:"characters"`
 	Items       []ItemSave               `json:"items"`
 	Features    []FeatureSave            `json:"features"`
+	WaterTiles  []WaterTileSave          `json:"water_tiles,omitempty"`
 	ActionLogs  map[int][]EventSave      `json:"action_logs"` // Per-character event logs, keyed by char ID
 	Orders      []OrderSave              `json:"orders,omitempty"`
 	NextOrderID int                      `json:"next_order_id,omitempty"`
@@ -156,6 +157,12 @@ type ItemSave struct {
 	Healing   bool `json:"healing"`
 
 	DeathTimer float64 `json:"death_timer"`
+}
+
+// WaterTileSave represents a water tile for serialization
+type WaterTileSave struct {
+	types.Position
+	WaterType int `json:"water_type"` // WaterType enum value (1=spring, 2=pond)
 }
 
 // FeatureSave represents a feature for serialization

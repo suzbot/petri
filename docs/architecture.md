@@ -256,31 +256,41 @@ When foraging or harvesting without a vessel:
 3. After vessel pickup, continues to harvest/forage into vessel
 4. If no vessel, picks up item directly to inventory
 
-## Feature Passability Model
+## Water Terrain & Feature Passability
+
+### Water Terrain
+
+Water tiles (springs, ponds) are stored as map terrain (`water map[Position]WaterType`), not as features. This enables O(1) lookups and clean separation from the feature system.
+
+| Water Type | Symbol | Interaction |
+|------------|--------|-------------|
+| WaterSpring | `☉` | Drink from cardinally adjacent tile (N/E/S/W) |
+| WaterPond | `≈` | Drink from cardinally adjacent tile (N/E/S/W) |
+
+Water tiles are impassable. Characters drink from cardinal-adjacent tiles, allowing multiple characters to drink from the same water source simultaneously (from different sides).
+
+`FindNearestWater()` returns the closest water tile that has at least one available cardinal-adjacent tile. Returns `(Position, bool)` rather than a feature pointer.
+
+### Pond Generation
+
+`SpawnPonds()` generates 1-5 ponds of 4-16 contiguous water tiles each via blob growth (random cardinal expansion from a center tile). After placing all ponds, `isMapConnected()` verifies all non-water tiles are reachable via BFS. If the map is partitioned, all pond tiles are cleared and regenerated (max 10 retries). Ponds generate before features and items in the world generation order.
+
+### Feature Passability
 
 Features have a `Passable` boolean that controls movement:
 
 | Feature | Passable | Interaction |
 |---------|----------|-------------|
-| Spring | No | Drink from cardinally adjacent tile (N/E/S/W) |
 | Leaf Pile | Yes | Walk onto to sleep |
 
 ### Movement Blocking
 
-`Map.IsBlocked(x, y)` returns true if:
+`Map.IsBlocked(pos)` returns true if:
 - A character occupies the position, OR
-- An impassable feature (like a spring) is at the position
+- A water tile is at the position, OR
+- An impassable feature is at the position
 
-`MoveCharacter()` checks `IsBlocked()` before allowing movement.
-
-### Cardinal Adjacency for Impassable Features
-
-For impassable features like springs:
-- `isCardinallyAdjacent()` checks 4-direction adjacency (no diagonals)
-- `findClosestCardinalTile()` finds nearest unblocked adjacent tile
-- `FindNearestDrinkSource()` checks if any cardinal tile is available (not just if spring is "occupied")
-
-This allows multiple characters to drink from the same spring simultaneously (from different sides).
+`MoveCharacter()` checks these before allowing movement.
 
 ### Pathfinding
 
@@ -323,7 +333,7 @@ type Position struct {
 All Map query methods take `types.Position`:
 - `EntityAt(pos)`, `CharacterAt(pos)`, `ItemAt(pos)`, `FeatureAt(pos)`
 - `IsValid(pos)`, `IsOccupied(pos)`, `IsBlocked(pos)`, `IsEmpty(pos)`
-- `FindNearestDrinkSource(pos)`, `FindNearestBed(pos)`
+- `IsWater(pos)`, `WaterAt(pos)`, `FindNearestWater(pos)`, `FindNearestBed(pos)`
 
 ### Guidelines
 
@@ -477,34 +487,29 @@ Features are map elements that aren't items or characters. They have fixed posit
 
 | Feature | Passable | Capability | Interaction |
 |---------|----------|------------|-------------|
-| Spring | No | DrinkSource | Drink from adjacent tile |
 | Leaf Pile | Yes | Bed | Walk onto to sleep |
+
+Note: Springs are now water terrain, not features. See "Water Terrain & Feature Passability" above.
 
 ### Feature Definition
 
 ```go
 type Feature struct {
     BaseEntity
-    FType       string  // "spring", "leafpile"
+    FType       string  // "leafpile"
     Passable    bool
-    DrinkSource bool
+    DrinkSource bool  // legacy, kept for save migration
     Bed         bool
 }
 ```
 
 ### Adding New Feature Types
 
-1. Add constructor in `entity/feature.go` (e.g., `NewPond()`)
+1. Add constructor in `entity/feature.go`
 2. Set appropriate capability flags
 3. Add spawning logic in `game/spawning.go`
 4. If impassable: pathfinding already handles via `IsBlocked()`
 5. If new interaction type: add intent handling
-
-### Gardening: Tile States (Upcoming)
-
-Gardening will introduce tile states (tilled soil) that modify ground behavior. This may evolve into a tile property system separate from features:
-- Tilled soil: affects plant growth rate, visual style change
-- Water tiles (ponds): impassable, allow drinking from adjacent
 
 ## Common Implementation Pitfalls
 
@@ -513,3 +518,5 @@ Gardening will introduce tile states (tilled soil) that modify ground behavior. 
 **Sorting stability**: When displaying merged data from maps (e.g., AllEvents from ActionLog), use `sort.SliceStable` with deterministic tiebreakers (like CharID) to prevent visual jitter from Go's random map iteration order.
 
 **View transitions**: When switching between views with different rendering approaches (game view uses direct rendering, menus use lipgloss.Place for centering), add dimension safeguards for edge cases.
+
+**Save compatibility when changing entity storage**: When changing how entities are stored (e.g., moving data between fields, maps, or types), verify save/load round-trip as part of the same step. Check: (1) new state serializes, (2) old saves migrate, (3) serialize tests updated.

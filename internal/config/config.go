@@ -12,6 +12,10 @@ const (
 	FlowerSpawnCount = 20
 	SpringCount      = 2
 	LeafPileCount    = 4
+	PondMinCount     = 1
+	PondMaxCount     = 5
+	PondMinSize      = 4
+	PondMaxSize      = 16
 	UpdateInterval   = 150 * time.Millisecond
 
 	// Symbols
@@ -23,6 +27,7 @@ const (
 	CharVessel   = 'U'
 	CharSpring   = '☉'
 	CharLeafPile = '#'
+	CharWater    = '≈'
 	CharSleeping = 'z'
 
 	// Speed system

@@ -537,6 +537,14 @@ func (m Model) renderCell(x, y int) string {
 	} else if item := m.gameMap.ItemAt(pos); item != nil {
 		// Check for item
 		sym = m.styledSymbol(item)
+	} else if wtype := m.gameMap.WaterAt(pos); wtype != game.WaterNone {
+		// Check for water terrain
+		switch wtype {
+		case game.WaterSpring:
+			sym = waterStyle.Render(string(config.CharSpring))
+		case game.WaterPond:
+			sym = waterStyle.Render(string(config.CharWater))
+		}
 	} else if feature := m.gameMap.FeatureAt(pos); feature != nil {
 		// Check for feature
 		sym = m.styledSymbol(feature)
@@ -626,9 +634,6 @@ func (m Model) styledSymbol(e entity.Entity) string {
 		}
 
 	case *entity.Feature:
-		if v.IsDrinkSource() {
-			return waterStyle.Render(sym)
-		}
 		if v.IsBed() {
 			return leafStyle.Render(sym)
 		}
@@ -648,7 +653,9 @@ func (m Model) renderDetails() string {
 	item := m.gameMap.ItemAt(cursorPos)
 	feature := m.gameMap.FeatureAt(cursorPos)
 
-	if e == nil && item == nil && feature == nil {
+	waterType := m.gameMap.WaterAt(cursorPos)
+
+	if e == nil && item == nil && feature == nil && waterType == game.WaterNone {
 		lines = append(lines, " Type: Empty")
 		if m.testCfg.Debug {
 			lines = append(lines, fmt.Sprintf(" Pos: (%d, %d)", m.cursorX, m.cursorY))
@@ -808,15 +815,24 @@ func (m Model) renderDetails() string {
 				}
 			}
 		}
+	} else if waterType != game.WaterNone {
+		lines = append(lines, " Type: Water")
+		if m.testCfg.Debug {
+			lines = append(lines, fmt.Sprintf(" Pos: (%d, %d)", m.cursorX, m.cursorY))
+		}
+		switch waterType {
+		case game.WaterSpring:
+			lines = append(lines, " Kind: spring")
+		case game.WaterPond:
+			lines = append(lines, " Kind: pond")
+		}
+		lines = append(lines, " Use: Drinking")
 	} else if feature != nil {
 		lines = append(lines, " Type: Feature")
 		if m.testCfg.Debug {
 			lines = append(lines, fmt.Sprintf(" Pos: (%d, %d)", m.cursorX, m.cursorY))
 		}
 		lines = append(lines, fmt.Sprintf(" Kind: %s", feature.Description()))
-		if feature.IsDrinkSource() {
-			lines = append(lines, " Use: Drinking")
-		}
 		if feature.IsBed() {
 			lines = append(lines, " Use: Sleeping")
 		}

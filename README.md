@@ -14,6 +14,7 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 
 ## Latest Updates
 
+- **Ponds**: Water terrain that characters can drink from
 - **Preferences Panel**: Character preferences moved to dedicated scrollable panel (press P)
 - **Character Names File**: Random character names now in separate file for easy customization
 - **Two-Slot Inventory**: Characters can now carry two items (or vessels) at once
@@ -21,7 +22,7 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 ## How It Works
 
 1. Create characters with names, favorite food, and favorite color, then start the simulation
-2. The world contains edible items (berries, mushrooms, gourds), decorative flowers, springs for water, and leaf piles for sleep
+2. The world contains edible items (berries, mushrooms, gourds), decorative flowers, water sources (springs and ponds) for drinking, and leaf piles for sleep
 3. Characters manage needs (hunger, thirst, energy, health) prioritized by urgency
 4. Mood reflects emotional state, affected by need urgency and preferences
 5. Characters form preferences based on their mood when interacting with items
@@ -84,7 +85,7 @@ go build ./cmd/petri
 ```bash
 ./petri -debug           # Show detailed numeric info
 ./petri -no-food         # No food items spawned
-./petri -no-water        # No springs spawned
+./petri -no-water        # No springs or ponds spawned
 ./petri -no-beds         # No leaf piles spawned
 ./petri -mushrooms-only  # Replace all items with mushroom varieties
 ./petri -help            # Show all available flags
@@ -126,7 +127,7 @@ cp -r ~/.petri ~/petri-backup
 
 ## Customization
 
-**Character Names:** Edit `internal/entity/names.go` to add or remove names from the random name pool. Names are alphabetized by starting letter for easy maintenance.
+**Character Names:** Edit `internal/entity/names.go` to add or remove names from the random name pool.
 
 **Configuration Values:** see `internal/config/config.go`.
 

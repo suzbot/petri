@@ -4,7 +4,7 @@ Guidance for Claude Code when working with code in this repo.
 
 Petri is a Dwarf Fortress-inspired simulation exploring emergent culture development.
 
-**Current features:** Character creation, world generation with items (berries, mushrooms, gourds, flowers, vessels) and features, multi-stat survival, dynamic preference system, knowledge system (learning poison/healing, knowledge-driven behavior, knowledge transmission via talking), social behavior (talking between idle characters), inventory system (foraging to pick up items, dropping items), orders system (player-directed harvesting and crafting), crafting system (hollow gourd vessels), vessel contents (item stacking, variety locking, automatic vessel seeking), know-how discovery, urgency-based AI with stat fallback and frustration mechanics, view modes, and action logging.
+**Current features:** Character creation, world generation with items, water terrain, and features, multi-stat survival, dynamic preference system, knowledge system (learning poison/healing, knowledge-driven behavior, knowledge transmission via talking), social behavior (talking between idle characters), inventory system (foraging to pick up items, dropping items), orders system (player-directed harvesting and crafting), crafting system (hollow gourd vessels), vessel contents (item stacking, variety locking, automatic vessel seeking), know-how discovery, urgency-based AI with stat fallback and frustration mechanics, view modes, and action logging.
 
 **Vision:** Complex roguelike simulation world with complex interactions between characters, items, and attributes. History exists only in character memories and created artifacts. As characters die, their knowledge dies with them except what they've communicated or created. See [docs/VISION.txt](docs/VISION.txt).
 
@@ -97,6 +97,9 @@ internal/
 - **TDD**: Write tests before implementation
 - **User testing required**: Do NOT mark features or fixes complete until user has manually tested.
 - **Keep docs current**: Update claude.md, README, game-mechanics, and architecture.md as part of feature work
+- **Use project skills**: Check `.claude/skills/` before starting work. Use `/new-feature` for features, `/new-phase` for phases, `/retro` after completion. Do not default to generic plan mode workflows when project skills exist.
+- **Planning docs live in `docs/`**: When a planning document already exists for the work (e.g., `docs/gardening-phase-plan.md`), update it directly. Do not create parallel ephemeral plan files.
+- **Complex design questions need conversation**: Present architectural tradeoff analysis as prose for discussion. Reserve structured multiple-choice for simple, bounded decisions (naming, library choice). Don't force complex design into a menu.
 
 ## Testing
 

@@ -121,31 +121,68 @@ func TestFromSaveState_RestoresItems(t *testing.T) {
 func TestFromSaveState_RestoresFeatures(t *testing.T) {
 	m := createTestModel()
 
-	// Add features
-	spring := entity.NewSpring(3, 3)
+	// Add a leaf pile feature
 	leafPile := entity.NewLeafPile(7, 7)
-	m.gameMap.AddFeature(spring)
 	m.gameMap.AddFeature(leafPile)
 
 	// Round trip
 	state := m.ToSaveState()
 	restored := FromSaveState(state, "test-world", m.testCfg)
 
-	features := restored.gameMap.Features()
-	if len(features) < 2 {
-		t.Fatalf("Expected at least 2 features, got %d", len(features))
-	}
-
-	// Find spring
-	foundSpring := restored.gameMap.DrinkSourceAt(types.Position{X: 3, Y: 3})
-	if foundSpring == nil {
-		t.Error("Expected to find spring at (3,3)")
-	}
-
 	// Find leaf pile
 	foundBed := restored.gameMap.BedAt(types.Position{X: 7, Y: 7})
 	if foundBed == nil {
 		t.Error("Expected to find leaf pile at (7,7)")
+	}
+}
+
+func TestFromSaveState_MigratesSpringFeaturesToWater(t *testing.T) {
+	m := createTestModel()
+
+	// Add a spring as a feature (simulating old save format)
+	spring := entity.NewSpring(3, 3)
+	m.gameMap.AddFeature(spring)
+
+	// Also add a leaf pile to verify it's not affected
+	leafPile := entity.NewLeafPile(7, 7)
+	m.gameMap.AddFeature(leafPile)
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Spring should be migrated to water tile, not restored as feature
+	if !restored.gameMap.IsWater(types.Position{X: 3, Y: 3}) {
+		t.Error("Expected spring at (3,3) to be migrated to water tile")
+	}
+	if restored.gameMap.WaterAt(types.Position{X: 3, Y: 3}) != game.WaterSpring {
+		t.Error("Expected water type WaterSpring at (3,3)")
+	}
+
+	// Leaf pile should still be a feature
+	foundBed := restored.gameMap.BedAt(types.Position{X: 7, Y: 7})
+	if foundBed == nil {
+		t.Error("Expected leaf pile at (7,7) to remain as feature")
+	}
+}
+
+func TestFromSaveState_RestoresWaterTiles(t *testing.T) {
+	m := createTestModel()
+
+	// Add water tiles (new save format)
+	m.gameMap.AddWater(types.Position{X: 5, Y: 5}, game.WaterSpring)
+	m.gameMap.AddWater(types.Position{X: 8, Y: 8}, game.WaterPond)
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Verify water tiles restored
+	if restored.gameMap.WaterAt(types.Position{X: 5, Y: 5}) != game.WaterSpring {
+		t.Error("Expected WaterSpring at (5,5)")
+	}
+	if restored.gameMap.WaterAt(types.Position{X: 8, Y: 8}) != game.WaterPond {
+		t.Error("Expected WaterPond at (8,8)")
 	}
 }
 

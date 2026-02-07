@@ -5,6 +5,15 @@ import (
 	"petri/internal/types"
 )
 
+// WaterType distinguishes between different water sources
+type WaterType int
+
+const (
+	WaterNone   WaterType = iota
+	WaterSpring           // Natural spring (renders as ☉)
+	WaterPond             // Pond tile (renders as ≈)
+)
+
 // Map represents the game world as a sparse grid
 type Map struct {
 	Width, Height int
@@ -15,6 +24,9 @@ type Map struct {
 	characterByPos map[types.Position]*entity.Character // O(1) position lookup, max 1 character per position
 	items          []*entity.Item
 	features       []*entity.Feature
+
+	// Water terrain (springs and ponds)
+	water map[types.Position]WaterType
 
 	// ID counters for save/load
 	nextItemID    int
@@ -34,6 +46,7 @@ func NewMap(width, height int) *Map {
 		characterByPos: make(map[types.Position]*entity.Character),
 		items:          make([]*entity.Item, 0),
 		features:       make([]*entity.Feature, 0),
+		water:          make(map[types.Position]WaterType),
 	}
 }
 
@@ -108,6 +121,11 @@ func (m *Map) MoveCharacter(char *entity.Character, to types.Position) bool {
 		return false
 	}
 
+	// Refuse move if target is water
+	if m.IsWater(to) {
+		return false
+	}
+
 	// Refuse move if target has an impassable feature
 	if f := m.FeatureAt(to); f != nil && !f.IsPassable() {
 		return false
@@ -136,9 +154,12 @@ func (m *Map) IsOccupied(pos types.Position) bool {
 	return m.characterByPos[pos] != nil
 }
 
-// IsBlocked returns true if the position is blocked by a character or impassable feature
+// IsBlocked returns true if the position is blocked by a character, impassable feature, or water
 func (m *Map) IsBlocked(pos types.Position) bool {
 	if m.characterByPos[pos] != nil {
+		return true
+	}
+	if m.IsWater(pos) {
 		return true
 	}
 	if f := m.FeatureAt(pos); f != nil && !f.IsPassable() {
@@ -147,9 +168,12 @@ func (m *Map) IsBlocked(pos types.Position) bool {
 	return false
 }
 
-// IsEmpty returns true if no entity (character, item, or feature) is at the position
+// IsEmpty returns true if no entity (character, item, feature, or water) is at the position
 func (m *Map) IsEmpty(pos types.Position) bool {
 	if m.characterByPos[pos] != nil {
+		return false
+	}
+	if m.IsWater(pos) {
 		return false
 	}
 	if m.ItemAt(pos) != nil {
@@ -213,15 +237,6 @@ func (m *Map) FeatureAt(pos types.Position) *entity.Feature {
 	return nil
 }
 
-// DrinkSourceAt returns a drink source feature at the given position, or nil
-func (m *Map) DrinkSourceAt(pos types.Position) *entity.Feature {
-	f := m.FeatureAt(pos)
-	if f != nil && f.IsDrinkSource() {
-		return f
-	}
-	return nil
-}
-
 // BedAt returns a bed feature at the given position, or nil
 func (m *Map) BedAt(pos types.Position) *entity.Feature {
 	f := m.FeatureAt(pos)
@@ -229,55 +244,6 @@ func (m *Map) BedAt(pos types.Position) *entity.Feature {
 		return f
 	}
 	return nil
-}
-
-// FindNearestDrinkSource finds the nearest drink source that has an available cardinal-adjacent tile
-// Springs are impassable, so characters drink from cardinally adjacent tiles (N/E/S/W)
-// A spring is available if at least one cardinal-adjacent tile is unblocked or occupied by the requester
-func (m *Map) FindNearestDrinkSource(pos types.Position) *entity.Feature {
-	var nearest *entity.Feature
-	nearestDist := int(^uint(0) >> 1)
-	requestingChar := m.characterByPos[pos]
-
-	// Cardinal directions: N, E, S, W
-	cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
-
-	for _, f := range m.features {
-		if !f.IsDrinkSource() {
-			continue
-		}
-		fpos := f.Pos()
-
-		// Check if any cardinal-adjacent tile is available
-		hasAvailableTile := false
-		for _, dir := range cardinalDirs {
-			adjPos := types.Position{X: fpos.X + dir[0], Y: fpos.Y + dir[1]}
-			if !m.IsValid(adjPos) {
-				continue
-			}
-			// Tile is available if: unblocked, or occupied by the requesting character
-			occupant := m.characterByPos[adjPos]
-			if occupant == nil || occupant == requestingChar {
-				// Also check for impassable features at adjacent tile
-				if adjFeature := m.FeatureAt(adjPos); adjFeature != nil && !adjFeature.IsPassable() {
-					continue
-				}
-				hasAvailableTile = true
-				break
-			}
-		}
-
-		if !hasAvailableTile {
-			continue
-		}
-
-		dist := pos.DistanceTo(fpos)
-		if dist < nearestDist {
-			nearestDist = dist
-			nearest = f
-		}
-	}
-	return nearest
 }
 
 // FindNearestBed finds the nearest unoccupied bed to the given position
@@ -336,4 +302,81 @@ func (m *Map) NextFeatureID() int {
 // SetNextFeatureID sets the next feature ID (for save/load)
 func (m *Map) SetNextFeatureID(id int) {
 	m.nextFeatureID = id
+}
+
+// AddWater adds a water tile at the given position
+func (m *Map) AddWater(pos types.Position, wtype WaterType) {
+	m.water[pos] = wtype
+}
+
+// RemoveWater removes a water tile at the given position
+func (m *Map) RemoveWater(pos types.Position) {
+	delete(m.water, pos)
+}
+
+// IsWater returns true if there is a water tile at the position
+func (m *Map) IsWater(pos types.Position) bool {
+	return m.water[pos] != WaterNone
+}
+
+// WaterAt returns the water type at the given position (WaterNone if no water)
+func (m *Map) WaterAt(pos types.Position) WaterType {
+	return m.water[pos]
+}
+
+// WaterPositions returns all positions that have water tiles
+func (m *Map) WaterPositions() []types.Position {
+	positions := make([]types.Position, 0, len(m.water))
+	for pos := range m.water {
+		positions = append(positions, pos)
+	}
+	return positions
+}
+
+// FindNearestWater finds the nearest water tile that has an available cardinal-adjacent tile.
+// Water tiles are impassable, so characters drink from cardinally adjacent tiles (N/E/S/W).
+// A water tile is available if at least one cardinal-adjacent tile is unblocked or occupied by the requester.
+// Returns the water position and true if found, or zero position and false if not.
+func (m *Map) FindNearestWater(pos types.Position) (types.Position, bool) {
+	var nearestPos types.Position
+	nearestDist := int(^uint(0) >> 1)
+	found := false
+	requestingChar := m.characterByPos[pos]
+
+	cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+
+	for waterPos := range m.water {
+		// Check if any cardinal-adjacent tile is available
+		hasAvailableTile := false
+		for _, dir := range cardinalDirs {
+			adjPos := types.Position{X: waterPos.X + dir[0], Y: waterPos.Y + dir[1]}
+			if !m.IsValid(adjPos) {
+				continue
+			}
+			occupant := m.characterByPos[adjPos]
+			if occupant == nil || occupant == requestingChar {
+				// Also check for impassable features or water at adjacent tile
+				if adjFeature := m.FeatureAt(adjPos); adjFeature != nil && !adjFeature.IsPassable() {
+					continue
+				}
+				if m.IsWater(adjPos) {
+					continue
+				}
+				hasAvailableTile = true
+				break
+			}
+		}
+
+		if !hasAvailableTile {
+			continue
+		}
+
+		dist := pos.DistanceTo(waterPos)
+		if dist < nearestDist {
+			nearestDist = dist
+			nearestPos = waterPos
+			found = true
+		}
+	}
+	return nearestPos, found
 }
