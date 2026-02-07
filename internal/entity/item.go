@@ -139,6 +139,49 @@ func NewGourd(x, y int, color types.Color, pattern types.Pattern, texture types.
 	}
 }
 
+// NewStick creates a new stick item (non-edible, non-plant)
+func NewStick(x, y int) *Item {
+	return &Item{
+		BaseEntity: BaseEntity{
+			X:     x,
+			Y:     y,
+			Sym:   config.CharStick,
+			EType: TypeItem,
+		},
+		ItemType: "stick",
+		Color:    types.ColorBrown,
+	}
+}
+
+// NewNut creates a new nut item (edible, non-plant)
+func NewNut(x, y int) *Item {
+	return &Item{
+		BaseEntity: BaseEntity{
+			X:     x,
+			Y:     y,
+			Sym:   config.CharNut,
+			EType: TypeItem,
+		},
+		ItemType: "nut",
+		Color:    types.ColorBrown,
+		Edible:   &EdibleProperties{},
+	}
+}
+
+// NewShell creates a new shell item (non-edible, non-plant)
+func NewShell(x, y int, color types.Color) *Item {
+	return &Item{
+		BaseEntity: BaseEntity{
+			X:     x,
+			Y:     y,
+			Sym:   config.CharShell,
+			EType: TypeItem,
+		},
+		ItemType: "shell",
+		Color:    color,
+	}
+}
+
 // Description returns a human-readable item description
 // If Name is set (crafted items), returns Name.
 // Otherwise returns format: [texture] [pattern] [color] [itemType]

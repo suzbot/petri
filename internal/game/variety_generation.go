@@ -10,13 +10,14 @@ import (
 
 // ItemTypeConfig defines which attributes are applicable for each item type
 type ItemTypeConfig struct {
-	Colors              []types.Color
-	Patterns            []types.Pattern // nil if patterns don't apply
-	Textures            []types.Texture // nil if textures don't apply
-	Edible              bool
-	CanBePoisonOrHealing bool            // if false, never assigned poison/healing (e.g., gourds)
-	Sym                 rune
-	SpawnCount          int
+	Colors               []types.Color
+	Patterns             []types.Pattern // nil if patterns don't apply
+	Textures             []types.Texture // nil if textures don't apply
+	Edible               bool
+	CanBePoisonOrHealing bool // if false, never assigned poison/healing (e.g., gourds)
+	Sym                  rune
+	SpawnCount           int
+	NonPlantSpawned      bool // if true, spawned by ground spawning system, not SpawnItems()
 }
 
 // GetItemTypeConfigs returns configuration for all item types
@@ -57,6 +58,16 @@ func GetItemTypeConfigs() map[string]ItemTypeConfig {
 			CanBePoisonOrHealing: false, // gourds are never poisonous or healing
 			Sym:                  config.CharGourd,
 			SpawnCount:           config.ItemSpawnCount,
+		},
+		"shell": {
+			Colors:               types.ShellColors,
+			Patterns:             nil,
+			Textures:             nil,
+			Edible:               false,
+			CanBePoisonOrHealing: false,
+			Sym:                  config.CharShell,
+			SpawnCount:           config.ShellSpawnCount,
+			NonPlantSpawned:      true, // spawned by ground spawning, not SpawnItems
 		},
 	}
 }

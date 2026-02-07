@@ -577,6 +577,12 @@ func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item
 		item.Sym = config.CharGourd
 	case "vessel":
 		item.Sym = config.CharVessel
+	case "stick":
+		item.Sym = config.CharStick
+	case "nut":
+		item.Sym = config.CharNut
+	case "shell":
+		item.Sym = config.CharShell
 	}
 
 	return item

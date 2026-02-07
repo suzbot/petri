@@ -40,8 +40,13 @@ var (
 	purpleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("135"))
 	tanStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("180"))
 	pinkStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("213"))
-	blackStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // dark gray for visibility
-	greenStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("34"))
+	blackStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // dark gray for visibility
+	greenStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("34"))
+	palePinkStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("218"))
+	paleYellowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("229"))
+	silverStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("188"))
+	grayStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("250"))
+	lavenderStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("183"))
 
 	// Feature colors
 	waterStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))  // bright blue

@@ -445,6 +445,7 @@ func (m Model) startGame() Model {
 	if !m.testCfg.NoFood {
 		game.SpawnItems(m.gameMap, m.testCfg.MushroomsOnly)
 	}
+	game.SpawnGroundItems(m.gameMap)
 
 	return m
 }
@@ -492,6 +493,7 @@ func (m Model) startGameMulti() Model {
 	if !m.testCfg.NoFood {
 		game.SpawnItems(m.gameMap, m.testCfg.MushroomsOnly)
 	}
+	game.SpawnGroundItems(m.gameMap)
 
 	return m
 }
@@ -1403,6 +1405,7 @@ func (m Model) startGameFromCreation() Model {
 	if !m.testCfg.NoFood {
 		game.SpawnItems(m.gameMap, m.testCfg.MushroomsOnly)
 	}
+	game.SpawnGroundItems(m.gameMap)
 
 	// Create world for saving if not already set
 	if m.worldID == "" {

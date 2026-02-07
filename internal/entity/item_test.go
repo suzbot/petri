@@ -102,3 +102,139 @@ func TestItem_Description_Mushroom(t *testing.T) {
 		t.Errorf("Mushroom Description(): got %q, want %q", got, "brown mushroom")
 	}
 }
+
+// TestNewStick_Properties verifies NewStick creates stick with correct properties
+func TestNewStick_Properties(t *testing.T) {
+	t.Parallel()
+
+	item := NewStick(3, 7)
+
+	pos := item.Pos()
+	if pos.X != 3 || pos.Y != 7 {
+		t.Errorf("NewStick Pos(): got (%d, %d), want (3, 7)", pos.X, pos.Y)
+	}
+	if item.ItemType != "stick" {
+		t.Errorf("NewStick ItemType: got %q, want %q", item.ItemType, "stick")
+	}
+	if item.Symbol() != config.CharStick {
+		t.Errorf("NewStick Symbol(): got %c, want %c", item.Symbol(), config.CharStick)
+	}
+	if item.Color != types.ColorBrown {
+		t.Errorf("NewStick Color: got %q, want %q", item.Color, types.ColorBrown)
+	}
+	if item.IsEdible() {
+		t.Error("NewStick IsEdible: got true, want false")
+	}
+	if item.Plant != nil {
+		t.Error("NewStick Plant: got non-nil, want nil")
+	}
+	if item.Type() != TypeItem {
+		t.Errorf("NewStick Type(): got %d, want %d", item.Type(), TypeItem)
+	}
+}
+
+// TestNewNut_Properties verifies NewNut creates nut with correct properties
+func TestNewNut_Properties(t *testing.T) {
+	t.Parallel()
+
+	item := NewNut(4, 9)
+
+	pos := item.Pos()
+	if pos.X != 4 || pos.Y != 9 {
+		t.Errorf("NewNut Pos(): got (%d, %d), want (4, 9)", pos.X, pos.Y)
+	}
+	if item.ItemType != "nut" {
+		t.Errorf("NewNut ItemType: got %q, want %q", item.ItemType, "nut")
+	}
+	if item.Symbol() != config.CharNut {
+		t.Errorf("NewNut Symbol(): got %c, want %c", item.Symbol(), config.CharNut)
+	}
+	if item.Color != types.ColorBrown {
+		t.Errorf("NewNut Color: got %q, want %q", item.Color, types.ColorBrown)
+	}
+	if !item.IsEdible() {
+		t.Error("NewNut IsEdible: got false, want true")
+	}
+	if item.IsPoisonous() {
+		t.Error("NewNut IsPoisonous: got true, want false")
+	}
+	if item.IsHealing() {
+		t.Error("NewNut IsHealing: got true, want false")
+	}
+	if item.Plant != nil {
+		t.Error("NewNut Plant: got non-nil, want nil")
+	}
+}
+
+// TestNewShell_Properties verifies NewShell creates shell with correct properties
+func TestNewShell_Properties(t *testing.T) {
+	t.Parallel()
+
+	item := NewShell(2, 5, types.ColorLavender)
+
+	pos := item.Pos()
+	if pos.X != 2 || pos.Y != 5 {
+		t.Errorf("NewShell Pos(): got (%d, %d), want (2, 5)", pos.X, pos.Y)
+	}
+	if item.ItemType != "shell" {
+		t.Errorf("NewShell ItemType: got %q, want %q", item.ItemType, "shell")
+	}
+	if item.Symbol() != config.CharShell {
+		t.Errorf("NewShell Symbol(): got %c, want %c", item.Symbol(), config.CharShell)
+	}
+	if item.Color != types.ColorLavender {
+		t.Errorf("NewShell Color: got %q, want %q", item.Color, types.ColorLavender)
+	}
+	if item.IsEdible() {
+		t.Error("NewShell IsEdible: got true, want false")
+	}
+	if item.Plant != nil {
+		t.Error("NewShell Plant: got non-nil, want nil")
+	}
+}
+
+// TestNewShell_ColorPreserved verifies shell color is set from argument
+func TestNewShell_ColorPreserved(t *testing.T) {
+	t.Parallel()
+
+	colors := []types.Color{types.ColorWhite, types.ColorPalePink, types.ColorTan, types.ColorPaleYellow, types.ColorSilver, types.ColorGray, types.ColorLavender}
+	for _, c := range colors {
+		item := NewShell(0, 0, c)
+		if item.Color != c {
+			t.Errorf("NewShell Color: got %q, want %q", item.Color, c)
+		}
+	}
+}
+
+// TestItem_Description_Stick verifies stick description
+func TestItem_Description_Stick(t *testing.T) {
+	t.Parallel()
+
+	item := NewStick(0, 0)
+	got := item.Description()
+	if got != "brown stick" {
+		t.Errorf("Stick Description(): got %q, want %q", got, "brown stick")
+	}
+}
+
+// TestItem_Description_Nut verifies nut description
+func TestItem_Description_Nut(t *testing.T) {
+	t.Parallel()
+
+	item := NewNut(0, 0)
+	got := item.Description()
+	if got != "brown nut" {
+		t.Errorf("Nut Description(): got %q, want %q", got, "brown nut")
+	}
+}
+
+// TestItem_Description_Shell verifies shell description includes color
+func TestItem_Description_Shell(t *testing.T) {
+	t.Parallel()
+
+	item := NewShell(0, 0, types.ColorPalePink)
+	got := item.Description()
+	if got != "pale pink shell" {
+		t.Errorf("Shell Description(): got %q, want %q", got, "pale pink shell")
+	}
+}

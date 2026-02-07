@@ -16,6 +16,9 @@ const (
 	PondMaxCount     = 5
 	PondMinSize      = 4
 	PondMaxSize      = 16
+	StickSpawnCount  = 6
+	NutSpawnCount    = 6
+	ShellSpawnCount  = 6
 	UpdateInterval   = 150 * time.Millisecond
 
 	// Symbols
@@ -28,6 +31,9 @@ const (
 	CharSpring   = '☉'
 	CharLeafPile = '#'
 	CharWater    = '≈'
+	CharStick    = '/'
+	CharNut      = 'o'
+	CharShell    = '<'
 	CharSleeping = 'z'
 
 	// Speed system
@@ -147,6 +153,7 @@ var StackSize = map[string]int{
 	"mushroom": 10,
 	"flower":   10,
 	"gourd":    1,
+	"nut":      10,
 }
 
 // GetStackSize returns the stack size for an item type, defaulting to 1 if not defined

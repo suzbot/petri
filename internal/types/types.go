@@ -16,12 +16,17 @@ const (
 	ColorPurple Color = "purple"
 	ColorTan    Color = "tan"
 	ColorPink   Color = "pink"
-	ColorBlack  Color = "black"
-	ColorGreen  Color = "green"
+	ColorBlack      Color = "black"
+	ColorGreen      Color = "green"
+	ColorPalePink   Color = "pale pink"
+	ColorPaleYellow Color = "pale yellow"
+	ColorSilver     Color = "silver"
+	ColorGray       Color = "gray"
+	ColorLavender   Color = "lavender"
 )
 
 // AllColors returns all valid colors
-var AllColors = []Color{ColorRed, ColorBlue, ColorBrown, ColorWhite, ColorOrange, ColorYellow, ColorPurple, ColorTan, ColorPink, ColorBlack, ColorGreen}
+var AllColors = []Color{ColorRed, ColorBlue, ColorBrown, ColorWhite, ColorOrange, ColorYellow, ColorPurple, ColorTan, ColorPink, ColorBlack, ColorGreen, ColorPalePink, ColorPaleYellow, ColorSilver, ColorGray, ColorLavender}
 
 // BerryColors returns valid colors for berries
 var BerryColors = []Color{ColorRed, ColorBlue, ColorPink, ColorPurple, ColorWhite, ColorYellow, ColorOrange, ColorBlack}
@@ -34,6 +39,9 @@ var FlowerColors = []Color{ColorRed, ColorOrange, ColorYellow, ColorBlue, ColorP
 
 // GourdColors returns valid colors for gourds
 var GourdColors = []Color{ColorWhite, ColorGreen, ColorYellow, ColorOrange, ColorTan}
+
+// ShellColors returns valid colors for shells
+var ShellColors = []Color{ColorWhite, ColorPalePink, ColorTan, ColorPaleYellow, ColorSilver, ColorGray, ColorLavender}
 
 // StatType represents character survival stats
 type StatType string

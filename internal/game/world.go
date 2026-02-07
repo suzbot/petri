@@ -30,6 +30,9 @@ func SpawnItems(m *Map, mushroomsOnly bool) {
 	} else {
 		// Spawn items for each type using their configured spawn counts
 		for itemType, cfg := range configs {
+			if cfg.NonPlantSpawned {
+				continue // spawned by ground spawning system
+			}
 			spawnItemsOfType(m, registry, itemType, cfg.SpawnCount, maxInitialTimer, totalSpawnCount)
 		}
 	}
@@ -77,6 +80,8 @@ func createItemFromVariety(v *entity.ItemVariety, x, y int) *entity.Item {
 		return entity.NewGourd(x, y, v.Color, v.Pattern, v.Texture, v.IsPoisonous(), v.IsHealing())
 	case "flower":
 		return entity.NewFlower(x, y, v.Color)
+	case "shell":
+		return entity.NewShell(x, y, v.Color)
 	default:
 		// Fallback for unknown types
 		return entity.NewFlower(x, y, v.Color)
@@ -244,6 +249,60 @@ func isMapConnected(m *Map) bool {
 		}
 	}
 	return true
+}
+
+// SpawnGroundItems places initial sticks, nuts, and shells on the map.
+// Sticks and nuts go on random empty tiles; shells go adjacent to pond tiles.
+func SpawnGroundItems(m *Map) {
+	// Spawn sticks on random empty tiles
+	for i := 0; i < config.StickSpawnCount; i++ {
+		x, y := findEmptySpot(m)
+		m.AddItem(entity.NewStick(x, y))
+	}
+
+	// Spawn nuts on random empty tiles
+	for i := 0; i < config.NutSpawnCount; i++ {
+		x, y := findEmptySpot(m)
+		m.AddItem(entity.NewNut(x, y))
+	}
+
+	// Spawn shells adjacent to pond tiles
+	pondAdjacentTiles := findPondAdjacentEmptyTiles(m)
+	shellColors := types.ShellColors
+	for i := 0; i < config.ShellSpawnCount && len(pondAdjacentTiles) > 0; i++ {
+		// Pick a random pond-adjacent tile
+		idx := rand.Intn(len(pondAdjacentTiles))
+		pos := pondAdjacentTiles[idx]
+		// Remove chosen tile to avoid duplicates
+		pondAdjacentTiles = append(pondAdjacentTiles[:idx], pondAdjacentTiles[idx+1:]...)
+
+		color := shellColors[rand.Intn(len(shellColors))]
+		m.AddItem(entity.NewShell(pos.X, pos.Y, color))
+	}
+}
+
+// findPondAdjacentEmptyTiles returns all empty tiles cardinally adjacent to pond water tiles
+func findPondAdjacentEmptyTiles(m *Map) []types.Position {
+	cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+	seen := make(map[types.Position]bool)
+	var result []types.Position
+
+	for _, waterPos := range m.WaterPositions() {
+		if m.WaterAt(waterPos) != WaterPond {
+			continue
+		}
+		for _, dir := range cardinalDirs {
+			adj := types.Position{X: waterPos.X + dir[0], Y: waterPos.Y + dir[1]}
+			if !m.IsValid(adj) || seen[adj] {
+				continue
+			}
+			if m.IsEmpty(adj) {
+				seen[adj] = true
+				result = append(result, adj)
+			}
+		}
+	}
+	return result
 }
 
 // findEmptySpot finds a random position on the map with no character, water, or feature
