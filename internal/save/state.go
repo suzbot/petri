@@ -147,6 +147,7 @@ type ItemSave struct {
 	types.Position
 	Name     string `json:"name,omitempty"` // Display name for crafted items
 	ItemType string `json:"item_type"`
+	Kind     string `json:"kind,omitempty"` // Recipe subtype (e.g. "shell hoe", "hollow gourd")
 	Color    string `json:"color"`
 	Pattern  string `json:"pattern"`
 	Texture  string `json:"texture"`
@@ -183,6 +184,7 @@ type FeatureSave struct {
 // PreferenceSave represents a preference for serialization
 type PreferenceSave struct {
 	ItemType string `json:"item_type"`
+	Kind     string `json:"kind,omitempty"` // Recipe subtype (e.g. "shell hoe")
 	Color    string `json:"color"`
 	Pattern  string `json:"pattern"`
 	Texture  string `json:"texture"`

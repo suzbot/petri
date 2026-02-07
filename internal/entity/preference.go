@@ -12,21 +12,25 @@ import (
 // - Pattern/Texture: only relevant for mushrooms
 type Preference struct {
 	Valence  int           // +1 (likes) or -1 (dislikes)
-	ItemType string        // empty if not part of preference
+	ItemType string        // broad category: "hoe", "vessel", "berry" (empty if not part of preference)
+	Kind     string        // recipe subtype: "shell hoe", "hollow gourd" (empty if not part of preference)
 	Color    types.Color   // zero value if not part of preference
 	Pattern  types.Pattern // mushrooms only: spotted, plain
 	Texture  types.Texture // mushrooms only: slimy, none
-	// Future: Material, Origin
 }
 
 // Matches returns true if the item matches all set attributes of this preference.
 // An empty preference (no attributes set) matches nothing.
 func (p Preference) Matches(item *Item) bool {
-	if p.ItemType == "" && p.Color == "" && p.Pattern == "" && p.Texture == "" {
+	if p.ItemType == "" && p.Kind == "" && p.Color == "" && p.Pattern == "" && p.Texture == "" {
 		return false // Empty preference matches nothing
 	}
 
 	if p.ItemType != "" && p.ItemType != item.ItemType {
+		return false
+	}
+
+	if p.Kind != "" && p.Kind != item.Kind {
 		return false
 	}
 
@@ -49,11 +53,16 @@ func (p Preference) Matches(item *Item) bool {
 // An empty preference (no attributes set) matches nothing.
 // Used for checking preferences against vessel contents (which are Stacks of Varieties).
 func (p Preference) MatchesVariety(v *ItemVariety) bool {
-	if p.ItemType == "" && p.Color == "" && p.Pattern == "" && p.Texture == "" {
+	if p.ItemType == "" && p.Kind == "" && p.Color == "" && p.Pattern == "" && p.Texture == "" {
 		return false // Empty preference matches nothing
 	}
 
 	if p.ItemType != "" && p.ItemType != v.ItemType {
+		return false
+	}
+
+	// Kind preferences never match varieties (varieties are natural items without Kind)
+	if p.Kind != "" {
 		return false
 	}
 
@@ -76,6 +85,9 @@ func (p Preference) MatchesVariety(v *ItemVariety) bool {
 func (p Preference) AttributeCount() int {
 	count := 0
 	if p.ItemType != "" {
+		count++
+	}
+	if p.Kind != "" {
 		count++
 	}
 	if p.Color != "" {
@@ -138,7 +150,9 @@ func (p Preference) Description() string {
 	if p.Color != "" {
 		parts = append(parts, string(p.Color))
 	}
-	if p.ItemType != "" {
+	if p.Kind != "" {
+		parts = append(parts, Pluralize(p.Kind))
+	} else if p.ItemType != "" {
 		parts = append(parts, Pluralize(p.ItemType))
 	}
 
@@ -191,6 +205,7 @@ func (p Preference) IsPositive() bool {
 // (regardless of valence). Used for preference formation logic.
 func (p Preference) ExactMatch(other Preference) bool {
 	return p.ItemType == other.ItemType &&
+		p.Kind == other.Kind &&
 		p.Color == other.Color &&
 		p.Pattern == other.Pattern &&
 		p.Texture == other.Texture

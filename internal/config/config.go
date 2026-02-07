@@ -57,8 +57,11 @@ const (
 	BedEnergyRestoreRate    = 2.86 // energy per second in bed (~7 world hours to full)
 	GroundEnergyRestoreRate = 1.67 // energy per second on ground (~12 world hours to full)
 	SatisfactionCooldown    = 5.0  // seconds (~1 world hour) before stat starts changing after reaching optimal
-	// TODO: Consider Short/Medium/Long action duration tiers as more actions are added
-	ActionDuration = 0.83 // seconds (~10 world minutes) for consume/drink/sleep actions
+	// Action duration tiers
+	// TODO: Consider Extra Short and Extra Long tiers as more actions are added
+	ActionDurationShort  = 0.83 // seconds (~10 world minutes) for eat, drink, pickup
+	ActionDurationMedium = 4.0  // seconds (~48 world minutes) for till soil, look
+	ActionDurationLong   = 10.0 // seconds (~2 world hours) for craft hoe, craft vessel
 
 	// Idle activities (looking, talking)
 	IdleCooldown = 5.0 // seconds (~1 world hour) between idle activity attempts

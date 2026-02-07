@@ -76,7 +76,7 @@ func TestCreateVessel_NotEdible(t *testing.T) {
 	}
 }
 
-func TestCreateVessel_UsesRecipeName(t *testing.T) {
+func TestCreateVessel_UsesRecipeKind(t *testing.T) {
 	t.Parallel()
 
 	gourd := &entity.Item{
@@ -87,10 +87,10 @@ func TestCreateVessel_UsesRecipeName(t *testing.T) {
 
 	vessel := CreateVessel(gourd, recipe)
 
-	if vessel.Name != "Hollow Gourd" {
-		t.Errorf("Expected Name 'Hollow Gourd', got %s", vessel.Name)
+	if vessel.Kind != "hollow gourd" {
+		t.Errorf("Expected Kind 'hollow gourd', got %s", vessel.Kind)
 	}
-	if vessel.Description() != "Hollow Gourd" {
-		t.Errorf("Expected Description 'Hollow Gourd', got %s", vessel.Description())
+	if vessel.Description() != "green hollow gourd" {
+		t.Errorf("Expected Description 'green hollow gourd', got %s", vessel.Description())
 	}
 }

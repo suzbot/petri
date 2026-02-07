@@ -14,10 +14,9 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 
 ## Latest Updates
 
-- **Sticks and Nuts**: Items periodically fall from the canopy onto empty tiles. Nuts are edible; sticks can be collected.
+- **Sticks and Nuts**: Items periodically fall from the canopy onto empty tiles. Nuts are edible.
 - **Shells**: Colored shells periodically wash up near pond shores
 - **Ponds**: Water terrain that characters can drink from
-- **Preferences Panel**: Character preferences moved to dedicated scrollable panel (press P)
 - **Two-Slot Inventory**: Characters can now carry two items (or vessels) at once
 
 ## How It Works
@@ -32,12 +31,11 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 8. Characters gain 'know-how' by making discoveries during item interactions
 9. Player can issue orders (harvest, craft) that characters with relevant know-how will complete
 
-For detailed mechanics, see [docs/game-mechanics.md](docs/game-mechanics.md). 
+For detailed mechanics, see [docs/game-mechanics.md](docs/game-mechanics.md).
 
 ## Requirements
 
 - Go version go1.25.5 or higher (https://go.dev/learn/)
-- Command line curiosity or higher
 
 ## Running the Game
 
@@ -80,15 +78,10 @@ go build ./cmd/petri
 - `ESC` - Close panel, or save and return to world selection
 - `Q` - Save and quit
 
-
 ## Debug Mode
 
 ```bash
 ./petri -debug           # Show detailed numeric info
-./petri -no-food         # No food items spawned
-./petri -no-water        # No springs or ponds spawned
-./petri -no-beds         # No leaf piles spawned
-./petri -mushrooms-only  # Replace all items with mushroom varieties
 ./petri -help            # Show all available flags
 ```
 
@@ -131,5 +124,3 @@ cp -r ~/.petri ~/petri-backup
 **Character Names:** Edit `internal/entity/names.go` to add or remove names from the random name pool.
 
 **Configuration Values:** see `internal/config/config.go`.
-
-

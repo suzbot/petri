@@ -75,6 +75,7 @@ type Intent struct {
 	TargetFeature    *Feature        // The specific feature being pursued (nil if none)
 	TargetWaterPos   *types.Position // Water tile being targeted for drinking (nil if none)
 	TargetCharacter  *Character      // The character being pursued for talking (nil if none)
+	RecipeID         string         // Recipe to craft (for ActionCraft)
 	DrivingStat      types.StatType // Which stat is driving this intent
 	DrivingTier      int            // The urgency tier when intent was set
 }

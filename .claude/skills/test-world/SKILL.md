@@ -28,6 +28,7 @@ Also read `internal/config/config.go` for character/item symbols, spawn counts, 
 Based on the test description, determine:
 - What behavior needs verification?
 - What preconditions make it observable? (character positions, stat levels, items, knowledge)
+- If testing orderable activities, ensure characters have the required `known_activities` AND `known_recipes`. Check ActivityRegistry and RecipeRegistry for the activity's prerequisites.
 - What items/features are needed for supporting needs (water for thirst, leaf piles for sleep)?
 - What should be excluded to isolate the behavior?
 

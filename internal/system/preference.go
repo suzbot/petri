@@ -86,12 +86,18 @@ func rollPreferenceType(item *entity.Item, valence int) entity.Preference {
 		return buildPreference(valence, []string{attr}, item)
 	}
 
-	// Combo - always include ItemType + 1-2 extra attributes
-	extras := collectExtraAttributes(item) // excludes itemType
+	// Combo - always include ItemType (or Kind) + 1-2 extra attributes
+	extras := collectExtraAttributes(item) // excludes itemType/kind
+
+	// Determine the type-slot attribute (Kind takes precedence over ItemType)
+	typeAttr := "itemType"
+	if item.Kind != "" {
+		typeAttr = "kind"
+	}
 
 	if len(extras) == 0 {
-		// Fallback: only itemType available, return solo itemType
-		return buildPreference(valence, []string{"itemType"}, item)
+		// Fallback: only type-slot available, return solo
+		return buildPreference(valence, []string{typeAttr}, item)
 	}
 
 	// Determine how many extra attributes to include (1 or 2)
@@ -105,16 +111,22 @@ func rollPreferenceType(item *entity.Item, valence int) entity.Preference {
 		extras[i], extras[j] = extras[j], extras[i]
 	})
 
-	// Build combo: itemType + selected extras
-	selected := []string{"itemType"}
+	// Build combo: type-slot + selected extras
+	selected := []string{typeAttr}
 	selected = append(selected, extras[:numExtras]...)
 
 	return buildPreference(valence, selected, item)
 }
 
 // collectItemAttributes returns the list of available descriptive attributes for an item.
+// Items with Kind use "kind" instead of "itemType" (mutually exclusive type-slot).
 func collectItemAttributes(item *entity.Item) []string {
-	attrs := []string{"itemType", "color"}
+	var attrs []string
+	if item.Kind != "" {
+		attrs = []string{"kind", "color"}
+	} else {
+		attrs = []string{"itemType", "color"}
+	}
 
 	// Mushrooms have additional attributes
 	if item.ItemType == "mushroom" {
@@ -129,7 +141,7 @@ func collectItemAttributes(item *entity.Item) []string {
 	return attrs
 }
 
-// collectExtraAttributes returns attributes excluding itemType (for combo formation).
+// collectExtraAttributes returns attributes excluding itemType/kind (for combo formation).
 func collectExtraAttributes(item *entity.Item) []string {
 	attrs := []string{"color"}
 
@@ -154,6 +166,8 @@ func buildPreference(valence int, attrs []string, item *entity.Item) entity.Pref
 		switch attr {
 		case "itemType":
 			pref.ItemType = item.ItemType
+		case "kind":
+			pref.Kind = item.Kind
 		case "color":
 			pref.Color = item.Color
 		case "pattern":

@@ -337,6 +337,92 @@ func TestTryFormPreference_NeutralMood_NoFormation(t *testing.T) {
 }
 
 // =============================================================================
+// Kind in Preference Formation
+// =============================================================================
+
+func TestCollectItemAttributes_IncludesKindWhenPresent(t *testing.T) {
+	t.Parallel()
+
+	item := &entity.Item{ItemType: "hoe", Kind: "shell hoe", Color: types.ColorSilver}
+	attrs := collectItemAttributes(item)
+
+	hasKind := false
+	hasItemType := false
+	for _, a := range attrs {
+		if a == "kind" {
+			hasKind = true
+		}
+		if a == "itemType" {
+			hasItemType = true
+		}
+	}
+	if !hasKind {
+		t.Error("Expected 'kind' in attributes for item with Kind set")
+	}
+	if hasItemType {
+		t.Error("Expected 'itemType' to be excluded when Kind is set")
+	}
+}
+
+func TestCollectItemAttributes_ExcludesKindWhenEmpty(t *testing.T) {
+	t.Parallel()
+
+	item := &entity.Item{ItemType: "berry", Color: types.ColorRed}
+	attrs := collectItemAttributes(item)
+
+	hasKind := false
+	hasItemType := false
+	for _, a := range attrs {
+		if a == "kind" {
+			hasKind = true
+		}
+		if a == "itemType" {
+			hasItemType = true
+		}
+	}
+	if hasKind {
+		t.Error("Expected no 'kind' in attributes for item without Kind")
+	}
+	if !hasItemType {
+		t.Error("Expected 'itemType' in attributes for item without Kind")
+	}
+}
+
+func TestBuildPreference_KindAttr_SetsKindFromItem(t *testing.T) {
+	t.Parallel()
+
+	item := &entity.Item{ItemType: "hoe", Kind: "shell hoe", Color: types.ColorSilver}
+	pref := buildPreference(1, []string{"kind"}, item)
+
+	if pref.Kind != "shell hoe" {
+		t.Errorf("Expected Kind 'shell hoe', got %q", pref.Kind)
+	}
+	if pref.ItemType != "" {
+		t.Errorf("Expected empty ItemType when Kind is set, got %q", pref.ItemType)
+	}
+}
+
+func TestRollPreferenceType_KindItem_ComboUsesKindNotItemType(t *testing.T) {
+	t.Parallel()
+
+	item := &entity.Item{ItemType: "hoe", Kind: "shell hoe", Color: types.ColorSilver}
+
+	// Run many iterations — combos should use Kind, never ItemType
+	for i := 0; i < 500; i++ {
+		pref := rollPreferenceType(item, 1)
+
+		if pref.AttributeCount() >= 2 {
+			if pref.ItemType != "" {
+				t.Errorf("Combo preference for Kind item should not have ItemType, got: %+v", pref)
+			}
+			if pref.Kind == "" {
+				t.Errorf("Combo preference for Kind item should have Kind, got: %+v", pref)
+			}
+		}
+	}
+}
+
+// =============================================================================
 // D6: Combo Preferences Must Include ItemType
 // =============================================================================
 

@@ -757,6 +757,92 @@ func TestPreference_MatchesVariety_EmptyPreference(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// Kind field on Preference
+// =============================================================================
+
+func TestPreference_KindMatchesItemWithMatchingKind(t *testing.T) {
+	t.Parallel()
+
+	pref := Preference{Valence: 1, Kind: "shell hoe"}
+	item := &Item{ItemType: "hoe", Kind: "shell hoe", Color: types.ColorSilver}
+
+	if !pref.Matches(item) {
+		t.Error("Kind preference should match item with matching Kind")
+	}
+}
+
+func TestPreference_KindDoesNotMatchDifferentKind(t *testing.T) {
+	t.Parallel()
+
+	pref := Preference{Valence: 1, Kind: "shell hoe"}
+	item := &Item{ItemType: "hoe", Kind: "wooden hoe", Color: types.ColorBrown}
+
+	if pref.Matches(item) {
+		t.Error("Kind preference should not match item with different Kind")
+	}
+}
+
+func TestPreference_ItemTypeMatchesRegardlessOfKind(t *testing.T) {
+	t.Parallel()
+
+	pref := Preference{Valence: 1, ItemType: "hoe"}
+	shellHoe := &Item{ItemType: "hoe", Kind: "shell hoe", Color: types.ColorSilver}
+	woodenHoe := &Item{ItemType: "hoe", Kind: "wooden hoe", Color: types.ColorBrown}
+
+	if !pref.Matches(shellHoe) {
+		t.Error("ItemType preference should match shell hoe")
+	}
+	if !pref.Matches(woodenHoe) {
+		t.Error("ItemType preference should match wooden hoe")
+	}
+}
+
+func TestPreference_KindPlusColorCombo(t *testing.T) {
+	t.Parallel()
+
+	pref := Preference{Valence: 1, Kind: "shell hoe", Color: types.ColorSilver}
+	silverShellHoe := &Item{ItemType: "hoe", Kind: "shell hoe", Color: types.ColorSilver}
+	grayShellHoe := &Item{ItemType: "hoe", Kind: "shell hoe", Color: types.ColorGray}
+
+	if !pref.Matches(silverShellHoe) {
+		t.Error("Kind+Color combo should match silver shell hoe")
+	}
+	if pref.Matches(grayShellHoe) {
+		t.Error("Kind+Color combo should not match gray shell hoe")
+	}
+}
+
+func TestPreference_KindCountsAsAttribute(t *testing.T) {
+	t.Parallel()
+
+	pref := Preference{Valence: 1, Kind: "shell hoe", Color: types.ColorSilver}
+	if pref.AttributeCount() != 2 {
+		t.Errorf("Kind+Color should count as 2 attributes, got %d", pref.AttributeCount())
+	}
+
+	prefKindOnly := Preference{Valence: 1, Kind: "shell hoe"}
+	if prefKindOnly.AttributeCount() != 1 {
+		t.Errorf("Kind-only should count as 1 attribute, got %d", prefKindOnly.AttributeCount())
+	}
+}
+
+func TestPreference_KindDescription(t *testing.T) {
+	t.Parallel()
+
+	pref := Preference{Valence: 1, Kind: "shell hoe", Color: types.ColorSilver}
+	got := pref.Description()
+	if got != "silver shell hoes" {
+		t.Errorf("Kind+Color Description(): got %q, want %q", got, "silver shell hoes")
+	}
+
+	prefKindOnly := Preference{Valence: 1, Kind: "shell hoe"}
+	got = prefKindOnly.Description()
+	if got != "shell hoes" {
+		t.Errorf("Kind-only Description(): got %q, want %q", got, "shell hoes")
+	}
+}
+
 func TestPreference_MatchScoreVariety(t *testing.T) {
 	t.Parallel()
 

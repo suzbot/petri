@@ -608,7 +608,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 				if cx == ipos.X && cy == ipos.Y {
 					// At target item - eating in progress
 					char.ActionProgress += delta
-					if char.ActionProgress >= config.ActionDuration {
+					if char.ActionProgress >= config.ActionDurationShort {
 						char.ActionProgress = 0
 						if item := m.gameMap.ItemAt(types.Position{X: cx, Y: cy}); item == targetItem {
 							if isVesselWithFood {
@@ -694,7 +694,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 	case entity.ActionDrink:
 		// Drinking requires duration to complete
 		char.ActionProgress += delta
-		if char.ActionProgress >= config.ActionDuration {
+		if char.ActionProgress >= config.ActionDurationShort {
 			char.ActionProgress = 0
 			system.Drink(char, m.actionLog)
 		}
@@ -710,7 +710,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 
 		// Voluntary sleep (bed or ground) requires duration to complete
 		char.ActionProgress += delta
-		if char.ActionProgress >= config.ActionDuration {
+		if char.ActionProgress >= config.ActionDurationShort {
 			char.ActionProgress = 0
 			system.StartSleep(char, atBed, m.actionLog)
 		}
@@ -761,7 +761,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		if cx == ipos.X && cy == ipos.Y {
 			// At item - pickup in progress
 			char.ActionProgress += delta
-			if char.ActionProgress >= config.ActionDuration {
+			if char.ActionProgress >= config.ActionDurationShort {
 				char.ActionProgress = 0
 				if item := m.gameMap.ItemAt(types.Position{X: cx, Y: cy}); item == char.Intent.TargetItem {
 					// If on an order and inventory full, drop current item first
@@ -862,7 +862,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 	case entity.ActionConsume:
 		// Eating from inventory - no movement needed, just duration
 		char.ActionProgress += delta
-		if char.ActionProgress >= config.ActionDuration {
+		if char.ActionProgress >= config.ActionDurationShort {
 			char.ActionProgress = 0
 			targetItem := char.Intent.TargetItem
 			// Check if target item is in inventory

@@ -131,7 +131,7 @@ func applyIntent(char *entity.Character, gameMap *game.Map, delta float64, actio
 
 	case entity.ActionDrink:
 		char.ActionProgress += delta
-		if char.ActionProgress >= config.ActionDuration {
+		if char.ActionProgress >= config.ActionDurationShort {
 			char.ActionProgress = 0
 			system.Drink(char, actionLog)
 		}
@@ -139,7 +139,7 @@ func applyIntent(char *entity.Character, gameMap *game.Map, delta float64, actio
 	case entity.ActionConsume:
 		// Eating from inventory - no movement needed, just duration
 		char.ActionProgress += delta
-		if char.ActionProgress >= config.ActionDuration {
+		if char.ActionProgress >= config.ActionDurationShort {
 			char.ActionProgress = 0
 			targetItem := char.Intent.TargetItem
 			// Check if target item is in inventory
@@ -165,7 +165,7 @@ func applyIntent(char *entity.Character, gameMap *game.Map, delta float64, actio
 
 		// Voluntary sleep requires duration
 		char.ActionProgress += delta
-		if char.ActionProgress >= config.ActionDuration {
+		if char.ActionProgress >= config.ActionDurationShort {
 			char.ActionProgress = 0
 			system.StartSleep(char, atBed, actionLog)
 		}
@@ -192,7 +192,7 @@ func applyPickupIntent(char *entity.Character, gameMap *game.Map, delta float64,
 	if cx == ipos.X && cy == ipos.Y {
 		// At item - pickup in progress
 		char.ActionProgress += delta
-		if char.ActionProgress >= config.ActionDuration {
+		if char.ActionProgress >= config.ActionDurationShort {
 			char.ActionProgress = 0
 			if item := gameMap.ItemAt(types.Position{X: cx, Y: cy}); item == char.Intent.TargetItem {
 				system.Pickup(char, item, gameMap, actionLog, gameMap.Varieties())
@@ -239,7 +239,7 @@ func applyMoveIntent(char *entity.Character, gameMap *game.Map, delta float64, a
 		if cx == ipos.X && cy == ipos.Y {
 			// At target item - eating in progress
 			char.ActionProgress += delta
-			if char.ActionProgress >= config.ActionDuration {
+			if char.ActionProgress >= config.ActionDurationShort {
 				char.ActionProgress = 0
 				if item := gameMap.ItemAt(types.Position{X: cx, Y: cy}); item == char.Intent.TargetItem {
 					system.Consume(char, item, gameMap, actionLog)

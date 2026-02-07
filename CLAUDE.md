@@ -63,7 +63,7 @@ internal/
 
 **Core Systems**
 
-- `internal/system/intent.go` - Intent calculation, urgency tiers, stat fallback
+- `internal/system/intent.go` - Intent calculation, urgency tiers, stat fallback:
 - `internal/system/survival.go` - Stat decay, damage, sleep/wake mechanics
 - `internal/system/consumption.go` - Eating, drinking, poison/healing effects
 - `internal/system/preference.go` - Preference formation on eat/look
@@ -91,15 +91,17 @@ internal/
 
 ## Collaboration
 
-**Discussion → Tests -> Implementation → Human Testing → Documentation**
+**Pause -> Skill -> Discussion → Tests -> Implementation → Human Testing → Documentation**
 
+- **Orient before acting**: After `/clear` or session start, when given an implementation task: load the relevant skill FIRST (usually `/new-feature`), then confirm approach before writing any code.
+- **Use project skills**: Check `.claude/skills/` before starting work. Use `/new-feature` for features, `/new-phase` for phases, `/retro` after completion. Do not default to generic plan mode workflows when project skills exist.
+- **Reference Documentation**: docs/architecture.md might point you in a quicker direction before you go into full explore mode. Don't forget to check there early when generating context.
+- **Planning docs live in `docs/`**: When a planning document already exists for the work (e.g., `docs/gardening-phase-plan.md`), update it directly. Do not create parallel ephemeral plan files.
 - **Discussion first**: Always discuss approach before writing code. Present options with trade-offs.
+- **Complex design questions need conversation**: Present architectural tradeoff analysis as prose for discussion. Reserve structured multiple-choice for simple, bounded decisions (naming, library choice). Don't force complex design into a menu.
 - **TDD**: Write tests before implementation
 - **User testing required**: Do NOT mark features or fixes complete until user has manually tested.
 - **Keep docs current**: Update claude.md, README, game-mechanics, and architecture.md as part of feature work
-- **Use project skills**: Check `.claude/skills/` before starting work. Use `/new-feature` for features, `/new-phase` for phases, `/retro` after completion. Do not default to generic plan mode workflows when project skills exist.
-- **Planning docs live in `docs/`**: When a planning document already exists for the work (e.g., `docs/gardening-phase-plan.md`), update it directly. Do not create parallel ephemeral plan files.
-- **Complex design questions need conversation**: Present architectural tradeoff analysis as prose for discussion. Reserve structured multiple-choice for simple, bounded decisions (naming, library choice). Don't force complex design into a menu.
 
 ## Testing
 

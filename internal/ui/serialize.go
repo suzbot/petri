@@ -165,6 +165,7 @@ func preferencesToSave(prefs []entity.Preference) []save.PreferenceSave {
 	for i, p := range prefs {
 		result[i] = save.PreferenceSave{
 			ItemType: p.ItemType,
+			Kind:     p.Kind,
 			Color:    string(p.Color),
 			Pattern:  string(p.Pattern),
 			Texture:  string(p.Texture),
@@ -226,6 +227,7 @@ func itemsToSave(items []*entity.Item) []save.ItemSave {
 			Position: item.Pos(),
 			Name:     item.Name,
 			ItemType: item.ItemType,
+			Kind:     item.Kind,
 			Color:      string(item.Color),
 			Pattern:    string(item.Pattern),
 			Texture:    string(item.Texture),
@@ -496,6 +498,7 @@ func preferencesFromSave(prefs []save.PreferenceSave) []entity.Preference {
 	for i, ps := range prefs {
 		result[i] = entity.Preference{
 			ItemType: ps.ItemType,
+			Kind:     ps.Kind,
 			Color:    types.Color(ps.Color),
 			Pattern:  types.Pattern(ps.Pattern),
 			Texture:  types.Texture(ps.Texture),
@@ -573,6 +576,7 @@ func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item
 		ID:         is.ID,
 		Name:       is.Name,
 		ItemType:   is.ItemType,
+		Kind:       is.Kind,
 		Color:      types.Color(is.Color),
 		Pattern:    types.Pattern(is.Pattern),
 		Texture:    types.Texture(is.Texture),

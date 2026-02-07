@@ -12,6 +12,11 @@
 | Water tile model      | Map terrain, not features              | Springs and ponds should use the same system. Water is terrain, not a placed object. O(1) lookups, scales well. Leaf piles will eventually leave the feature system too (→ construction/beds), so features shrink over time. |
 | Component procurement | Generic `EnsureHasRecipeInputs` helper | Reqs explicitly call for reuse by every future recipe. Model from existing `EnsureHasVesselFor`.                 |
 | Unfulfillable orders  | Address in Part I alongside Till Soil  | Gardening orders are first to commonly become unfulfillable (no hoe, no seeds). Solve before it becomes painful. |
+| Kind field on Items   | `Kind` subtype field on Item + Preference | Enables hierarchical preferences: "likes hoes" vs "likes shell hoes" vs "likes silver shell hoes". Recipe output sets ItemType (broad category) and Kind (recipe-specific subtype). Natural items leave Kind empty. |
+| Hoe symbol            | `L`                                    | Simple, readable, distinct from other symbols.                                                                   |
+| Action duration tiers | Short (0.83) / Medium (4.0) / Long (10.0) | Formalized for Craft Hoe (Long) and Till Soil (Medium). Code notes potential Extra Short / Extra Long tiers.    |
+| Craft auto-drop       | Crafted items always drop to ground    | Available to any character. Consistent with existing vessel behavior.                                            |
+| Recipe-level naming   | ItemType "hoe", Kind "shell hoe"       | User orders "Craft Hoe", character produces "shell hoe" based on recipe. Future recipes: "metal hoe", "wooden hoe". Description builds naturally: "silver shell hoe". |
 
 ---
 
@@ -105,7 +110,7 @@ Items with `Plant == nil` (nuts on ground) become forageable if `IsEdible()`. It
 
 Each step follows the TDD cycle: write tests → add minimal stubs to compile → verify red → implement → verify green → human testing checkpoint.
 
-##### Step 1: Water Terrain System + Spring Migration
+##### Step 1: Water Terrain System + Spring Migration ✅
 
 **Tests** (in `internal/game/map_test.go`):
 - `IsWater()` returns true for water tiles, false for empty tiles
@@ -232,7 +237,7 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 
 **[RETRO]** Run /retro.
 
-##### Step 5: Non-Plant Spawning
+##### Step 5: Non-Plant Spawning ✅
 
 #### Design: Periodic Ground Spawning (no count cap)
 
@@ -292,27 +297,193 @@ Start a new world. Verify ponds appear as blue `≈` blobs, are impassable, char
 
 - New Activity: Craft Hoe (Gardening-Reqs lines 25-34)
 
-#### Hoe Item
+#### Design: Kind Field for Hierarchical Item Identity
 
-- Crafted item, cannot go in vessel, goes to open inventory slot or dropped on ground.
-- Symbol: TBD - should feel like natural extension of stick `/`. Candidates: `Γ` (gamma, hoe silhouette), `⌐` (reversed not, blade on handle), `¬` (not sign, perpendicular drop), `⊤` (T-shape, top-down hoe). Decide during implementation.
-- Rendered in `woodStyle` (brown) to match stick component.
+Crafted items have two levels of type identity:
 
-#### Craft Hoe Activity
+- **ItemType**: broad product category ("hoe", "vessel") — what the user orders
+- **Kind**: recipe-specific subtype ("shell hoe", "hollow gourd") — what the character produces
 
-- Recipe: 1 stick + 1 shell = 1 hoe (first multi-component recipe)
-- Generic `EnsureHasRecipeInputs` helper in picking.go for multi-component gathering. Modeled from existing `EnsureHasVesselFor`. This pattern is reused by every future recipe (Pigment, Construction).
-- Component procurement flow: check inventory -> drop non-recipe items -> seek nearest components (preference/distance) -> craft or abandon
-- Activity: orderable, discoverable (triggers from looking at or picking up stick or shell)
-- Duration: medium (to be defined alongside action duration tiers)
+`Description()` uses Kind when present, falls back to ItemType. A shell hoe made with a silver shell displays as `"silver shell hoe"`. Preferences can form at any level: "likes hoes", "likes shell hoes", "likes silver shell hoes", "likes silver".
 
-**[TEST] Checkpoint:** Issue a Craft Hoe order. Watch character drop non-components, seek stick and shell, pick them up, craft hoe. Hoe appears in inventory or on ground. Verify discovery triggers work (character looks at stick, may learn Craft Hoe).
+For natural items (berries, mushrooms, etc.), Kind is empty — no change to existing behavior.
 
-**Feature questions (to ask during implementation):**
+This also updates the existing vessel: drop the hardcoded `Name: "Hollow Gourd"`, set `Kind: "hollow gourd"` from recipe output. Vessels now display their full variety description (e.g., "warty spotted green hollow gourd").
 
-- Should action duration tiers (Short/Medium/Long) be formalized now? config.go has a TODO noting this.
-- Does hoe have any descriptive attributes for preferences (color from shell component?), or is it purely functional?
-- Ensure user is aligned with the proposed implementation before proceeding.
+**Vision for recipe selection:** User orders a product ("Craft Hoe"). Character picks which recipe to use based on knowledge, resource availability, and preference. Currently one recipe per activity (shell-hoe, hollow-gourd), but the pattern supports future additions (metal-hoe, clay-pot, wooden-bucket). Character learns the activity + first recipe together; additional recipes come from talking to other characters.
+
+#### Design: Action Duration Tiers
+
+| Tier | Constant | Game seconds | World time | Used for |
+|------|----------|-------------|------------|----------|
+| Short | `ActionDurationShort` | 0.83 | ~10 min | Eat, drink, pickup |
+| Medium | `ActionDurationMedium` | 4.0 | ~48 min | Till Soil, Look |
+| Long | `ActionDurationLong` | 10.0 | ~2 hours | Craft Hoe, Craft Vessel |
+
+Code comment noting potential Extra Short and Extra Long tiers as more actions are added.
+
+#### Design: Hoe Item
+
+- Symbol: `L` rendered in `woodStyle` (brown)
+- ItemType: `"hoe"`, Kind: `"shell hoe"`
+- Color inherited from shell input (enables preference variety: "silver shell hoe")
+- Not edible, no Plant properties, no Container. Cannot go in vessel.
+
+#### Design: Craft Hoe Recipe & Activity
+
+Recipe `"shell-hoe"`:
+
+- Inputs: 1 stick + 1 shell
+- Output: ItemType `"hoe"`, Kind `"shell hoe"`
+- Duration: `ActionDurationLong` (10.0)
+- DiscoveryTriggers: look at or pick up stick or shell
+
+Activity `"craftHoe"`:
+
+- Name: `"Hoe"`
+- IntentFormation: orderable, Availability: knowhow
+- Appears under Craft category in order UI (auto-grouped by `"craft"` prefix on activity ID)
+
+#### Design: EnsureHasRecipeInputs (Generic Multi-Component Procurement)
+
+New helper in picking.go. Same return pattern as `EnsureHasVesselFor`: returns intent to go get something, or nil when ready (or impossible).
+
+1. Check which recipe inputs are accessible (inventory items + container contents via `HasAccessibleItem`)
+2. All present → return nil (ready to craft)
+3. Need inventory space? Drop non-recipe loose items synchronously. Skip containers holding recipe inputs.
+4. Seek nearest missing input on map → return pickup intent
+5. Nothing available → return nil (triggers abandonment by caller)
+
+New helper `findNearestGroundItemByType`: like `findNearestItemByType` but without the `Plant.IsGrowing` filter, for finding sticks/shells/non-growing items on the ground.
+
+Component seeking uses nearest-distance. Preference-weighted seeking deferred (see triggered-enhancements.md).
+
+#### Design: Generalized Craft Execution
+
+**Intent**: Add `RecipeID string` to Intent struct. Craft intents carry the recipe ID so the ActionCraft handler knows which recipe to execute.
+
+**findCraftIntent**: Replaces per-activity functions (`findCraftVesselIntent`). Works for any craft activity:
+
+1. Get recipes for the order's activity
+2. Filter to recipes whose inputs exist in the world
+3. Pick first feasible recipe (future: preference scoring for recipe selection)
+4. Use `EnsureHasRecipeInputs` to gather components
+5. When ready → return ActionCraft intent with RecipeID
+
+**ActionCraft handler**: Dispatch by `intent.RecipeID`. Per-recipe creation functions:
+
+- `CreateVessel` (existing, updated): vessel from gourd, sets Kind from recipe
+- `CreateHoe` (new): hoe from stick + shell, inherits shell color
+
+**Auto-drop**: All crafted items placed on the ground at character's position. Available to any character who needs it.
+
+---
+
+#### Implementation Steps
+
+Each step follows the TDD cycle: write tests → add minimal stubs to compile → verify red → implement → verify green → human testing checkpoint.
+
+##### Step 1: Kind Field on Item + Preference ✅
+
+**Tests** (in `internal/entity/item_test.go`, `internal/entity/preference_test.go`):
+- ✅ `Item.Description()` uses Kind when present, falls back to ItemType
+- ✅ `Preference` with Kind matches items with matching Kind
+- ✅ `Preference` with ItemType matches items regardless of Kind value
+- ✅ `Preference` with Kind does NOT match items with different Kind
+- ✅ `Preference.MatchScore` counts Kind as an attribute
+
+**Implementation** ✅:
+- Kind field added to Item struct + Description() updated
+- Kind field added to Preference struct + Matches/MatchesVariety/AttributeCount/Description/ExactMatch updated
+- Kind field added to RecipeOutput, hollow-gourd recipe updated with Kind "hollow gourd"
+- Recipe duration updated to use ActionDurationLong (config constant added in Step 2)
+
+##### Step 2: Duration Tiers + ActionDuration Rename ✅
+
+##### Step 3: RecipeID on Intent + Preference Formation for Kind ✅
+
+**Tests** (in `internal/system/preference_test.go`):
+- `collectItemAttributes` includes "kind" for items with Kind set
+- `collectItemAttributes` excludes "kind" for items without Kind
+- `buildPreference` with "kind" attr sets Kind from item
+- Combo preference with Kind uses Kind instead of ItemType
+
+**Implementation:**
+- Add `RecipeID string` to Intent struct in character.go
+- Update `collectItemAttributes` / `collectExtraAttributes` / `buildPreference` in preference.go to handle Kind
+
+##### Step 4: CreateVessel Update + Save/Load Kind ✅
+
+**[TEST] Checkpoint — Kind field + durations:** ✅
+- `go test ./...` passes
+- Build and run: vessels now display full variety name (e.g., "warty spotted green hollow gourd") instead of "Hollow Gourd"
+- Craft Vessel order still works end-to-end
+- Save, load — no regression
+- Preference formation works for Kind items (Bob formed "Likes orange hollow gourds")
+
+##### Step 5: Hoe Item + Shell-Hoe Recipe
+
+**Tests** (in `internal/entity/item_test.go`):
+- `NewHoe` returns correct properties (symbol `L`, ItemType `"hoe"`, Kind `"shell hoe"`, color, not edible)
+
+**Tests** (in `internal/system/order_execution_test.go` or `internal/entity/recipe_test.go`):
+- shell-hoe recipe registered with correct inputs/output
+- craftHoe activity registered with correct discovery triggers
+
+**Config:** `CharHoe = 'L'`
+
+**Implementation:**
+- `NewHoe(x, y int, color types.Color)` in item.go
+- shell-hoe recipe in `RecipeRegistry`
+- craftHoe activity in `ActivityRegistry`
+- Hoe rendering in `styledSymbol()` (`woodStyle`) + `itemFromSave` case
+
+##### Step 6: EnsureHasRecipeInputs
+
+**Tests** (in `internal/system/picking_test.go`, `internal/system/order_execution_test.go`):
+- `findNearestGroundItemByType` finds non-growing items by type
+- `findNearestGroundItemByType` ignores wrong types and items not on map
+- `EnsureHasRecipeInputs` returns nil when all inputs accessible (inventory or container)
+- `EnsureHasRecipeInputs` returns pickup intent for missing input
+- `EnsureHasRecipeInputs` drops non-recipe loose items to make space
+- `EnsureHasRecipeInputs` does NOT drop container holding recipe input
+- `EnsureHasRecipeInputs` returns nil when inputs not available on map
+
+**Implementation:**
+- `findNearestGroundItemByType` in order_execution.go
+- `EnsureHasRecipeInputs` in picking.go
+
+##### Step 7: Generalized Craft Execution
+
+**Tests** (in `internal/system/order_execution_test.go`, `internal/ui/update_test.go`):
+- `findCraftIntent` returns ActionCraft with correct RecipeID when inputs gathered
+- `findCraftIntent` returns pickup intent via EnsureHasRecipeInputs when inputs missing
+- `findCraftIntent` returns nil when no recipe feasible (inputs don't exist in world)
+- ActionCraft handler creates shell hoe from stick + shell (correct ItemType, Kind, color from shell)
+- ActionCraft handler still creates vessel from gourd (regression test)
+- Crafted items placed on ground at character position (not in inventory)
+
+**Implementation:**
+- `findCraftIntent` replaces `findCraftVesselIntent` in order_execution.go
+- Update `findOrderIntent` dispatch: all craft activities → `findCraftIntent`
+- `CreateHoe(shell *entity.Item, recipe *entity.Recipe)` in crafting.go
+- Generalize ActionCraft handler in update.go: dispatch by `intent.RecipeID`
+- Per-recipe creation: `CreateVessel` (existing), `CreateHoe` (new)
+- Both auto-drop crafted item to ground
+
+**[TEST] Checkpoint — Full Craft Hoe:**
+- `go test ./...` passes
+- Build and run: order Craft Hoe. Character drops non-components, seeks stick and shell, picks them up, crafts. Hoe appears on ground with shell's color in description (e.g., "silver shell hoe").
+- Verify discovery: character looks at stick/shell, may learn Craft Hoe
+- Verify Craft Vessel still works through generalized path
+- Cursor over hoe shows correct description in details panel
+- Save and load preserves hoe correctly
+
+**Reqs reconciliation:** Gardening-Reqs lines 25-34. _"Components: 1 stick + 1 shell"_ ✓, _"Orderable"_ ✓, _"Discoverable"_ ✓, _"Duration: Medium"_ → Long per discussion ✓, _"creates 'Hoe' item"_ ✓, _"Cannot go in a vessel"_ ✓, _"goes into open inventory slot or is dropped on ground"_ → always drops per discussion ✓.
+
+**[DOCS]** Update README (Latest Updates), CLAUDE.md, game-mechanics, architecture as needed.
+
+**[RETRO]** Run /retro.
 
 ---
 

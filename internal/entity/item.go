@@ -38,7 +38,8 @@ type Item struct {
 	Name string
 
 	// Descriptive attributes (opinion-formable)
-	ItemType string        // "berry", "mushroom", "gourd", etc.
+	ItemType string        // broad category: "berry", "hoe", "vessel"
+	Kind     string        // recipe subtype: "shell hoe", "hollow gourd" (empty for natural items)
 	Color    types.Color   // all items have color
 	Pattern  types.Pattern // mushrooms, gourds (spotted, striped, speckled)
 	Texture  types.Texture // mushrooms, gourds (slimy, waxy, warty)
@@ -183,11 +184,11 @@ func NewShell(x, y int, color types.Color) *Item {
 }
 
 // Description returns a human-readable item description
-// If Name is set (crafted items), returns Name.
-// Otherwise returns format: [texture] [pattern] [color] [itemType]
-// e.g., "slimy spotted red mushroom", "red berry", "purple flower"
+// If Name is set, returns Name.
+// Otherwise returns format: [texture] [pattern] [color] [kind or itemType]
+// Kind is used when present (crafted items), ItemType as fallback (natural items).
+// e.g., "silver shell hoe", "warty spotted green hollow gourd", "red berry"
 func (i *Item) Description() string {
-	// Crafted items use their Name
 	if i.Name != "" {
 		return i.Name
 	}
@@ -203,7 +204,11 @@ func (i *Item) Description() string {
 	if i.Color != "" {
 		parts = append(parts, string(i.Color))
 	}
-	parts = append(parts, i.ItemType)
+	if i.Kind != "" {
+		parts = append(parts, i.Kind)
+	} else {
+		parts = append(parts, i.ItemType)
+	}
 
 	result := ""
 	for i, part := range parts {

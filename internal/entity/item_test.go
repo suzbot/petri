@@ -238,3 +238,50 @@ func TestItem_Description_Shell(t *testing.T) {
 		t.Errorf("Shell Description(): got %q, want %q", got, "pale pink shell")
 	}
 }
+
+// =============================================================================
+// Kind field tests
+// =============================================================================
+
+// TestItem_Description_UsesKindWhenPresent verifies Description uses Kind over ItemType
+func TestItem_Description_UsesKindWhenPresent(t *testing.T) {
+	t.Parallel()
+
+	item := &Item{
+		ItemType: "hoe",
+		Kind:     "shell hoe",
+		Color:    types.ColorSilver,
+	}
+	got := item.Description()
+	if got != "silver shell hoe" {
+		t.Errorf("Description() with Kind: got %q, want %q", got, "silver shell hoe")
+	}
+}
+
+// TestItem_Description_FallsBackToItemTypeWhenNoKind verifies Description uses ItemType when Kind is empty
+func TestItem_Description_FallsBackToItemTypeWhenNoKind(t *testing.T) {
+	t.Parallel()
+
+	item := NewBerry(0, 0, types.ColorRed, false, false)
+	got := item.Description()
+	if got != "red berry" {
+		t.Errorf("Description() without Kind: got %q, want %q", got, "red berry")
+	}
+}
+
+// TestItem_Description_KindWithMultipleAttributes verifies Description with Kind + pattern + texture + color
+func TestItem_Description_KindWithMultipleAttributes(t *testing.T) {
+	t.Parallel()
+
+	item := &Item{
+		ItemType: "vessel",
+		Kind:     "hollow gourd",
+		Color:    types.ColorGreen,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureWarty,
+	}
+	got := item.Description()
+	if got != "warty spotted green hollow gourd" {
+		t.Errorf("Description() with Kind + attrs: got %q, want %q", got, "warty spotted green hollow gourd")
+	}
+}

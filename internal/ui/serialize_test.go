@@ -375,12 +375,11 @@ func TestFromSaveState_RestoresVesselWithContents(t *testing.T) {
 	// Create a gourd to make vessel from
 	gourd := entity.NewGourd(20, 20, types.ColorOrange, types.PatternStriped, types.TextureWarty, false, false)
 
-	// Create vessel from gourd
-	recipe := entity.RecipeRegistry["hollow-gourd"]
+	// Create vessel from gourd (matches CreateVessel output)
 	vessel := &entity.Item{
 		ID:       999,
-		Name:     recipe.Name,
 		ItemType: "vessel",
+		Kind:     "hollow gourd",
 		Color:   gourd.Color,
 		Pattern: gourd.Pattern,
 		Texture: gourd.Texture,
@@ -430,8 +429,8 @@ func TestFromSaveState_RestoresVesselWithContents(t *testing.T) {
 	}
 
 	// Verify vessel attributes
-	if restoredVessel.Name != "Hollow Gourd" {
-		t.Errorf("Expected name 'Hollow Gourd', got '%s'", restoredVessel.Name)
+	if restoredVessel.Kind != "hollow gourd" {
+		t.Errorf("Expected Kind 'hollow gourd', got '%s'", restoredVessel.Kind)
 	}
 	if restoredVessel.Color != types.ColorOrange {
 		t.Errorf("Expected orange color, got %s", restoredVessel.Color)
@@ -490,8 +489,8 @@ func TestFromSaveState_RestoresTwoSlotInventory(t *testing.T) {
 
 	vessel := &entity.Item{
 		ID:       902,
-		Name:     "Hollow Gourd",
 		ItemType: "vessel",
+		Kind:     "hollow gourd",
 		Color:    types.ColorGreen,
 		Pattern:  types.PatternNone,
 		Texture:  types.TextureWaxy,
@@ -564,8 +563,8 @@ func TestFromSaveState_RestoresCarriedVesselWithContents(t *testing.T) {
 	// Create vessel with contents
 	vessel := &entity.Item{
 		ID:       888,
-		Name:     "Hollow Gourd",
 		ItemType: "vessel",
+		Kind:     "hollow gourd",
 		Color:   types.ColorGreen,
 		Pattern: types.PatternNone,
 		Texture: types.TextureWaxy,
@@ -617,6 +616,84 @@ func TestFromSaveState_RestoresCarriedVesselWithContents(t *testing.T) {
 	}
 	if !stack.Variety.IsPoisonous() {
 		t.Error("Expected variety to be poisonous")
+	}
+}
+
+func TestFromSaveState_RestoresItemKind(t *testing.T) {
+	m := createTestModel()
+
+	// Add a crafted item with Kind
+	hoe := &entity.Item{
+		ID:       950,
+		ItemType: "hoe",
+		Kind:     "shell hoe",
+		Color:    types.ColorSilver,
+	}
+	hoe.X = 25
+	hoe.Y = 25
+	hoe.EType = entity.TypeItem
+	hoe.Sym = 'L'
+	m.gameMap.AddItemDirect(hoe)
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Find the hoe
+	var found *entity.Item
+	for _, item := range restored.gameMap.Items() {
+		if item.X == 25 && item.Y == 25 && item.ItemType == "hoe" {
+			found = item
+			break
+		}
+	}
+	if found == nil {
+		t.Fatal("Expected to find hoe at (25,25)")
+	}
+	if found.Kind != "shell hoe" {
+		t.Errorf("Expected Kind 'shell hoe', got %q", found.Kind)
+	}
+}
+
+func TestFromSaveState_RestoresPreferenceKind(t *testing.T) {
+	m := createTestModel()
+	chars := m.gameMap.Characters()
+
+	// Add preference with Kind
+	pref := entity.Preference{
+		Valence: 1,
+		Kind:    "shell hoe",
+		Color:   types.ColorSilver,
+	}
+	chars[0].Preferences = append(chars[0].Preferences, pref)
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	restoredChars := restored.gameMap.Characters()
+	restoredPref := restoredChars[0].Preferences[len(restoredChars[0].Preferences)-1]
+
+	if restoredPref.Kind != "shell hoe" {
+		t.Errorf("Expected Kind 'shell hoe', got %q", restoredPref.Kind)
+	}
+	if restoredPref.Color != types.ColorSilver {
+		t.Errorf("Expected Color silver, got %q", restoredPref.Color)
+	}
+}
+
+func TestFromSaveState_OldSaveWithoutKind_LoadsEmpty(t *testing.T) {
+	m := createTestModel()
+
+	// Regular item without Kind (simulating old save)
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// All items should have empty Kind
+	for _, item := range restored.gameMap.Items() {
+		if item.Kind != "" {
+			t.Errorf("Expected empty Kind for old save item %s, got %q", item.ItemType, item.Kind)
+		}
 	}
 }
 

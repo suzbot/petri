@@ -1,5 +1,7 @@
 package entity
 
+import "petri/internal/config"
+
 // RecipeInput defines an input requirement for a recipe
 type RecipeInput struct {
 	ItemType string // e.g., "gourd"
@@ -8,7 +10,8 @@ type RecipeInput struct {
 
 // RecipeOutput defines what a recipe produces
 type RecipeOutput struct {
-	ItemType          string // e.g., "vessel"
+	ItemType          string // broad category: "vessel", "hoe"
+	Kind              string // recipe subtype: "hollow gourd", "shell hoe"
 	ContainerCapacity int    // If > 0, item has ContainerData with this capacity
 }
 
@@ -30,8 +33,8 @@ var RecipeRegistry = map[string]*Recipe{
 		ActivityID: "craftVessel",
 		Name:       "Hollow Gourd",
 		Inputs:     []RecipeInput{{ItemType: "gourd", Count: 1}},
-		Output:     RecipeOutput{ItemType: "vessel", ContainerCapacity: 1},
-		Duration:   10, // Temporary: reduced until time refactor (was 120 for 2 minutes)
+		Output:     RecipeOutput{ItemType: "vessel", Kind: "hollow gourd", ContainerCapacity: 1},
+		Duration:   config.ActionDurationLong,
 		DiscoveryTriggers: []DiscoveryTrigger{
 			{Action: ActionLook, ItemType: "gourd"},    // looking at gourd
 			{Action: ActionPickup, ItemType: "gourd"},  // picking up gourd

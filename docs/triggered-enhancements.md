@@ -21,9 +21,9 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Action log retention policy**        | Implementing character memory; May need world time vs real time consideration     |
 | **UI color style map**                 | Adding new colors frequently; Switch statement maintenance becomes tedious        |
 | **Cobra CLI migration**                | Next time we want to add a flag; Current flag parsing becomes unwieldy            |
-| **Kind field for fine-grained preferences** | Adding second recipe with same ItemType (e.g., clay pot vessel); Preferences need to distinguish recipe outputs |
 | **Knowledge/Learning pattern review** | Enhanced Learning phase begins; Adding new knowledge types or transmission methods |
 | **UI extensibility refactoring** | UI structure blocks adding new activities or features; Area selection pattern needs generalization |
+| **Preference-weighted component procurement** | Multiple craft recipes with varied inputs; Characters feel flat when seeking components; Scoring math exists in foraging.go to reuse |
 | **applyIntent duplication (simulation.go)** | INTENTIONALLY SEPARATE - simulation.go is lighter test harness; only unify if maintaining both becomes burdensome |
 
 ### Future Enhancement Details
@@ -45,18 +45,6 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 - Skip wake checks for sleeping characters unless tier changed
 - Dead character filtering at map level
 - Cache nearest features if map static-
-
----
-
-**Kind field for fine-grained preferences:**
-
-Currently preferences form on `ItemType` (e.g., "vessel"), not specific recipe outputs (e.g., "hollow gourd" vs "clay pot"). When multiple recipes produce the same ItemType, characters can't distinguish them for preferences or recipe selection.
-
-Options:
-- **Option A: Add `Kind` field to Item** - New field set from recipe ID. `ItemType` = broad category ("vessel"), `Kind` = specific type ("hollow-gourd"). Clean separation from `Name` which could be customizable later.
-- **Option C: Store `RecipeID` on Item** - Look up recipe for display/preference purposes. More indirect but clear provenance.
-
-Also consider: should `Kind` default to `ItemType` for non-crafted items, enabling finer preference distinctions for natural items too?
 
 ---
 
@@ -139,6 +127,14 @@ After Gardening adds more actions (planting seeds, watering, tool usage), invest
 4. Could a unified `ItemConsumer` interface simplify action handlers?
 
 Only investigate if patterns are diverging or duplicating. If each action's needs are sufficiently different, the current approach may be fine.
+
+---
+
+**Preference-weighted component procurement:**
+
+When gathering recipe inputs (e.g., shells for Craft Hoe), characters currently pick the nearest available component by distance. With shell color variety (7 colors), characters could instead score components by preference and distance, similar to food seeking's gradient scoring in foraging.go.
+
+Deferred because: Craft Hoe is the first multi-component recipe, and the shell color distinction is subtle. Nearest-distance works fine. Revisit when multiple recipes create enough variety that "character walks past preferred shell to grab closer one" feels wrong.
 
 ---
 
