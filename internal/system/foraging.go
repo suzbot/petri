@@ -65,7 +65,7 @@ func scoreForageItems(char *entity.Character, pos types.Position, items []*entit
 
 	for _, item := range items {
 		// Only consider edible, growing items
-		if !item.IsEdible() || item.Plant == nil || !item.Plant.IsGrowing {
+		if !item.IsEdible() || (item.Plant != nil && !item.Plant.IsGrowing) {
 			continue
 		}
 

@@ -179,7 +179,7 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 
 **Reqs reconciliation:** Gardening-Reqs lines 12-16 fully covered. _"random number of ponds (1-5)"_ ✓, _"contiguous blob shaped clusters... 4-16 tiles"_ ✓, _"not passable"_ ✓, _"drank from"_ ✓.
 
-##### Step 3: New Item Types + Initial Spawn
+##### Step 3: New Item Types + Initial Spawn ✅
 
 **Tests** (in `internal/entity/item_test.go`):
 - `NewStick` returns correct properties (symbol `/`, `ItemType "stick"`, not edible, `Plant == nil`)
@@ -210,7 +210,9 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 
 **Reqs reconciliation:** Gardening-Reqs lines 18-20 _"shell item... spawn adjacent to a water tile '<'"_ ✓, _"colors of: white, pale pink, tan, pale yellow, silver, gray, lavender"_ ✓. Lines 22-23 _"stick... spawn on the map... any unoccupied tile"_ ✓.
 
-##### Step 4: Foraging Update for Nuts
+**Bug fix during testing:** Characters thrashed at pond edges when greedy pathfinding couldn't route around multi-tile obstacles. Added `NextStepBFS` in `movement.go` — BFS pathfinding that routes around permanent obstacles (water, impassable features) while ignoring characters (temporary). Falls back to greedy `NextStep` if no path exists. Updated all callers with gameMap access: `continueIntent`, `findDrinkIntent`, `findSleepIntent`, `findLookIntent`, `findTalkIntent`, `EnsureHasVesselFor`, `findHarvestIntent`, and pickup movement in `update.go`.
+
+##### Step 4: Foraging Update for Nuts ✅
 
 **Tests** (in `internal/system/foraging_test.go`):
 - `scoreForageItems()` includes edible items with `Plant == nil` (nuts on ground)

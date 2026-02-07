@@ -14,9 +14,9 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 
 ## Latest Updates
 
+- **Sticks, Nuts, and Shells**: New item types scattered across the world. Nuts are edible; shells spawn near ponds in seven color variants.
 - **Ponds**: Water terrain that characters can drink from
 - **Preferences Panel**: Character preferences moved to dedicated scrollable panel (press P)
-- **Character Names File**: Random character names now in separate file for easy customization
 - **Two-Slot Inventory**: Characters can now carry two items (or vessels) at once
 
 ## How It Works

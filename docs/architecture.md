@@ -294,7 +294,13 @@ Features have a `Passable` boolean that controls movement:
 
 ### Pathfinding
 
-`findAlternateStep()` uses `IsBlocked()` to route around both characters and impassable features.
+Two pathfinding strategies:
+
+- **`NextStepBFS(fromX, fromY, toX, toY, gameMap)`**: BFS pathfinding that routes around permanent obstacles (water tiles, impassable features) while ignoring characters (temporary obstacles). Returns the first step toward the target. Falls back to greedy `NextStep` if no path exists. Used by all callers with gameMap access (intent continuation, drink/sleep/look/talk seeking, vessel/harvest seeking, pickup movement).
+
+- **`NextStep(fromX, fromY, toX, toY)`**: Greedy single-step movement toward target along the larger axis delta. No obstacle awareness. Used as fallback and by callers without gameMap access.
+
+- **`findAlternateStep()`**: Per-tick reactive routing around blocked tiles (characters and features). Used by `MoveCharacter` when the next step is occupied.
 
 ## Position Handling
 

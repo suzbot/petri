@@ -688,6 +688,36 @@ func TestScoreForageItems_FiltersToVesselVariety(t *testing.T) {
 	}
 }
 
+func TestScoreForageItems_IncludesEdibleNonPlantItems(t *testing.T) {
+	char := &entity.Character{ID: 1, Name: "Test"}
+
+	// Nut: edible, Plant == nil
+	nut := entity.NewNut(3, 3)
+
+	items := []*entity.Item{nut}
+
+	target, _ := scoreForageItems(char, types.Position{X: 0, Y: 0}, items, nil)
+
+	if target != nut {
+		t.Error("scoreForageItems should include edible items with Plant == nil (nuts)")
+	}
+}
+
+func TestScoreForageItems_ExcludesNonEdibleNonPlantItems(t *testing.T) {
+	char := &entity.Character{ID: 1, Name: "Test"}
+
+	// Stick: not edible, Plant == nil
+	stick := entity.NewStick(3, 3)
+
+	items := []*entity.Item{stick}
+
+	target, _ := scoreForageItems(char, types.Position{X: 0, Y: 0}, items, nil)
+
+	if target != nil {
+		t.Error("scoreForageItems should exclude non-edible items with Plant == nil (sticks)")
+	}
+}
+
 func TestScoreForageItems_NoFilterWhenVesselEmpty(t *testing.T) {
 	char := &entity.Character{ID: 1, Name: "Test"}
 

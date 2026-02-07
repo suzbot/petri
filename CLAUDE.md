@@ -4,7 +4,7 @@ Guidance for Claude Code when working with code in this repo.
 
 Petri is a Dwarf Fortress-inspired simulation exploring emergent culture development.
 
-**Current features:** Character creation, world generation with items, water terrain, and features, multi-stat survival, dynamic preference system, knowledge system (learning poison/healing, knowledge-driven behavior, knowledge transmission via talking), social behavior (talking between idle characters), inventory system (foraging to pick up items, dropping items), orders system (player-directed harvesting and crafting), crafting system (hollow gourd vessels), vessel contents (item stacking, variety locking, automatic vessel seeking), know-how discovery, urgency-based AI with stat fallback and frustration mechanics, view modes, and action logging.
+**Current features:** Character creation, procedural world generation (terrain, items, water), multi-stat survival with urgency-based AI, dynamic preferences and knowledge systems, social behavior, inventory and crafting, player-directed orders, and action logging.
 
 **Vision:** Complex roguelike simulation world with complex interactions between characters, items, and attributes. History exists only in character memories and created artifacts. As characters die, their knowledge dies with them except what they've communicated or created. See [docs/VISION.txt](docs/VISION.txt).
 

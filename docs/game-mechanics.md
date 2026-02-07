@@ -161,6 +161,10 @@ Items are generated from varieties at world creation. Each variety defines a uni
 - **Mushrooms**: Color + optional Pattern + optional Texture, optional poisonous/healing; edible
 - **Gourds**: Color + optional Pattern + optional Texture; edible, never poisonous/healing
 - **Flowers**: Color; non-edible (decorative)
+- **Sticks**: Brown `/`; non-edible, non-plant. Spawns on random empty tiles at world start.
+- **Nuts**: Brown `o`; edible (not poisonous/healing), non-plant. Spawns on random empty tiles at world start.
+- **Shells**: Colored `<`; non-edible, non-plant. Seven color variants (white, pale pink, tan, pale yellow, silver, gray, lavender). Spawns adjacent to pond tiles at world start.
+- **Nuts**: Brown `o`; edible (not poisonous/healing), non-plant. Spawns on random empty tiles at world start. Forageable by characters seeking food.
 
 ### World Features
 
@@ -526,11 +530,7 @@ Vessels are containers that can hold stacks of items. Currently, vessels are cra
 
 ### Stack Sizes
 
-Different item types stack to different limits within a vessel:
-- **Berries**: 20 per stack
-- **Mushrooms**: 10 per stack
-- **Flowers**: 10 per stack
-- **Gourds**: 1 per stack
+Different item types stack to different limits within a vessel. See `config.GetStackSize()` for per-type limits.
 
 ### Variety Lock
 
