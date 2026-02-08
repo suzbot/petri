@@ -42,6 +42,23 @@ var RecipeRegistry = map[string]*Recipe{
 			{Action: ActionDrink},                      // drinking from spring (no item)
 		},
 	},
+	"shell-hoe": {
+		ID:         "shell-hoe",
+		ActivityID: "craftHoe",
+		Name:       "Shell Hoe",
+		Inputs: []RecipeInput{
+			{ItemType: "stick", Count: 1},
+			{ItemType: "shell", Count: 1},
+		},
+		Output:   RecipeOutput{ItemType: "hoe", Kind: "shell hoe"},
+		Duration: config.ActionDurationLong,
+		DiscoveryTriggers: []DiscoveryTrigger{
+			{Action: ActionLook, ItemType: "stick"},   // looking at stick
+			{Action: ActionPickup, ItemType: "stick"}, // picking up stick
+			{Action: ActionLook, ItemType: "shell"},   // looking at shell
+			{Action: ActionPickup, ItemType: "shell"}, // picking up shell
+		},
+	},
 }
 
 // GetRecipesForActivity returns all recipes that belong to a given activity

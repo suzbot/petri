@@ -86,6 +86,13 @@ var ActivityRegistry = map[string]Activity{
 		Availability:    AvailabilityKnowHow,
 		// No DiscoveryTriggers - discovered via recipes
 	},
+	"craftHoe": {
+		ID:              "craftHoe",
+		Name:            "Hoe",
+		IntentFormation: IntentOrderable,
+		Availability:    AvailabilityKnowHow,
+		// No DiscoveryTriggers - discovered via recipes
+	},
 }
 
 // GetDiscoverableActivities returns all activities that require know-how

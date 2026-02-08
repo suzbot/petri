@@ -269,6 +269,70 @@ func TestItem_Description_FallsBackToItemTypeWhenNoKind(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// Hoe tests
+// =============================================================================
+
+// TestNewHoe_Properties verifies NewHoe creates hoe with correct properties
+func TestNewHoe_Properties(t *testing.T) {
+	t.Parallel()
+
+	item := NewHoe(6, 11, types.ColorSilver)
+
+	pos := item.Pos()
+	if pos.X != 6 || pos.Y != 11 {
+		t.Errorf("NewHoe Pos(): got (%d, %d), want (6, 11)", pos.X, pos.Y)
+	}
+	if item.ItemType != "hoe" {
+		t.Errorf("NewHoe ItemType: got %q, want %q", item.ItemType, "hoe")
+	}
+	if item.Kind != "shell hoe" {
+		t.Errorf("NewHoe Kind: got %q, want %q", item.Kind, "shell hoe")
+	}
+	if item.Symbol() != config.CharHoe {
+		t.Errorf("NewHoe Symbol(): got %c, want %c", item.Symbol(), config.CharHoe)
+	}
+	if item.Color != types.ColorSilver {
+		t.Errorf("NewHoe Color: got %q, want %q", item.Color, types.ColorSilver)
+	}
+	if item.IsEdible() {
+		t.Error("NewHoe IsEdible: got true, want false")
+	}
+	if item.Plant != nil {
+		t.Error("NewHoe Plant: got non-nil, want nil")
+	}
+	if item.Container != nil {
+		t.Error("NewHoe Container: got non-nil, want nil")
+	}
+	if item.Type() != TypeItem {
+		t.Errorf("NewHoe Type(): got %d, want %d", item.Type(), TypeItem)
+	}
+}
+
+// TestNewHoe_ColorInherited verifies hoe color comes from parameter (shell color)
+func TestNewHoe_ColorInherited(t *testing.T) {
+	t.Parallel()
+
+	colors := []types.Color{types.ColorWhite, types.ColorPalePink, types.ColorLavender, types.ColorSilver}
+	for _, c := range colors {
+		item := NewHoe(0, 0, c)
+		if item.Color != c {
+			t.Errorf("NewHoe Color: got %q, want %q", item.Color, c)
+		}
+	}
+}
+
+// TestNewHoe_Description verifies hoe description includes color and kind
+func TestNewHoe_Description(t *testing.T) {
+	t.Parallel()
+
+	item := NewHoe(0, 0, types.ColorSilver)
+	got := item.Description()
+	if got != "silver shell hoe" {
+		t.Errorf("Hoe Description(): got %q, want %q", got, "silver shell hoe")
+	}
+}
+
 // TestItem_Description_KindWithMultipleAttributes verifies Description with Kind + pattern + texture + color
 func TestItem_Description_KindWithMultipleAttributes(t *testing.T) {
 	t.Parallel()

@@ -421,22 +421,27 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 - Save, load — no regression
 - Preference formation works for Kind items (Bob formed "Likes orange hollow gourds")
 
-##### Step 5: Hoe Item + Shell-Hoe Recipe
+##### Step 5: Hoe Item + Shell-Hoe Recipe ✅
 
 **Tests** (in `internal/entity/item_test.go`):
-- `NewHoe` returns correct properties (symbol `L`, ItemType `"hoe"`, Kind `"shell hoe"`, color, not edible)
+- ✅ `NewHoe` returns correct properties (symbol `L`, ItemType `"hoe"`, Kind `"shell hoe"`, color, not edible)
+- ✅ `NewHoe` color inherited from parameter (shell color)
+- ✅ `NewHoe` description uses Kind ("silver shell hoe")
 
-**Tests** (in `internal/system/order_execution_test.go` or `internal/entity/recipe_test.go`):
-- shell-hoe recipe registered with correct inputs/output
-- craftHoe activity registered with correct discovery triggers
+**Tests** (in `internal/entity/recipe_test.go`):
+- ✅ shell-hoe recipe registered with correct inputs/output/duration/discovery triggers
+- ✅ `GetRecipesForActivity("craftHoe")` returns shell-hoe
+- ✅ craftHoe activity registered with correct properties
 
 **Config:** `CharHoe = 'L'`
 
 **Implementation:**
-- `NewHoe(x, y int, color types.Color)` in item.go
-- shell-hoe recipe in `RecipeRegistry`
-- craftHoe activity in `ActivityRegistry`
-- Hoe rendering in `styledSymbol()` (`woodStyle`) + `itemFromSave` case
+- ✅ `NewHoe(x, y int, color types.Color)` in item.go
+- ✅ shell-hoe recipe in `RecipeRegistry`
+- ✅ craftHoe activity in `ActivityRegistry`
+- ✅ Hoe rendering uses shell's color via existing color switch (not hardcoded woodStyle)
+- ✅ `itemFromSave` case for `"hoe"`
+- ✅ Discovery: characters learn craftHoe + shell-hoe recipe from looking at/picking up sticks and shells
 
 ##### Step 6: EnsureHasRecipeInputs
 

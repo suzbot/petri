@@ -183,6 +183,21 @@ func NewShell(x, y int, color types.Color) *Item {
 	}
 }
 
+// NewHoe creates a new hoe item (non-edible, non-plant, crafted from stick + shell)
+func NewHoe(x, y int, color types.Color) *Item {
+	return &Item{
+		BaseEntity: BaseEntity{
+			X:     x,
+			Y:     y,
+			Sym:   config.CharHoe,
+			EType: TypeItem,
+		},
+		ItemType: "hoe",
+		Kind:     "shell hoe",
+		Color:    color,
+	}
+}
+
 // Description returns a human-readable item description
 // If Name is set, returns Name.
 // Otherwise returns format: [texture] [pattern] [color] [kind or itemType]
