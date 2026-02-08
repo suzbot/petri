@@ -91,6 +91,169 @@ func createVesselPickupIntent(char *entity.Character, pos types.Position, vessel
 }
 
 // =============================================================================
+// EnsureHasRecipeInputs
+// =============================================================================
+
+// EnsureHasRecipeInputs returns an intent to acquire a missing recipe input,
+// or nil if the character already has all inputs (or inputs are unavailable on map).
+// Caller distinguishes "ready" vs "impossible" by checking HasAccessibleItem after nil return.
+//
+// Component seeking uses nearest-distance for now. See triggered-enhancements.md
+// for preference-weighted component procurement — when triggered, this should use
+// the same scoring patterns as foraging.go's scoreForageItems.
+func EnsureHasRecipeInputs(char *entity.Character, recipe *entity.Recipe, items []*entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
+	if recipe == nil {
+		return nil
+	}
+
+	// Check which inputs are missing
+	for _, input := range recipe.Inputs {
+		if char.HasAccessibleItem(input.ItemType) {
+			continue // Have this input
+		}
+
+		// Missing this input — need to make room and go get it
+
+		// Drop non-recipe loose items to make inventory space
+		if !char.HasInventorySpace() {
+			dropped := false
+			for _, inv := range char.Inventory {
+				if inv == nil {
+					continue
+				}
+				// Don't drop containers that hold a recipe input
+				if inv.Container != nil && containerHasRecipeInput(inv, recipe) {
+					continue
+				}
+				// Don't drop items that ARE recipe inputs
+				if isRecipeInput(inv.ItemType, recipe) {
+					continue
+				}
+				// Drop this non-recipe item
+				DropItem(char, inv, gameMap, log)
+				dropped = true
+				break
+			}
+			if !dropped {
+				// Couldn't make space
+				return nil
+			}
+		}
+
+		// Find nearest matching item on map
+		target := findNearestItemByType(char.X, char.Y, items, input.ItemType, false)
+		if target == nil {
+			return nil // Input not available on map
+		}
+
+		// Create intent to pick up the item
+		return createItemPickupIntent(char, char.Pos(), target, gameMap, log)
+	}
+
+	// All inputs accessible
+	return nil
+}
+
+// containerHasRecipeInput checks if a container holds any item type needed by the recipe.
+func containerHasRecipeInput(container *entity.Item, recipe *entity.Recipe) bool {
+	if container.Container == nil {
+		return false
+	}
+	for _, stack := range container.Container.Contents {
+		if stack.Variety == nil || stack.Count <= 0 {
+			continue
+		}
+		if isRecipeInput(stack.Variety.ItemType, recipe) {
+			return true
+		}
+	}
+	return false
+}
+
+// isRecipeInput returns true if the given item type is an input for the recipe.
+func isRecipeInput(itemType string, recipe *entity.Recipe) bool {
+	for _, input := range recipe.Inputs {
+		if input.ItemType == itemType {
+			return true
+		}
+	}
+	return false
+}
+
+// createItemPickupIntent creates an intent to move to and pick up an item.
+func createItemPickupIntent(char *entity.Character, pos types.Position, target *entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
+	tpos := target.Pos()
+	tx, ty := tpos.X, tpos.Y
+
+	if pos.X == tx && pos.Y == ty {
+		newActivity := "Picking up " + target.Description()
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+			if log != nil {
+				log.Add(char.ID, char.Name, "order", "Picking up "+target.Description())
+			}
+		}
+		return &entity.Intent{
+			Target:     pos,
+			Dest:       pos,
+			Action:     entity.ActionPickup,
+			TargetItem: target,
+		}
+	}
+
+	// Move toward target
+	nx, ny := NextStepBFS(pos.X, pos.Y, tx, ty, gameMap)
+	newActivity := "Moving to pick up " + target.Description()
+	if char.CurrentActivity != newActivity {
+		char.CurrentActivity = newActivity
+	}
+	return &entity.Intent{
+		Target:     types.Position{X: nx, Y: ny},
+		Dest:       types.Position{X: tx, Y: ty},
+		Action:     entity.ActionPickup,
+		TargetItem: target,
+	}
+}
+
+// =============================================================================
+// Map Search Utilities
+// =============================================================================
+
+// findNearestItemByType finds the closest item of a specific type.
+// If growingOnly is true, only considers items with Plant.IsGrowing == true (for harvest).
+// If growingOnly is false, considers any item of that type on the map (for recipe components, etc).
+func findNearestItemByType(cx, cy int, items []*entity.Item, itemType string, growingOnly bool) *entity.Item {
+	if len(items) == 0 {
+		return nil
+	}
+
+	pos := types.Position{X: cx, Y: cy}
+	var nearest *entity.Item
+	nearestDist := int(^uint(0) >> 1) // Max int
+
+	for _, item := range items {
+		if item.ItemType != itemType {
+			continue
+		}
+		if growingOnly {
+			// Only consider growing items
+			if item.Plant == nil || !item.Plant.IsGrowing {
+				continue
+			}
+		}
+
+		ipos := item.Pos()
+		dist := pos.DistanceTo(ipos)
+		if dist < nearestDist {
+			nearestDist = dist
+			nearest = item
+		}
+	}
+
+	return nearest
+}
+
+// =============================================================================
 // Vessel Helpers
 // =============================================================================
 

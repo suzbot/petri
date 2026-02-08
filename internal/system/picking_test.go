@@ -325,3 +325,290 @@ func TestEnsureHasVesselFor_AlreadyAtVessel(t *testing.T) {
 		t.Error("Target should be current position when already at vessel")
 	}
 }
+
+// =============================================================================
+// findNearestItemByType Tests (moved from order_execution_test.go, now with growingOnly param)
+// =============================================================================
+
+func TestFindNearestItemByType_GrowingOnlyTrue_FindsGrowingItems(t *testing.T) {
+	t.Parallel()
+
+	growingBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
+	droppedBerry := entity.NewBerry(3, 3, types.ColorBlue, false, false)
+	droppedBerry.Plant.IsGrowing = false
+
+	items := []*entity.Item{droppedBerry, growingBerry}
+
+	result := findNearestItemByType(0, 0, items, "berry", true)
+	if result != growingBerry {
+		t.Error("growingOnly=true should find growing berry, skip dropped")
+	}
+}
+
+func TestFindNearestItemByType_GrowingOnlyTrue_SkipsNilPlant(t *testing.T) {
+	t.Parallel()
+
+	// Stick has Plant == nil
+	stick := entity.NewStick(3, 3)
+	growingBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
+
+	items := []*entity.Item{stick, growingBerry}
+
+	result := findNearestItemByType(0, 0, items, "berry", true)
+	if result != growingBerry {
+		t.Error("growingOnly=true should skip items with nil Plant")
+	}
+}
+
+func TestFindNearestItemByType_GrowingOnlyFalse_FindsNonGrowingItems(t *testing.T) {
+	t.Parallel()
+
+	stick := entity.NewStick(5, 5)
+	items := []*entity.Item{stick}
+
+	result := findNearestItemByType(0, 0, items, "stick", false)
+	if result != stick {
+		t.Error("growingOnly=false should find stick (Plant == nil)")
+	}
+}
+
+func TestFindNearestItemByType_GrowingOnlyFalse_FindsShells(t *testing.T) {
+	t.Parallel()
+
+	shell := entity.NewShell(3, 3, types.ColorSilver)
+	items := []*entity.Item{shell}
+
+	result := findNearestItemByType(0, 0, items, "shell", false)
+	if result != shell {
+		t.Error("growingOnly=false should find shell")
+	}
+}
+
+func TestFindNearestItemByType_IgnoresWrongType(t *testing.T) {
+	t.Parallel()
+
+	stick := entity.NewStick(3, 3)
+	items := []*entity.Item{stick}
+
+	result := findNearestItemByType(0, 0, items, "shell", false)
+	if result != nil {
+		t.Error("Should return nil when no items of requested type exist")
+	}
+}
+
+func TestFindNearestItemByType_FindsNearest(t *testing.T) {
+	t.Parallel()
+
+	farStick := entity.NewStick(10, 10)
+	nearStick := entity.NewStick(2, 2)
+	items := []*entity.Item{farStick, nearStick}
+
+	result := findNearestItemByType(0, 0, items, "stick", false)
+	if result != nearStick {
+		t.Error("Should return nearest item")
+	}
+}
+
+// =============================================================================
+// EnsureHasRecipeInputs Tests
+// =============================================================================
+
+func TestEnsureHasRecipeInputs_AllInputsInInventory(t *testing.T) {
+	gameMap := game.NewMap(10, 10)
+
+	stick := entity.NewStick(0, 0)
+	shell := entity.NewShell(0, 0, types.ColorSilver)
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{stick, shell},
+	}
+
+	recipe := entity.RecipeRegistry["shell-hoe"]
+
+	intent := EnsureHasRecipeInputs(char, recipe, nil, gameMap, nil)
+	if intent != nil {
+		t.Error("Should return nil when all inputs are in inventory")
+	}
+}
+
+func TestEnsureHasRecipeInputs_InputAccessibleInContainer(t *testing.T) {
+	registry := createTestRegistry()
+	// Register shell variety so HasAccessibleItem can find it in vessel
+	registry.Register(&entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("shell", types.ColorSilver, types.PatternNone, types.TextureNone),
+		ItemType: "shell",
+		Color:    types.ColorSilver,
+	})
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	// Character has a stick in inventory and a shell in a vessel
+	stick := entity.NewStick(0, 0)
+	vessel := createTestVessel()
+	vessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{ItemType: "shell", Color: types.ColorSilver}, Count: 1},
+	}
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{stick, vessel},
+	}
+
+	recipe := entity.RecipeRegistry["shell-hoe"]
+
+	intent := EnsureHasRecipeInputs(char, recipe, nil, gameMap, nil)
+	if intent != nil {
+		t.Error("Should return nil when input is accessible in container")
+	}
+}
+
+func TestEnsureHasRecipeInputs_MissingInput_ReturnsPickupIntent(t *testing.T) {
+	gameMap := game.NewMap(10, 10)
+
+	// Character has a stick but no shell
+	stick := entity.NewStick(0, 0)
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{stick},
+	}
+	char.X = 0
+	char.Y = 0
+
+	// Shell available on map
+	shell := entity.NewShell(5, 5, types.ColorSilver)
+	items := []*entity.Item{shell}
+
+	recipe := entity.RecipeRegistry["shell-hoe"]
+
+	intent := EnsureHasRecipeInputs(char, recipe, items, gameMap, nil)
+	if intent == nil {
+		t.Fatal("Should return intent to pick up missing shell")
+	}
+	if intent.TargetItem != shell {
+		t.Error("Intent should target the shell")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Error("Intent action should be ActionPickup")
+	}
+}
+
+func TestEnsureHasRecipeInputs_DropsNonRecipeLooseItems(t *testing.T) {
+	gameMap := game.NewMap(10, 10)
+
+	// Character has full inventory with a nut (not a recipe input) and a stick (recipe input)
+	nut := entity.NewNut(0, 0)
+	stick := entity.NewStick(0, 0)
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{nut, stick},
+	}
+	char.X = 0
+	char.Y = 0
+
+	// Shell available on map
+	shell := entity.NewShell(5, 5, types.ColorSilver)
+	items := []*entity.Item{shell}
+
+	recipe := entity.RecipeRegistry["shell-hoe"]
+
+	intent := EnsureHasRecipeInputs(char, recipe, items, gameMap, nil)
+
+	// Should have dropped the nut to make room
+	if len(char.Inventory) != 1 {
+		t.Errorf("Should have dropped non-recipe item, inventory size = %d", len(char.Inventory))
+	}
+	if char.Inventory[0] != stick {
+		t.Error("Should have kept the stick (recipe input)")
+	}
+
+	// Should return intent to pick up shell
+	if intent == nil {
+		t.Fatal("Should return pickup intent for shell")
+	}
+	if intent.TargetItem != shell {
+		t.Error("Intent should target the shell")
+	}
+}
+
+func TestEnsureHasRecipeInputs_DoesNotDropContainerWithRecipeInput(t *testing.T) {
+	gameMap := game.NewMap(10, 10)
+
+	// Character has a vessel containing shells and a loose nut
+	vessel := createTestVessel()
+	vessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{ItemType: "shell", Color: types.ColorSilver}, Count: 1},
+	}
+	nut := entity.NewNut(0, 0)
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{vessel, nut},
+	}
+	char.X = 0
+	char.Y = 0
+
+	// Stick available on map
+	stick := entity.NewStick(5, 5)
+	items := []*entity.Item{stick}
+
+	recipe := entity.RecipeRegistry["shell-hoe"]
+
+	intent := EnsureHasRecipeInputs(char, recipe, items, gameMap, nil)
+
+	// Should have dropped the nut, NOT the vessel (vessel has shell = recipe input)
+	if len(char.Inventory) != 1 {
+		t.Errorf("Should have 1 item in inventory, got %d", len(char.Inventory))
+	}
+	if char.Inventory[0] != vessel {
+		t.Error("Should have kept the vessel (contains recipe input)")
+	}
+
+	// Should return intent to pick up stick
+	if intent == nil {
+		t.Fatal("Should return pickup intent for stick")
+	}
+	if intent.TargetItem != stick {
+		t.Error("Intent should target the stick")
+	}
+}
+
+func TestEnsureHasRecipeInputs_NilWhenInputsNotOnMap(t *testing.T) {
+	gameMap := game.NewMap(10, 10)
+
+	// Character has nothing, no items on map
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
+	}
+
+	recipe := entity.RecipeRegistry["shell-hoe"]
+
+	intent := EnsureHasRecipeInputs(char, recipe, nil, gameMap, nil)
+	if intent != nil {
+		t.Error("Should return nil when recipe inputs don't exist on map")
+	}
+}
+
+func TestEnsureHasRecipeInputs_SingleInputRecipe(t *testing.T) {
+	gameMap := game.NewMap(10, 10)
+
+	// Character has a gourd already
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{gourd},
+	}
+
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+
+	intent := EnsureHasRecipeInputs(char, recipe, nil, gameMap, nil)
+	if intent != nil {
+		t.Error("Should return nil when single input is in inventory")
+	}
+}
+

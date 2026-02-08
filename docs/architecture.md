@@ -239,9 +239,9 @@ Picking up items is shared across multiple activities (foraging, harvesting) wit
 
 | File | Contents | Responsibility |
 |------|----------|----------------|
-| `picking.go` | `Pickup()`, `Drop()`, `DropItem()`, vessel helpers, `EnsureHasVesselFor()` | Physical pickup/drop, vessel operations, prerequisite helpers |
+| `picking.go` | `Pickup()`, `Drop()`, `DropItem()`, vessel helpers, `EnsureHasVesselFor()`, `EnsureHasRecipeInputs()`, `findNearestItemByType()` | Physical pickup/drop, vessel operations, prerequisite helpers, map search utilities |
 | `foraging.go` | `findForageIntent()`, scoring functions | Foraging targeting and unified scoring |
-| `order_execution.go` | `findHarvestIntent()`, `findCraftVesselIntent()`, `findNearestItemByType()` | Order-specific intent finding |
+| `order_execution.go` | `findHarvestIntent()`, `findCraftVesselIntent()` | Order-specific intent finding |
 | `idle.go` | `selectIdleActivity()` | Calls foraging as one idle option |
 | `update.go` | `applyIntent()` ActionPickup/ActionCraft cases | Executes actions, handles continuation |
 
@@ -504,14 +504,31 @@ Begin activity    Drop non-components
 - Drop logic: `Drop()` places item on ground at character position
 - Abandonment: `abandonOrder()` clears assignment, resets order status
 
-### picking.go Helpers
+### picking.go: Shared Home for Item Acquisition
 
-`EnsureHasVesselFor()` consolidates the vessel-seeking pattern used by harvest orders. It handles:
-- Checking if character already has compatible vessel
-- Dropping incompatible vessels when `dropConflict=true`
-- Finding and creating pickup intent for available vessels on map
+picking.go is organized into three responsibility layers:
 
-Additional helpers (`EnsureHasItem`, `EnsureHasRecipeInputs`) can be added as needed for future activities.
+**1. Map Search Utilities:**
+- `findNearestItemByType(cx, cy, items, itemType, growingOnly)` - Find nearest item by type, with optional growing-only filter
+- `FindAvailableVessel(cx, cy, items, targetItem, registry)` - Find nearest vessel that can hold target item
+
+**2. Prerequisite Orchestration:**
+- `EnsureHasVesselFor(char, target, ...)` - Ensure character has compatible vessel or go get one (handles drop conflicts, availability checks)
+- `EnsureHasRecipeInputs(char, recipe, ...)` - Ensure character has all recipe inputs or go get missing ones (handles drop logic, container protection)
+
+**3. Physical Actions:**
+- `Pickup()`, `Drop()`, `DropItem()` - Execute item transfers
+- Vessel helpers: `AddToVessel()`, `CanVesselAccept()`, `IsVesselFull()`, `CanPickUpMore()`
+
+### Future Vision: Unified Item-Seeking
+
+Currently, foraging.go has preference-weighted item scoring (`scoreForageItems`) while picking.go's prerequisite helpers use nearest-distance via `findNearestItemByType`. These should converge — character item-seeking behavior should be consistent whether foraging, gathering craft components, or fulfilling orders. Preference shapes material culture (e.g., a character who prefers silver shells will craft silver shell hoes).
+
+When preference-weighted component procurement is triggered (see triggered-enhancements.md), candidates to generalize into picking.go:
+- `scoreForageItems` (foraging.go) → generic `scoreItemsByPreference` in picking.go
+- `createPickupIntent` (foraging.go) → generic intent builder in picking.go (currently duplicated with different logging across foraging.go, order_execution.go, picking.go)
+
+This consolidation makes picking.go the canonical answer to "how does a character go about acquiring an item" regardless of context.
 
 ## Feature Types
 

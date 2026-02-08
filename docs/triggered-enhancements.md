@@ -130,9 +130,16 @@ Only investigate if patterns are diverging or duplicating. If each action's need
 
 ---
 
-**Preference-weighted component procurement:**
+**Preference-weighted component procurement → unified item-seeking in picking.go:**
 
 When gathering recipe inputs (e.g., shells for Craft Hoe), characters currently pick the nearest available component by distance. With shell color variety (7 colors), characters could instead score components by preference and distance, similar to food seeking's gradient scoring in foraging.go.
+
+picking.go is the shared home for "how characters acquire items." Currently, foraging.go has the most mature item-seeking logic (`scoreForageItems`, `createPickupIntent` — preference + distance scoring), while recipe procurement in picking.go uses simpler nearest-distance via `findNearestItemByType`. These should converge: characters' item-seeking behavior should be consistent whether they're foraging, gathering craft components, or fulfilling orders. Preference shapes material culture — a character who prefers silver shells will craft silver shell hoes, developing a personal aesthetic.
+
+Candidates to generalize into picking.go when this triggers:
+- `scoreForageItems` (foraging.go) → generic `scoreItemsByPreference` in picking.go
+- `createPickupIntent` (foraging.go) → generic intent builder in picking.go (currently duplicated across foraging.go, order_execution.go, picking.go with different logging)
+- `EnsureHasRecipeInputs` component seeking → use preference-weighted scoring instead of nearest-distance
 
 Deferred because: Craft Hoe is the first multi-component recipe, and the shell color distinction is subtle. Nearest-distance works fine. Revisit when multiple recipes create enough variety that "character walks past preferred shell to grab closer one" feels wrong.
 

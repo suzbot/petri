@@ -1077,7 +1077,7 @@ func TestFindNearestItemByType_SkipsNonGrowingItems(t *testing.T) {
 
 	items := []*entity.Item{droppedBerry, growingBerry}
 
-	result := findNearestItemByType(0, 0, items, "berry")
+	result := findNearestItemByType(0, 0, items, "berry", true)
 
 	if result != growingBerry {
 		t.Errorf("Expected growing berry, got %v", result)
@@ -1093,7 +1093,7 @@ func TestFindNearestItemByType_ReturnsNilWhenOnlyNonGrowingItems(t *testing.T) {
 
 	items := []*entity.Item{droppedBerry}
 
-	result := findNearestItemByType(0, 0, items, "berry")
+	result := findNearestItemByType(0, 0, items, "berry", true)
 
 	if result != nil {
 		t.Error("Should return nil when only non-growing items exist")
@@ -1114,7 +1114,7 @@ func TestFindNearestItemByType_SkipsItemsWithNilPlant(t *testing.T) {
 
 	items := []*entity.Item{vessel, growingBerry}
 
-	result := findNearestItemByType(0, 0, items, "berry")
+	result := findNearestItemByType(0, 0, items, "berry", true)
 
 	if result != growingBerry {
 		t.Errorf("Expected growing berry (not vessel), got %v", result)

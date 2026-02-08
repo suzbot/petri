@@ -443,19 +443,26 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 - ✅ `itemFromSave` case for `"hoe"`
 - ✅ Discovery: characters learn craftHoe + shell-hoe recipe from looking at/picking up sticks and shells
 
-##### Step 6: EnsureHasRecipeInputs
+##### Step 6: EnsureHasRecipeInputs ✅
 
-**Tests** (in `internal/system/picking_test.go`, `internal/system/order_execution_test.go`):
-- `findNearestGroundItemByType` finds non-growing items by type
-- `findNearestGroundItemByType` ignores wrong types and items not on map
-- `EnsureHasRecipeInputs` returns nil when all inputs accessible (inventory or container)
+**Design decisions:**
+- **Unified `findNearestItemByType`**: Instead of adding a separate `findNearestGroundItemByType`, add `growingOnly bool` parameter to the existing `findNearestItemByType` and move it from order_execution.go to picking.go. This keeps all item-seeking utilities in picking.go (alongside `FindAvailableVessel`) and maintains the "call downward" pattern where order_execution.go calls into picking.go for prerequisites and search.
+- **Shell in vessel**: Shells have color varieties and can end up in vessels. `HasAccessibleItem("shell")` already checks vessel contents. Drop logic must not drop a container holding a recipe input.
+- **Nearest-distance for now**: Component seeking uses `findNearestItemByType`. Preference-weighted seeking deferred (see triggered-enhancements.md — candidates to generalize from foraging.go's scoring).
+
+**Tests** (in `internal/system/picking_test.go`):
+- `findNearestItemByType` with `growingOnly=false` finds non-growing items (sticks, shells)
+- `findNearestItemByType` with `growingOnly=true` still only finds growing items (regression)
+- `findNearestItemByType` ignores wrong types
+- `EnsureHasRecipeInputs` returns nil when all inputs accessible (inventory)
+- `EnsureHasRecipeInputs` returns nil when input accessible in container
 - `EnsureHasRecipeInputs` returns pickup intent for missing input
 - `EnsureHasRecipeInputs` drops non-recipe loose items to make space
 - `EnsureHasRecipeInputs` does NOT drop container holding recipe input
 - `EnsureHasRecipeInputs` returns nil when inputs not available on map
 
 **Implementation:**
-- `findNearestGroundItemByType` in order_execution.go
+- Move `findNearestItemByType` from order_execution.go to picking.go, add `growingOnly bool` param, update all callers
 - `EnsureHasRecipeInputs` in picking.go
 
 ##### Step 7: Generalized Craft Execution

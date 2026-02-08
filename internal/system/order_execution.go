@@ -114,7 +114,7 @@ func findOrderIntent(char *entity.Character, pos types.Position, items []*entity
 // Uses EnsureHasVesselFor to handle vessel acquisition with drop-when-blocked logic.
 func findHarvestIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
 	// Find nearest item matching the order's target type
-	target := findNearestItemByType(pos.X, pos.Y, items, order.TargetType)
+	target := findNearestItemByType(pos.X, pos.Y, items, order.TargetType, true)
 	if target == nil {
 		return nil // No matching items - will trigger abandonment
 	}
@@ -180,7 +180,7 @@ func findCraftVesselIntent(char *entity.Character, pos types.Position, items []*
 	}
 
 	// Need to find a gourd to pick up
-	target := findNearestItemByType(pos.X, pos.Y, items, "gourd")
+	target := findNearestItemByType(pos.X, pos.Y, items, "gourd", true)
 	if target == nil {
 		return nil // No gourds available - will trigger abandonment
 	}
@@ -218,35 +218,6 @@ func findCraftVesselIntent(char *entity.Character, pos types.Position, items []*
 	}
 }
 
-// findNearestItemByType finds the closest item of a specific type.
-func findNearestItemByType(cx, cy int, items []*entity.Item, itemType string) *entity.Item {
-	if len(items) == 0 {
-		return nil
-	}
-
-	pos := types.Position{X: cx, Y: cy}
-	var nearest *entity.Item
-	nearestDist := int(^uint(0) >> 1) // Max int
-
-	for _, item := range items {
-		if item.ItemType != itemType {
-			continue
-		}
-		// Only consider growing items for harvest
-		if item.Plant == nil || !item.Plant.IsGrowing {
-			continue
-		}
-
-		ipos := item.Pos()
-		dist := pos.DistanceTo(ipos)
-		if dist < nearestDist {
-			nearestDist = dist
-			nearest = item
-		}
-	}
-
-	return nearest
-}
 
 // abandonOrder removes an order that cannot be fulfilled and clears the character's assignment.
 func abandonOrder(char *entity.Character, order *entity.Order, orders []*entity.Order, log *ActionLog) {
@@ -300,7 +271,7 @@ func FindNextHarvestTarget(char *entity.Character, cx, cy int, items []*entity.I
 	}
 
 	// Find nearest item matching the target type
-	target := findNearestItemByType(cx, cy, items, targetType)
+	target := findNearestItemByType(cx, cy, items, targetType, true)
 	if target == nil {
 		return nil
 	}
