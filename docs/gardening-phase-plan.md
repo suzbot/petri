@@ -465,23 +465,48 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 - Move `findNearestItemByType` from order_execution.go to picking.go, add `growingOnly bool` param, update all callers
 - `EnsureHasRecipeInputs` in picking.go
 
-##### Step 7: Generalized Craft Execution
+##### Step 7: Generalized Craft Execution ✅
 
-**Tests** (in `internal/system/order_execution_test.go`, `internal/ui/update_test.go`):
+**Design: `findCraftIntent` replaces `findCraftVesselIntent`**
+
+Generic craft intent finder for any recipe-based activity:
+
+1. `GetRecipesForActivity(order.ActivityID)` → get all recipes for this activity
+2. Filter to feasible recipes (at least one of each input type exists in the world)
+3. Pick first feasible recipe (future: score by preference for inputs — see triggered-enhancements.md)
+4. `EnsureHasRecipeInputs(char, recipe, ...)` → gather components
+5. When ready (all inputs accessible) → return `ActionCraft` intent with `RecipeID` set
+
+**Design: `findOrderIntent` dispatch**
+
+Instead of string-matching craft activity IDs, check whether the activity has recipes via `GetRecipesForActivity`. Any activity with registered recipes routes to `findCraftIntent`. Harvest and other non-recipe activities keep explicit cases.
+
+**Design: Generalized `ActionCraft` handler**
+
+Look up recipe from `intent.RecipeID`. Verify all inputs still accessible. On completion, dispatch to per-recipe creation function by recipe ID. `CreateVessel` (existing, updated to work with generalized path). `CreateHoe` (new): consumes stick + shell, creates hoe inheriting shell's color.
+
+**Behavior changes from generalization (improvements):**
+- Craft Vessel now uses `EnsureHasRecipeInputs` → picks up non-growing gourds too (dropped gourds now craftable, correct behavior)
+- Craft Vessel now uses BFS pathfinding via `createItemPickupIntent` (no more thrashing around ponds)
+
+**Tests** (in `internal/system/order_execution_test.go`):
 - `findCraftIntent` returns ActionCraft with correct RecipeID when inputs gathered
 - `findCraftIntent` returns pickup intent via EnsureHasRecipeInputs when inputs missing
 - `findCraftIntent` returns nil when no recipe feasible (inputs don't exist in world)
+
+**Tests** (in `internal/ui/update_test.go`):
 - ActionCraft handler creates shell hoe from stick + shell (correct ItemType, Kind, color from shell)
 - ActionCraft handler still creates vessel from gourd (regression test)
 - Crafted items placed on ground at character position (not in inventory)
 
 **Implementation:**
 - `findCraftIntent` replaces `findCraftVesselIntent` in order_execution.go
-- Update `findOrderIntent` dispatch: all craft activities → `findCraftIntent`
-- `CreateHoe(shell *entity.Item, recipe *entity.Recipe)` in crafting.go
-- Generalize ActionCraft handler in update.go: dispatch by `intent.RecipeID`
+- Update `findOrderIntent` dispatch: recipe-based activities → `findCraftIntent`
+- `CreateHoe(stick, shell *entity.Item, recipe *entity.Recipe)` in crafting.go
+- Generalize ActionCraft handler in update.go: look up recipe by `intent.RecipeID`, dispatch to per-recipe creation function
 - Per-recipe creation: `CreateVessel` (existing), `CreateHoe` (new)
 - Both auto-drop crafted item to ground
+- Remove `findCraftVesselIntent` (dead code after generalization)
 
 **[TEST] Checkpoint — Full Craft Hoe:**
 - `go test ./...` passes

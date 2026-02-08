@@ -9,7 +9,7 @@ then they can be removed from this list.
 
 # Ready Ideas
 
-## Issues To resolve (after Gardening)
+## Issues To resolve
 
 1. **Game Mechanics Doc Reorg**: they are little disorganized, inconsistent about what level of detail it shares, not in the most intuitive order.
    a. Reorganize in order of gameflow
@@ -49,13 +49,16 @@ Remove single/multi mode distinction from UI and add character count control:
 
 ## Tech Updates
 
-2. Assess process docs for claude skills
 3. Consider sequential problem solving MCS
 4. Evaluate how to make architecture doc more useful
 
-## Small Features (consider after Gardening)
+## Small Features
 
-1. Edible Nuts drop from canopy - uses same "drop from canopy" pattern as sticks; nuts are plantable per Gardening-Reqs
+1. The closest character who isn't already addressing a need (ie they are doing an idle activity or an order) can be interrupted to help a character who is in crisis.
+   - the helping character will give them the item they are carrying, if it will address a severe or crisis need of the needy char
+   - otherwise they will target an item that will address the worst-off need of the needy char, and creates the shortest path from helper to item to needy char
+   - helping character will drop one unhelpful item if their inventory is too full to pick up the helpful item
+   - helper will resume their order if they had one assigned
 
 # Ideas that aren't ready yet
 

@@ -315,11 +315,12 @@ func TestApplyIntent_CraftConsumesGourdFromVessel(t *testing.T) {
 	order.AssignedTo = char.ID
 	char.AssignedOrderID = order.ID
 
-	// Set craft intent (no TargetItem - gourd consumed when craft completes)
+	// Set craft intent with RecipeID
 	char.Intent = &entity.Intent{
-		Action: entity.ActionCraft,
-		Target: types.Position{X: 5, Y: 5},
-		Dest:   types.Position{X: 5, Y: 5},
+		Action:   entity.ActionCraft,
+		Target:   types.Position{X: 5, Y: 5},
+		Dest:     types.Position{X: 5, Y: 5},
+		RecipeID: "hollow-gourd",
 	}
 
 	actionLog := system.NewActionLog(100)
@@ -662,6 +663,167 @@ func TestApplyIntent_HarvestOrderWithoutVessel_ContinuesUntilInventoryFull(t *te
 	}
 	if berryCount != 1 {
 		t.Errorf("Expected 1 berry left on map, got %d", berryCount)
+	}
+}
+
+// =============================================================================
+// Generalized Craft Tests (Step 7 — shell hoe + vessel regression)
+// =============================================================================
+
+func TestApplyIntent_CraftHoe_CreatesHoeFromStickAndShell(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftHoe"}
+	char.KnownRecipes = []string{"shell-hoe"}
+	gameMap.AddCharacter(char)
+
+	// Character has both inputs
+	stick := entity.NewStick(0, 0)
+	shell := entity.NewShell(0, 0, types.ColorSilver)
+	char.AddToInventory(stick)
+	char.AddToInventory(shell)
+
+	// Create craft order and assign to character
+	order := entity.NewOrder(1, "craftHoe", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	// Set craft intent with RecipeID
+	char.Intent = &entity.Intent{
+		Action:   entity.ActionCraft,
+		Target:   types.Position{X: 5, Y: 5},
+		Dest:     types.Position{X: 5, Y: 5},
+		RecipeID: "shell-hoe",
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	// Apply intent with enough time to complete crafting
+	recipe := entity.RecipeRegistry["shell-hoe"]
+	if recipe == nil {
+		t.Fatal("shell-hoe recipe not found")
+	}
+	iterations := int(recipe.Duration/0.1) + 5
+	for i := 0; i < iterations; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Assert: crafting should have completed
+	if char.Intent != nil {
+		t.Error("Intent should be cleared after crafting completes")
+	}
+
+	// Assert: stick and shell should be consumed
+	if char.HasAccessibleItem("stick") {
+		t.Error("Stick should have been consumed")
+	}
+	if char.HasAccessibleItem("shell") {
+		t.Error("Shell should have been consumed")
+	}
+
+	// Assert: a hoe should be on the map at character's position
+	items := gameMap.Items()
+	var hoe *entity.Item
+	for _, item := range items {
+		if item.ItemType == "hoe" && item.X == 5 && item.Y == 5 {
+			hoe = item
+			break
+		}
+	}
+	if hoe == nil {
+		t.Fatal("Expected crafted hoe to be dropped at character's position")
+	}
+	if hoe.Kind != "shell hoe" {
+		t.Errorf("Expected Kind 'shell hoe', got %q", hoe.Kind)
+	}
+	if hoe.Color != types.ColorSilver {
+		t.Errorf("Expected hoe color Silver (from shell), got %v", hoe.Color)
+	}
+
+	// Assert: order should be completed
+	if char.AssignedOrderID != 0 {
+		t.Error("Character should have no assigned order after crafting completes")
+	}
+}
+
+func TestApplyIntent_CraftVessel_Regression_StillWorksViaGeneralizedPath(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftVessel"}
+	char.KnownRecipes = []string{"hollow-gourd"}
+	gameMap.AddCharacter(char)
+
+	// Character has gourd in inventory
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
+	char.AddToInventory(gourd)
+
+	// Create craft order and assign
+	order := entity.NewOrder(1, "craftVessel", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	// Set craft intent with RecipeID
+	char.Intent = &entity.Intent{
+		Action:   entity.ActionCraft,
+		Target:   types.Position{X: 5, Y: 5},
+		Dest:     types.Position{X: 5, Y: 5},
+		RecipeID: "hollow-gourd",
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	// Apply intent
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	iterations := int(recipe.Duration/0.1) + 5
+	for i := 0; i < iterations; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Assert: crafting completed
+	if char.Intent != nil {
+		t.Error("Intent should be cleared after crafting completes")
+	}
+
+	// Assert: gourd consumed
+	if char.HasAccessibleItem("gourd") {
+		t.Error("Gourd should have been consumed")
+	}
+
+	// Assert: vessel on map
+	items := gameMap.Items()
+	vesselFound := false
+	for _, item := range items {
+		if item.Container != nil && item.X == 5 && item.Y == 5 {
+			vesselFound = true
+			if item.Kind != "hollow gourd" {
+				t.Errorf("Expected Kind 'hollow gourd', got %q", item.Kind)
+			}
+			break
+		}
+	}
+	if !vesselFound {
+		t.Fatal("Expected crafted vessel to be dropped at character's position")
+	}
+
+	// Assert: order completed
+	if char.AssignedOrderID != 0 {
+		t.Error("Character should have no assigned order after crafting")
 	}
 }
 

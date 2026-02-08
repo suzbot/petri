@@ -14,6 +14,7 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 
 ## Latest Updates
 
+- **Craft Hoe**: New craftable tool from sticks and shells. Hoes inherit shell color.
 - **Sticks and Nuts**: Items periodically fall from the canopy onto empty tiles. Nuts are edible.
 - **Shells**: Colored shells periodically wash up near pond shores
 - **Ponds**: Water terrain that characters can drink from

@@ -888,20 +888,26 @@ func TestOrderLifecycle_ResumesAfterTargetTaken(t *testing.T) {
 // findCraftVesselIntent
 // =============================================================================
 
-func TestFindCraftVesselIntent_WithGourdInInventory(t *testing.T) {
+// =============================================================================
+// findCraftIntent (generic, replaces findCraftVesselIntent)
+// =============================================================================
+
+func TestFindCraftIntent_ReturnsActionCraftWithRecipeID_WhenInputsGathered(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(10, 10)
 	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
-	char.KnownActivities = []string{"craftVessel"}
-	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
-	char.AddToInventory(gourd)
+	char.KnownActivities = []string{"craftHoe"}
+	char.KnownRecipes = []string{"shell-hoe"}
+	// Character has both recipe inputs
+	char.AddToInventory(entity.NewStick(0, 0))
+	char.AddToInventory(entity.NewShell(0, 0, types.ColorSilver))
 	gameMap.AddCharacter(char)
 
-	order := entity.NewOrder(1, "craftVessel", "")
+	order := entity.NewOrder(1, "craftHoe", "")
 
 	items := gameMap.Items()
-	intent := findCraftVesselIntent(char, types.Position{X: 5, Y: 5}, items, order, nil)
+	intent := findCraftIntent(char, types.Position{X: 5, Y: 5}, items, order, nil, gameMap)
 
 	if intent == nil {
 		t.Fatal("Expected craft intent")
@@ -909,20 +915,104 @@ func TestFindCraftVesselIntent_WithGourdInInventory(t *testing.T) {
 	if intent.Action != entity.ActionCraft {
 		t.Errorf("Expected ActionCraft, got %d", intent.Action)
 	}
-	// TargetItem is no longer set - gourd is consumed when craft completes
+	if intent.RecipeID != "shell-hoe" {
+		t.Errorf("Expected RecipeID 'shell-hoe', got %q", intent.RecipeID)
+	}
+}
+
+func TestFindCraftIntent_ReturnsPickupIntent_WhenInputsMissing(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftHoe"}
+	char.KnownRecipes = []string{"shell-hoe"}
+	// Character has no inputs, but they exist on map
+	gameMap.AddCharacter(char)
+
+	stick := entity.NewStick(7, 5)
+	shell := entity.NewShell(8, 5, types.ColorSilver)
+	gameMap.AddItem(stick)
+	gameMap.AddItem(shell)
+
+	order := entity.NewOrder(1, "craftHoe", "")
+
+	items := gameMap.Items()
+	intent := findCraftIntent(char, types.Position{X: 5, Y: 5}, items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected pickup intent for missing input")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Expected ActionPickup, got %d", intent.Action)
+	}
+	// Should target one of the recipe inputs
+	if intent.TargetItem != stick && intent.TargetItem != shell {
+		t.Error("Expected TargetItem to be stick or shell")
+	}
+}
+
+func TestFindCraftIntent_ReturnsNil_WhenNoRecipeFeasible(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftHoe"}
+	char.KnownRecipes = []string{"shell-hoe"}
+	gameMap.AddCharacter(char)
+
+	// No sticks or shells on map — only berries
+	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	order := entity.NewOrder(1, "craftHoe", "")
+
+	items := gameMap.Items()
+	intent := findCraftIntent(char, types.Position{X: 5, Y: 5}, items, order, nil, gameMap)
+
+	if intent != nil {
+		t.Error("Expected nil intent when no recipe inputs exist in world")
+	}
+}
+
+func TestFindCraftIntent_VesselRegression_WithGourdInInventory(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftVessel"}
+	char.KnownRecipes = []string{"hollow-gourd"}
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
+	char.AddToInventory(gourd)
+	gameMap.AddCharacter(char)
+
+	order := entity.NewOrder(1, "craftVessel", "")
+
+	items := gameMap.Items()
+	intent := findCraftIntent(char, types.Position{X: 5, Y: 5}, items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected craft intent")
+	}
+	if intent.Action != entity.ActionCraft {
+		t.Errorf("Expected ActionCraft, got %d", intent.Action)
+	}
+	if intent.RecipeID != "hollow-gourd" {
+		t.Errorf("Expected RecipeID 'hollow-gourd', got %q", intent.RecipeID)
+	}
 	// Gourd should still be in inventory (not extracted yet)
 	if char.FindInInventory(func(i *entity.Item) bool { return i.ItemType == "gourd" }) == nil {
 		t.Error("Gourd should still be in inventory (consumed only when craft completes)")
 	}
 }
 
-func TestFindCraftVesselIntent_WithoutGourd_FindsGourdOnMap(t *testing.T) {
+func TestFindCraftIntent_VesselRegression_FindsGourdOnMap(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(10, 10)
 	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
 	char.KnownActivities = []string{"craftVessel"}
-	// Not carrying anything
+	char.KnownRecipes = []string{"hollow-gourd"}
 	gameMap.AddCharacter(char)
 
 	gourd := entity.NewGourd(7, 5, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
@@ -931,7 +1021,7 @@ func TestFindCraftVesselIntent_WithoutGourd_FindsGourdOnMap(t *testing.T) {
 	order := entity.NewOrder(1, "craftVessel", "")
 
 	items := gameMap.Items()
-	intent := findCraftVesselIntent(char, types.Position{X: 5, Y: 5}, items, order, nil)
+	intent := findCraftIntent(char, types.Position{X: 5, Y: 5}, items, order, nil, gameMap)
 
 	if intent == nil {
 		t.Fatal("Expected pickup intent for gourd")
@@ -944,12 +1034,13 @@ func TestFindCraftVesselIntent_WithoutGourd_FindsGourdOnMap(t *testing.T) {
 	}
 }
 
-func TestFindCraftVesselIntent_NoGourdsAvailable(t *testing.T) {
+func TestFindCraftIntent_VesselRegression_NoGourdsAvailable(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(10, 10)
 	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
 	char.KnownActivities = []string{"craftVessel"}
+	char.KnownRecipes = []string{"hollow-gourd"}
 	gameMap.AddCharacter(char)
 
 	// No gourds on map
@@ -959,38 +1050,10 @@ func TestFindCraftVesselIntent_NoGourdsAvailable(t *testing.T) {
 	order := entity.NewOrder(1, "craftVessel", "")
 
 	items := gameMap.Items()
-	intent := findCraftVesselIntent(char, types.Position{X: 5, Y: 5}, items, order, nil)
+	intent := findCraftIntent(char, types.Position{X: 5, Y: 5}, items, order, nil, gameMap)
 
 	if intent != nil {
 		t.Error("Expected nil intent when no gourds available")
-	}
-}
-
-func TestFindCraftVesselIntent_CarryingNonGourd_FindsGourd(t *testing.T) {
-	t.Parallel()
-
-	gameMap := game.NewMap(10, 10)
-	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
-	char.KnownActivities = []string{"craftVessel"}
-	char.AddToInventory(entity.NewBerry(0, 0, types.ColorRed, false, false)) // carrying berry, not gourd
-	gameMap.AddCharacter(char)
-
-	gourd := entity.NewGourd(7, 5, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
-	gameMap.AddItem(gourd)
-
-	order := entity.NewOrder(1, "craftVessel", "")
-
-	items := gameMap.Items()
-	intent := findCraftVesselIntent(char, types.Position{X: 5, Y: 5}, items, order, nil)
-
-	if intent == nil {
-		t.Fatal("Expected pickup intent for gourd")
-	}
-	if intent.Action != entity.ActionPickup {
-		t.Errorf("Expected ActionPickup, got %d", intent.Action)
-	}
-	if intent.TargetItem != gourd {
-		t.Error("Expected TargetItem to be the gourd on map")
 	}
 }
 

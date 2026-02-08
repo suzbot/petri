@@ -97,12 +97,16 @@ func canExecuteOrder(char *entity.Character, order *entity.Order) bool {
 
 // findOrderIntent creates an intent for executing an order based on its activity type.
 // Dispatches to activity-specific intent finding logic.
+// Recipe-based activities (any activity with registered recipes) route to findCraftIntent.
 func findOrderIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	// Check if this activity has recipes — route to generic craft handler
+	if len(entity.GetRecipesForActivity(order.ActivityID)) > 0 {
+		return findCraftIntent(char, pos, items, order, log, gameMap)
+	}
+
 	switch order.ActivityID {
 	case "harvest":
 		return findHarvestIntent(char, pos, items, order, log, gameMap)
-	case "craftVessel":
-		return findCraftVesselIntent(char, pos, items, order, log)
 	default:
 		// Unknown activity type - cannot create intent
 		return nil
@@ -160,64 +164,75 @@ func findHarvestIntent(char *entity.Character, pos types.Position, items []*enti
 	}
 }
 
-// findCraftVesselIntent creates an intent to craft a vessel.
-// If character has accessible gourd (in inventory or vessel), returns ActionCraft.
-// Otherwise returns ActionPickup for a gourd.
-func findCraftVesselIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog) *entity.Intent {
-	// Check if character has a gourd accessible (inventory or vessel contents)
-	// Don't extract yet - consumption happens when craft completes
-	if char.HasAccessibleItem("gourd") {
-		newActivity := "Crafting vessel"
-		if char.CurrentActivity != newActivity {
-			char.CurrentActivity = newActivity
+
+
+// findCraftIntent creates an intent to craft an item using the recipe system.
+// Generic replacement for findCraftVesselIntent — works for any recipe-based activity.
+// 1. Gets recipes for the order's activity
+// 2. Filters to feasible recipes (inputs exist in world)
+// 3. Picks first feasible recipe (future: score by preference — see triggered-enhancements.md)
+// 4. Uses EnsureHasRecipeInputs to gather components
+// 5. When ready → returns ActionCraft intent with RecipeID
+func findCraftIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	recipes := entity.GetRecipesForActivity(order.ActivityID)
+	if len(recipes) == 0 {
+		return nil
+	}
+
+	// Find a feasible recipe: at least one of each input type exists
+	// (in character's accessible items or on the map)
+	var feasible *entity.Recipe
+	for _, recipe := range recipes {
+		if isRecipeFeasible(char, recipe, items) {
+			feasible = recipe
+			break
 		}
-		return &entity.Intent{
-			Target: pos,
-			Dest:   pos, // Crafting in place
-			Action: entity.ActionCraft,
-			// No TargetItem - gourd will be consumed when craft completes
+	}
+	if feasible == nil {
+		return nil
+	}
+
+	// Use EnsureHasRecipeInputs to gather components
+	if intent := EnsureHasRecipeInputs(char, feasible, items, gameMap, log); intent != nil {
+		return intent
+	}
+
+	// All inputs accessible — check if we're actually ready to craft
+	// (EnsureHasRecipeInputs returns nil both when ready AND when impossible)
+	for _, input := range feasible.Inputs {
+		if !char.HasAccessibleItem(input.ItemType) {
+			return nil // Impossible — input not available
 		}
 	}
 
-	// Need to find a gourd to pick up
-	target := findNearestItemByType(pos.X, pos.Y, items, "gourd", true)
-	if target == nil {
-		return nil // No gourds available - will trigger abandonment
-	}
-
-	tpos := target.Pos()
-	tx, ty := tpos.X, tpos.Y
-
-	// Check if already at target
-	if pos.X == tx && pos.Y == ty {
-		newActivity := "Picking up " + target.Description()
-		if char.CurrentActivity != newActivity {
-			char.CurrentActivity = newActivity
-		}
-		return &entity.Intent{
-			Target:     pos,
-			Dest:       pos, // Already at destination
-			Action:     entity.ActionPickup,
-			TargetItem: target,
-		}
-	}
-
-	// Move toward target
-	nx, ny := NextStep(pos.X, pos.Y, tx, ty)
-
-	newActivity := "Moving to pick up " + target.Description()
+	// Ready to craft
+	newActivity := "Crafting " + feasible.Name
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
 	}
-
 	return &entity.Intent{
-		Target:     types.Position{X: nx, Y: ny},
-		Dest:       types.Position{X: tx, Y: ty}, // Destination is the item's position
-		Action:     entity.ActionPickup,
-		TargetItem: target,
+		Target:   pos,
+		Dest:     pos,
+		Action:   entity.ActionCraft,
+		RecipeID: feasible.ID,
 	}
 }
 
+// isRecipeFeasible returns true if all recipe inputs exist somewhere accessible
+// (in character inventory/vessels or on the map).
+func isRecipeFeasible(char *entity.Character, recipe *entity.Recipe, items []*entity.Item) bool {
+	for _, input := range recipe.Inputs {
+		// Check if character already has this input
+		if char.HasAccessibleItem(input.ItemType) {
+			continue
+		}
+		// Check if input exists on the map
+		if findNearestItemByType(char.X, char.Y, items, input.ItemType, false) == nil {
+			return false
+		}
+	}
+	return true
+}
 
 // abandonOrder removes an order that cannot be fulfilled and clears the character's assignment.
 func abandonOrder(char *entity.Character, order *entity.Order, orders []*entity.Order, log *ActionLog) {

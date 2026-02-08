@@ -494,24 +494,29 @@ Characters can craft items from materials using recipes.
 
 Recipes define what can be crafted:
 - **hollow-gourd**: 1 gourd → 1 vessel (container with capacity 1)
-  - Duration: 10 seconds (temporary - full duration 120 seconds)
+  - Duration: see `config.ActionDurationLong`
   - Vessel inherits gourd's appearance (color, pattern, texture)
   - Vessel is not edible
+- **shell-hoe**: 1 stick + 1 shell → 1 hoe (tool for tilling soil)
+  - Duration: see `config.ActionDurationLong`
+  - Hoe inherits shell's color (e.g., "silver shell hoe")
+  - Hoe cannot go in vessels
 
 ### Discovery
 
 Crafting know-how and recipes are discovered together:
 - **craftVessel + hollow-gourd recipe**: Discovered via gourd interaction (look, pickup, eat) or drinking at a spring
+- **craftHoe + shell-hoe recipe**: Discovered via stick or shell interaction (look, pickup)
 
 Discovery chance depends on mood (same as other know-how discovery).
 
 ### Craft Orders
 
 To craft items:
-1. Player creates a Craft order (Orders panel → + → Craft → Vessel)
-2. Character with craftVessel know-how takes the order
-3. If carrying a gourd: begin crafting immediately
-4. If not carrying a gourd: move to pick one up (dropping current item if needed)
+1. Player creates a Craft order (Orders panel → + → Craft → select activity)
+2. Character with relevant know-how takes the order
+3. If carrying all recipe inputs: begin crafting immediately
+4. If missing inputs: drop non-recipe items, move to pick up missing components
 5. Crafting takes recipe duration (uses ActionProgress like eating/drinking)
 6. On completion: crafted item drops on ground, order completed (allows other characters to use it)
 

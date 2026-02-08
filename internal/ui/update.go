@@ -880,40 +880,51 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		}
 
 	case entity.ActionCraft:
-		// Crafting - uses recipe duration
-		// Gourd stays in inventory/vessel until craft completes
+		// Crafting - uses recipe duration, dispatches by intent.RecipeID
 
-		// Verify gourd is still accessible (might have been eaten during pause)
-		if !char.HasAccessibleItem("gourd") {
-			// Gourd was consumed (eaten?) - clear intent, will re-evaluate
+		recipe := entity.RecipeRegistry[char.Intent.RecipeID]
+		if recipe == nil {
 			char.Intent = nil
 			return
 		}
 
-		// Get recipe duration (hollow-gourd recipe)
-		recipe := entity.RecipeRegistry["hollow-gourd"]
-		if recipe == nil {
-			char.Intent = nil
-			return
+		// Verify all inputs are still accessible (might have been consumed during pause)
+		for _, input := range recipe.Inputs {
+			if !char.HasAccessibleItem(input.ItemType) {
+				char.Intent = nil
+				return
+			}
 		}
 
 		char.ActionProgress += delta
 		if char.ActionProgress >= recipe.Duration {
 			char.ActionProgress = 0
 
-			// Consume the gourd now that craft is complete
-			gourd := char.ConsumeAccessibleItem("gourd")
-			if gourd == nil {
-				// Shouldn't happen since we checked above, but handle gracefully
-				char.Intent = nil
-				return
+			// Consume all recipe inputs
+			consumed := make(map[string]*entity.Item)
+			for _, input := range recipe.Inputs {
+				item := char.ConsumeAccessibleItem(input.ItemType)
+				if item == nil {
+					char.Intent = nil
+					return
+				}
+				consumed[input.ItemType] = item
 			}
 
-			// Create the vessel
-			vessel := system.CreateVessel(gourd, recipe)
-			vessel.X = char.X
-			vessel.Y = char.Y
-			m.gameMap.AddItem(vessel)
+			// Dispatch to per-recipe creation function
+			var crafted *entity.Item
+			switch recipe.ID {
+			case "hollow-gourd":
+				crafted = system.CreateVessel(consumed["gourd"], recipe)
+			case "shell-hoe":
+				crafted = system.CreateHoe(consumed["shell"], recipe)
+			}
+
+			if crafted != nil {
+				crafted.X = char.X
+				crafted.Y = char.Y
+				m.gameMap.AddItem(crafted)
+			}
 
 			// Log the craft
 			if m.actionLog != nil {

@@ -241,7 +241,7 @@ Picking up items is shared across multiple activities (foraging, harvesting) wit
 |------|----------|----------------|
 | `picking.go` | `Pickup()`, `Drop()`, `DropItem()`, vessel helpers, `EnsureHasVesselFor()`, `EnsureHasRecipeInputs()`, `findNearestItemByType()` | Physical pickup/drop, vessel operations, prerequisite helpers, map search utilities |
 | `foraging.go` | `findForageIntent()`, scoring functions | Foraging targeting and unified scoring |
-| `order_execution.go` | `findHarvestIntent()`, `findCraftVesselIntent()` | Order-specific intent finding |
+| `order_execution.go` | `findHarvestIntent()`, `findCraftIntent()` | Order-specific intent finding |
 | `idle.go` | `selectIdleActivity()` | Calls foraging as one idle option |
 | `update.go` | `applyIntent()` ActionPickup/ActionCraft cases | Executes actions, handles continuation |
 
@@ -451,21 +451,22 @@ type RecipeInput struct {
 
 ### RecipeRegistry
 
-Recipes are stored in `RecipeRegistry` map, keyed by recipe ID. Currently one recipe (`hollow-gourd`), but pattern supports multiple recipes per output type.
+Recipes are stored in `RecipeRegistry` map, keyed by recipe ID. Pattern supports multiple recipes per activity and per output type.
 
 ### Crafting Flow
 
-1. Order assigned → check for required components in inventory
-2. If missing components: drop incompatible items, seek components
-3. Once all components gathered: perform crafting action
-4. On completion: consume inputs, create output item
+1. Order assigned → `findCraftIntent` gets recipes for activity, filters to feasible recipes (inputs exist in world)
+2. Picks first feasible recipe (future: preference-weighted selection)
+3. `EnsureHasRecipeInputs` gathers missing components (drop non-recipe items, seek nearest input)
+4. Once all components accessible: perform crafting action
+5. On completion: consume all inputs, create output item via recipe-specific creation function
 
 ### Adding a New Recipe
 
 1. Add recipe to `RecipeRegistry` in `entity/recipe.go`
-2. Add activity to `ActivityRegistry` for the crafting activity
-3. Add intent-finding function (follows component procurement pattern)
-4. Handle in `applyIntent()` ActionCraft case
+2. Add activity to `ActivityRegistry` for the crafting activity (if new)
+3. Add creation function in `system/crafting.go` (e.g., `CreateHoe`)
+4. Add case to `applyIntent()` ActionCraft handler dispatch (by recipe ID)
 
 ## Component Procurement Pattern
 

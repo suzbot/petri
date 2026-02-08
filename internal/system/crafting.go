@@ -29,3 +29,9 @@ func CreateVessel(input *entity.Item, recipe *entity.Recipe) *entity.Item {
 		},
 	}
 }
+
+// CreateHoe creates a hoe item from a stick and shell.
+// The hoe inherits the shell's color (e.g., "silver shell hoe").
+func CreateHoe(shell *entity.Item, recipe *entity.Recipe) *entity.Item {
+	return entity.NewHoe(shell.X, shell.Y, shell.Color)
+}

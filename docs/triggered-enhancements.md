@@ -141,7 +141,9 @@ Candidates to generalize into picking.go when this triggers:
 - `createPickupIntent` (foraging.go) → generic intent builder in picking.go (currently duplicated across foraging.go, order_execution.go, picking.go with different logging)
 - `EnsureHasRecipeInputs` component seeking → use preference-weighted scoring instead of nearest-distance
 
-Deferred because: Craft Hoe is the first multi-component recipe, and the shell color distinction is subtle. Nearest-distance works fine. Revisit when multiple recipes create enough variety that "character walks past preferred shell to grab closer one" feels wrong.
+**Recipe selection by preference** is a natural extension of this same system. `findCraftIntent` currently picks the first feasible recipe for an activity. When multiple recipes produce the same product (e.g., shell hoe, metal hoe, wooden hoe), the character could score each feasible recipe by net preference for its inputs — a character who likes silver shells would prefer the shell-hoe recipe and then prefer silver shells as input. The `findCraftIntent` structure (get feasible recipes → pick one → gather inputs) has the selection point built in at step 3.
+
+Deferred because: Craft Hoe is the first multi-component recipe, and there's only one recipe per activity. Nearest-distance works fine. Revisit when multiple recipes per activity create enough variety that "character ignores preferred recipe/material" feels wrong.
 
 ---
 
