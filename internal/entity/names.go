@@ -7,17 +7,17 @@ package entity
 // Organized alphabetically by starting letter to prevent duplicates and ease additions.
 var CharacterNames = []string{
 	// A
-	"Ash",
+	"Ash", "Awn",
 
 	// B
-	"Bean", "Beff", "Bine", "Birch", "Bit", "Bloom", "Bog", "Bole", "Bough", "Branch",
-	"Brer", "Briar", "Brome", "Brush", "Bry", "Bud", "Bug", "Burl", "Burr", "Buzz",
+	"Bane", "Bean", "Beech", "Beff", "Bine", "Birch", "Bit", "Bloom", "Bog", "Bole", "Bough", "Branch",
+	"Bract", "Briar", "Brome", "Brume", "Brush", "Bry", "Bud", "Bug", "Burl", "Burr", "Buzz",
 
 	// C
-	"Chert", "Claw", "Creft", "Cress", "Croft",
+	"Chert", "Claw", "Corm", "Cress", "Croft", "Culm",
 
 	// D
-	"Daub", "Dew", "Dock", "Dray", "Duff",
+	"Daub", "Den", "Dew", "Dill", "Dock", "Dray", "Duff",
 
 	// E
 	"Eft", "Egg", "Elm",
@@ -26,10 +26,10 @@ var CharacterNames = []string{
 	"Fen", "Fern", "Fir", "Fitch", "Flax", "Flit", "Fluff", "Frond", "Furl", "Fuzz",
 
 	// G
-	"Gnarl", "Grub", "Grue",
+	"Gleam", "Gloam", "Glume", "Gnarl", "Gren", "Grub", "Grue",
 
 	// H
-	"Hedge", "Herb",
+	"Hedge", "Herb", "Hop",
 
 	// K
 	"Knoll",
@@ -38,26 +38,26 @@ var CharacterNames = []string{
 	"Larch", "Leaf", "Leek", "Lil", "Loam", "Log",
 
 	// M
-	"Marl", "Marsh", "Midge", "Mite", "Mole", "Mor", "Moss", "Moth", "Mouse", "Muld", "Mull",
+	"Marl", "Marsh", "Midge", "Mint", "Mite", "Mole", "Mor", "Moss", "Moth", "Mouse", "Muld", "Mull",
 
 	// N
-	"Nest", "Newt", "Nook",
+	"Nest", "Newt", "Node", "Nook", "Nut",
 
 	// O
-	"Oak", "Olm", "Ov",
+	"Oak", "Oat", "Olm", "Ov",
 
 	// P
-	"Pad", "Peat", "Phlom", "Phlox", "Pitch", "Pith", "Pod", "Puff",
+	"Pad", "Pea", "Peat", "Phlom", "Phlox", "Pine", "Pitch", "Pith", "Pod", "Puff",
 
 	// Q
 	"Quick", "Quill", "Quitch",
 
 	// R
-	"Reed", "Rime", "Root", "Rye",
+	"Ramp", "Reed", "Rime", "Root", "Rue", "Rush", "Rye",
 
 	// S
-	"Sap", "Scamps", "Scrub", "Scurf", "Sedge", "Shoot", "Shrew", "Skink", "Skunk",
-	"Snug", "Sod", "Sprig", "Sprout", "Spud", "Stick", "Stoat", "Stub", "Stump", "Swale",
+	"Sap", "Scamps", "Scape", "Scrape", "Scrub", "Scurf", "Sedge", "Shoot", "Shrew", "Skink", "Skunk",
+	"Snug", "Sod", "Sprig", "Sprout", "Spruce", "Spud", "Stem", "Stick", "Stoat", "Stub", "Stump",
 
 	// T
 	"Tarn", "Thorn", "Toad", "Toady", "Tuff", "Tuft", "Twig",
@@ -66,7 +66,7 @@ var CharacterNames = []string{
 	"Verd", "Vetch", "Vole",
 
 	// W
-	"Web", "Weed", "Weir", "Wing", "Wort",
+	"Web", "Weed", "Weir", "Wing", "Wold", "Woad", "Wort",
 
 	// Y
 	"Yew",
