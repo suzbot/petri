@@ -60,6 +60,8 @@ New Activity: Garden > Till Soil
 
 PART II: Seeds, Planting, and Watering
 
+Quick change: convert water symbol to medium-shade tile
+
 New ItemType: Seed
 	- Eating a gourd creates 1 gourd variety seed
 	- Foraging allows characters including flowers in preference targetting. Foraging a flower produces 1 flower variety seed without removing the flower.
@@ -90,6 +92,9 @@ New Activity: Plant
 		- if no carried plantable item, then will pick up plantable items or containers based on preference/distance
 		- if no plantable item avaiable, will abandon task
 		- planted item becomes a growing 'sprout' of that variety
+			- replaces tile with an sprout symbol (underlined to show if in tilled soil? or some other way?)
+			- all sprouts appear olive unless tile is watered in which case they are green
+				- except for mushrooms which are always the color of their variety
 	- Completion: Once they have established what specific variety they are planting, they will keep planting until that specific variety of plantable item is no longer available OR until there are no more unplanted tilled soil items
 	- More than one character can be planting at once, each with their own chosen plantable variety of the selected plantable item
 
@@ -103,18 +108,37 @@ New Idle Activity: Fetch Water
 	- a full vessel has 4 'drinks'/units of water in it
 
 New Activity: Water Garden
-	- REQS TO DO
+	- Discoverable by looking at sprout or water source or hollow gourd
+		- Ensure that water sources (ponds and springs) are able to be looked at
+	- Orderable
+	- No Recipe Needed
+	- Pre-requisite: at least one vessel full with water 
+		- following standard logic to get prereqs into inventory, or adbandon if part of prereq is not available
+	- Activity: 'water' the closest dry tilled planted tile. Watering uses 1 unit of water. 
+		- a 'watered' (wet) tile changes in appearance to green.
+			- If a wet tile is in a state of tilled but not planted, then its style will be green instead of olive.
+		- If have water left in inventory after watering next tile, look for closest dry tilled planted tile and water it next
+		- If there are more dry tilled planted tiles, and vessel is empty, then refill vessel and continue watering
+	- Completion: once there are no remaining dry tilled planted tiles, then order is complete
+		- more then one character can be watering at once, for faster completion by each
 
 Enhanced Logic: Garden Plant Growth and Reproduction
-	- planted item becomes a gorwing sprout of that variety
-	- sprout eventually becomes a full grown version of the plant variety [duration 6 mins]
+	- planted item becomes a growing sprout of that variety
+	- sprout eventually becomes a full grown version of the plant variety [testing duration, 30 seconds)
 	- extend normal plant reproduction to have sprout phase with baseline duration
-	- being in tilled ground makes it grow and reproduce a little faster
-	- being watered makes it grow and reproduce a little faster
+	- being in tilled ground makes it grow and reproduce a little faster than on its own
+	- being on a wet tile makes it grow and reproduce a little faster than on its own
+	- tiles adjacent (including diagonal) to water sources are always 'wet'
 
 Food Turning
-- Different edible items have a different satiation amount
-- Different growing items have different lifecycle times
+- Different edible items have a different satiation amounts
+	- Feast (50pts) (gourd)
+	- Meal (25 pts) (mushroom)
+	- Snack (10 pts) (nut, berry)
+- Different growing items have different lifecycle times 
+	- fast (berry, mushroom) (shorter sprouting and resproduction times)
+	- medium (flower) (six minute sprouting time, existing reproduction time)
+	- slow (gourd) (longer sprouting and reproduction times)
 
 ---
 

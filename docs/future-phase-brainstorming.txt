@@ -1,16 +1,14 @@
 
 
 
-Pondering- Depends on Phase 5 
+Pondering
  - Default order able activity: ponder. Pondering is spending x amount of time looking at any random object on the map. Pondering doubles their mood chances of making a discovery that depends on that item.
  - Magic Mushrooms?
 
-Pigment - Cultural Artifacts (Depends on containers, dye, needs more resources and skills)
-- items can be decorated with paint. Decorated items can impact mood/preferences
-- Characters can decorate self? (Future: washes way with water or rain)
 
-## 10. Relationships
-- as initial basis, give characters attribute of eye color. And hair color. And Skin color. Make this settable at character creation. Eyes can be any color but red or white. Hair and skin color are same as mushroom color options.
+## Relationships
+- as initial basis, give characters attribute of eye color. And hair color. Make this settable at character creation. Eyes can be any color but red or white or pink or pale pink. Hair color is the same as mushroom color options.
+- Recheck that character ui is wide enough to display all options without wrapping.
 -  Character starts with neutral tier perception of other (50)
 	- 0-20 Hates
 	- 20-40 Dislikes
@@ -22,9 +20,11 @@ Pigment - Cultural Artifacts (Depends on containers, dye, needs more resources a
 - should include any character decorations
 - If character already likes person, then talking/following etc can raise their mood. If already dislikes them, then can lower their mood.
 - What order should these be evaluated in? 
+- Helping should improve relationships for both sides (both the helper and the helped)
 
 
-## 11. Learning through observation - Depends on Phase 5 (Complete), maybe depends on relationships? If not, need to pull out relationship scope. What order does it make sense to do it in?
+
+## Learning through observation - Depends on Phase 5 (Complete), maybe depends on relationships? If not, need to pull out relationship scope. What order does it make sense to do it in?
 Knew knowledge category:
 	⁃	Desire? Goals?
 	⁃	From talking, Hari can Transmit concept of Harvest to Len
@@ -39,12 +39,28 @@ Knew knowledge category:
 	⁃	For activities with recipes
 	⁃	Once Len knows Craft Vessel, he can learn the Hollow Gourd recipe either by discovery OR by talking to someone else who knows Hollow Gourd recipe. That way he can learn about wood bucket or clay pot through 
 
-## 12. Building Shelter
-- grass hut, stick hut, brick hut features
-- fences
+
+## ?? Population Growth: Reproduction
+- adult characters can find babies under mushrooms
+- when a character is joyful then they have a chance of finding a mushroom baby when they eat or pick up a growing mushroom. 
+- They have a 180 cooldown period before they are eligible to find a mushroom baby again. 
+- The baby is on the ground in the same spot the mushroom was. they have the same skin color as the mushroom had.
+- Babies can be worn on the back - new specific inventory slot (the first two slots are hands)
+- If the finding character is carrying anything else on their back, they will drop it to carry the baby. Babies cannot be dropped. 
+- When they pick up the baby to put them on their back
+	- When the baby gets picked up, the picker gets a mood boost and the baby and picker establish a positive relationship
+	- When the baby gets picked up, the baby will get a name in the form of
+		[Random Name from Name List] [(Picker's Name)+kin]
+	- One of the baby's physical attributes will be inherited from the picker "Baby Bud Dillkin has green hair like Dill"
+	- The babies needs will be addressed by the carrier as if they were the carrier's own needs
+	- if a competing urgent need interrupts before the finder picks up the baby, then the nearest idle or working character will come pick up the baby.
+- Once the baby is picked up, Anyone who is doing an idle activity or an order will interrupt/pause that activity to greet the new baby.
+	- Greeting new baby gives a medium mood boost
+	- If the baby has any physical attributes that are not set, they will inherit the attribute from the greeter. "Baby Bud Dillkin has black eyes like Grue"
 
 
-## 14. TREES
+
+## TREES
 - as mountain is to dwarf fortress, so tree is to petri
 	- generate trees of random width on map. from 1-10 units wide. Any edge unit adjacent to the ‘outside’ on spawning is livewood. Any unit not touching any outside is ‘heartwood’ 
 	- some trees are generated hollow with an opening
@@ -66,12 +82,10 @@ Knew knowledge category:
 
 ## ?? Population Growth: Stranger Comes to town
 Someone with a name of first name: random name list + last name: randomnames list + kin
-They can interact with anything, but can’t take orders. If they become joyful, they will talk to someone and ask to join. If that person likes them they will say yes. If they are neutral they will say ask someone else. Perhaps other attributes can affect how this goes
+They can interact with anything for needs and idle activities, but can’t take orders. If they become joyful, they will talk to someone and ask to join. If that person likes them they will say yes. If they are neutral they will say ask someone else. Perhaps other attributes can affect how this goes? 
 
 
-## ?? Population Growth: Reproduction
-- ugh I don’t want to do this yet, need to figure out age, family relationships, etc. OR, just find babies under mushrooms? But then how do they inherit traits? Maybe whoever they imprint on until all their primary attributes are full?
-- Ok proposal: when a character is joyful and they are bonded with at least one person, then they have a chance of finding a mushroom baby. They have a cooldown period before they are eligible to find a mushroom baby again. They call a gathering of all the people who are bonded with them, and together they all name the baby and the baby imprints on all of them, getting a random combination of traits. 
+
 
 ## ?? Naming:
 First name: 3-6 first letters from finders favorite person or item plus chance of 3-6 first letters from another favorite person or item 

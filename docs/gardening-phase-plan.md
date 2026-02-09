@@ -17,6 +17,21 @@
 | Action duration tiers | Short (0.83) / Medium (4.0) / Long (10.0) | Formalized for Craft Hoe (Long) and Till Soil (Medium). Code notes potential Extra Short / Extra Long tiers.    |
 | Craft auto-drop       | Crafted items always drop to ground    | Available to any character. Consistent with existing vessel behavior.                                            |
 | Recipe-level naming   | ItemType "hoe", Kind "shell hoe"       | User orders "Craft Hoe", character produces "shell hoe" based on recipe. Future recipes: "metal hoe", "wooden hoe". Description builds naturally: "silver shell hoe". |
+| Plantable attribute   | Explicit `Plantable bool` on Item      | Clean, extensible. Seeds get it at creation; berries/mushrooms set it when picked. Derived approach (infer from Plant state) is implicit and harder to extend to future items. |
+| Liquid storage        | Liquids as vessel Stacks               | Water/future liquids (mead, beer, wine) stored in ContainerData.Contents as Stacks with ItemType and Count (units). Vessel holds items OR liquid, never both. Reuses all existing vessel infrastructure. |
+| Wet tile tracking     | On-the-fly + timer for manual watering | Water-adjacent tiles (8-dir) always wet — computed, no state. Character-watered tiles tracked with decay timer (3 world days). Scales if water features change. |
+| Tilled soil visual    | Parallel line symbol + underline       | Tilled soil gets a ground symbol. Plants on tilled soil underlined. "Tilled" attribute visible in details panel when ground selected. Highlight only in selection view. |
+| Sprout colors         | Olive (dry) / green (wet) / mushroom exception | Sprouts appear olive by default, green when on wet tile. Mushroom sprouts always show variety color. |
+| Tilled soil model     | Map terrain state, not feature         | Tilled soil is a terrain modification. Items must exist on tilled tiles (plants grow there). Features block `IsEmpty()`. O(1) lookups via `tilled map[Position]bool`. Same pattern as water terrain. |
+| Tilled soil visual    | Olive `≡` symbol, no background        | Triple horizontal lines in olive color on empty tilled tiles. No background color. Entity symbols render normally on tilled tiles; tilled state shown in details panel. |
+| Activity categories   | `Category` field on Activity struct    | Explicit grouping replaces prefix convention. Cleaner than string prefix hacking. Scales to future categories (Pigment, Construction). Existing craft activities migrated. |
+| Area selection UI     | Rectangle anchor-cursor pattern        | Enter to anchor, move cursor for rectangle, Enter to confirm. Invalid tiles silently excluded. Reusable for Construction fence/hut placement. |
+| Till order state      | Map is source of truth                 | Order stores intent (`TargetPositions`). Map stores reality (`tilled`). Characters skip positions where `IsTilled()` is true. Multi-assignment works naturally. |
+| Lookable water terrain | Extend Look to water-adjacent positions | Characters contemplate water sources. Triggers know-how discovery (Water Garden) but not preference formation (water has no item attributes). |
+| Food satiation tiers  | Feast (50) / Meal (25) / Snack (10)   | Per-item-type satiation. Gourd=Feast, Mushroom=Meal, Berry/Nut=Snack. Replaces flat FoodHungerReduction. |
+| Growth speed tiers    | Fast / Medium / Slow                   | Berry/mushroom=fast, flower=medium (6-min sprout), gourd=slow. Affects sprouting duration and reproduction intervals. |
+| Watered tile decay    | 3 world days (360 game seconds)        | Manual watering creates temporary wet status. Tiles adjacent to water are permanently wet (computed). |
+| Water symbol          | Medium-shade block tile                | Visual update from `≈` to block character for water rendering. Applies to springs and ponds. |
 
 ---
 
@@ -199,7 +214,7 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 
 **Implementation** (`internal/entity/item.go`, `internal/game/world.go`, `internal/game/variety_generation.go`):
 - New constructors: `NewStick(x, y)`, `NewNut(x, y)`, `NewShell(x, y, color)`
-- Add shells to `GetItemTypeConfigs()` with `ShellColors`, non-edible, `SpawnCount: ShellSpawnCount`. Add `NonPlantSpawned bool` to skip in `SpawnItems()`
+- Add shells to `GetItemTypeConfigs()` with `ShellColors`, non-edible, `SpawnCount: ShellSpawnCount`. Add `NonPlantSpawned Bool` to skip in `SpawnItems()`
 - Spawn initial sticks, nuts, and shells during world generation (after ponds and items). Shells adjacent to pond tiles; sticks/nuts on random empty tiles.
 
 **Styles** (`internal/ui/styles.go`, `internal/ui/view.go`):
@@ -530,33 +545,261 @@ Look up recipe from `intent.RecipeID`. Verify all inputs still accessible. On co
 
 - New Activity: Garden > Till Soil (lines 36-59)
 
-**Outcomes:**
+#### Design: Tilled Soil as Map State
 
-1. New order type: Till Soil, orderable, discoverable (from picking up or looking at hoe)
-2. Area selection UI: new input mode for highlighting map tiles
-   - Keyboard-driven area highlighting
-   - Tiles with features (springs, leaf piles, ponds) excluded from selection
-   - Already-tilled tiles not selectable
-   - Pending-till tiles shown as pre-highlighted
-   - Marked tiles visible in details screen (select view)
-3. Tilling action: medium duration per tile, requires hoe in inventory
-   - On completion: tile gets "Growing" style (olive background)
-   - Growing items on tile destroyed; non-growing items displaced to adjacent tile
-   - Character moves to next nearest marked tile automatically
-4. Multi-assignment: multiple characters can work on the same set of marked tiles
-5. Required item procurement: character must have hoe before starting (uses `EnsureHasItem` helper)
+Tilled soil is modeled as **map terrain state** (like water), not a feature. Rationale:
+- Tilled soil is a terrain modification, not a discrete entity
+- Items must be able to exist on tilled tiles (plants grow there)
+- Features block `IsEmpty()` / `findEmptySpot()`, which would prevent plant spawning
+- O(1) lookups via `tilled map[Position]bool` on Map struct
+- Serialization: `TilledPositions []Position` in SaveState (same pattern as `WaterTiles`)
 
-**[TEST] Checkpoint:** Character discovers Till Soil from hoe. Issue Till Soil order, select area on map. Character fetches hoe, tills tiles one by one (olive background appears). Non-growing items displaced. Test with 2 characters tilling same area. Verify feature tiles excluded from selection.
+**Visual:** Olive-colored `≡` (triple horizontal lines) on empty tilled tiles. No background color — the symbol itself renders in olive. When items/characters occupy a tilled tile, the entity renders normally (tilled state visible via details panel). Future: Slice 6 adds underline styling for plants on tilled soil.
 
-**Feature questions:**
+**Details panel:** Cursor over tilled tile with no item shows "Tilled soil". Cursor over item on tilled tile shows item details + "On tilled soil" note. Cursor over tile marked-for-tilling (from a pending order) shows "Marked for tilling" in olive text.
 
-- Area selection keyboard controls: arrow keys to move cursor, hold shift to extend? Or click-and-drag style with start/end corners?
-  - Make a reccomendation
-- Visual indicator for "marked for tilling" vs "tilled" on map?
-  - Marked for tilling should only be visible during area selection UI
-  - For 'Tilled', Show some options with different symbols and options
-- Should the area selection UI pattern be documented for reuse by Construction's fence/hut placement?
-  - Let's assume yes
+#### Design: Activity Category Field
+
+Add `Category string` field to `Activity` struct. Replaces the prefix-convention approach used by Craft (which checks first 5 chars of activity ID). Benefits:
+- Explicit grouping for UI menu hierarchy (Garden, Craft, future: Pigment, Construction)
+- Activity IDs stay descriptive without encoding category (`"tillSoil"` not `"gardenTillSoil"`)
+- `getOrderableActivities()` groups by Category instead of string prefix hacking
+- Migrate existing craft activities: set `Category: "craft"` on craftVessel, craftHoe
+
+Order UI flow: Step 0 shows categories (Harvest, Craft, Garden). Step 1 shows activities within category. For Garden, step 1 shows "Till Soil" (later: Plant, Water Garden). Selecting "Till Soil" transitions to area selection mode instead of creating order immediately.
+
+#### Design: Area Selection UI (Reusable for Construction)
+
+Rectangle-based selection, keyboard-driven:
+
+1. Player selects Garden > Till Soil from orders panel → orders panel closes, **area select mode** activates
+2. Player moves cursor with arrow keys to desired start position, presses **Enter** to set anchor
+3. Player moves cursor — rectangle highlights between anchor and cursor in olive background (lipgloss background color)
+4. Invalid tiles within rectangle are **silently excluded** (water, features, already-tilled). They don't highlight.
+5. Tiles marked-for-tilling by prior orders show as **pre-highlighted** in olive so player sees existing work
+6. Press **Enter** again to confirm — creates order with valid `TargetPositions`, exits area select mode
+7. Press **Esc** at any point to cancel and return to normal play
+
+**Implementation notes for reuse by Construction:**
+- Area select state on Model: `areaSelectMode bool`, `areaSelectAnchor *Position`, `areaSelectActivityID string`
+- Validation function is pluggable: `isValidTillTarget(pos)` for tilling, future `isValidFenceTarget(pos)` for construction
+- The pattern is: enter area select → anchor → rectangle → filter invalid → confirm → create order with positions
+
+#### Design: Order TargetPositions + Multi-Assignment
+
+Add `TargetPositions []types.Position` to Order struct. Nil for harvest/craft orders, populated for area-based orders like Till Soil. Serialized as part of `OrderSave`.
+
+**Source of truth:** Map's `tilled` set tracks reality. Order's `TargetPositions` stores intent. Characters work positions that are in TargetPositions AND not yet `IsTilled()` on the map. Completion = all TargetPositions are tilled.
+
+**Multi-assignment (reqs lines 58-59):** Separate orders with potentially overlapping tile pools. Characters from different orders skip already-tilled tiles naturally. Each character picks the nearest untilled position from their order's TargetPositions.
+
+#### Design: EnsureHasItem (Hoe Procurement)
+
+New helper in `picking.go`, following `EnsureHasRecipeInputs` pattern:
+
+1. Check if character already carries item of requested type → return nil (ready)
+2. No inventory space? Drop non-target loose items
+3. Find nearest item of type on map → return pickup intent
+4. Nothing available → return nil (triggers abandonment by caller)
+
+Simpler than `EnsureHasRecipeInputs` — single item type, no multi-component logic.
+
+#### Design: Till Soil Activity
+
+- Activity ID: `"tillSoil"`, Name: `"Till Soil"`, Category: `"garden"`
+- IntentFormation: IntentOrderable, Availability: AvailabilityKnowHow
+- Discovery triggers: look at hoe, pick up hoe
+- No recipe needed (similar to harvest)
+
+#### Design: findTillSoilIntent Flow
+
+1. `EnsureHasItem("hoe")` — procure hoe if not carried
+2. Find nearest untilled position from `order.TargetPositions` (skip positions where `IsTilled()` is true)
+3. If all positions tilled → return nil (order complete)
+4. If not at target position → return movement intent (BFS pathfinding)
+5. If at target position → return `ActionTillSoil` intent
+
+#### Design: Till Soil Action Execution
+
+- New `ActionTillSoil` action type, duration `ActionDurationMedium` (4.0s / ~48 world minutes)
+- On completion:
+  - `Map.SetTilled(pos)` marks tile
+  - Growing items at position: destroyed (tilling kills wild plants)
+  - Non-growing items at position: displaced to adjacent empty tile via `findEmptyAdjacent()`. If no adjacent space, drop at character position.
+  - Character automatically finds next untilled position from order and continues
+- Order completion: when `findTillSoilIntent` returns nil because all TargetPositions are tilled
+
+---
+
+#### Implementation Steps
+
+Each step follows the TDD cycle: write tests → add minimal stubs to compile → verify red → implement → verify green → human testing checkpoint.
+
+##### Step 1: Tilled Soil Map State + Serialization ✅
+
+**Tests** (in `internal/game/map_test.go`):
+- `SetTilled()` / `IsTilled()` basic set/get
+- `IsTilled()` returns false for non-tilled positions
+- `TilledPositions()` returns all tilled positions
+- `IsBlocked()` returns false for tilled tiles (doesn't block movement)
+- `IsEmpty()` returns true for tilled tiles with no item/character/feature (items can exist on tilled soil)
+
+**Serialization test** (in `internal/game/map_test.go` — no separate serialize_test.go exists):
+- Tilled positions round-trip through save/load (test via `TilledPositions()` after set)
+
+**Implementation** (follows water terrain pattern exactly):
+- Add `tilled map[types.Position]bool` to Map struct, initialize in `NewMap()`
+- `SetTilled(pos)` — sets `m.tilled[pos] = true`
+- `IsTilled(pos) bool` — returns `m.tilled[pos]`
+- `TilledPositions() []types.Position` — iterates map, returns slice
+- Key: `IsBlocked()` does NOT check tilled (tilled tiles are walkable). `IsEmpty()` does NOT check tilled (items can exist on tilled soil).
+- `SaveState`: add `TilledPositions []types.Position` field with `json:"tilled_positions,omitempty"`
+- `ToSaveState`: serialize via `tilledPositionsToSave(gameMap)` helper
+- `FromSaveState`: restore via `gameMap.SetTilled(pos)` loop
+
+##### Step 2: Tilled Soil Rendering + Details ✅
+
+**Tests:** None (UI rendering per CLAUDE.md)
+
+**Config:** `CharTilledSoil = '═'` in config.go
+
+**Implementation:**
+- Reuse `growingStyle` for tilled soil rendering (all gardening visuals share one olive). Change `growingStyle` color from `"106"` to `"142"` (yellow-olive, distinct from leaf pile's `"106"`).
+- Terrain fill rendering: tilled soil uses Option F style — `═══` full fill for empty tiles, `═●═` fill around entities on tilled soil. Restructured `renderCell()` to support terrain fill padding (reusable for future water `███`, structure walls `▓▓▓`).
+- In `renderDetails()`: when cursor is on tilled tile with no entity, show "Tilled soil". When cursor is on item on tilled tile, show item details + "On tilled soil".
+
+**[TEST] Checkpoint — Tilled soil state + rendering:**
+- `go test ./...` passes
+- Use test world or temporary code to set tiles as tilled, verify olive `≡` renders
+- Cursor over tilled tile shows "Tilled soil" in details
+- Save/load preserves tilled state
+
+##### Step 3: Category Field on Activity + Garden Category UI
+
+**Design decisions:**
+- **Category field replaces prefix hacking**: Add `Category string` to `Activity` struct. `isCraftActivity(id[:5] == "craft")` replaced by `activity.Category != ""`. Any category works generically.
+- **Synthetic category entries**: `getOrderableActivities()` generates synthetic `Activity{ID: "craft", Name: "Craft"}` (and `"garden"/"Garden"`) when any activity in that category is known. Step 0 shows these + uncategorized activities.
+- **`getCraftActivities()` → `getCategoryActivities(category)`**: Generic helper returns all known activities in a given category.
+- **Knowledge panel**: Categorized activities display as `"Category: Name"` (e.g., "Craft: Vessel", "Garden: Till Soil").
+- **DisplayName**: Uses Category-aware formatting. Garden orders show activity name only (e.g., "Till Soil"). Craft orders show "Craft vessel". Harvest unchanged.
+- **Till Soil selection**: Selecting Till Soil in step 1 creates a basic order (no TargetPositions yet). Step 4 replaces this path with area selection.
+- **tillSoil activity**: Category "garden", IntentOrderable, AvailabilityKnowHow, discovery triggers from hoe (ActionLook + ActionPickup with ItemType "hoe").
+
+**Tests** (in `internal/entity/activity_test.go`):
+- `tillSoil` activity registered with correct Category, IntentFormation, Availability, DiscoveryTriggers
+- `craftVessel` and `craftHoe` activities have `Category: "craft"`
+- `DisplayName()` for garden order returns "Till soil" (activity name, lowercased)
+- `DisplayName()` for craft order still returns "Craft vessel"
+- `DisplayName()` for harvest order still returns "Harvest berries"
+
+**Implementation:**
+- Add `Category string` to Activity struct
+- Set `Category: "craft"` on existing craftVessel, craftHoe activities
+- Register `tillSoil` activity with `Category: "garden"`, discovery triggers from hoe
+- Replace `isCraftActivity` prefix check → `activity.Category != ""` / `activity.Category == X`
+- Generalize `getOrderableActivities()`: collect categories with known activities, generate synthetic entries
+- Rename `getCraftActivities()` → `getCategoryActivities(category string)`
+- Update `Order.DisplayName()` to use Category field
+- Update order add UI (view.go + update.go): step 0 shows categories + uncategorized, step 1 shows activities within category. Garden step 1 selecting Till Soil creates a basic order for now.
+- Update knowledge panel: categorized activities prefixed with `"Category: "`
+
+**[TEST] Checkpoint — Garden category visible:**
+- `go test ./...` passes
+- Existing Craft ordering still works (no regression from Category refactor)
+- Character discovers Till Soil from looking at/picking up hoe
+- Orders panel shows "Garden" when Till Soil is known
+- Select Garden → "Till Soil" appears
+- Selecting Till Soil creates an order (placeholder — Step 4 replaces with area selection)
+- Knowledge panel shows "Garden: Till Soil" and "Craft: Vessel" etc.
+
+##### Step 4: Area Selection UI
+
+**Tests** (in `internal/game/map_test.go` or new `internal/ui/area_select_test.go`):
+- `isValidTillTarget(pos, gameMap)` returns false for water tiles
+- `isValidTillTarget(pos, gameMap)` returns false for feature tiles
+- `isValidTillTarget(pos, gameMap)` returns false for already-tilled tiles
+- `isValidTillTarget(pos, gameMap)` returns true for empty tiles
+- `getValidTillPositions(anchor, cursor, gameMap)` filters rectangle to valid positions
+- `getValidTillPositions` excludes out-of-bounds positions
+
+**Implementation:**
+- Add area select state to Model: `areaSelectMode bool`, `areaSelectAnchor *types.Position`, `areaSelectActivityID string`
+- Add `TargetPositions []types.Position` to Order struct and OrderSave
+- Keyboard handler for area select mode:
+  - Arrow keys: move cursor (reuse existing `moveCursor`)
+  - Enter (no anchor set): set anchor at cursor position
+  - Enter (anchor set): confirm selection, create order with valid positions, exit area select mode
+  - Esc: cancel, exit area select mode
+- `renderCell()`: when in area select mode with anchor set, highlight valid tiles in rectangle with olive lipgloss background. Pre-highlight tiles from existing pending till orders.
+- Details panel in area select mode: show "Marked for tilling" in olive for pending tiles, help text for controls
+- On confirm: create Order with `ActivityID: "tillSoil"`, `TargetPositions: validPositions`
+
+**[TEST] Checkpoint — Area selection works:**
+- `go test ./...` passes
+- Orders → Garden → Till Soil → area select mode activates, orders panel closes
+- Cursor moves freely, press Enter to anchor
+- Rectangle highlights in olive between anchor and cursor
+- Water, feature, already-tilled tiles NOT highlighted within rectangle
+- Second Till Soil order → first order's positions show pre-highlighted
+- Enter confirms → order appears in orders panel (show position count in display name)
+- Esc cancels → returns to normal play
+- Details panel shows "Marked for tilling" in olive for pending positions
+
+##### Step 5: EnsureHasItem + findTillSoilIntent
+
+**Tests** (in `internal/system/picking_test.go`):
+- `EnsureHasItem("hoe")` returns nil when character already carries hoe
+- `EnsureHasItem("hoe")` returns pickup intent when hoe on map
+- `EnsureHasItem("hoe")` drops non-hoe loose items to make space
+- `EnsureHasItem("hoe")` returns nil when no hoe exists (triggers abandonment)
+
+**Tests** (in `internal/system/order_execution_test.go`):
+- `findTillSoilIntent` returns hoe procurement intent when no hoe carried
+- `findTillSoilIntent` returns movement intent toward nearest untilled target position
+- `findTillSoilIntent` returns `ActionTillSoil` when at target position with hoe
+- `findTillSoilIntent` returns nil when all target positions are tilled (complete)
+- `findTillSoilIntent` skips already-tilled positions
+
+**Implementation:**
+- `EnsureHasItem(char, itemType, items, gameMap, log)` in picking.go
+- Add `ActionTillSoil` to ActionType enum in character.go
+- `findTillSoilIntent()` in order_execution.go
+- Wire into `findOrderIntent()` switch: `case "tillSoil": return findTillSoilIntent(...)`
+
+##### Step 6: Till Soil Action Execution
+
+**Tests** (in `internal/ui/update_test.go` or new `internal/system/tilling_test.go`):
+- `ActionTillSoil` sets tile as tilled after `ActionDurationMedium`
+- Growing items at target position destroyed on tilling
+- Non-growing items at target position displaced to adjacent empty tile
+- Non-growing items dropped at character position when no adjacent space
+- Character continues to next untilled position after tilling
+- Order completes when all TargetPositions are tilled (order removed/completed)
+
+**Implementation:**
+- Handle `ActionTillSoil` in action progress system (same pattern as `ActionCraft`)
+- On completion:
+  - `gameMap.SetTilled(pos)`
+  - Check for item at pos: growing → remove, non-growing → displace
+  - Log action: "Tilled soil at (x, y)"
+  - Find next untilled position → set new intent, or complete order
+- Order completion: check all TargetPositions against `IsTilled()`, call `CompleteOrder` when done
+
+**[TEST] Checkpoint — Full Till Soil flow:**
+- `go test ./...` passes
+- Start world, craft a hoe (or /test-world with hoe pre-placed)
+- Character discovers Till Soil from looking at/picking up hoe
+- Order Garden > Till Soil, select area on map
+- Character picks up hoe, moves to first tile, tills it (olive `≡` appears)
+- Character moves to next tile automatically
+- Growing items destroyed during tilling, non-growing items displaced to adjacent tile
+- Order completes when all tiles tilled
+- Test with 2 characters tilling overlapping areas (separate orders)
+- Save/load preserves tilled tiles, pending orders with TargetPositions
+
+**[DOCS]** Update README (Latest Updates), CLAUDE.md, game-mechanics, architecture as needed for area selection UI pattern (document for Construction reuse), tilled soil system, Garden order category.
+
+**[RETRO]** Run /retro.
 
 ---
 
@@ -582,109 +825,319 @@ Look up recipe from `intent.RecipeID`. Verify all inputs still accessible. On co
 - UI treatment: grayed out? Different status text? Icon?
   - Show examples of different options
 
-[Pause for evaluation before continuing for Part II, opportunity to pull in quick wins or opportunistic random items. Ensure user has finished Part II requirements and plan is updated accordingly.]
-
+[Pause for evaluation before continuing for Part II, opportunity to pull in quick wins or opportunistic random items.]
 ---
 
 ## Part II: Seeds, Planting, and Watering
 
-### Slice 5: Seeds and Plantable Attribute
+### Feature Set 2: Seeds, Plantable Attribute, and Food Satiation
 
 **Reqs covered:**
+- New ItemType: Seed (lines 65-77) [Descoped: foraging from flowers, read requirements to get updated behavior for collecting flower seeds]
+- New Item Attribute: Plantable (lines 79-82)
+- Food Turning: Satiation tiers (lines 133-137)
 
-- New ItemType: Seed (lines 63-75)
-- New Item Attribute: Plantable (lines 77-80)
+#### Step 1: Seeds and other Plantable Itmes
+
+Seeds carry the full variety of their parent (ItemType, Color, Pattern, Texture). A "warty green gourd seed" stores the gourd's attributes so the planted sprout inherits them. Seeds are not edible, not growing, have `Plantable: true`. Max stack size 20, same-variety stacking only.
+- Seed symbol and color: `.` in parent's color. 
+- Seed description format: "warty green gourd seed", including all parent attributes
+- Explicit `Plantable bool` on Item struct. (See Decisions Log.) Seeds get `Plantable: true` at creation. Berries and mushrooms get `Plantable: true` when picked up (alongside `IsGrowing = false`).
+
+[TEST]
+- `Plantable` bool on Item: berries/mushrooms when picked, visible in details
+- Save and load preserves plantable state correctly
+
+#### Step 2: **Gourd Seeds**: When eating consumption completes on a gourd, create a seed with the gourd's variety and apply standard pickup logic (matching container > empty container > inventory slot > drop on ground).
+
+[TEST]
+- Eat a gourd → seed appears with correct variety description
+- Save and load preserves seeds and plantable state correctly
+
+[DOCS]
+
+**[RETRO]** Run /retro if there were any interruptions
+
+
+2. **Flower Seeds**: 
+- (check with user to determine if requirements have been updated, shouldn't be foraging based)
+- Flower foraging cadence: can the same flower be foraged repeatedly? Timer per flower? Consider matching flower reproduction cadence.
+- Does flower seed go through standard pickup logic at character position, or special handling?
+
+[TEST]
+- Foraging a flower creates 1 seed of that flower's variety (flower remains)
+- Save and load preserves seeds and plantable state correctly
+
+**[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture as needed.
+
+**[RETRO]** Run /retro
+
+---
+
+### Slice 6: Plant Activity, Sprout Phase, and Growth Mechanics
+
+**Reqs covered:**
+- Quick change: Water symbol (line 63)
+- New Activity: Plant (lines 84-99)
+- Enhanced Logic: Garden Plant Growth and Reproduction (lines 125-131)
+- Food Turning: Growth speed tiers (lines 138-141)
+
+#### Step 0: Wet areas
+- Change the water symbol for ponds to the medium shade symbol in waterStyle blue
+- **Wet tiles from water adjacency**: Tiles within 8-directional adjacency of water sources are always "wet." Computed on the fly via `IsWet(pos)` — no persistent state. 
+
+[TEST]
+- user verifies appearance
+- user verifies wet tile state in details view
+
+#### Step 1: Plant Activity
+
+Orderable, discoverable (trigger from looking at or picking up plantable items). Order UI: Garden > Plant > select plantable item type (gourd seeds, flower seeds, mushrooms, berries). Character plants selected type on tilled soil tiles using standard component procurement (check inventory → seek plantable items by preference/distance → abandon if unavailable).
+
+Planting consumes the plantable item and creates a sprout of that variety on the tilled tile. Character continues planting the same specific variety until supply is exhausted or no unplanted tilled tiles remain. Multiple characters can plant simultaneously with different varieties.
+
+[TEST]
+- Plant know-how is discovered
+- Plant option in order menu, shows plantable item sub options
+- Plant order is assigned to char with plan know-how
+- Char procures planting components and completes task
+- Note: this should yield a tile that when examined has detail about what was planted on it -- but growth and UI for it will mostly be deferred to the next step
+
+[DOCS]
+
+**[RETRO]** Run /retro if there were any interruptions
+
+#### Step 2: Sprout Phase for All Reproduction
+
+Both planted items and naturally reproducing plants now go through a sprout phase. Sprouts start as immature versions and grow into full plants over time. This changes the existing lifecycle system — `spawnItem()` creates sprouts instead of full-grown plants.
+
+**Sprout visuals** (see Decisions Log):
+- Sprout symbol (TBD during implementation)
+- Olive color unless on a wet tile (then green)
+- Mushroom sprouts always show their variety color
+- Plants on tilled soil are underlined
+- Tilled soil without a plant shows a parallel lines ground symbol
+
+[TEST]
+- Planted ground appears as sprout with correct styles
+- Details view shows appropriate description of sprout
+- Note: Sprout will not grow until next step
+
+[DOCS]
+
+**[RETRO]** Run /retro if there were any interruptions
+
+#### Design: Growth Speed Tiers
+
+| Tier | Sprout Duration | Reproduction | Items |
+|------|----------------|--------------|-------|
+| Fast | Shorter | Shorter | Berry, Mushroom |
+| Medium | 3 world days | Existing (potentially adjusted for sprout time) | Flower |
+| Slow | Longer | Longer | Gourd |
+
+- May need to shorten existing life cycle by 3 days to account for sprouting stage and maintain same food availability
+- Testing sprout duration: 30 seconds (all tiers compressed for faster iteration).
+
+**Tilled ground bonus**: Plants on tilled soil grow and reproduce faster than wild plants.
+
+**Watered bonus**: Plants on wet tiles grow and reproduce faster. Stacks with tilled bonus. Precise bonus values determined during implementation.
 
 **Outcomes:**
 
-1. Seed item type: carries variety of source item, max stack size 20, same-variety stacking only
-2. Gourd seeds: created when eating a gourd (1 seed per gourd consumed)
-3. Flower seeds: created when foraging a flower (1 seed, flower not removed)
-4. Plantable attribute on items: all seeds are plantable; picked berries and mushrooms become plantable
-5. Standard pickup logic applies to seeds (matching container > empty container > inventory slot > drop)
+1. Plant activity: orderable, discoverable from plantable items
+2. Order UI: Garden > Plant > select plantable type
+3. Character plants items on tilled soil, continues until supply or soil exhausted
+4. Multi-assignment: multiple characters can plant simultaneously
+5. Sprout phase for all plant reproduction (natural + planted)
+6. Sprout duration: 30 seconds (testing), tier-differentiated in final tuning
+7. Growth speed tiers: fast (berry/mushroom), medium (flower), slow (gourd)
+8. Tilled ground growth bonus
+9. Water-adjacent tiles always wet → growth bonus near water
+10. Sprout visuals: olive (dry) / green (wet), underlined on tilled soil
 
-**[TEST] Checkpoint:** Eat a gourd, seed appears. Forage a flower, seed appears and flower remains. Seeds stack in vessels by variety. Pick a growing berry - it becomes plantable. Verify seed descriptions carry parent variety info.
+**[TEST] Checkpoint**
+- Till soil (from Slice 3), order Plant > gourd seeds. Character fetches seeds, plants on tilled tiles. Sprouts appear with correct visual.
+- Plant berries directly (no seed needed, just picked berries with Plantable flag)
+- Sprouts grow into full plants over time
+- Plants on tilled soil grow faster than wild plants
+- Plants near a pond (water-adjacent) grow faster, Planting on naturally wet ground near a pond or spring gives a natural growth bonus without manual watering.
+- Natural plant reproduction now goes through sprout phase (not just planted items)
+- Test multi-assignment: two characters planting different varieties
+- Abandonment when no plantable items available
+- Save and load preserves tilled state, sprouts, growth timers
+
+**[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture.
+
+**[RETRO]** Run /retro.
+
+**Feature questions:**
+- Sprout symbol: what character? Evaluate options during implementation.
+- Precise tilled/watered growth bonus percentages?
+- What happens if character tries to plant on already-occupied tilled tile?
+- Does the underline styling render across common terminal emulators? Fallback plan?
+- Sprout → full plant transition: symbol change in place, or item replacement?
+
+---
+
+### Slice 7: Fetch Water and Water Vessel Drinking
+
+**Reqs covered:**
+
+- New Idle Activity: Fetch Water (lines 101-108)
+
+#### Design: Liquids as Vessel Stacks
+
+Water stored in ContainerData.Contents as a Stack with ItemType `"water"` and Count = units (max 4). A vessel holds items OR liquid, never both. Existing vessel infrastructure (CanVesselAccept, IsVesselFull, variety-lock) applies naturally. Future liquids (mead, beer, wine) become new item types in the same system.
+
+Water is not an item that exists on the ground — it is created by interacting with water terrain and exists only inside vessels. This keeps water terrain (map state) separate from water as a usable liquid.
+
+#### Design: Fetch Water Idle Activity
+
+New option in `selectIdleActivity`. Character with an empty vessel (or who finds one on the ground) goes to nearest water source and fills vessel with 4 units of water. Reuses vessel-seeking from picking.go.
+
+#### Design: Drinking from Water Vessel
+
+When thirsty, characters check for carried water vessel before seeking a water source on the map. Drinking from a carried vessel consumes 1 unit (decrement stack count). Distance = 0, so carried water is always closer than walking to a source. Dropped water vessels can also be targeted for drinking by other characters.
+
+**Outcomes:**
+
+1. Fetch Water as idle activity option (characters autonomously fill empty vessels)
+2. Water stored as Stack in vessel (4 units per full vessel)
+3. Drinking from carried water vessel when thirsty (prioritized over walking to source)
+4. Dropped water vessels targetable for drinking
+5. Water vessel display in UI (inventory panel, details panel)
+
+**[TEST] Checkpoint — Fetch Water:**
+- Character with empty vessel fills it at nearest pond/spring
+- Vessel shows water contents in inventory panel (e.g., "Water 4/4")
+- Thirsty character drinks from carried water vessel instead of walking to water
+- Each drink reduces water by 1 unit. After 4 drinks, vessel is empty.
+- Drop a water vessel → another character can drink from it
+- Empty vessel after drinking can be refilled or used for foraging
+- Save and load preserves water vessel contents
+
+**[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture.
+
+**[RETRO]** Run /retro.
 
 **Feature questions:**
 
-- How do flower seeds display? "Blue flower seed"? Symbol?
-  - likely a '.' in its color
-- Does foraging flowers require any know-how, or is it default like berry foraging?
-  - Flowers should become a targetable item in the existing foraging activity using the same preference targeting, except instead of being removed from map it yields a seed.
-  - - Will need to figure out how often a seed can be collected from a flower, probably on a similar cadance as flower reproduction, maybe even using same config
+- Fetch Water as its own idle activity slot (1/5 chance: look/talk/forage/fetch/idle)? Or conditional on having/finding an empty vessel?
+- Earlier thirst trigger for carried vessel? (e.g., drink from vessel at Mild thirst, walk to source at Moderate?)
+- Water vessel description: does vessel display name change when full? "Water-filled hollow gourd"? Or just show contents?
+- Can a vessel with water be dropped to make room, then re-picked-up?
+- Preference formation for water vessels (triggered enhancement — likely defer until beverage variety exists)
 
 ---
 
-### Slice 6: Plant Activity
+### Slice 8: Water Garden and Wet Tiles
 
 **Reqs covered:**
 
-- New Activity: Plant (lines 82-94)
+- New Activity: Water Garden (lines 110-123)
+- Wet tile mechanics (line 131, plus manual watering decay)
+
+#### Design: Lookable Water Terrain
+
+Extend the Look idle activity to target water-adjacent positions. Looking at water triggers know-how discovery checks (Water Garden) but not preference formation (water has no item attributes). Characters "contemplate" a pond or spring.
+
+Water sources (ponds and springs) need to be lookable — this requires the look-targeting logic to include water terrain positions alongside items.
+
+#### Design: Water Garden Activity
+
+Orderable, discoverable (looking at sprout, water source, or hollow gourd). No recipe needed. Prerequisite: vessel with water, procured via standard logic (check inventory for water vessel → seek water vessel on ground → fill empty vessel at source → abandon if impossible).
+
+**Watering action**: Character waters the closest dry tilled planted tile. Uses 1 unit of water per tile. If water remains, continues to next dry tilled planted tile. If vessel empty but more dry tiles exist, character refills at nearest water source and continues. Completion: no remaining dry tilled planted tiles. Multi-assignment supported.
+
+#### Design: Wet Tile System
+
+Two sources of wetness:
+
+1. **Water-adjacent (8-directional)**: Always wet. Computed on the fly — no state to track or save.
+2. **Character-watered**: Tracked per-tile with a decay timer. Wears off after 3 world days (360 game seconds). Stored as `map[Position]float64` for remaining wet time. Included in save/load.
+
+Visual: wet tilled tiles display green instead of olive. Wet tilled-but-unplanted tiles also display green.
 
 **Outcomes:**
 
-1. Activity: orderable, discoverable (trigger from looking at or picking up plantable items)
-2. Order UI: Garden > Plant > Select plantable item type (gourd seeds, flower seeds, mushrooms, berries)
-3. Character plants selected type on tilled soil tiles
-   - Uses carried plantable item if available, otherwise seeks by preference/distance
-   - Abandons if no plantable item available
-   - Planted item becomes a growing "sprout" of that variety
-4. Continuation: character keeps planting same specific variety until supply exhausted or no unplanted tilled tiles remain
-5. Multi-assignment: multiple characters can plant simultaneously with different varieties
+1. Characters can look at water terrain (discovery trigger for Water Garden)
+2. Water Garden: orderable, discoverable from sprouts/water/vessels
+3. Watering uses water vessel, 1 unit per tile, auto-continues to next dry tile
+4. Character refills vessel and continues if more tiles need watering
+5. Completion when no dry tilled planted tiles remain
+6. Multi-assignment: multiple characters can water simultaneously
+7. Wet tiles: water-adjacent always wet + manual watering with 3-world-day decay
+8. Visual: wet tilled tiles green, dry tilled tiles olive
 
-**[TEST] Checkpoint:** Till some soil, then issue Plant > gourd seeds. Character fetches gourd seeds, plants them on tilled tiles. Sprouts appear. Test planting berries directly (no seed needed). Test abandonment when no plantable items available.
+**[TEST] Checkpoint — Water Garden:**
+- Character discovers Water Garden from looking at a sprout/pond/vessel
+- Order Water Garden. Character fills vessel (if needed), waters planted tiles.
+- Watered tiles turn green. Dry tilled tiles remain olive.
+- Character continues watering until all planted tiles wet or vessel empty
+- If vessel empty and more tiles need watering, character refills at nearest water source
+- Plants on watered tiles grow faster than dry tilled plants
+- Watering effect wears off after ~3 world days (use time skip to verify)
+- Tiles adjacent to ponds are always wet (no watering needed)
+- Wet tilled-but-unplanted tiles also display green
+- Multi-assignment: two characters watering same garden
+- Save and load preserves watered tile timers
 
----
+**[TEST] Final Checkpoint — Full Part II Integration:**
 
-### Slice 7: Fetch Water
+Start a new world and play through the full garden lifecycle:
+- Till soil → plant seeds → water garden → sprouts grow → full plants → natural reproduction (also through sprout phase)
+- Growth hierarchy visible: watered tilled > dry tilled > water-adjacent wild > plain wild
+- Food chain: gourds eaten → seeds → planted → grow → more gourds (sustainable food loop)
+- Flower cycle: forage flower → seed → plant → grow → more flowers → more seeds
+- Satiation differences noticeable: gourd satisfies much more than berry
+- Water management: characters fetch water, drink from vessels, water gardens
 
-**Reqs covered:**
+**[DOCS]** Final doc pass for Part II.
 
-- New Idle Activity: Fetch Water (lines 96-103)
-
-**Outcomes:**
-
-1. Idle activity: characters choose to fill empty vessel with water (same vessel logic as foraging)
-2. Water-filled vessel: 4 drinks/units per vessel
-3. Characters can drink from carried water vessel (potentially triggered earlier than walking to water source)
-4. Dropped water vessels can be targeted for drinking by other characters
-5. Water vessel display in UI
-
-**[TEST] Checkpoint:** Character with empty vessel goes to pond/spring, fills it. Character drinks from carried vessel when thirsty instead of walking to water. Drop water vessel, another character drinks from it. Verify 4 drinks per vessel.
+**[RETRO]** Run /retro.
 
 **Feature questions:**
 
-- Should this be a variation of forage or its own activity? (Reqs ask this explicitly)
-- Can drinking from carried vessel be triggered at an earlier thirst threshold than walking to a source?
-- Preference formation for water vessels? (See triggered enhancement - likely defer)
+- How does "refill and continue" interact with order pause/resume? If character gets hungry mid-watering, pauses, resumes — do they remember they were refilling?
+- Does looking at water require standing adjacent (like drinking) or at a distance (like looking at items)?
+- Water Garden discovery: activity discovery only (no recipe). Confirm discovery trigger items/actions during implementation.
+- Visual interaction between wet and tilled: green background vs green symbol vs other approach?
 
 ---
-
-### Slice 8: Garden Plant Growth
+### Slice 9: Tuning and Enhancements
 
 **Reqs covered:**
+- Food Turning: Satiation tiers (lines 133-137)
 
-- Enhanced Logic: Garden Plant Growth and Reproduction (lines 108-113)
-- Food Turning (lines 115-117)
+#### Design: Food Satiation Tiers
+
+Replace the flat `FoodHungerReduction` constant with per-item-type values:
+
+| Tier | Points | Items |
+|------|--------|-------|
+| Feast | 50 | Gourd |
+| Meal | 25 | Mushroom |
+| Snack | 10 | Berry, Nut |
 
 **Outcomes:**
 
-1. Sprout phase: planted items start as sprouts, grow to full plants (6 min duration)
-2. Extend normal plant reproduction to include sprout phase with baseline duration
-3. Tilled ground growth bonus: faster growth and reproduction
-4. Watered growth bonus: faster growth and reproduction (requires Water Garden - partial reqs)
-5. Food turning: different edible items have different satiation amounts
-6. Different growing items have different lifecycle times
+6. Per-item-type satiation amounts replace flat hunger reduction
 
-**[TEST] Checkpoint:** Plant seeds, watch sprouts grow into full plants. Verify tilled ground plants grow faster than wild ones. Compare lifecycle times across plant types. Verify different food items restore different hunger amounts.
+**[TEST] Checkpoint — Seeds and satiation:**
+- Eat a gourd → larger hunger reduction than eating a mushroom → larger hunger reduction than eating a berry/nut
+
+
+**[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture as needed.
+
+**[RETRO]** Run /retro.
 
 **Feature questions:**
 
-- Water Garden activity reqs say "REQS TO DO" - skip or define during implementation?
-- Specific growth rate bonuses for tilled vs watered?
-- Specific satiation values per food type?
-
----
+- Seed symbol and color? Likely `.` in parent's color. Confirm during implementation.
+- Seed description format: "warty green gourd seed"? Include all parent attributes or just color + type?
+- Flower foraging cadence: can the same flower be foraged repeatedly? Timer per flower? Consider matching flower reproduction cadence.
+- Does flower seed go through standard pickup logic at character position, or special handling?
+- Nut satiation: grouped with berry at Snack (10). Confirm this feels right during testing.
 
 ## Triggered Enhancements to Monitor
 
@@ -696,7 +1149,7 @@ These are from [docs/triggered-enhancements.md](triggered-enhancements.md). They
 | **ItemType constants**                 | Adding stick, shell, hoe, seed (4 new types, total ~9)    | Evaluate after Part I whether string comparisons are error-prone.                              |
 | **Category formalization**             | Hoe is first "tool" category                              | Note pattern but defer to Construction per triggered-enhancements.md.                          |
 | **Preference formation for beverages** | Fetch Water introduces water vessels as drinkable         | Evaluate during Slice 7; likely defer until actual beverage variety exists.                    |
-| **Action duration tiers**              | Craft Hoe and Till Soil both need "medium" duration       | Define Short/Medium/Long tiers if not already formalized by Slice 2.                           |
+| **Action duration tiers**              | Craft Hoe and Till Soil both need "medium" duration       | ✅ Completed in Part I Slice 2. Short/Medium/Long defined.                                     |
 | **UI extensibility refactoring**       | Area selection UI is new pattern                          | Document approach for reuse by Construction.                                                   |
 
 ## Opportunistic Additions to Consider
