@@ -227,12 +227,13 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						if len(activities) > 0 && m.selectedActivityIndex < len(activities) {
 							selectedActivity := activities[m.selectedActivityIndex]
 
-							if isCraftCategory(selectedActivity.ID) {
-								// Craft category - get selected craft activity
-								craftActivities := m.getCraftActivities()
-								if m.selectedTargetIndex < len(craftActivities) {
-									craftActivity := craftActivities[m.selectedTargetIndex]
-									order := entity.NewOrder(m.nextOrderID, craftActivity.ID, "")
+							if isSyntheticCategory(selectedActivity.ID) {
+								// Category selected - get selected activity within category
+								category := syntheticCategoryID(selectedActivity.ID)
+								categoryActivities := m.getCategoryActivities(category)
+								if m.selectedTargetIndex < len(categoryActivities) {
+									catActivity := categoryActivities[m.selectedTargetIndex]
+									order := entity.NewOrder(m.nextOrderID, catActivity.ID, "")
 									m.nextOrderID++
 									m.orders = append(m.orders, order)
 
@@ -368,8 +369,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						activities := m.getOrderableActivities()
 						var maxIndex int
 						if m.selectedActivityIndex < len(activities) &&
-							isCraftCategory(activities[m.selectedActivityIndex].ID) {
-							maxIndex = len(m.getCraftActivities()) - 1
+							isSyntheticCategory(activities[m.selectedActivityIndex].ID) {
+							category := syntheticCategoryID(activities[m.selectedActivityIndex].ID)
+							maxIndex = len(m.getCategoryActivities(category)) - 1
 						} else {
 							maxIndex = len(m.getEdibleItemTypes()) - 1
 						}

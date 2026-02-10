@@ -31,7 +31,8 @@ const (
 	CharStick    = '/'
 	CharNut      = 'o'
 	CharShell    = '<'
-	CharHoe      = 'L'
+	CharHoe        = 'L'
+	CharTilledSoil = '═'
 	CharSleeping = 'z'
 
 	// Speed system

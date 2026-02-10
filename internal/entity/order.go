@@ -37,11 +37,14 @@ func (o *Order) DisplayName() string {
 	if !ok {
 		return o.ActivityID + " " + o.TargetType
 	}
-	// Craft activities: show "Craft vessel" (no target type)
-	if len(o.ActivityID) >= 5 && o.ActivityID[:5] == "craft" {
+	switch activity.Category {
+	case "craft":
 		return "Craft " + strings.ToLower(activity.Name)
+	case "garden":
+		return activity.Name
+	default:
+		return activity.Name + " " + Pluralize(o.TargetType)
 	}
-	return activity.Name + " " + Pluralize(o.TargetType)
 }
 
 // StatusDisplay returns a human-readable status string

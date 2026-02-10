@@ -24,6 +24,7 @@ func (m Model) ToSaveState() *save.SaveState {
 		Items:           itemsToSave(m.gameMap.Items()),
 		Features:        featuresToSave(m.gameMap.Features()),
 		WaterTiles:      waterTilesToSave(m.gameMap),
+		TilledPositions: m.gameMap.TilledPositions(),
 		ActionLogs:      actionLogsToSave(m.actionLog),
 		Orders:          ordersToSave(m.orders),
 		NextOrderID:     m.nextOrderID,
@@ -330,6 +331,11 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 	// Restore water tiles
 	for _, ws := range state.WaterTiles {
 		m.gameMap.AddWater(ws.Position, game.WaterType(ws.WaterType))
+	}
+
+	// Restore tilled positions
+	for _, pos := range state.TilledPositions {
+		m.gameMap.SetTilled(pos)
 	}
 
 	// Restore features (without auto-assigning IDs)

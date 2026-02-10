@@ -22,7 +22,8 @@ type SaveState struct {
 	Characters  []CharacterSave          `json:"characters"`
 	Items       []ItemSave               `json:"items"`
 	Features    []FeatureSave            `json:"features"`
-	WaterTiles  []WaterTileSave          `json:"water_tiles,omitempty"`
+	WaterTiles      []WaterTileSave          `json:"water_tiles,omitempty"`
+	TilledPositions []types.Position         `json:"tilled_positions,omitempty"`
 	ActionLogs  map[int][]EventSave      `json:"action_logs"` // Per-character event logs, keyed by char ID
 	Orders      []OrderSave              `json:"orders,omitempty"`
 	NextOrderID int                      `json:"next_order_id,omitempty"`

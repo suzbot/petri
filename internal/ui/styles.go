@@ -53,7 +53,7 @@ var (
 	leafStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("106")) // olive/leaf green
 
 	// Agricultural/plant status
-	growingStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("106")) // olive green
+	growingStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("142")) // olive (gardening: growing, tilled soil)
 
 	// UI highlight (background)
 	highlightStyle = lipgloss.NewStyle().Background(lipgloss.Color("23")).Foreground(lipgloss.Color("255")) // dark cyan bg, white text

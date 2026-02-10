@@ -391,6 +391,7 @@ Activities are defined in `ActivityRegistry` with properties that control availa
 type Activity struct {
     ID                string
     Name              string
+    Category          string // Grouping for order UI (e.g., "craft", "garden"). Empty = uncategorized.
     IntentFormation   IntentFormation  // automatic vs orderable
     Availability      Availability     // default vs knowhow
     DiscoveryTriggers []DiscoveryTrigger

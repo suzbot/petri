@@ -31,6 +31,7 @@ type DiscoveryTrigger struct {
 type Activity struct {
 	ID                string
 	Name              string
+	Category          string // Grouping for order UI (e.g., "craft", "garden"). Empty = uncategorized.
 	IntentFormation   IntentFormation
 	Availability      Availability
 	DiscoveryTriggers []DiscoveryTrigger // nil for default activities
@@ -82,6 +83,7 @@ var ActivityRegistry = map[string]Activity{
 	"craftVessel": {
 		ID:              "craftVessel",
 		Name:            "Vessel",
+		Category:        "craft",
 		IntentFormation: IntentOrderable,
 		Availability:    AvailabilityKnowHow,
 		// No DiscoveryTriggers - discovered via recipes
@@ -89,9 +91,21 @@ var ActivityRegistry = map[string]Activity{
 	"craftHoe": {
 		ID:              "craftHoe",
 		Name:            "Hoe",
+		Category:        "craft",
 		IntentFormation: IntentOrderable,
 		Availability:    AvailabilityKnowHow,
 		// No DiscoveryTriggers - discovered via recipes
+	},
+	"tillSoil": {
+		ID:              "tillSoil",
+		Name:            "Till Soil",
+		Category:        "garden",
+		IntentFormation: IntentOrderable,
+		Availability:    AvailabilityKnowHow,
+		DiscoveryTriggers: []DiscoveryTrigger{
+			{Action: ActionLook, ItemType: "hoe"},
+			{Action: ActionPickup, ItemType: "hoe"},
+		},
 	},
 }
 

@@ -530,3 +530,94 @@ func TestIsEmpty_WaterTile(t *testing.T) {
 		t.Error("IsEmpty() should return false for water tile")
 	}
 }
+
+// =============================================================================
+// Tilled Soil Tests
+// =============================================================================
+
+func TestSetTilled_IsTilled(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+
+	m.SetTilled(pos)
+
+	if !m.IsTilled(pos) {
+		t.Error("IsTilled() should return true after SetTilled()")
+	}
+}
+
+func TestIsTilled_NonTilledPosition(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+
+	if m.IsTilled(types.Position{X: 5, Y: 5}) {
+		t.Error("IsTilled() should return false for non-tilled position")
+	}
+}
+
+func TestTilledPositions_ReturnsAll(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	m.SetTilled(types.Position{X: 3, Y: 3})
+	m.SetTilled(types.Position{X: 4, Y: 3})
+	m.SetTilled(types.Position{X: 5, Y: 3})
+
+	positions := m.TilledPositions()
+	if len(positions) != 3 {
+		t.Errorf("TilledPositions() should return 3 positions, got %d", len(positions))
+	}
+
+	// Verify all expected positions are present
+	posSet := make(map[types.Position]bool)
+	for _, p := range positions {
+		posSet[p] = true
+	}
+	for _, expected := range []types.Position{{X: 3, Y: 3}, {X: 4, Y: 3}, {X: 5, Y: 3}} {
+		if !posSet[expected] {
+			t.Errorf("TilledPositions() missing position (%d,%d)", expected.X, expected.Y)
+		}
+	}
+}
+
+func TestIsBlocked_TilledTile(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 10, Y: 10}
+	m.SetTilled(pos)
+
+	if m.IsBlocked(pos) {
+		t.Error("IsBlocked() should return false for tilled tile (tilled soil is walkable)")
+	}
+}
+
+func TestIsEmpty_TilledTileNoOccupants(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 10, Y: 10}
+	m.SetTilled(pos)
+
+	if !m.IsEmpty(pos) {
+		t.Error("IsEmpty() should return true for tilled tile with no item/character/feature")
+	}
+}
+
+func TestIsEmpty_TilledTileWithItem(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 10, Y: 10}
+	m.SetTilled(pos)
+
+	item := entity.NewBerry(10, 10, types.ColorRed, false, false)
+	m.AddItem(item)
+
+	if m.IsEmpty(pos) {
+		t.Error("IsEmpty() should return false for tilled tile with an item on it")
+	}
+}

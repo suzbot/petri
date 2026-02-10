@@ -28,6 +28,9 @@ type Map struct {
 	// Water terrain (springs and ponds)
 	water map[types.Position]WaterType
 
+	// Tilled soil positions (walkable, items can exist on them)
+	tilled map[types.Position]bool
+
 	// ID counters for save/load
 	nextItemID    int
 	nextFeatureID int
@@ -47,6 +50,7 @@ func NewMap(width, height int) *Map {
 		items:          make([]*entity.Item, 0),
 		features:       make([]*entity.Feature, 0),
 		water:          make(map[types.Position]WaterType),
+		tilled:         make(map[types.Position]bool),
 	}
 }
 
@@ -379,4 +383,23 @@ func (m *Map) FindNearestWater(pos types.Position) (types.Position, bool) {
 		}
 	}
 	return nearestPos, found
+}
+
+// SetTilled marks a position as tilled soil
+func (m *Map) SetTilled(pos types.Position) {
+	m.tilled[pos] = true
+}
+
+// IsTilled returns true if the position has been tilled
+func (m *Map) IsTilled(pos types.Position) bool {
+	return m.tilled[pos]
+}
+
+// TilledPositions returns all positions that have been tilled
+func (m *Map) TilledPositions() []types.Position {
+	positions := make([]types.Position, 0, len(m.tilled))
+	for pos := range m.tilled {
+		positions = append(positions, pos)
+	}
+	return positions
 }

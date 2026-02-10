@@ -371,6 +371,8 @@ Know-how represents activity skills that characters discover through experience.
 
 Characters can discover know-how by performing related activities. Currently discoverable:
 - **Harvest**: Discovered when foraging (picking up items), eating edible items, or looking at edible items
+- **Till Soil**: Discovered when looking at or picking up hoes
+- **Craft activities**: Discovered by looking at or picking up recipe components (varies by recipe)
 
 Discovery chance depends on mood:
 - **Joyful**: Uses `config.KnowHowDiscoveryChance` (e.g., 5%)
@@ -408,9 +410,10 @@ Panel controls:
 
 To add an order:
 1. Press `+` to start add order flow
-2. Select an activity (only activities known by at least one living character appear)
-3. Select a target type (e.g., for Harvest: choose berry, mushroom, or gourd)
-4. Press Enter to confirm
+2. Select a category or activity (only options known by at least one living character appear)
+3. If you selected a category (e.g., Craft, Garden), select the specific activity within that category
+4. For Harvest orders, select a target type (e.g., berry, mushroom, gourd)
+5. Press Enter to confirm
 
 ### Order Status
 

@@ -530,30 +530,42 @@ func (m Model) renderCell(x, y int) string {
 	pos := types.Position{X: x, Y: y}
 
 	var sym string
+	var fill string // terrain fill for padding (empty = use spaces)
 
 	// Check for character first (takes visual precedence)
 	if char := m.gameMap.CharacterAt(pos); char != nil {
 		sym = m.styledSymbol(char)
 	} else if item := m.gameMap.ItemAt(pos); item != nil {
-		// Check for item
 		sym = m.styledSymbol(item)
 	} else if wtype := m.gameMap.WaterAt(pos); wtype != game.WaterNone {
-		// Check for water terrain
+		// Water terrain
 		switch wtype {
 		case game.WaterSpring:
 			sym = waterStyle.Render(string(config.CharSpring))
 		case game.WaterPond:
 			sym = waterStyle.Render(string(config.CharWater))
 		}
+	} else if m.gameMap.IsTilled(pos) {
+		// Empty tilled tile — full terrain fill
+		tilledFill := growingStyle.Render(string(config.CharTilledSoil))
+		sym = tilledFill
+		fill = tilledFill
 	} else if feature := m.gameMap.FeatureAt(pos); feature != nil {
-		// Check for feature
 		sym = m.styledSymbol(feature)
 	} else {
 		sym = " "
 	}
 
+	// Entities on tilled soil get terrain fill padding
+	if fill == "" && m.gameMap.IsTilled(pos) {
+		fill = growingStyle.Render(string(config.CharTilledSoil))
+	}
+
 	if isCursor {
 		return "[" + sym + "]"
+	}
+	if fill != "" {
+		return fill + sym + fill
 	}
 	return " " + sym + " "
 }
@@ -666,7 +678,11 @@ func (m Model) renderDetails() string {
 	waterType := m.gameMap.WaterAt(cursorPos)
 
 	if e == nil && item == nil && feature == nil && waterType == game.WaterNone {
-		lines = append(lines, " Type: Empty")
+		if m.gameMap.IsTilled(cursorPos) {
+			lines = append(lines, " Type: "+growingStyle.Render("Tilled soil"))
+		} else {
+			lines = append(lines, " Type: Empty")
+		}
 		if m.testCfg.Debug {
 			lines = append(lines, fmt.Sprintf(" Pos: (%d, %d)", m.cursorX, m.cursorY))
 		}
@@ -824,6 +840,10 @@ func (m Model) renderDetails() string {
 					}
 				}
 			}
+		}
+		// Show tilled soil annotation
+		if m.gameMap.IsTilled(cursorPos) {
+			lines = append(lines, " "+growingStyle.Render("On tilled soil"))
 		}
 	} else if waterType != game.WaterNone {
 		lines = append(lines, " Type: Water")
@@ -1109,9 +1129,12 @@ func (m Model) renderKnowledgePanel() string {
 				lines = append(lines, " Knows how to:")
 				for _, activityID := range char.KnownActivities {
 					if activity, ok := entity.ActivityRegistry[activityID]; ok {
-						// Prefix craft activities with "Craft: "
-						if isCraftActivity(activityID) {
-							lines = append(lines, "   Craft: "+activity.Name)
+						if activity.Category != "" {
+							if display, ok := categoryDisplayName[activity.Category]; ok {
+								lines = append(lines, "   "+display+": "+activity.Name)
+							} else {
+								lines = append(lines, "   "+activity.Category+": "+activity.Name)
+							}
 						} else {
 							lines = append(lines, "   "+activity.Name)
 						}
@@ -1309,13 +1332,17 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 				}
 			}
 		} else {
-			// Step 2: Select target type (for Harvest) or craft activity (for Craft)
+			// Step 2: Select sub-item based on selected category/activity
 			if m.selectedActivityIndex < len(orderableActivities) &&
-				isCraftCategory(orderableActivities[m.selectedActivityIndex].ID) {
-				// Craft category selected - show craft activities
-				craftActivities := m.getCraftActivities()
-				lines = append(lines, indent+"Select item to craft:", "")
-				for i, activity := range craftActivities {
+				isSyntheticCategory(orderableActivities[m.selectedActivityIndex].ID) {
+				category := syntheticCategoryID(orderableActivities[m.selectedActivityIndex].ID)
+				categoryActivities := m.getCategoryActivities(category)
+				prompt := "Select activity:"
+				if category == "craft" {
+					prompt = "Select item to craft:"
+				}
+				lines = append(lines, indent+prompt, "")
+				for i, activity := range categoryActivities {
 					prefix := selectIndent
 					if i == m.selectedTargetIndex {
 						prefix = selectPrefix
@@ -1403,13 +1430,19 @@ func (m Model) renderOrdersPanel() string {
 	return strings.Join(lines, "\n")
 }
 
+// categoryDisplayName maps category IDs to their display names in the order UI
+var categoryDisplayName = map[string]string{
+	"craft":  "Craft",
+	"garden": "Garden",
+}
+
 // getOrderableActivities returns activities that can be ordered
 // (known by at least one living character)
-// Returns non-craft activities first, then craft activities
+// Returns uncategorized activities first, then synthetic category entries
 func (m Model) getOrderableActivities() []entity.Activity {
 	var result []entity.Activity
 	chars := m.gameMap.Characters()
-	hasCraft := false
+	knownCategories := map[string]bool{}
 
 	for _, activity := range entity.ActivityRegistry {
 		if activity.Availability != entity.AvailabilityKnowHow {
@@ -1421,8 +1454,8 @@ func (m Model) getOrderableActivities() []entity.Activity {
 		// Check if any living character knows this activity
 		for _, char := range chars {
 			if !char.IsDead && char.KnowsActivity(activity.ID) {
-				if isCraftActivity(activity.ID) {
-					hasCraft = true // Track that craft is available, but don't add individual craft activities
+				if activity.Category != "" {
+					knownCategories[activity.Category] = true
 				} else {
 					result = append(result, activity)
 				}
@@ -1431,37 +1464,42 @@ func (m Model) getOrderableActivities() []entity.Activity {
 		}
 	}
 
-	// Add synthetic "Craft" category if any craft activities are available
-	if hasCraft {
+	// Add synthetic category entries for categories with known activities
+	for category := range knownCategories {
+		name := category
+		if display, ok := categoryDisplayName[category]; ok {
+			name = display
+		}
 		result = append(result, entity.Activity{
-			ID:   craftCategoryID,
-			Name: "Craft",
+			ID:       "category:" + category,
+			Name:     name,
+			Category: category,
 		})
 	}
 
 	return result
 }
 
-// craftCategoryID is a synthetic activity ID representing the Craft menu category
-const craftCategoryID = "craft"
-
-// isCraftActivity returns true if the activity ID indicates a craft activity
-func isCraftActivity(activityID string) bool {
-	return len(activityID) >= 5 && activityID[:5] == "craft"
+// isSyntheticCategory returns true if this is a synthetic category entry (not a real activity)
+func isSyntheticCategory(activityID string) bool {
+	return len(activityID) > 9 && activityID[:9] == "category:"
 }
 
-// isCraftCategory returns true if this is the synthetic Craft category (not a real activity)
-func isCraftCategory(activityID string) bool {
-	return activityID == craftCategoryID
+// syntheticCategoryID returns the category from a synthetic category activity ID
+func syntheticCategoryID(activityID string) string {
+	if isSyntheticCategory(activityID) {
+		return activityID[9:]
+	}
+	return ""
 }
 
-// getCraftActivities returns available craft activities that at least one character knows
-func (m Model) getCraftActivities() []entity.Activity {
+// getCategoryActivities returns available activities in a category that at least one character knows
+func (m Model) getCategoryActivities(category string) []entity.Activity {
 	var result []entity.Activity
 	chars := m.gameMap.Characters()
 
 	for _, activity := range entity.ActivityRegistry {
-		if !isCraftActivity(activity.ID) {
+		if activity.Category != category {
 			continue
 		}
 		if activity.Availability != entity.AvailabilityKnowHow {

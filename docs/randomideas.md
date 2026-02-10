@@ -14,6 +14,7 @@ then they can be removed from this list.
 1. **Game Mechanics Doc Reorg**: they are little disorganized, inconsistent about what level of detail it shares, not in the most intuitive order.
    a. Reorganize in order of gameflow
    b. Remove anything unnecessary for user, or summarize where makes sense
+2. **Foraging pathfinding thrashing**: Character seeking a food item thrashes when blocked by another character at the target. May not be using BFS pathfinding for foraging movement yet.
 
 ## UI Improvements (after Gardening)
 

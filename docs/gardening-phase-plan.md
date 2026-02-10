@@ -674,7 +674,7 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 - Cursor over tilled tile shows "Tilled soil" in details
 - Save/load preserves tilled state
 
-##### Step 3: Category Field on Activity + Garden Category UI
+##### Step 3: Category Field on Activity + Garden Category UI ✅
 
 **Design decisions:**
 - **Category field replaces prefix hacking**: Add `Category string` to `Activity` struct. `isCraftActivity(id[:5] == "craft")` replaced by `activity.Category != ""`. Any category works generically.
