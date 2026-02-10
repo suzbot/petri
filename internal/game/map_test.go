@@ -621,3 +621,111 @@ func TestIsEmpty_TilledTileWithItem(t *testing.T) {
 		t.Error("IsEmpty() should return false for tilled tile with an item on it")
 	}
 }
+
+// Marked-for-Tilling Tests
+
+func TestMarkForTilling_IsMarkedForTilling(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+
+	ok := m.MarkForTilling(pos)
+
+	if !ok {
+		t.Error("MarkForTilling() should return true for new position")
+	}
+	if !m.IsMarkedForTilling(pos) {
+		t.Error("IsMarkedForTilling() should return true after MarkForTilling()")
+	}
+}
+
+func TestIsMarkedForTilling_UnmarkedPosition(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+
+	if m.IsMarkedForTilling(types.Position{X: 5, Y: 5}) {
+		t.Error("IsMarkedForTilling() should return false for unmarked position")
+	}
+}
+
+func TestUnmarkForTilling(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+	m.MarkForTilling(pos)
+
+	m.UnmarkForTilling(pos)
+
+	if m.IsMarkedForTilling(pos) {
+		t.Error("IsMarkedForTilling() should return false after UnmarkForTilling()")
+	}
+}
+
+func TestMarkedForTillingPositions_ReturnsAll(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	m.MarkForTilling(types.Position{X: 3, Y: 3})
+	m.MarkForTilling(types.Position{X: 4, Y: 3})
+	m.MarkForTilling(types.Position{X: 5, Y: 3})
+
+	positions := m.MarkedForTillingPositions()
+	if len(positions) != 3 {
+		t.Errorf("MarkedForTillingPositions() should return 3 positions, got %d", len(positions))
+	}
+
+	expected := map[types.Position]bool{
+		{X: 3, Y: 3}: false,
+		{X: 4, Y: 3}: false,
+		{X: 5, Y: 3}: false,
+	}
+	for _, p := range positions {
+		if _, ok := expected[p]; !ok {
+			t.Errorf("MarkedForTillingPositions() returned unexpected position (%d,%d)", p.X, p.Y)
+		}
+	}
+}
+
+func TestMarkForTilling_AlreadyTilledIsNoOp(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+	m.SetTilled(pos)
+
+	ok := m.MarkForTilling(pos)
+
+	if ok {
+		t.Error("MarkForTilling() should return false for already-tilled position")
+	}
+	if m.IsMarkedForTilling(pos) {
+		t.Error("IsMarkedForTilling() should return false for already-tilled position")
+	}
+}
+
+func TestIsBlocked_MarkedTile(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 10, Y: 10}
+	m.MarkForTilling(pos)
+
+	if m.IsBlocked(pos) {
+		t.Error("IsBlocked() should return false for marked-for-tilling tile")
+	}
+}
+
+func TestIsEmpty_MarkedTileNoOccupants(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 10, Y: 10}
+	m.MarkForTilling(pos)
+
+	if !m.IsEmpty(pos) {
+		t.Error("IsEmpty() should return true for marked-for-tilling tile with no occupants")
+	}
+}

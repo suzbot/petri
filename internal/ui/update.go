@@ -102,6 +102,17 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.saveGame() // Save before quitting
 			return m, tea.Quit
 		case "esc":
+			// Area selection: clear anchor if set, otherwise exit
+			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
+				if m.areaSelectAnchor != nil {
+					m.areaSelectAnchor = nil
+				} else {
+					m.ordersAddStep = 0
+					m.selectedActivityIndex = 0
+					m.areaSelectUnmarkMode = false
+				}
+				return m, nil
+			}
 			// If in orders add/cancel mode, exit that mode
 			if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
 				m.ordersAddMode = false
@@ -208,6 +219,13 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.selectedOrderIndex = 0
 				}
 			}
+		case "tab":
+			// Toggle mark/unmark mode during area selection
+			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
+				m.areaSelectUnmarkMode = !m.areaSelectUnmarkMode
+				m.areaSelectAnchor = nil // Reset anchor when toggling mode
+				return m, nil
+			}
 		case "enter":
 			// Confirm selection in orders panel
 			if m.showOrdersPanel {
@@ -221,7 +239,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 							m.ordersAddStep = 1
 							m.selectedTargetIndex = 0
 						}
-					} else {
+					} else if m.ordersAddStep == 1 {
 						// Step 1: Create the order based on what was selected
 						activities := m.getOrderableActivities()
 						if len(activities) > 0 && m.selectedActivityIndex < len(activities) {
@@ -233,13 +251,21 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 								categoryActivities := m.getCategoryActivities(category)
 								if m.selectedTargetIndex < len(categoryActivities) {
 									catActivity := categoryActivities[m.selectedTargetIndex]
-									order := entity.NewOrder(m.nextOrderID, catActivity.ID, "")
-									m.nextOrderID++
-									m.orders = append(m.orders, order)
 
-									// Stay in add mode, return to activity selection
-									m.ordersAddStep = 0
-									m.selectedActivityIndex = 0
+									// Activities that need area selection
+									if catActivity.ID == "tillSoil" {
+										m.ordersAddStep = 2
+										m.areaSelectAnchor = nil
+										m.areaSelectUnmarkMode = false
+									} else {
+										order := entity.NewOrder(m.nextOrderID, catActivity.ID, "")
+										m.nextOrderID++
+										m.orders = append(m.orders, order)
+
+										// Stay in add mode, return to activity selection
+										m.ordersAddStep = 0
+										m.selectedActivityIndex = 0
+									}
 								}
 							} else {
 								// Harvest - get selected target type
@@ -256,6 +282,17 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 								}
 							}
 						}
+					} else if m.ordersAddStep == 2 {
+						// Step 2: Enter = done, create order if tiles marked, back to step 1
+						if len(m.gameMap.MarkedForTillingPositions()) > 0 {
+							order := entity.NewOrder(m.nextOrderID, "tillSoil", "")
+							m.nextOrderID++
+							m.orders = append(m.orders, order)
+						}
+						m.ordersAddStep = 1
+						m.selectedTargetIndex = 0
+						m.areaSelectAnchor = nil
+						m.areaSelectUnmarkMode = false
 					}
 				} else if m.ordersCancelMode {
 					// Handle cancel order confirmation inline
@@ -310,6 +347,28 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "p":
+			// Plot: anchor/confirm rectangle during area selection
+			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
+				if m.areaSelectAnchor == nil {
+					anchor := types.Position{X: m.cursorX, Y: m.cursorY}
+					m.areaSelectAnchor = &anchor
+				} else {
+					cursor := types.Position{X: m.cursorX, Y: m.cursorY}
+					if m.areaSelectUnmarkMode {
+						positions := getValidPositions(*m.areaSelectAnchor, cursor, m.gameMap, isValidUnmarkTarget)
+						for _, pos := range positions {
+							m.gameMap.UnmarkForTilling(pos)
+						}
+					} else {
+						positions := getValidPositions(*m.areaSelectAnchor, cursor, m.gameMap, isValidTillTarget)
+						for _, pos := range positions {
+							m.gameMap.MarkForTilling(pos)
+						}
+					}
+					m.areaSelectAnchor = nil // Clear anchor, stay in step 2
+				}
+				return m, nil
+			}
 			// Toggle preferences panel (only in select mode, mutually exclusive with others)
 			if m.viewMode == viewModeSelect {
 				m.showPreferencesPanel = !m.showPreferencesPanel
@@ -335,7 +394,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "up":
-			if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
+			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
+				// Area selection: move cursor on map
+				m.moveCursor(0, -1)
+			} else if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
 				// Handle orders panel navigation inline
 				if m.ordersAddMode {
 					if m.ordersAddStep == 0 {
@@ -356,7 +418,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.moveCursor(0, -1)
 			}
 		case "down":
-			if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
+			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
+				// Area selection: move cursor on map
+				m.moveCursor(0, 1)
+			} else if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
 				// Handle orders panel navigation inline
 				if m.ordersAddMode {
 					if m.ordersAddStep == 0 {
@@ -388,11 +453,15 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.moveCursor(0, 1)
 			}
 		case "left":
-			if !(m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode)) {
+			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
+				m.moveCursor(-1, 0) // Area selection: move cursor on map
+			} else if !(m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode)) {
 				m.moveCursor(-1, 0)
 			}
 		case "right":
-			if !(m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode)) {
+			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
+				m.moveCursor(1, 0) // Area selection: move cursor on map
+			} else if !(m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode)) {
 				m.moveCursor(1, 0)
 			}
 		case "pgup":

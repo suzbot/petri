@@ -23,15 +23,15 @@
 | Tilled soil visual    | Parallel line symbol + underline       | Tilled soil gets a ground symbol. Plants on tilled soil underlined. "Tilled" attribute visible in details panel when ground selected. Highlight only in selection view. |
 | Sprout colors         | Olive (dry) / green (wet) / mushroom exception | Sprouts appear olive by default, green when on wet tile. Mushroom sprouts always show variety color. |
 | Tilled soil model     | Map terrain state, not feature         | Tilled soil is a terrain modification. Items must exist on tilled tiles (plants grow there). Features block `IsEmpty()`. O(1) lookups via `tilled map[Position]bool`. Same pattern as water terrain. |
-| Tilled soil visual    | Olive `≡` symbol, no background        | Triple horizontal lines in olive color on empty tilled tiles. No background color. Entity symbols render normally on tilled tiles; tilled state shown in details panel. |
+| Tilled soil visual    | Option F: `═══` full fill, `═●═` around entities | Box-drawing `═` in olive (142). Empty tilled tiles render `═══`. Entities on tilled soil get `═X═` fill padding. No background color. Tilled state shown in details panel. |
 | Activity categories   | `Category` field on Activity struct    | Explicit grouping replaces prefix convention. Cleaner than string prefix hacking. Scales to future categories (Pigment, Construction). Existing craft activities migrated. |
 | Area selection UI     | Rectangle anchor-cursor pattern        | Enter to anchor, move cursor for rectangle, Enter to confirm. Invalid tiles silently excluded. Reusable for Construction fence/hut placement. |
-| Till order state      | Map is source of truth                 | Order stores intent (`TargetPositions`). Map stores reality (`tilled`). Characters skip positions where `IsTilled()` is true. Multi-assignment works naturally. |
+| Till order state      | Global marked-for-tilling pool on Map  | Marked tiles = user's tilling plan (persistent, independent of orders). Till orders = worker assignments. Cancel order = remove worker, not the plan. Unmark via separate UI action. Characters with any tillSoil order work the shared pool. |
 | Lookable water terrain | Extend Look to water-adjacent positions | Characters contemplate water sources. Triggers know-how discovery (Water Garden) but not preference formation (water has no item attributes). |
 | Food satiation tiers  | Feast (50) / Meal (25) / Snack (10)   | Per-item-type satiation. Gourd=Feast, Mushroom=Meal, Berry/Nut=Snack. Replaces flat FoodHungerReduction. |
 | Growth speed tiers    | Fast / Medium / Slow                   | Berry/mushroom=fast, flower=medium (6-min sprout), gourd=slow. Affects sprouting duration and reproduction intervals. |
 | Watered tile decay    | 3 world days (360 game seconds)        | Manual watering creates temporary wet status. Tiles adjacent to water are permanently wet (computed). |
-| Water symbol          | Medium-shade block tile                | Visual update from `≈` to block character for water rendering. Applies to springs and ponds. |
+| Water symbol          | `▓▓▓` dark shade block in waterStyle   | Textured block for ponds (suggests water movement). Springs keep `☉`. Aligns with terrain fill system (`═══` tilled, `▓▓▓` water). Structure walls TBD. |
 
 ---
 
@@ -585,13 +585,19 @@ Rectangle-based selection, keyboard-driven:
 - Validation function is pluggable: `isValidTillTarget(pos)` for tilling, future `isValidFenceTarget(pos)` for construction
 - The pattern is: enter area select → anchor → rectangle → filter invalid → confirm → create order with positions
 
-#### Design: Order TargetPositions + Multi-Assignment
+#### Design: Marked-for-Tilling Pool (Decoupled from Orders)
 
-Add `TargetPositions []types.Position` to Order struct. Nil for harvest/craft orders, populated for area-based orders like Till Soil. Serialized as part of `OrderSave`.
+Marked tiles and till orders are **separate concepts**:
 
-**Source of truth:** Map's `tilled` set tracks reality. Order's `TargetPositions` stores intent. Characters work positions that are in TargetPositions AND not yet `IsTilled()` on the map. Completion = all TargetPositions are tilled.
+- **Marked tiles** = the user's tilling plan. Stored as `markedForTilling map[Position]bool` on Map. Persists independently of orders. Area selection adds to the pool. "Unmark Tilling" removes from the pool. Serialized alongside `tilled` in SaveState.
+- **Till Soil orders** = worker assignments. A tillSoil order means "assign a character to work the tilling pool." The order carries no positions — it just represents a worker slot. Cancelling an order removes a worker but leaves the plan intact.
+- **Unmark Tilling** = separate Garden menu option using the same area selection rectangle UI but in "unmark" mode. Removes selected positions from the pool. Does not create or cancel orders.
 
-**Multi-assignment (reqs lines 58-59):** Separate orders with potentially overlapping tile pools. Characters from different orders skip already-tilled tiles naturally. Each character picks the nearest untilled position from their order's TargetPositions.
+**Work assignment:** Characters with any tillSoil order pick the nearest marked-but-not-yet-tilled tile from the shared pool. Multiple characters naturally share the work.
+
+**Order completion:** A tillSoil order completes when the pool is empty (all marked tiles have been tilled). All active tillSoil orders complete simultaneously.
+
+**Source of truth:** Map stores both the plan (`markedForTilling`) and reality (`tilled`). When a tile is tilled, it leaves `markedForTilling` and enters `tilled`.
 
 #### Design: EnsureHasItem (Hoe Procurement)
 
@@ -614,8 +620,8 @@ Simpler than `EnsureHasRecipeInputs` — single item type, no multi-component lo
 #### Design: findTillSoilIntent Flow
 
 1. `EnsureHasItem("hoe")` — procure hoe if not carried
-2. Find nearest untilled position from `order.TargetPositions` (skip positions where `IsTilled()` is true)
-3. If all positions tilled → return nil (order complete)
+2. Find nearest marked-but-not-tilled position from the shared pool (`markedForTilling` where `!IsTilled()`)
+3. If no such position exists → return nil (pool empty, order complete)
 4. If not at target position → return movement intent (BFS pathfinding)
 5. If at target position → return `ActionTillSoil` intent
 
@@ -623,11 +629,12 @@ Simpler than `EnsureHasRecipeInputs` — single item type, no multi-component lo
 
 - New `ActionTillSoil` action type, duration `ActionDurationMedium` (4.0s / ~48 world minutes)
 - On completion:
-  - `Map.SetTilled(pos)` marks tile
+  - `Map.SetTilled(pos)` marks tile as tilled
+  - `Map.UnmarkForTilling(pos)` removes tile from the pool
   - Growing items at position: destroyed (tilling kills wild plants)
   - Non-growing items at position: displaced to adjacent empty tile via `findEmptyAdjacent()`. If no adjacent space, drop at character position.
-  - Character automatically finds next untilled position from order and continues
-- Order completion: when `findTillSoilIntent` returns nil because all TargetPositions are tilled
+  - Character automatically finds next marked-but-not-tilled position and continues
+- Order completion: when `findTillSoilIntent` returns nil because the marked-for-tilling pool is empty. All active tillSoil orders complete simultaneously.
 
 ---
 
@@ -712,38 +719,107 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 - Selecting Till Soil creates an order (placeholder — Step 4 replaces with area selection)
 - Knowledge panel shows "Garden: Till Soil" and "Craft: Vessel" etc.
 
-##### Step 4: Area Selection UI
+##### Step 4: Marked-for-Tilling Pool on Map ✅
 
-**Tests** (in `internal/game/map_test.go` or new `internal/ui/area_select_test.go`):
+**Tests** (in `internal/game/map_test.go`):
+- `MarkForTilling(pos)` / `IsMarkedForTilling(pos)` basic set/get
+- `IsMarkedForTilling()` returns false for unmarked positions
+- `UnmarkForTilling(pos)` removes position from pool
+- `MarkedForTillingPositions()` returns all marked positions
+- `MarkForTilling` on already-tilled position is a no-op (returns false or silently skips)
+- `IsBlocked()` returns false for marked tiles (walkable)
+- `IsEmpty()` returns true for marked tiles with no occupants
+
+**Tests** (serialization, in `internal/game/map_test.go`):
+- Marked-for-tilling positions round-trip through save/load
+
+**Implementation:**
+- Add `markedForTilling map[Position]bool` to Map struct, initialize in `NewMap()`
+- `MarkForTilling(pos)`, `UnmarkForTilling(pos)`, `IsMarkedForTilling(pos)`, `MarkedForTillingPositions()`
+- `MarkForTilling` skips positions that are already tilled
+- `SaveState`: add `MarkedForTillingPositions []types.Position` with `json:"marked_for_tilling,omitempty"`
+- `ToSaveState` / `FromSaveState`: serialize/restore marked positions
+
+**[TEST] Checkpoint — Pool state:**
+- `go test ./...` passes
+
+##### Step 4b: Area Selection Validation Logic ✅
+
+**Tests** (in `internal/ui/area_select_test.go`):
 - `isValidTillTarget(pos, gameMap)` returns false for water tiles
 - `isValidTillTarget(pos, gameMap)` returns false for feature tiles
 - `isValidTillTarget(pos, gameMap)` returns false for already-tilled tiles
-- `isValidTillTarget(pos, gameMap)` returns true for empty tiles
-- `getValidTillPositions(anchor, cursor, gameMap)` filters rectangle to valid positions
-- `getValidTillPositions` excludes out-of-bounds positions
+- `isValidTillTarget(pos, gameMap)` returns false for already-marked tiles
+- `isValidTillTarget(pos, gameMap)` returns true for empty walkable tiles
+- `isValidUnmarkTarget(pos, gameMap)` returns true for marked-but-not-tilled tiles
+- `isValidUnmarkTarget(pos, gameMap)` returns false for unmarked or already-tilled tiles
+- `getValidPositions(anchor, cursor, gameMap, validatorFn)` filters rectangle to valid positions
+- `getValidPositions` excludes out-of-bounds positions
+- `getValidPositions` handles anchor > cursor (any drag direction)
 
 **Implementation:**
-- Add area select state to Model: `areaSelectMode bool`, `areaSelectAnchor *types.Position`, `areaSelectActivityID string`
-- Add `TargetPositions []types.Position` to Order struct and OrderSave
-- Keyboard handler for area select mode:
-  - Arrow keys: move cursor (reuse existing `moveCursor`)
-  - Enter (no anchor set): set anchor at cursor position
-  - Enter (anchor set): confirm selection, create order with valid positions, exit area select mode
-  - Esc: cancel, exit area select mode
-- `renderCell()`: when in area select mode with anchor set, highlight valid tiles in rectangle with olive lipgloss background. Pre-highlight tiles from existing pending till orders.
-- Details panel in area select mode: show "Marked for tilling" in olive for pending tiles, help text for controls
-- On confirm: create Order with `ActivityID: "tillSoil"`, `TargetPositions: validPositions`
+- New file `internal/ui/area_select.go`
+- `isValidTillTarget(pos, gameMap)` — not water, not feature, not tilled, not already marked
+- `isValidUnmarkTarget(pos, gameMap)` — is marked and not yet tilled
+- `getValidPositions(anchor, cursor, gameMap, validatorFn)` — generic rectangle filter, reusable for Construction
 
-**[TEST] Checkpoint — Area selection works:**
+**[TEST] Checkpoint — Validation logic:**
 - `go test ./...` passes
-- Orders → Garden → Till Soil → area select mode activates, orders panel closes
-- Cursor moves freely, press Enter to anchor
-- Rectangle highlights in olive between anchor and cursor
+
+##### Step 4c: Area Selection UI + Order Flow
+
+**Tests:** None (UI rendering/keyboard handling per CLAUDE.md)
+
+**Implementation — Area selection as order-add step:**
+- Add state to Model: `areaSelectAnchor *types.Position`, `areaSelectUnmarkMode bool`
+- Detect in order-add flow: when user selects "Till Soil" in step 1, advance to step 2 (area selection). When user selects "Unmark Tilling", advance to step 2 in unmark mode.
+- Register `unmarkTilling` as a non-orderable UI-only activity under garden category (or handle as special case in the order UI — decide during implementation)
+- Orders panel sidebar remains visible during step 2, showing keypress hints:
+  - Before anchor: "Arrow keys: move cursor / Enter: set anchor / Esc: cancel"
+  - After anchor: "Arrow keys: resize / Enter: confirm / Esc: cancel"
+
+**Implementation — Keyboard handling in step 2:**
+- Arrow keys: move cursor (reuse existing `moveCursor`)
+- Enter (no anchor): set anchor at cursor position
+- Enter (anchor set): confirm selection
+  - Mark mode: add valid positions to `markedForTilling` pool, create tillSoil order, return to step 0
+  - Unmark mode: remove valid positions from `markedForTilling` pool, return to step 0 (no order created)
+- Esc: cancel, clear anchor, return to step 0
+
+**Implementation — Map rendering during area selection:**
+- `renderCell()`: when in area selection step with anchor set, highlight valid tiles in rectangle with olive lipgloss background
+- Pre-highlight existing marked-for-tilling tiles (from pool) so user sees prior work
+- Unmark mode: highlight tiles that would be unmarked (different visual — maybe dim/strikethrough, or just show which marked tiles are in the rectangle)
+
+**Implementation — Details panel:**
+- During area selection: show "Marked for tilling" in olive for marked tiles under cursor
+- In normal select view: cursor over marked-but-not-tilled tile shows "Marked for tilling" in details
+
+**[TEST] Checkpoint — Area selection mark flow:**
+- `go test ./...` passes
+- Build and run. Use `/test-world` or give a character Till Soil know-how
+- Orders → Garden → Till Soil → sidebar shows hints, cursor moves on map
+- Press Enter to anchor, move cursor — rectangle highlights valid tiles in olive
 - Water, feature, already-tilled tiles NOT highlighted within rectangle
-- Second Till Soil order → first order's positions show pre-highlighted
-- Enter confirms → order appears in orders panel (show position count in display name)
-- Esc cancels → returns to normal play
-- Details panel shows "Marked for tilling" in olive for pending positions
+- Existing marked tiles show as pre-highlighted
+- Enter confirms → marked tiles added to pool, "Till Soil" order appears in orders panel
+- Esc cancels → returns to order menu, no tiles marked
+- Cursor over marked tile in select view shows "Marked for tilling" in details panel
+- Save, load → marked tiles persist
+
+**[TEST] Checkpoint — Area selection unmark flow:**
+- Orders → Garden → Unmark Tilling → area selection in unmark mode
+- Rectangle highlights currently-marked tiles that would be removed
+- Enter confirms → tiles removed from pool
+- Previously marked tiles no longer highlighted
+- If no marked tiles exist, unmark selection confirms with no effect
+
+**[TEST] Checkpoint — Multiple mark operations:**
+- Mark a 3x3 area → 9 tiles marked, one order created
+- Mark another 4x4 area nearby → new tiles added to pool, second order created
+- Both orders show as "Till Soil" in orders panel
+- Cancel one order → tiles remain marked, one worker removed
+- Unmark a few tiles → those tiles removed from pool
 
 ##### Step 5: EnsureHasItem + findTillSoilIntent
 
@@ -755,49 +831,56 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 
 **Tests** (in `internal/system/order_execution_test.go`):
 - `findTillSoilIntent` returns hoe procurement intent when no hoe carried
-- `findTillSoilIntent` returns movement intent toward nearest untilled target position
-- `findTillSoilIntent` returns `ActionTillSoil` when at target position with hoe
-- `findTillSoilIntent` returns nil when all target positions are tilled (complete)
-- `findTillSoilIntent` skips already-tilled positions
+- `findTillSoilIntent` returns movement intent toward nearest marked-but-not-tilled position
+- `findTillSoilIntent` returns `ActionTillSoil` when at marked position with hoe
+- `findTillSoilIntent` returns nil when pool is empty (all marked tiles tilled — order complete)
+- `findTillSoilIntent` skips already-tilled positions in pool
 
 **Implementation:**
 - `EnsureHasItem(char, itemType, items, gameMap, log)` in picking.go
 - Add `ActionTillSoil` to ActionType enum in character.go
-- `findTillSoilIntent()` in order_execution.go
+- `findTillSoilIntent()` in order_execution.go — works from `gameMap.MarkedForTillingPositions()`
 - Wire into `findOrderIntent()` switch: `case "tillSoil": return findTillSoilIntent(...)`
+
+**[TEST] Checkpoint — Intent logic:**
+- `go test ./...` passes
 
 ##### Step 6: Till Soil Action Execution
 
 **Tests** (in `internal/ui/update_test.go` or new `internal/system/tilling_test.go`):
 - `ActionTillSoil` sets tile as tilled after `ActionDurationMedium`
+- `ActionTillSoil` removes tile from marked-for-tilling pool
 - Growing items at target position destroyed on tilling
 - Non-growing items at target position displaced to adjacent empty tile
 - Non-growing items dropped at character position when no adjacent space
-- Character continues to next untilled position after tilling
-- Order completes when all TargetPositions are tilled (order removed/completed)
+- Character continues to next marked-but-not-tilled position after tilling
+- All tillSoil orders complete when pool is empty
 
 **Implementation:**
 - Handle `ActionTillSoil` in action progress system (same pattern as `ActionCraft`)
 - On completion:
-  - `gameMap.SetTilled(pos)`
-  - Check for item at pos: growing → remove, non-growing → displace
-  - Log action: "Tilled soil at (x, y)"
-  - Find next untilled position → set new intent, or complete order
-- Order completion: check all TargetPositions against `IsTilled()`, call `CompleteOrder` when done
+  - `gameMap.SetTilled(pos)` — marks tile as tilled terrain
+  - `gameMap.UnmarkForTilling(pos)` — removes from pool
+  - Check for item at pos: growing → remove, non-growing → displace to adjacent
+  - Log action
+  - Character automatically finds next marked position and continues
+- Order completion: when `findTillSoilIntent` returns nil (pool empty), complete all active tillSoil orders
 
 **[TEST] Checkpoint — Full Till Soil flow:**
 - `go test ./...` passes
-- Start world, craft a hoe (or /test-world with hoe pre-placed)
+- Start world, craft a hoe (or `/test-world` with hoe pre-placed)
 - Character discovers Till Soil from looking at/picking up hoe
 - Order Garden > Till Soil, select area on map
-- Character picks up hoe, moves to first tile, tills it (olive `≡` appears)
-- Character moves to next tile automatically
+- Character picks up hoe, moves to first marked tile, tills it (olive `═` appears, tile removed from marked pool)
+- Character moves to next marked tile automatically
 - Growing items destroyed during tilling, non-growing items displaced to adjacent tile
-- Order completes when all tiles tilled
-- Test with 2 characters tilling overlapping areas (separate orders)
-- Save/load preserves tilled tiles, pending orders with TargetPositions
+- Order completes when all marked tiles tilled
+- Test with 2 till orders (2 workers) — both characters share the pool, work completes faster
+- Cancel one order mid-work — remaining worker continues, marked tiles unchanged
+- Unmark some tiles mid-work — worker skips newly-unmarked tiles
+- Save/load preserves tilled tiles, marked-for-tilling pool, and orders
 
-**[DOCS]** Update README (Latest Updates), CLAUDE.md, game-mechanics, architecture as needed for area selection UI pattern (document for Construction reuse), tilled soil system, Garden order category.
+**[DOCS]** Update README (Latest Updates), CLAUDE.md, game-mechanics, architecture as needed for area selection UI pattern (document for Construction reuse), tilled soil system, marked-for-tilling pool, Garden order category.
 
 **[RETRO]** Run /retro.
 
@@ -883,7 +966,7 @@ Seeds carry the full variety of their parent (ItemType, Color, Pattern, Texture)
 - Food Turning: Growth speed tiers (lines 138-141)
 
 #### Step 0: Wet areas
-- Change the water symbol for ponds to the medium shade symbol in waterStyle blue
+- Change the water symbol for ponds to `▓` (dark shade block) in waterStyle blue
 - **Wet tiles from water adjacency**: Tiles within 8-directional adjacency of water sources are always "wet." Computed on the fly via `IsWet(pos)` — no persistent state. 
 
 [TEST]

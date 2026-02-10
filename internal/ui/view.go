@@ -561,6 +561,46 @@ func (m Model) renderCell(x, y int) string {
 		fill = growingStyle.Render(string(config.CharTilledSoil))
 	}
 
+	// Area selection highlighting (only visible during step 2)
+	if m.ordersAddMode && m.ordersAddStep == 2 {
+		// Rectangle highlight when anchor is set
+		if m.areaSelectAnchor != nil && !isCursor {
+			cursor := types.Position{X: m.cursorX, Y: m.cursorY}
+			if isInRect(pos, *m.areaSelectAnchor, cursor) {
+				var validator func(types.Position, *game.Map) bool
+				var bgStyle lipgloss.Style
+				if m.areaSelectUnmarkMode {
+					validator = isValidUnmarkTarget
+					bgStyle = areaUnselectStyle
+				} else {
+					validator = isValidTillTarget
+					bgStyle = areaSelectStyle
+				}
+				if validator(pos, m.gameMap) {
+					hasEntity := m.gameMap.CharacterAt(pos) != nil || m.gameMap.ItemAt(pos) != nil || m.gameMap.FeatureAt(pos) != nil
+					if hasEntity {
+						bg := bgStyle.Render(" ")
+						return bg + sym + bg
+					}
+					padded := " " + sym + " "
+					if fill != "" {
+						padded = fill + sym + fill
+					}
+					return bgStyle.Render(padded)
+				}
+			}
+		}
+
+		// Pre-highlight existing marked-for-tilling tiles
+		if m.gameMap.IsMarkedForTilling(pos) && !isCursor {
+			padded := " " + sym + " "
+			if fill != "" {
+				padded = fill + sym + fill
+			}
+			return areaSelectStyle.Render(padded)
+		}
+	}
+
 	if isCursor {
 		return "[" + sym + "]"
 	}
@@ -680,6 +720,8 @@ func (m Model) renderDetails() string {
 	if e == nil && item == nil && feature == nil && waterType == game.WaterNone {
 		if m.gameMap.IsTilled(cursorPos) {
 			lines = append(lines, " Type: "+growingStyle.Render("Tilled soil"))
+		} else if m.gameMap.IsMarkedForTilling(cursorPos) {
+			lines = append(lines, " Type: "+growingStyle.Render("Marked for tilling"))
 		} else {
 			lines = append(lines, " Type: Empty")
 		}
@@ -841,9 +883,11 @@ func (m Model) renderDetails() string {
 				}
 			}
 		}
-		// Show tilled soil annotation
+		// Show tilled/marked soil annotation
 		if m.gameMap.IsTilled(cursorPos) {
 			lines = append(lines, " "+growingStyle.Render("On tilled soil"))
+		} else if m.gameMap.IsMarkedForTilling(cursorPos) {
+			lines = append(lines, " "+growingStyle.Render("Marked for tilling"))
 		}
 	} else if waterType != game.WaterNone {
 		lines = append(lines, " Type: Water")
@@ -1294,7 +1338,24 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 	orderableActivities := m.getOrderableActivities()
 
 	// Add hints at top so they're always visible
-	if m.ordersAddMode || m.ordersCancelMode {
+	if m.ordersAddMode && m.ordersAddStep == 2 {
+		// Area selection hints
+		modeName := "Mark"
+		if m.areaSelectUnmarkMode {
+			modeName = "Unmark"
+		}
+		lines = append(lines, indent+growingStyle.Render("Till Soil: "+modeName), "")
+		if m.areaSelectAnchor == nil {
+			lines = append(lines, indent+"arrows: move cursor")
+			lines = append(lines, indent+"p: set anchor")
+		} else {
+			lines = append(lines, indent+"arrows: resize")
+			lines = append(lines, indent+"p: confirm plot")
+		}
+		lines = append(lines, indent+"tab: toggle mark/unmark")
+		lines = append(lines, indent+"enter: done  esc: cancel")
+		lines = append(lines, "")
+	} else if m.ordersAddMode || m.ordersCancelMode {
 		lines = append(lines, indent+"enter: confirm  esc: back", "")
 	} else {
 		var hints []string
@@ -1316,7 +1377,7 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 	if m.ordersAddMode {
 		// Add order flow
 		if m.ordersAddStep == 0 {
-			// Step 1: Select activity
+			// Step 0: Select activity
 			lines = append(lines, indent+"Select activity:", "")
 			if len(orderableActivities) == 0 {
 				lines = append(lines, selectIndent+"(no activities available)")
@@ -1331,6 +1392,8 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 					lines = append(lines, prefix+activity.Name)
 				}
 			}
+		} else if m.ordersAddStep == 2 {
+			// Step 2: Area selection — hints are already rendered above, nothing else needed
 		} else {
 			// Step 2: Select sub-item based on selected category/activity
 			if m.selectedActivityIndex < len(orderableActivities) &&

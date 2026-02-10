@@ -92,9 +92,13 @@ type Model struct {
 	ordersCancelMode      bool
 	selectedOrderIndex    int
 	ordersAddMode         bool
-	ordersAddStep         int // 0 = select activity, 1 = select target
+	ordersAddStep         int // 0 = select activity, 1 = select target, 2 = area selection
 	selectedActivityIndex int
 	selectedTargetIndex   int
+
+	// Area selection state (used during ordersAddStep == 2)
+	areaSelectAnchor     *types.Position // nil = no anchor set yet
+	areaSelectUnmarkMode bool            // true = unmark mode, false = mark mode
 
 	// Character creation state
 	creationState *CharacterCreationState

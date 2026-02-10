@@ -31,6 +31,9 @@ type Map struct {
 	// Tilled soil positions (walkable, items can exist on them)
 	tilled map[types.Position]bool
 
+	// Marked-for-tilling pool (user's tilling plan, independent of orders)
+	markedForTilling map[types.Position]bool
+
 	// ID counters for save/load
 	nextItemID    int
 	nextFeatureID int
@@ -49,8 +52,9 @@ func NewMap(width, height int) *Map {
 		characterByPos: make(map[types.Position]*entity.Character),
 		items:          make([]*entity.Item, 0),
 		features:       make([]*entity.Feature, 0),
-		water:          make(map[types.Position]WaterType),
-		tilled:         make(map[types.Position]bool),
+		water:            make(map[types.Position]WaterType),
+		tilled:           make(map[types.Position]bool),
+		markedForTilling: make(map[types.Position]bool),
 	}
 }
 
@@ -399,6 +403,35 @@ func (m *Map) IsTilled(pos types.Position) bool {
 func (m *Map) TilledPositions() []types.Position {
 	positions := make([]types.Position, 0, len(m.tilled))
 	for pos := range m.tilled {
+		positions = append(positions, pos)
+	}
+	return positions
+}
+
+// MarkForTilling adds a position to the marked-for-tilling pool.
+// Returns false if the position is already tilled (no-op).
+func (m *Map) MarkForTilling(pos types.Position) bool {
+	if m.tilled[pos] {
+		return false
+	}
+	m.markedForTilling[pos] = true
+	return true
+}
+
+// UnmarkForTilling removes a position from the marked-for-tilling pool.
+func (m *Map) UnmarkForTilling(pos types.Position) {
+	delete(m.markedForTilling, pos)
+}
+
+// IsMarkedForTilling returns true if the position is in the marked-for-tilling pool.
+func (m *Map) IsMarkedForTilling(pos types.Position) bool {
+	return m.markedForTilling[pos]
+}
+
+// MarkedForTillingPositions returns all positions in the marked-for-tilling pool.
+func (m *Map) MarkedForTillingPositions() []types.Position {
+	positions := make([]types.Position, 0, len(m.markedForTilling))
+	for pos := range m.markedForTilling {
 		positions = append(positions, pos)
 	}
 	return positions

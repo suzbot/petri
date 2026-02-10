@@ -56,7 +56,9 @@ var (
 	growingStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("142")) // olive (gardening: growing, tilled soil)
 
 	// UI highlight (background)
-	highlightStyle = lipgloss.NewStyle().Background(lipgloss.Color("23")).Foreground(lipgloss.Color("255")) // dark cyan bg, white text
+	highlightStyle    = lipgloss.NewStyle().Background(lipgloss.Color("23")).Foreground(lipgloss.Color("255"))  // dark cyan bg, white text
+	areaSelectStyle   = lipgloss.NewStyle().Background(lipgloss.Color("58"))                                   // olive bg for area selection
+	areaUnselectStyle = lipgloss.NewStyle().Background(lipgloss.Color("52"))                                   // dark red bg for unmark selection
 
 	// Title style
 	titleStyle = lipgloss.NewStyle().Bold(true)
