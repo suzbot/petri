@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	MapWidth  = 60
-	MapHeight = 60
+	MapWidth  = 58
+	MapHeight = 58
 
 	ItemSpawnCount   = 20
 	FlowerSpawnCount = 20
