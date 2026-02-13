@@ -30,6 +30,11 @@ func selectOrderActivity(char *entity.Character, pos types.Position, items []*en
 			if intent := findOrderIntent(char, pos, items, order, log, gameMap); intent != nil {
 				return intent
 			}
+			// Check if this is a tillSoil completion (pool empty) vs failure
+			if isTillSoilComplete(order, gameMap) {
+				CompleteOrder(char, order, log)
+				return nil
+			}
 			// Order cannot be fulfilled - abandon it
 			abandonOrder(char, order, orders, log)
 			return nil
@@ -55,6 +60,12 @@ func selectOrderActivity(char *entity.Character, pos types.Position, items []*en
 
 	if intent := findOrderIntent(char, pos, items, order, log, gameMap); intent != nil {
 		return intent
+	}
+
+	// Check if this is a tillSoil completion (pool empty) vs failure
+	if isTillSoilComplete(order, gameMap) {
+		CompleteOrder(char, order, log)
+		return nil
 	}
 
 	// Order cannot be fulfilled immediately - abandon it
@@ -107,6 +118,8 @@ func findOrderIntent(char *entity.Character, pos types.Position, items []*entity
 	switch order.ActivityID {
 	case "harvest":
 		return findHarvestIntent(char, pos, items, order, log, gameMap)
+	case "tillSoil":
+		return findTillSoilIntent(char, pos, items, order, log, gameMap)
 	default:
 		// Unknown activity type - cannot create intent
 		return nil
@@ -165,6 +178,85 @@ func findHarvestIntent(char *entity.Character, pos types.Position, items []*enti
 }
 
 
+
+// findTillSoilIntent creates an intent to till a marked tile from the shared pool.
+// Flow: procure hoe → find nearest marked-but-not-tilled tile → move to it → till it.
+// Returns nil when pool is empty (order complete) or when no hoe exists (triggers abandonment).
+func findTillSoilIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	// Step 1: Ensure character has a hoe
+	if intent := EnsureHasItem(char, "hoe", items, gameMap, log); intent != nil {
+		return intent
+	}
+
+	// Check if hoe procurement failed (no hoe in inventory and none on map)
+	if char.FindInInventory(func(i *entity.Item) bool { return i.ItemType == "hoe" }) == nil {
+		return nil // No hoe available — triggers abandonment
+	}
+
+	// Step 2: Find nearest marked-but-not-tilled position
+	marked := gameMap.MarkedForTillingPositions()
+	var nearest *types.Position
+	nearestDist := int(^uint(0) >> 1) // Max int
+
+	for _, mpos := range marked {
+		if gameMap.IsTilled(mpos) {
+			continue // Already tilled
+		}
+		dist := pos.DistanceTo(mpos)
+		if dist < nearestDist {
+			nearestDist = dist
+			p := mpos // Copy for pointer
+			nearest = &p
+		}
+	}
+
+	if nearest == nil {
+		return nil // Pool empty — order complete
+	}
+
+	// Step 3: Move to or till the target tile
+	if pos.X == nearest.X && pos.Y == nearest.Y {
+		// At target — start tilling
+		newActivity := "Tilling soil"
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+			if log != nil {
+				log.Add(char.ID, char.Name, "order", "Tilling soil")
+			}
+		}
+		return &entity.Intent{
+			Target: *nearest,
+			Dest:   *nearest,
+			Action: entity.ActionTillSoil,
+		}
+	}
+
+	// Move toward target tile
+	nx, ny := NextStepBFS(pos.X, pos.Y, nearest.X, nearest.Y, gameMap)
+	newActivity := "Moving to till soil"
+	if char.CurrentActivity != newActivity {
+		char.CurrentActivity = newActivity
+	}
+	return &entity.Intent{
+		Target: types.Position{X: nx, Y: ny},
+		Dest:   *nearest,
+		Action: entity.ActionTillSoil,
+	}
+}
+
+// isTillSoilComplete checks if a tillSoil order should be considered complete.
+// Returns true when the marked-for-tilling pool has no remaining untilled tiles.
+func isTillSoilComplete(order *entity.Order, gameMap *game.Map) bool {
+	if order.ActivityID != "tillSoil" {
+		return false
+	}
+	for _, pos := range gameMap.MarkedForTillingPositions() {
+		if !gameMap.IsTilled(pos) {
+			return false // Still has work to do
+		}
+	}
+	return true
+}
 
 // findCraftIntent creates an intent to craft an item using the recipe system.
 // Generic replacement for findCraftVesselIntent — works for any recipe-based activity.

@@ -766,7 +766,7 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 **[TEST] Checkpoint — Validation logic:**
 - `go test ./...` passes
 
-##### Step 4c: Area Selection UI + Order Flow
+##### Step 4c: Area Selection UI + Order Flow ✅
 
 **Tests:** None (UI rendering/keyboard handling per CLAUDE.md)
 
@@ -821,7 +821,7 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 - Cancel one order → tiles remain marked, one worker removed
 - Unmark a few tiles → those tiles removed from pool
 
-##### Step 5: EnsureHasItem + findTillSoilIntent
+##### Step 5: EnsureHasItem + findTillSoilIntent ✅
 
 **Tests** (in `internal/system/picking_test.go`):
 - `EnsureHasItem("hoe")` returns nil when character already carries hoe
@@ -845,26 +845,28 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 **[TEST] Checkpoint — Intent logic:**
 - `go test ./...` passes
 
-##### Step 6: Till Soil Action Execution
+##### Step 6: Till Soil Action Execution ✅
 
-**Tests** (in `internal/ui/update_test.go` or new `internal/system/tilling_test.go`):
+**Tests** (in `internal/system/tilling_test.go` for pure logic, `internal/ui/update_test.go` for action handler):
 - `ActionTillSoil` sets tile as tilled after `ActionDurationMedium`
 - `ActionTillSoil` removes tile from marked-for-tilling pool
 - Growing items at target position destroyed on tilling
 - Non-growing items at target position displaced to adjacent empty tile
 - Non-growing items dropped at character position when no adjacent space
-- Character continues to next marked-but-not-tilled position after tilling
-- All tillSoil orders complete when pool is empty
+- Individual character's tillSoil order completes when no marked-but-not-tilled positions remain (checked after tilling)
+- `selectOrderActivity` completes (not abandons) tillSoil order when pool is empty (e.g., another worker finished the last tile)
+
+**Design clarification (from discussion):** Each character's tillSoil order completes independently when they find no more work — no batch "complete all orders" logic. Multiple workers naturally finish on their own cadence: each finishes their current tile, looks for more, finds none, completes. This avoids workers waiting around for the last tile being worked by someone else.
 
 **Implementation:**
-- Handle `ActionTillSoil` in action progress system (same pattern as `ActionCraft`)
+- Handle `ActionTillSoil` in `applyIntent()` (same progress pattern as `ActionCraft`)
 - On completion:
   - `gameMap.SetTilled(pos)` — marks tile as tilled terrain
   - `gameMap.UnmarkForTilling(pos)` — removes from pool
-  - Check for item at pos: growing → remove, non-growing → displace to adjacent
+  - Check for item at pos: growing → remove, non-growing → displace to adjacent via `FindEmptyAdjacent` (exported from lifecycle.go)
   - Log action
-  - Character automatically finds next marked position and continues
-- Order completion: when `findTillSoilIntent` returns nil (pool empty), complete all active tillSoil orders
+  - Character's intent clears → next tick, `findTillSoilIntent` either finds more work or returns nil
+- Order completion: in `selectOrderActivity`, when `findOrderIntent` returns nil for tillSoil, check if pool has untilled marked positions. None → `CompleteOrder` (success). Some → `abandonOrder` (no hoe or other blocker).
 
 **[TEST] Checkpoint — Full Till Soil flow:**
 - `go test ./...` passes
@@ -880,7 +882,7 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 - Unmark some tiles mid-work — worker skips newly-unmarked tiles
 - Save/load preserves tilled tiles, marked-for-tilling pool, and orders
 
-**[DOCS]** Update README (Latest Updates), CLAUDE.md, game-mechanics, architecture as needed for area selection UI pattern (document for Construction reuse), tilled soil system, marked-for-tilling pool, Garden order category.
+**[DOCS]** ✅ Update README (Latest Updates), CLAUDE.md, game-mechanics, architecture as needed for area selection UI pattern (document for Construction reuse), tilled soil system, marked-for-tilling pool, Garden order category.
 
 **[RETRO]** Run /retro.
 

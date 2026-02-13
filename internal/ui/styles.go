@@ -30,30 +30,30 @@ var (
 	// Order-related color
 	orderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("174")) // dusty rose
 
-	// Item colors
-	redStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	blueStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("27"))
-	brownStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("136"))
-	whiteStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
-	orangeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
-	yellowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("226"))
-	purpleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("135"))
-	tanStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("180"))
-	pinkStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("213"))
-	blackStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // dark gray for visibility
-	greenStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("34"))
-	palePinkStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("218"))
-	paleYellowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("229"))
-	silverStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("188"))
-	grayStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("250"))
-	lavenderStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("183"))
+	// Item colors (Bold helps Unicode symbols render more prominently)
+	redStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
+	blueStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("27")).Bold(true)
+	brownStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("136")).Bold(true)
+	whiteStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Bold(true)
+	orangeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)
+	yellowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Bold(true)
+	purpleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("135")).Bold(true)
+	tanStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("180")).Bold(true)
+	pinkStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("213")).Bold(true)
+	blackStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Bold(true) // dark gray for visibility
+	greenStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("34")).Bold(true)
+	palePinkStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("218")).Bold(true)
+	paleYellowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("229")).Bold(true)
+	silverStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("188")).Bold(true)
+	grayStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("250")).Bold(true)
+	lavenderStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("183")).Bold(true)
 
 	// Feature colors
-	waterStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))  // bright blue
-	leafStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("106")) // olive/leaf green
+	waterStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true)  // bright blue
+	leafStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("106")).Bold(true) // olive/leaf green
 
 	// Agricultural/plant status
-	growingStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("142")) // olive (gardening: growing, tilled soil)
+	growingStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("142")).Bold(true) // olive (gardening: growing, tilled soil)
 
 	// UI highlight (background)
 	highlightStyle    = lipgloss.NewStyle().Background(lipgloss.Color("23")).Foreground(lipgloss.Color("255"))  // dark cyan bg, white text

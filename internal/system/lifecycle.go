@@ -50,7 +50,7 @@ func UpdateSpawnTimers(gameMap *game.Map, initialItemCount int, delta float64) {
 
 			// Try to find empty adjacent tile
 			ipos := item.Pos()
-			adjX, adjY, found := findEmptyAdjacent(ipos.X, ipos.Y, gameMap)
+			adjX, adjY, found := FindEmptyAdjacent(ipos.X, ipos.Y, gameMap)
 			if !found {
 				continue
 			}
@@ -121,9 +121,9 @@ func CalculateDeathInterval(itemType string, initialItemCount int) float64 {
 	return base + (rand.Float64()*2-1)*variance
 }
 
-// findEmptyAdjacent finds a random empty tile adjacent to (x, y) using 8-directional adjacency
-// Returns the coordinates and true if found, or (0, 0, false) if no empty adjacent tile exists
-func findEmptyAdjacent(x, y int, gameMap *game.Map) (int, int, bool) {
+// FindEmptyAdjacent finds a random empty adjacent tile (8-directional).
+// Returns the coordinates and true if found, or (0, 0, false) if no empty adjacent tile exists.
+func FindEmptyAdjacent(x, y int, gameMap *game.Map) (int, int, bool) {
 	// 8 directions: N, NE, E, SE, S, SW, W, NW
 	directions := [][2]int{
 		{0, -1}, {1, -1}, {1, 0}, {1, 1},

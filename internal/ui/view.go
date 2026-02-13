@@ -593,6 +593,11 @@ func (m Model) renderCell(x, y int) string {
 
 		// Pre-highlight existing marked-for-tilling tiles
 		if m.gameMap.IsMarkedForTilling(pos) && !isCursor {
+			hasEntity := m.gameMap.CharacterAt(pos) != nil || m.gameMap.ItemAt(pos) != nil || m.gameMap.FeatureAt(pos) != nil
+			if hasEntity {
+				bg := areaSelectStyle.Render(" ")
+				return bg + sym + bg
+			}
 			padded := " " + sym + " "
 			if fill != "" {
 				padded = fill + sym + fill
@@ -1540,6 +1545,10 @@ func (m Model) getOrderableActivities() []entity.Activity {
 		})
 	}
 
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name < result[j].Name
+	})
+
 	return result
 }
 
@@ -1579,6 +1588,9 @@ func (m Model) getCategoryActivities(category string) []entity.Activity {
 			}
 		}
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name < result[j].Name
+	})
 	return result
 }
 

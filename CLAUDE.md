@@ -4,7 +4,7 @@ Guidance for Claude Code when working with code in this repo.
 
 Petri is a Dwarf Fortress-inspired simulation exploring emergent culture development.
 
-**Current features:** Character creation, procedural world generation (terrain, items, water), multi-stat survival with urgency-based AI, dynamic preferences and knowledge systems, social behavior, inventory and crafting, player-directed orders, and action logging.
+**Current features:** Character creation, procedural world generation (terrain, items, water), multi-stat survival with urgency-based AI, dynamic preferences and knowledge systems, social behavior, inventory and crafting, player-directed orders (including gardening with area selection UI), and action logging.
 
 **Vision:** Complex roguelike simulation world with complex interactions between characters, items, and attributes. History exists only in character memories and created artifacts. As characters die, their knowledge dies with them except what they've communicated or created. See [docs/VISION.txt](docs/VISION.txt).
 
@@ -70,7 +70,7 @@ internal/
 - `internal/system/talking.go` - Idle activity selection, talking state, knowledge transmission (LearnKnowledgeWithEffects)
 - `internal/system/order_execution.go` - Order assignment, intent finding, completion/abandonment
 - `internal/system/crafting.go` - CreateVessel, crafted item creation
-- `internal/system/picking.go` - Pickup, Drop, vessel helpers, EnsureHasVesselFor
+- `internal/system/picking.go` - Pickup, Drop, vessel helpers, EnsureHasVesselFor, EnsureHasItem
 - `internal/system/foraging.go` - Foraging intent, unified scoring
 
 **World & Generation**
@@ -113,7 +113,7 @@ internal/
 
 **Up Next:**
 
-- Simple Gardening planning and implementation (see [docs/Gardening-Reqs.txt](docs/Gardening-Reqs.txt))
+- Gardening in progress (Slices 1-3 complete: ponds/sticks/shells/nuts, craft hoe, till soil with area selection). Next: Slice 4 — Unfulfillable Orders. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
 
 ## Reference and Planning Documents
 

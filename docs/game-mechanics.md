@@ -21,6 +21,7 @@ Detailed game mechanics. For exact values, see `internal/config/config.go`.
 - [Knowledge System](#knowledge-system)
 - [Know-how System](#know-how-system)
 - [Orders System](#orders-system)
+- [Tilled Soil](#tilled-soil)
 - [Inventory](#inventory)
 - [Crafting](#crafting)
 - [Vessels & Containers](#vessels--containers)
@@ -371,8 +372,6 @@ Know-how represents activity skills that characters discover through experience.
 
 Characters can discover know-how by performing related activities. Currently discoverable:
 - **Harvest**: Discovered when foraging (picking up items), eating edible items, or looking at edible items
-- **Till Soil**: Discovered when looking at or picking up hoes
-- **Craft activities**: Discovered by looking at or picking up recipe components (varies by recipe)
 
 Discovery chance depends on mood:
 - **Joyful**: Uses `config.KnowHowDiscoveryChance` (e.g., 5%)
@@ -410,10 +409,9 @@ Panel controls:
 
 To add an order:
 1. Press `+` to start add order flow
-2. Select a category or activity (only options known by at least one living character appear)
-3. If you selected a category (e.g., Craft, Garden), select the specific activity within that category
-4. For Harvest orders, select a target type (e.g., berry, mushroom, gourd)
-5. Press Enter to confirm
+2. Select an activity (only activities known by at least one living character appear)
+3. Select a target type (e.g., for Harvest: choose berry, mushroom, or gourd)
+4. Press Enter to confirm
 
 ### Order Status
 
@@ -457,6 +455,48 @@ Order work takes priority over random idle activities:
 1. Check for assigned order to resume → if found, continue order
 2. Check for open orders character can take → if found, take order
 3. Fall through to random idle activity selection (look/talk/forage/idle)
+
+### Area Selection Orders
+
+Some activities use area selection to define rectangular work zones:
+
+**Till Soil**:
+1. Select Garden > Till Soil from orders panel → enters area selection mode
+2. Move cursor with arrow keys
+3. Press `p` to set anchor (first corner)
+4. Move cursor to define rectangle (valid tiles highlight in olive)
+5. Press `p` to confirm (marks tiles, creates one Till Soil order)
+6. Press `Tab` to toggle between mark and unmark mode
+7. Press `Enter` when done → returns to activity selection
+
+**Marked-for-Tilling Pool**: Area selection adds tiles to a shared pool. Till Soil orders assign workers to that pool. Multiple orders = multiple workers on the same plan. Cancelling an order removes the worker but keeps marked tiles. Unmarking tiles (Tab to unmark mode) removes them from the pool without affecting orders.
+
+## Tilled Soil
+
+Tilled soil is a terrain state that modifies the ground without blocking movement or item placement. It is created by characters working Till Soil orders.
+
+### Visual
+
+Empty tilled tiles render as `═══` (box-drawing lines) in olive. When a character or item occupies a tilled tile, the entity renders normally with `═X═` fill padding. The tilled state is shown in the details panel.
+
+### Marked-for-Tilling Pool
+
+The player's tilling plan is stored as a pool of marked tiles, separate from the Till Soil orders that assign workers to that plan:
+
+- **Marked tiles**: Added via area selection. Persist independently of orders. Visible on the map.
+- **Till Soil orders**: Each order is a worker slot. Multiple orders = multiple characters working the same pool simultaneously.
+- Cancelling an order removes a worker but leaves marked tiles in the pool.
+- Unmarking tiles (via Garden > Unmark Tilling) removes them from the plan without affecting orders.
+
+### Till Soil Action
+
+When a character tills a marked tile:
+- The tile becomes tilled terrain
+- The tile is removed from the marked-for-tilling pool
+- Growing items at the position are destroyed
+- Non-growing items at the position are displaced to an adjacent empty tile
+
+An individual character's Till Soil order completes when they find no remaining marked-but-not-tilled tiles in the pool.
 
 ## Inventory
 

@@ -14,11 +14,11 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 
 ## Latest Updates
 
+- **Till Soil**: Players can mark rectangular areas for tilling using an area selection tool. Characters with till know-how procure a hoe and till the marked tiles.
 - **Craft Hoe**: New craftable tool from sticks and shells. Hoes inherit shell color.
 - **Sticks and Nuts**: Items periodically fall from the canopy onto empty tiles. Nuts are edible.
 - **Shells**: Colored shells periodically wash up near pond shores
 - **Ponds**: Water terrain that characters can drink from
-- **Two-Slot Inventory**: Characters can now carry two items (or vessels) at once
 
 ## How It Works
 
@@ -30,7 +30,7 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 6. When idle, characters may look at items, talk with each other, or forage.
 7. Characters learn from experience, gaining knowledge that affects future behavior
 8. Characters gain 'know-how' by making discoveries during item interactions
-9. Player can issue orders (harvest, craft) that characters with relevant know-how will complete
+9. Player can issue orders (harvest, craft, garden) that characters with relevant know-how will complete
 
 For detailed mechanics, see [docs/game-mechanics.md](docs/game-mechanics.md).
 

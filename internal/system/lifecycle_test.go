@@ -34,7 +34,7 @@ func TestCalculateSpawnInterval_ReturnsValueInExpectedRange(t *testing.T) {
 }
 
 // =============================================================================
-// findEmptyAdjacent
+// FindEmptyAdjacent
 // =============================================================================
 
 func TestFindEmptyAdjacent_FindsEmptyTile(t *testing.T) {
@@ -43,7 +43,7 @@ func TestFindEmptyAdjacent_FindsEmptyTile(t *testing.T) {
 	gameMap := game.NewMap(10, 10)
 
 	// Position with all adjacent tiles empty
-	x, y, found := findEmptyAdjacent(5, 5, gameMap)
+	x, y, found := FindEmptyAdjacent(5, 5, gameMap)
 
 	if !found {
 		t.Fatal("Should find empty adjacent tile")
@@ -71,7 +71,7 @@ func TestFindEmptyAdjacent_ReturnsFalseWhenNoEmpty(t *testing.T) {
 		gameMap.AddItem(entity.NewBerry(5+off[0], 5+off[1], types.ColorRed, false, false))
 	}
 
-	_, _, found := findEmptyAdjacent(5, 5, gameMap)
+	_, _, found := FindEmptyAdjacent(5, 5, gameMap)
 
 	if found {
 		t.Error("Should not find empty adjacent tile when all are occupied")
@@ -84,7 +84,7 @@ func TestFindEmptyAdjacent_RespectsMapBounds(t *testing.T) {
 	gameMap := game.NewMap(10, 10)
 
 	// Position at corner - only 3 valid adjacent tiles
-	x, y, found := findEmptyAdjacent(0, 0, gameMap)
+	x, y, found := FindEmptyAdjacent(0, 0, gameMap)
 
 	if !found {
 		t.Fatal("Should find empty adjacent tile at corner")

@@ -1163,3 +1163,286 @@ func TestEditName_EmptyName_NotAllowed(t *testing.T) {
 		t.Errorf("Expected character name to remain 'Alice', got %q", char.Name)
 	}
 }
+
+// =============================================================================
+// ActionTillSoil Tests
+// =============================================================================
+
+func TestApplyIntent_TillSoil_SetsTilledAfterDuration(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"tillSoil"}
+	hoe := entity.NewHoe(0, 0, types.ColorSilver)
+	char.AddToInventory(hoe)
+	gameMap.AddCharacter(char)
+
+	// Mark tile at character's position
+	target := types.Position{X: 5, Y: 5}
+	gameMap.MarkForTilling(target)
+
+	// Set up till intent
+	char.Intent = &entity.Intent{
+		Action: entity.ActionTillSoil,
+		Target: target,
+		Dest:   target,
+	}
+
+	order := entity.NewOrder(1, "tillSoil", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	// Apply with enough time to complete (ActionDurationMedium = 4.0s)
+	for i := 0; i < 50; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Tile should be tilled
+	if !gameMap.IsTilled(target) {
+		t.Error("Expected tile to be tilled after action completes")
+	}
+
+	// Tile should be removed from marked-for-tilling pool
+	if gameMap.IsMarkedForTilling(target) {
+		t.Error("Expected tile to be removed from marked-for-tilling pool")
+	}
+}
+
+func TestApplyIntent_TillSoil_RequiresDuration(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	hoe := entity.NewHoe(0, 0, types.ColorSilver)
+	char.AddToInventory(hoe)
+	gameMap.AddCharacter(char)
+
+	target := types.Position{X: 5, Y: 5}
+	gameMap.MarkForTilling(target)
+
+	char.ActionProgress = 0
+	char.Intent = &entity.Intent{
+		Action: entity.ActionTillSoil,
+		Target: target,
+		Dest:   target,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+	}
+
+	// Apply small delta — not enough to complete
+	m.applyIntent(char, 0.1)
+
+	if char.ActionProgress == 0 {
+		t.Error("Expected ActionProgress to increase")
+	}
+	if gameMap.IsTilled(target) {
+		t.Error("Tile should NOT be tilled yet (duration not complete)")
+	}
+}
+
+func TestApplyIntent_TillSoil_DestroysGrowingItems(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	hoe := entity.NewHoe(0, 0, types.ColorSilver)
+	char.AddToInventory(hoe)
+	gameMap.AddCharacter(char)
+
+	target := types.Position{X: 5, Y: 5}
+	gameMap.MarkForTilling(target)
+
+	// Growing berry at the target position
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	// berry.Plant.IsGrowing is true by default
+	gameMap.AddItem(berry)
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionTillSoil,
+		Target: target,
+		Dest:   target,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+	}
+
+	// Apply with enough time to complete
+	for i := 0; i < 50; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Growing item should be destroyed
+	if gameMap.ItemAt(target) != nil {
+		t.Error("Expected growing item at target to be destroyed by tilling")
+	}
+}
+
+func TestApplyIntent_TillSoil_DisplacesNonGrowingItems(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	hoe := entity.NewHoe(0, 0, types.ColorSilver)
+	char.AddToInventory(hoe)
+	gameMap.AddCharacter(char)
+
+	target := types.Position{X: 5, Y: 5}
+	gameMap.MarkForTilling(target)
+
+	// Non-growing stick at the target position (sticks have Plant == nil)
+	stick := entity.NewStick(5, 5)
+	gameMap.AddItem(stick)
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionTillSoil,
+		Target: target,
+		Dest:   target,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+	}
+
+	// Apply with enough time to complete
+	for i := 0; i < 50; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Stick should still exist on the map but NOT at the tilled position
+	items := gameMap.Items()
+	stickFound := false
+	for _, item := range items {
+		if item == stick {
+			stickFound = true
+			if item.Pos() == target {
+				t.Error("Non-growing item should be displaced away from tilled position")
+			}
+		}
+	}
+	if !stickFound {
+		t.Error("Non-growing item should still exist on map (displaced, not destroyed)")
+	}
+}
+
+func TestApplyIntent_TillSoil_DisplacesToCharPosWhenNoAdjacentSpace(t *testing.T) {
+	t.Parallel()
+
+	// Use a tiny 3x3 map to easily block all adjacent tiles
+	gameMap := game.NewMap(3, 3)
+	char := entity.NewCharacter(1, 1, 1, "TestChar", "berry", types.ColorRed)
+	hoe := entity.NewHoe(0, 0, types.ColorSilver)
+	char.AddToInventory(hoe)
+	gameMap.AddCharacter(char)
+
+	target := types.Position{X: 1, Y: 1}
+	gameMap.MarkForTilling(target)
+
+	// Place a non-growing item at target
+	stick := entity.NewStick(1, 1)
+	gameMap.AddItem(stick)
+
+	// Block all 8 adjacent tiles with water (impassable)
+	for dx := -1; dx <= 1; dx++ {
+		for dy := -1; dy <= 1; dy++ {
+			if dx == 0 && dy == 0 {
+				continue
+			}
+			gameMap.AddWater(types.Position{X: 1 + dx, Y: 1 + dy}, game.WaterPond)
+		}
+	}
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionTillSoil,
+		Target: target,
+		Dest:   target,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+	}
+
+	// Apply with enough time to complete
+	for i := 0; i < 50; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Stick should still exist — dropped at character position (same as target here)
+	items := gameMap.Items()
+	stickFound := false
+	for _, item := range items {
+		if item == stick {
+			stickFound = true
+		}
+	}
+	if !stickFound {
+		t.Error("Non-growing item should still exist when no adjacent space (dropped at char pos)")
+	}
+}
+
+func TestApplyIntent_TillSoil_CompletesOrderWhenPoolEmpty(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"tillSoil"}
+	hoe := entity.NewHoe(0, 0, types.ColorSilver)
+	char.AddToInventory(hoe)
+	gameMap.AddCharacter(char)
+
+	// Mark only one tile — after tilling it, pool will be empty
+	target := types.Position{X: 5, Y: 5}
+	gameMap.MarkForTilling(target)
+
+	order := entity.NewOrder(1, "tillSoil", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionTillSoil,
+		Target: target,
+		Dest:   target,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	// Apply with enough time to complete
+	for i := 0; i < 50; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Tile should be tilled
+	if !gameMap.IsTilled(target) {
+		t.Fatal("Expected tile to be tilled")
+	}
+
+	// Intent should be cleared (ready for next tick to re-evaluate)
+	if char.Intent != nil {
+		t.Error("Expected intent to be cleared after tilling")
+	}
+}

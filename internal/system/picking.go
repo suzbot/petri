@@ -91,6 +91,48 @@ func createVesselPickupIntent(char *entity.Character, pos types.Position, vessel
 }
 
 // =============================================================================
+// EnsureHasItem
+// =============================================================================
+
+// EnsureHasItem returns an intent to acquire a specific item type,
+// or nil if the character already has one (or none exists on the map).
+// Caller distinguishes "ready" vs "impossible" by checking inventory after nil return.
+func EnsureHasItem(char *entity.Character, itemType string, items []*entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
+	// Check if already carrying the item
+	if char.FindInInventory(func(i *entity.Item) bool { return i.ItemType == itemType }) != nil {
+		return nil
+	}
+
+	// Need to find one — make inventory space if needed
+	if !char.HasInventorySpace() {
+		dropped := false
+		for _, inv := range char.Inventory {
+			if inv == nil {
+				continue
+			}
+			// Don't drop the target item type (shouldn't happen, but safe)
+			if inv.ItemType == itemType {
+				continue
+			}
+			DropItem(char, inv, gameMap, log)
+			dropped = true
+			break
+		}
+		if !dropped {
+			return nil
+		}
+	}
+
+	// Find nearest item of type on map
+	target := findNearestItemByType(char.X, char.Y, items, itemType, false)
+	if target == nil {
+		return nil // Not available on map
+	}
+
+	return createItemPickupIntent(char, char.Pos(), target, gameMap, log)
+}
+
+// =============================================================================
 // EnsureHasRecipeInputs
 // =============================================================================
 

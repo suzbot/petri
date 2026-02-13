@@ -1183,3 +1183,244 @@ func TestFindNearestItemByType_SkipsItemsWithNilPlant(t *testing.T) {
 		t.Errorf("Expected growing berry (not vessel), got %v", result)
 	}
 }
+
+// =============================================================================
+// findTillSoilIntent
+// =============================================================================
+
+func TestFindTillSoilIntent_ReturnsHoeProcurementIntent_WhenNoHoeCarried(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"tillSoil"}
+	gameMap.AddCharacter(char)
+
+	// Hoe on the map, not in inventory
+	hoe := entity.NewHoe(7, 5, types.ColorSilver)
+	gameMap.AddItem(hoe)
+
+	// Mark a tile for tilling
+	gameMap.MarkForTilling(types.Position{X: 3, Y: 3})
+
+	order := entity.NewOrder(1, "tillSoil", "")
+	items := gameMap.Items()
+
+	intent := findTillSoilIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected hoe procurement intent")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Expected ActionPickup, got %d", intent.Action)
+	}
+	if intent.TargetItem != hoe {
+		t.Error("Expected intent to target the hoe")
+	}
+}
+
+func TestFindTillSoilIntent_ReturnsMovementIntent_TowardNearestMarkedTile(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"tillSoil"}
+	// Character carrying a hoe
+	hoe := entity.NewHoe(0, 0, types.ColorSilver)
+	char.AddToInventory(hoe)
+	gameMap.AddCharacter(char)
+
+	// Mark a tile for tilling (not at character's position)
+	gameMap.MarkForTilling(types.Position{X: 8, Y: 5})
+
+	order := entity.NewOrder(1, "tillSoil", "")
+	items := gameMap.Items()
+
+	intent := findTillSoilIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected movement intent toward marked tile")
+	}
+	if intent.Action != entity.ActionTillSoil {
+		t.Errorf("Expected ActionTillSoil, got %d", intent.Action)
+	}
+	// Dest should be the marked tile
+	if intent.Dest.X != 8 || intent.Dest.Y != 5 {
+		t.Errorf("Expected Dest (8,5), got (%d,%d)", intent.Dest.X, intent.Dest.Y)
+	}
+	// Target (next step) should be moving toward the marked tile
+	if intent.Target.X <= 5 {
+		t.Error("Expected Target to move toward marked tile (X > 5)")
+	}
+}
+
+func TestFindTillSoilIntent_ReturnsActionTillSoil_WhenAtMarkedPosition(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"tillSoil"}
+	hoe := entity.NewHoe(0, 0, types.ColorSilver)
+	char.AddToInventory(hoe)
+	gameMap.AddCharacter(char)
+
+	// Mark the character's current position for tilling
+	gameMap.MarkForTilling(types.Position{X: 5, Y: 5})
+
+	order := entity.NewOrder(1, "tillSoil", "")
+	items := gameMap.Items()
+
+	intent := findTillSoilIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected ActionTillSoil intent")
+	}
+	if intent.Action != entity.ActionTillSoil {
+		t.Errorf("Expected ActionTillSoil, got %d", intent.Action)
+	}
+	// Both Target and Dest should be the current position
+	if intent.Target.X != 5 || intent.Target.Y != 5 {
+		t.Errorf("Expected Target (5,5), got (%d,%d)", intent.Target.X, intent.Target.Y)
+	}
+	if intent.Dest.X != 5 || intent.Dest.Y != 5 {
+		t.Errorf("Expected Dest (5,5), got (%d,%d)", intent.Dest.X, intent.Dest.Y)
+	}
+}
+
+func TestFindTillSoilIntent_ReturnsNil_WhenPoolEmpty(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"tillSoil"}
+	hoe := entity.NewHoe(0, 0, types.ColorSilver)
+	char.AddToInventory(hoe)
+	gameMap.AddCharacter(char)
+
+	// No tiles marked for tilling
+	order := entity.NewOrder(1, "tillSoil", "")
+	items := gameMap.Items()
+
+	intent := findTillSoilIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent != nil {
+		t.Error("Expected nil intent when no tiles marked for tilling")
+	}
+}
+
+func TestFindTillSoilIntent_SkipsAlreadyTilledPositions(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"tillSoil"}
+	hoe := entity.NewHoe(0, 0, types.ColorSilver)
+	char.AddToInventory(hoe)
+	gameMap.AddCharacter(char)
+
+	// Mark two tiles: one already tilled, one not
+	alreadyTilled := types.Position{X: 6, Y: 5}
+	notYetTilled := types.Position{X: 8, Y: 5}
+	gameMap.MarkForTilling(alreadyTilled)
+	gameMap.MarkForTilling(notYetTilled)
+	gameMap.SetTilled(alreadyTilled) // This one is already done
+
+	order := entity.NewOrder(1, "tillSoil", "")
+	items := gameMap.Items()
+
+	intent := findTillSoilIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected intent for remaining untilled position")
+	}
+	if intent.Dest.X != 8 || intent.Dest.Y != 5 {
+		t.Errorf("Expected Dest (8,5) for untilled tile, got (%d,%d)", intent.Dest.X, intent.Dest.Y)
+	}
+}
+
+// =============================================================================
+// selectOrderActivity — tillSoil order completion vs abandonment
+// =============================================================================
+
+func TestSelectOrderActivity_CompletesTillSoil_WhenPoolEmpty(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"tillSoil"}
+	hoe := entity.NewHoe(0, 0, types.ColorSilver)
+	char.AddToInventory(hoe)
+	gameMap.AddCharacter(char)
+
+	// No tiles marked for tilling — pool is empty
+	order := entity.NewOrder(1, "tillSoil", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+	orders := []*entity.Order{order}
+
+	log := NewActionLog(100)
+	items := gameMap.Items()
+	intent := selectOrderActivity(char, char.Pos(), items, gameMap, orders, log)
+
+	// Should return nil (no work to do)
+	if intent != nil {
+		t.Error("Expected nil intent when till pool is empty")
+	}
+
+	// Assignment should be cleared
+	if char.AssignedOrderID != 0 {
+		t.Error("Expected char.AssignedOrderID to be cleared after completion")
+	}
+
+	// Should log "Completed", not "Abandoning"
+	events := log.Events(char.ID, 10)
+	if len(events) == 0 {
+		t.Fatal("Expected a log entry for order completion")
+	}
+	// CompleteOrder logs "Completed order: ..."
+	// abandonOrder logs "Abandoning order: ..."
+	found := false
+	for _, e := range events {
+		if len(e.Message) >= 9 && e.Message[:9] == "Completed" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("Expected 'Completed' log message, got events: %v", events)
+	}
+}
+
+func TestSelectOrderActivity_AbandonsTillSoil_WhenNoHoeAvailable(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"tillSoil"}
+	// No hoe in inventory or on map
+	gameMap.AddCharacter(char)
+
+	// Tiles ARE marked for tilling — work exists but can't be done
+	gameMap.MarkForTilling(types.Position{X: 3, Y: 3})
+
+	order := entity.NewOrder(1, "tillSoil", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+	orders := []*entity.Order{order}
+
+	items := gameMap.Items()
+	intent := selectOrderActivity(char, char.Pos(), items, gameMap, orders, nil)
+
+	if intent != nil {
+		t.Error("Expected nil intent when no hoe available")
+	}
+
+	// Order should be abandoned (status back to Open)
+	if order.Status != entity.OrderOpen {
+		t.Errorf("Order should be abandoned (Open), got %s", order.Status)
+	}
+	if char.AssignedOrderID != 0 {
+		t.Error("Expected char.AssignedOrderID to be cleared after abandonment")
+	}
+}

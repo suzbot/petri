@@ -1013,6 +1013,55 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			char.CurrentActivity = "Idle"
 			char.Intent = nil
 		}
+
+	case entity.ActionTillSoil:
+		cpos := char.Pos()
+		dest := char.Intent.Dest
+
+		if cpos.X != dest.X || cpos.Y != dest.Y {
+			// Not at destination — move toward it
+			tx, ty := char.Intent.Target.X, char.Intent.Target.Y
+			speed := char.EffectiveSpeed()
+			char.SpeedAccumulator += float64(speed) * delta
+			const movementThreshold = 7.5
+			if char.SpeedAccumulator < movementThreshold {
+				return
+			}
+			char.SpeedAccumulator -= movementThreshold
+			m.gameMap.MoveCharacter(char, types.Position{X: tx, Y: ty})
+			return
+		}
+
+		// At destination — accumulate tilling progress
+		char.ActionProgress += delta
+		if char.ActionProgress >= config.ActionDurationMedium {
+			char.ActionProgress = 0
+
+			// Till the soil
+			m.gameMap.SetTilled(dest)
+			m.gameMap.UnmarkForTilling(dest)
+
+			// Handle items at the tilled position
+			if item := m.gameMap.ItemAt(dest); item != nil {
+				isGrowing := item.Plant != nil && item.Plant.IsGrowing
+				if isGrowing {
+					m.gameMap.RemoveItem(item)
+				} else {
+					adjX, adjY, found := system.FindEmptyAdjacent(dest.X, dest.Y, m.gameMap)
+					if found {
+						item.X = adjX
+						item.Y = adjY
+					}
+				}
+			}
+
+			if m.actionLog != nil {
+				m.actionLog.Add(char.ID, char.Name, "activity", "Tilled soil")
+			}
+
+			char.CurrentActivity = "Idle"
+			char.Intent = nil
+		}
 	}
 }
 

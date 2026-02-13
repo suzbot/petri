@@ -264,6 +264,7 @@ Callers handle continuation differently based on result and context (foraging vs
 | `FindAvailableVessel()` | Find nearest vessel on ground that can hold target item |
 | `CanPickUpMore()` | Check if character can pick up more (has room or has vessel with space) |
 | `EnsureHasVesselFor()` | Returns intent to get compatible vessel, or nil if already have one |
+| `EnsureHasItem()` | Returns intent to acquire a single item type, or nil if already carried |
 
 ### Accessible Item Helpers (character.go)
 
@@ -391,7 +392,7 @@ Activities are defined in `ActivityRegistry` with properties that control availa
 type Activity struct {
     ID                string
     Name              string
-    Category          string // Grouping for order UI (e.g., "craft", "garden"). Empty = uncategorized.
+    Category          string           // "craft", "garden", "" for uncategorized
     IntentFormation   IntentFormation  // automatic vs orderable
     Availability      Availability     // default vs knowhow
     DiscoveryTriggers []DiscoveryTrigger
@@ -401,12 +402,14 @@ type Activity struct {
 | IntentFormation | Description | Examples |
 |-----------------|-------------|----------|
 | `IntentAutomatic` | Triggered by needs or idle selection | eat, drink, forage, look |
-| `IntentOrderable` | Triggered by player orders | harvest, craftVessel |
+| `IntentOrderable` | Triggered by player orders | harvest, craftVessel, tillSoil |
 
 | Availability | Description | Examples |
 |--------------|-------------|----------|
 | `AvailabilityDefault` | All characters can do it | eat, drink, forage |
-| `AvailabilityKnowHow` | Must discover first | harvest, craftVessel |
+| `AvailabilityKnowHow` | Must discover first | harvest, craftVessel, tillSoil |
+
+**Category field**: Groups orderable activities for the order UI menu hierarchy. `getOrderableActivities()` generates synthetic category entries (e.g., "Craft", "Garden") when any known activity has that category. Uncategorized activities (e.g., Harvest) appear at the top level.
 
 ### Discovery Triggers
 
@@ -424,7 +427,7 @@ Example: Harvest is discovered by picking up, eating, or looking at edible items
 
 ### Adding a New Activity
 
-1. Add entry to `ActivityRegistry` in `entity/activity.go`
+1. Add entry to `ActivityRegistry` in `entity/activity.go` (set `Category` for grouped activities)
 2. If orderable: add case to `findOrderIntent()` switch in `order_execution.go`
 3. Add intent-finding function (e.g., `findHarvestIntent()`)
 4. If new ActionType needed: add to enum in `character.go`, handle in `applyIntent()`
@@ -517,6 +520,7 @@ picking.go is organized into three responsibility layers:
 **2. Prerequisite Orchestration:**
 - `EnsureHasVesselFor(char, target, ...)` - Ensure character has compatible vessel or go get one (handles drop conflicts, availability checks)
 - `EnsureHasRecipeInputs(char, recipe, ...)` - Ensure character has all recipe inputs or go get missing ones (handles drop logic, container protection)
+- `EnsureHasItem(char, itemType, ...)` - Ensure character carries a single item type or go get one (simpler single-item variant for tools like the hoe)
 
 **3. Physical Actions:**
 - `Pickup()`, `Drop()`, `DropItem()` - Execute item transfers
@@ -563,6 +567,54 @@ type Feature struct {
 3. Add spawning logic in `game/spawning.go`
 4. If impassable: pathfinding already handles via `IsBlocked()`
 5. If new interaction type: add intent handling
+
+## Area Selection UI Pattern
+
+Area selection enables players to define rectangular regions for terrain modification (tilling, future construction). Designed for reusability.
+
+### Pattern Overview
+
+**State** (`internal/ui/model.go`):
+- `ordersAddStep` uses step 2 for area selection mode
+- `areaSelectAnchor *Position` tracks first corner (nil when unset)
+- `areaSelectUnmarkMode bool` toggles mark/unmark behavior
+
+**Validation** (`internal/ui/area_select.go`):
+- `isValidTillTarget(pos, gameMap)` - position eligibility check (pluggable for other activities)
+- `getValidPositions(anchor, cursor, gameMap, validator)` - rectangle filter with custom validator
+- `isInRect(pos, corner1, corner2)` - rectangle bounds check
+
+**Flow**:
+1. Player selects activity (e.g., Garden > Till Soil) → enters step 2
+2. Move cursor with arrow keys, press `p` to anchor
+3. Move cursor to resize rectangle (valid tiles highlighted)
+4. Press `p` to confirm (marks tiles / creates order)
+5. Press `Tab` to toggle mark/unmark mode
+6. Press `Enter` when done → returns to step 1 (activity selection)
+7. Press `Esc` to cancel (clear anchor or exit)
+
+**Rendering** (`internal/ui/view.go` `renderCell`):
+- Rectangle highlight: full background for empty tiles, padding-only for entities (avoids ANSI nesting)
+- Pre-highlight: shows existing marked tiles during area selection
+- Background styles: `areaSelectStyle` (olive) for mark, `areaUnselectStyle` (dark red) for unmark
+
+### Reuse for Future Activities
+
+When adding new area-based orders (e.g., fence placement, building zones):
+1. Add activity check in step 1 Enter handler (same as tillSoil)
+2. Write activity-specific validator function (like `isValidTillTarget`)
+3. Reuse `getValidPositions` with custom validator
+4. Handle plot confirm logic in `p` key handler (activity-specific)
+
+### Marked-for-Tilling Pool
+
+Tilling separates plan (marked tiles) from work (orders):
+- **Marked tiles** (`gameMap.markedForTilling map[Position]bool`): User's tilling plan, persistent, independent of orders
+- **Till Soil orders**: Worker assignments. Multiple orders = multiple workers on the shared pool.
+- Cancelling order removes worker, plan stays intact
+- Unmarking tiles removes from plan (via area selection in unmark mode)
+
+Pool is serialized in `SaveState.MarkedForTillingPositions`.
 
 ## Common Implementation Pitfalls
 

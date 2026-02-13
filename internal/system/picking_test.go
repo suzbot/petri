@@ -593,6 +593,104 @@ func TestEnsureHasRecipeInputs_NilWhenInputsNotOnMap(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// EnsureHasItem Tests
+// =============================================================================
+
+func TestEnsureHasItem_ReturnsNilWhenAlreadyCarrying(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	hoe := entity.NewHoe(0, 0, types.ColorSilver)
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{hoe},
+	}
+
+	intent := EnsureHasItem(char, "hoe", nil, gameMap, nil)
+	if intent != nil {
+		t.Error("Should return nil when character already carries a hoe")
+	}
+}
+
+func TestEnsureHasItem_ReturnsPickupIntentWhenHoeOnMap(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
+	}
+	char.X = 0
+	char.Y = 0
+
+	hoe := entity.NewHoe(5, 5, types.ColorSilver)
+	items := []*entity.Item{hoe}
+
+	intent := EnsureHasItem(char, "hoe", items, gameMap, nil)
+	if intent == nil {
+		t.Fatal("Should return pickup intent when hoe exists on map")
+	}
+	if intent.TargetItem != hoe {
+		t.Error("Intent should target the hoe")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Error("Intent action should be ActionPickup")
+	}
+}
+
+func TestEnsureHasItem_DropsNonTargetLooseItemsToMakeSpace(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	nut := entity.NewNut(0, 0)
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{nut, berry},
+	}
+	char.X = 0
+	char.Y = 0
+
+	hoe := entity.NewHoe(5, 5, types.ColorSilver)
+	items := []*entity.Item{hoe}
+
+	intent := EnsureHasItem(char, "hoe", items, gameMap, nil)
+
+	// Should have dropped one item to make room
+	if len(char.Inventory) != 1 {
+		t.Errorf("Should have dropped one item, inventory size = %d", len(char.Inventory))
+	}
+
+	// Should return pickup intent for hoe
+	if intent == nil {
+		t.Fatal("Should return pickup intent for hoe")
+	}
+	if intent.TargetItem != hoe {
+		t.Error("Intent should target the hoe")
+	}
+}
+
+func TestEnsureHasItem_ReturnsNilWhenNoItemExists(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
+	}
+
+	// No hoes on map
+	intent := EnsureHasItem(char, "hoe", nil, gameMap, nil)
+	if intent != nil {
+		t.Error("Should return nil when no hoe exists anywhere")
+	}
+}
+
 func TestEnsureHasRecipeInputs_SingleInputRecipe(t *testing.T) {
 	gameMap := game.NewMap(10, 10)
 

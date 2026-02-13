@@ -91,8 +91,9 @@ const (
 	ActionSleep
 	ActionLook
 	ActionTalk
-	ActionPickup // Picking up an item (used by both foraging and harvest orders)
-	ActionCraft  // Crafting an item (uses ActionProgress with Recipe.Duration)
+	ActionPickup   // Picking up an item (used by both foraging and harvest orders)
+	ActionCraft    // Crafting an item (uses ActionProgress with Recipe.Duration)
+	ActionTillSoil // Tilling a marked tile (uses ActionProgress with ActionDurationMedium)
 )
 
 // NewCharacter creates a new character with the given preferences
