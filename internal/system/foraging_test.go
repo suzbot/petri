@@ -343,7 +343,7 @@ func TestFindNextVesselTarget_EmptyVessel(t *testing.T) {
 		entity.NewBerry(5, 5, types.ColorRed, false, false),
 	}
 
-	intent := FindNextVesselTarget(char, 0, 0, items, registry)
+	intent := FindNextVesselTarget(char, 0, 0, items, registry, nil)
 
 	if intent != nil {
 		t.Error("FindNextVesselTarget should return nil for empty vessel")
@@ -365,7 +365,7 @@ func TestFindNextVesselTarget_FindsMatchingVariety(t *testing.T) {
 	blueBerry := entity.NewBerry(3, 3, types.ColorBlue, false, false)
 	items := []*entity.Item{blueBerry, redBerry}
 
-	intent := FindNextVesselTarget(char, 0, 0, items, registry)
+	intent := FindNextVesselTarget(char, 0, 0, items, registry, nil)
 
 	if intent == nil {
 		t.Fatal("FindNextVesselTarget should find matching berry")
@@ -391,7 +391,7 @@ func TestFindNextVesselTarget_IgnoresNonGrowing(t *testing.T) {
 
 	items := []*entity.Item{droppedBerry}
 
-	intent := FindNextVesselTarget(char, 0, 0, items, registry)
+	intent := FindNextVesselTarget(char, 0, 0, items, registry, nil)
 
 	if intent != nil {
 		t.Error("FindNextVesselTarget should ignore non-growing items")
@@ -412,7 +412,7 @@ func TestFindNextVesselTarget_VesselFull(t *testing.T) {
 	gourd2 := entity.NewGourd(5, 5, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	items := []*entity.Item{gourd2}
 
-	intent := FindNextVesselTarget(char, 0, 0, items, registry)
+	intent := FindNextVesselTarget(char, 0, 0, items, registry, nil)
 
 	if intent != nil {
 		t.Error("FindNextVesselTarget should return nil when vessel is full")

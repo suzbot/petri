@@ -854,7 +854,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 						// Only continue filling for orders, not autonomous foraging
 						if char.AssignedOrderID != 0 {
 							// On harvest order - continue until vessel full
-							if nextIntent := system.FindNextVesselTarget(char, cx, cy, m.gameMap.Items(), m.gameMap.Varieties()); nextIntent != nil {
+							if nextIntent := system.FindNextVesselTarget(char, cx, cy, m.gameMap.Items(), m.gameMap.Varieties(), m.gameMap); nextIntent != nil {
 								char.Intent = nextIntent
 								return
 							}
@@ -890,7 +890,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 						if order := m.findOrderByID(char.AssignedOrderID); order != nil {
 							if order.ActivityID == "harvest" {
 								// Try to continue harvesting if space and targets remain
-								if nextIntent := system.FindNextHarvestTarget(char, cx, cy, m.gameMap.Items(), order.TargetType); nextIntent != nil {
+								if nextIntent := system.FindNextHarvestTarget(char, cx, cy, m.gameMap.Items(), order.TargetType, m.gameMap); nextIntent != nil {
 									char.Intent = nextIntent
 									return
 								}

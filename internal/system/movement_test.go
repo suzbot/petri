@@ -500,7 +500,7 @@ func TestFindFoodIntent_CarriedVesselNotEaten(t *testing.T) {
 	char.AddToInventory(vessel)
 
 	cpos := char.Pos()
-	intent := findFoodIntent(char, cpos, nil, entity.TierCrisis, nil)
+	intent := findFoodIntent(char, cpos, nil, entity.TierCrisis, nil, nil)
 
 	if intent != nil {
 		t.Error("Should not create eat intent for non-edible carried vessel")
@@ -868,7 +868,7 @@ func TestFindHealingIntent_NoKnowledge_ReturnsNil(t *testing.T) {
 		entity.NewBerry(5, 5, types.ColorBlue, false, true), // Healing but unknown
 	}
 
-	intent := findHealingIntent(char, types.Position{X: 0, Y: 0}, items, entity.TierModerate, nil)
+	intent := findHealingIntent(char, types.Position{X: 0, Y: 0}, items, entity.TierModerate, nil, nil)
 
 	if intent != nil {
 		t.Error("findHealingIntent() should return nil when character has no healing knowledge")
@@ -893,7 +893,7 @@ func TestFindHealingIntent_HasKnowledge_FindsNearestKnown(t *testing.T) {
 	redBerry := entity.NewBerry(1, 1, types.ColorRed, false, false) // Unknown, closer
 	items := []*entity.Item{blueBerryFar, redBerry, blueBerryNear}
 
-	intent := findHealingIntent(char, types.Position{X: 0, Y: 0}, items, entity.TierModerate, nil)
+	intent := findHealingIntent(char, types.Position{X: 0, Y: 0}, items, entity.TierModerate, nil, nil)
 
 	if intent == nil {
 		t.Fatal("findHealingIntent() should return intent when known healing item exists")
@@ -924,7 +924,7 @@ func TestFindHealingIntent_NoMatchingItems_ReturnsNil(t *testing.T) {
 		entity.NewBerry(5, 5, types.ColorRed, false, false),
 	}
 
-	intent := findHealingIntent(char, types.Position{X: 0, Y: 0}, items, entity.TierModerate, nil)
+	intent := findHealingIntent(char, types.Position{X: 0, Y: 0}, items, entity.TierModerate, nil, nil)
 
 	if intent != nil {
 		t.Error("findHealingIntent() should return nil when no known healing items available")
@@ -943,7 +943,7 @@ func TestFindHealingIntent_EmptyItemList_ReturnsNil(t *testing.T) {
 	char.Knowledge = []entity.Knowledge{healingKnowledge}
 	char.SetPos(types.Position{X: 0, Y: 0})
 
-	intent := findHealingIntent(char, types.Position{X: 0, Y: 0}, []*entity.Item{}, entity.TierModerate, nil)
+	intent := findHealingIntent(char, types.Position{X: 0, Y: 0}, []*entity.Item{}, entity.TierModerate, nil, nil)
 
 	if intent != nil {
 		t.Error("findHealingIntent() should return nil with empty item list")
@@ -1101,7 +1101,7 @@ func TestFindFoodIntent_ReturnsConsumeIntent_WhenCarryingEdibleItem(t *testing.T
 	mapItem := entity.NewBerry(10, 10, types.ColorRed, false, false)
 	items := []*entity.Item{mapItem}
 
-	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierMild, nil)
+	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierMild, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent when carrying edible item")
@@ -1132,7 +1132,7 @@ func TestFindFoodIntent_IgnoresCarriedItem_WhenNotEdible(t *testing.T) {
 	mapBerry := entity.NewBerry(6, 6, types.ColorRed, false, false)
 	items := []*entity.Item{mapBerry}
 
-	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierMild, nil)
+	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierMild, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent when map has edible items")
@@ -1157,7 +1157,7 @@ func TestFindFoodIntent_FallsBackToMapItems_WhenNotCarrying(t *testing.T) {
 	mapBerry := entity.NewBerry(6, 6, types.ColorRed, false, false)
 	items := []*entity.Item{mapBerry}
 
-	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierMild, nil)
+	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierMild, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent for map item")
@@ -1276,7 +1276,7 @@ func TestFindFoodIntent_CarriedDislikedItem_FilteredAtModerate(t *testing.T) {
 	mapBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
 	items := []*entity.Item{mapBerry}
 
-	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil)
+	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent when map has liked food")
@@ -1308,7 +1308,7 @@ func TestFindFoodIntent_CarriedDislikedItem_EatenAtCrisis(t *testing.T) {
 	mapBerry := entity.NewBerry(15, 15, types.ColorRed, false, false)
 	items := []*entity.Item{mapBerry}
 
-	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierCrisis, nil)
+	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierCrisis, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent at Crisis hunger")
@@ -1337,7 +1337,7 @@ func TestFindFoodIntent_CarriedLikedItem_WinsOverFarLikedItem(t *testing.T) {
 	mapBerry := entity.NewBerry(15, 15, types.ColorRed, false, false)
 	items := []*entity.Item{mapBerry}
 
-	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil)
+	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent when carrying food")
@@ -1368,7 +1368,7 @@ func TestFindFoodIntent_CarriedNeutralItem_FilteredWhenLikedAvailable(t *testing
 	mapBerry := entity.NewBerry(7, 7, types.ColorRed, false, false)
 	items := []*entity.Item{mapBerry}
 
-	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil)
+	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent")
@@ -1400,7 +1400,7 @@ func TestFindFoodIntent_NoFood_ReturnsNil(t *testing.T) {
 
 	items := []*entity.Item{} // No map food
 
-	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil)
+	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil, nil)
 
 	// At Moderate, disliked carried item should be filtered, no alternatives
 	if intent != nil {
@@ -1430,7 +1430,7 @@ func TestFindFoodIntent_VesselContents_RecognizedAsFood(t *testing.T) {
 
 	items := []*entity.Item{} // No map food
 
-	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil)
+	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent when carrying vessel with edible contents")
@@ -1470,7 +1470,7 @@ func TestFindFoodIntent_VesselWithDislikedContents_FilteredAtModerate(t *testing
 	mapBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
 	items := []*entity.Item{mapBerry}
 
-	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil)
+	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent")
@@ -1507,7 +1507,7 @@ func TestFindFoodIntent_DroppedVessel_RecognizedAsFood(t *testing.T) {
 
 	items := []*entity.Item{vessel}
 
-	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil)
+	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent when dropped vessel has edible contents")
@@ -1548,7 +1548,7 @@ func TestFindFoodIntent_DroppedVesselWithDislikedContents_FilteredAtModerate(t *
 	mapBerry := entity.NewBerry(15, 15, types.ColorRed, false, false)
 	items := []*entity.Item{vessel, mapBerry}
 
-	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil)
+	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierModerate, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent")
@@ -1584,7 +1584,7 @@ func TestFindFoodIntent_DroppedVesselCloser_WinsOverFarFood(t *testing.T) {
 	mapBerry := entity.NewBerry(20, 20, types.ColorRed, false, false)
 	items := []*entity.Item{vessel, mapBerry}
 
-	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierCrisis, nil)
+	intent := findFoodIntent(char, types.Position{X: 5, Y: 5}, items, entity.TierCrisis, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected intent")
@@ -1947,5 +1947,165 @@ func TestNextStepBFS_LShapedPond(t *testing.T) {
 	start := types.Position{X: 3, Y: 5}
 	if start.DistanceTo(stepPos) != 1 {
 		t.Errorf("BFS step (%d,%d) is not adjacent to start (3,5)", nx, ny)
+	}
+}
+
+// =============================================================================
+// BFS used for initial intent creation (regression for thrashing bug)
+// =============================================================================
+
+func TestFindFoodIntent_RoutesAroundWater(t *testing.T) {
+	t.Parallel()
+
+	// Character at (5,4), food at (5,2), water wall at y=3
+	// Greedy would step to (5,3) — into water. BFS should route sideways.
+	gameMap := game.NewMap(20, 20)
+	for x := 3; x <= 7; x++ {
+		gameMap.AddWater(types.Position{X: x, Y: 3}, game.WaterPond)
+	}
+
+	berry := entity.NewBerry(5, 2, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+	items := gameMap.Items()
+
+	char := entity.NewCharacter(1, 5, 4, "Test", "berry", types.ColorRed)
+	char.Hunger = 80 // Severe tier
+
+	intent := findFoodIntent(char, types.Position{X: 5, Y: 4}, items, entity.TierSevere, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("findFoodIntent should find food across water")
+	}
+
+	stepPos := types.Position{X: intent.Target.X, Y: intent.Target.Y}
+	if gameMap.IsWater(stepPos) {
+		t.Errorf("findFoodIntent should use BFS — stepped into water at (%d,%d)", stepPos.X, stepPos.Y)
+	}
+}
+
+func TestFindHealingIntent_RoutesAroundWater(t *testing.T) {
+	t.Parallel()
+
+	// Character at (5,4), healing item at (5,2), water wall at y=3
+	gameMap := game.NewMap(20, 20)
+	for x := 3; x <= 7; x++ {
+		gameMap.AddWater(types.Position{X: x, Y: 3}, game.WaterPond)
+	}
+
+	healingItem := entity.NewMushroom(5, 2, types.ColorBrown, types.PatternSpotted, types.TextureSlimy, false, true)
+	gameMap.AddItem(healingItem)
+	items := gameMap.Items()
+
+	char := entity.NewCharacter(1, 5, 4, "Test", "berry", types.ColorRed)
+	char.Health = 30
+
+	// Character must know the item is healing
+	char.LearnKnowledge(entity.Knowledge{
+		Category: entity.KnowledgeHealing,
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureSlimy,
+	})
+
+	intent := findHealingIntent(char, types.Position{X: 5, Y: 4}, items, entity.TierSevere, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("findHealingIntent should find healing item across water")
+	}
+
+	stepPos := types.Position{X: intent.Target.X, Y: intent.Target.Y}
+	if gameMap.IsWater(stepPos) {
+		t.Errorf("findHealingIntent should use BFS — stepped into water at (%d,%d)", stepPos.X, stepPos.Y)
+	}
+}
+
+// =============================================================================
+// Target tile occupied — abandon intent (matches bed/water pattern)
+// =============================================================================
+
+func TestContinueIntent_AbandonWhenItemTileOccupied(t *testing.T) {
+	t.Parallel()
+
+	// Character B at (4,5) moving toward food at (5,5). Character A is standing on (5,5).
+	gameMap := game.NewMap(20, 20)
+
+	charA := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	gameMap.AddCharacter(charA)
+
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	charB := entity.NewCharacter(2, 4, 5, "Bob", "berry", types.ColorRed)
+	gameMap.AddCharacter(charB)
+
+	// B has intent to pick up the berry (foraging)
+	charB.Intent = &entity.Intent{
+		Target:     types.Position{X: 5, Y: 5},
+		Dest:       types.Position{X: 5, Y: 5},
+		Action:     entity.ActionPickup,
+		TargetItem: berry,
+	}
+
+	result := continueIntent(charB, 4, 5, gameMap, nil)
+
+	if result != nil {
+		t.Error("continueIntent should return nil when adjacent to item and target tile is occupied")
+	}
+}
+
+func TestContinueIntent_DoesNotAbandonWhenItemTileUnoccupied(t *testing.T) {
+	t.Parallel()
+
+	// Character B at (4,5) moving toward food at (5,5). Nobody on (5,5).
+	gameMap := game.NewMap(20, 20)
+
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	charB := entity.NewCharacter(2, 4, 5, "Bob", "berry", types.ColorRed)
+	gameMap.AddCharacter(charB)
+
+	charB.Intent = &entity.Intent{
+		Target:     types.Position{X: 5, Y: 5},
+		Dest:       types.Position{X: 5, Y: 5},
+		Action:     entity.ActionPickup,
+		TargetItem: berry,
+	}
+
+	result := continueIntent(charB, 4, 5, gameMap, nil)
+
+	if result == nil {
+		t.Error("continueIntent should NOT abandon when target tile is free")
+	}
+}
+
+func TestContinueIntent_DoesNotAbandonWhenFarFromOccupiedItem(t *testing.T) {
+	t.Parallel()
+
+	// Character B at (1,5) moving toward food at (5,5). Character A is on (5,5).
+	// B is far away — don't abandon yet, occupant may move.
+	gameMap := game.NewMap(20, 20)
+
+	charA := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	gameMap.AddCharacter(charA)
+
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	charB := entity.NewCharacter(2, 1, 5, "Bob", "berry", types.ColorRed)
+	gameMap.AddCharacter(charB)
+
+	charB.Intent = &entity.Intent{
+		Target:     types.Position{X: 2, Y: 5},
+		Dest:       types.Position{X: 5, Y: 5},
+		Action:     entity.ActionPickup,
+		TargetItem: berry,
+	}
+
+	result := continueIntent(charB, 1, 5, gameMap, nil)
+
+	if result == nil {
+		t.Error("continueIntent should NOT abandon when far from occupied target — occupant may move")
 	}
 }

@@ -372,7 +372,7 @@ func CompleteOrder(char *entity.Character, order *entity.Order, log *ActionLog) 
 
 // FindNextHarvestTarget finds the next item to harvest for order continuation.
 // Returns nil if inventory is full or no matching targets exist.
-func FindNextHarvestTarget(char *entity.Character, cx, cy int, items []*entity.Item, targetType string) *entity.Intent {
+func FindNextHarvestTarget(char *entity.Character, cx, cy int, items []*entity.Item, targetType string, gameMap *game.Map) *entity.Intent {
 	if !char.HasInventorySpace() {
 		return nil
 	}
@@ -397,7 +397,7 @@ func FindNextHarvestTarget(char *entity.Character, cx, cy int, items []*entity.I
 	}
 
 	// Move toward target
-	nx, ny := NextStep(cx, cy, tx, ty)
+	nx, ny := NextStepBFS(cx, cy, tx, ty, gameMap)
 	return &entity.Intent{
 		Target:     types.Position{X: nx, Y: ny},
 		Dest:       types.Position{X: tx, Y: ty},

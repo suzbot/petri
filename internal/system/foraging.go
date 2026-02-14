@@ -12,11 +12,11 @@ import (
 // Uses unified scoring of growing items vs vessels, with vessel value scaled by hunger.
 // Lower hunger = more willing to invest in vessel; higher hunger = grab immediate food.
 // If carrying a vessel with contents, only targets matching variety.
-func findForageIntent(char *entity.Character, pos types.Position, items []*entity.Item, log *ActionLog, registry *game.VarietyRegistry) *entity.Intent {
+func findForageIntent(char *entity.Character, pos types.Position, items []*entity.Item, log *ActionLog, registry *game.VarietyRegistry, gameMap *game.Map) *entity.Intent {
 	// If already carrying a vessel, just find a target item
 	vessel := char.GetCarriedVessel()
 	if vessel != nil {
-		return findForageItemIntent(char, pos, items, vessel, log)
+		return findForageItemIntent(char, pos, items, vessel, log, gameMap)
 	}
 
 	// No vessel - use unified scoring to decide between growing items and vessels
@@ -41,11 +41,11 @@ func findForageIntent(char *entity.Character, pos types.Position, items []*entit
 
 	// Pick the better option (vessel wins ties - investment pays off)
 	if bestVessel != nil && bestVesselScore >= bestItemScore {
-		return createPickupIntent(char, pos, bestVessel, "vessel", log)
+		return createPickupIntent(char, pos, bestVessel, "vessel", log, gameMap)
 	}
 
 	if bestItem != nil {
-		return createPickupIntent(char, pos, bestItem, bestItem.ItemType, log)
+		return createPickupIntent(char, pos, bestItem, bestItem.ItemType, log, gameMap)
 	}
 
 	return nil
@@ -157,16 +157,16 @@ func hasMatchingGrowingItems(items []*entity.Item, variety *entity.ItemVariety) 
 }
 
 // findForageItemIntent creates intent to pick up a growing item when already carrying a vessel.
-func findForageItemIntent(char *entity.Character, pos types.Position, items []*entity.Item, vessel *entity.Item, log *ActionLog) *entity.Intent {
+func findForageItemIntent(char *entity.Character, pos types.Position, items []*entity.Item, vessel *entity.Item, log *ActionLog, gameMap *game.Map) *entity.Intent {
 	target, _ := scoreForageItems(char, pos, items, vessel)
 	if target == nil {
 		return nil
 	}
-	return createPickupIntent(char, pos, target, target.ItemType, log)
+	return createPickupIntent(char, pos, target, target.ItemType, log, gameMap)
 }
 
 // createPickupIntent creates an intent to move to and pick up an item.
-func createPickupIntent(char *entity.Character, pos types.Position, target *entity.Item, itemType string, log *ActionLog) *entity.Intent {
+func createPickupIntent(char *entity.Character, pos types.Position, target *entity.Item, itemType string, log *ActionLog, gameMap *game.Map) *entity.Intent {
 	tpos := target.Pos()
 	tx, ty := tpos.X, tpos.Y
 
@@ -188,7 +188,7 @@ func createPickupIntent(char *entity.Character, pos types.Position, target *enti
 	}
 
 	// Move toward target
-	nx, ny := NextStep(pos.X, pos.Y, tx, ty)
+	nx, ny := NextStepBFS(pos.X, pos.Y, tx, ty, gameMap)
 	newActivity := "Moving to forage " + target.Description()
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
@@ -208,7 +208,7 @@ func createPickupIntent(char *entity.Character, pos types.Position, target *enti
 // FindNextVesselTarget finds the next item to pick up when filling a vessel.
 // Only considers growing items matching the variety already in the vessel.
 // Returns nil if vessel is empty, full, or no matching items exist.
-func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.Item, registry *game.VarietyRegistry) *entity.Intent {
+func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.Item, registry *game.VarietyRegistry, gameMap *game.Map) *entity.Intent {
 	vessel := char.GetCarriedVessel()
 	if vessel == nil {
 		return nil
@@ -269,7 +269,7 @@ func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.It
 	}
 
 	// Move toward target
-	nx, ny := NextStep(cx, cy, tx, ty)
+	nx, ny := NextStepBFS(cx, cy, tx, ty, gameMap)
 	char.CurrentActivity = "Moving to forage " + nearest.Description()
 	return &entity.Intent{
 		Target:     types.Position{X: nx, Y: ny},

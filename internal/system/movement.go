@@ -230,9 +230,9 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 		case types.StatThirst:
 			intent = findDrinkIntent(char, cpos, gameMap, p.tier, log)
 		case types.StatHunger:
-			intent = findFoodIntent(char, cpos, items, p.tier, log)
+			intent = findFoodIntent(char, cpos, items, p.tier, log, gameMap)
 		case types.StatHealth:
-			intent = findHealingIntent(char, cpos, items, p.tier, log)
+			intent = findHealingIntent(char, cpos, items, p.tier, log, gameMap)
 		case types.StatEnergy:
 			intent = findSleepIntent(char, cpos, gameMap, p.tier, log)
 		}
@@ -294,6 +294,15 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		ipos := intent.TargetItem.Pos()
 		if gameMap.ItemAt(ipos) != intent.TargetItem {
 			return nil // Target consumed by someone else
+		}
+
+		// If adjacent to target item and tile is occupied, abandon to find alternative
+		// (matches bed/water occupied pattern — character can't reach item)
+		if isAdjacent(cx, cy, ipos.X, ipos.Y) {
+			occupant := gameMap.CharacterAt(ipos)
+			if occupant != nil && occupant != char {
+				return nil
+			}
 		}
 	}
 
@@ -510,7 +519,7 @@ func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.M
 
 // findFoodIntent finds food based on hunger priority
 // Uses unified scoring for both carried and map items (carried items have distance=0)
-func findFoodIntent(char *entity.Character, pos types.Position, items []*entity.Item, tier int, log *ActionLog) *entity.Intent {
+func findFoodIntent(char *entity.Character, pos types.Position, items []*entity.Item, tier int, log *ActionLog, gameMap *game.Map) *entity.Intent {
 	result := FindFoodTarget(char, items)
 	if result.Item == nil {
 		if char.CurrentActivity != "Idle" {
@@ -547,7 +556,7 @@ func findFoodIntent(char *entity.Character, pos types.Position, items []*entity.
 	// Best food is on map - move to it
 	ipos := result.Item.Pos()
 	tx, ty := ipos.X, ipos.Y
-	nx, ny := NextStep(pos.X, pos.Y, tx, ty)
+	nx, ny := NextStepBFS(pos.X, pos.Y, tx, ty, gameMap)
 
 	newActivity := "Moving to " + result.Item.Description()
 	if char.CurrentActivity != newActivity {
@@ -572,7 +581,7 @@ func findFoodIntent(char *entity.Character, pos types.Position, items []*entity.
 // findHealingIntent finds a known healing item to consume.
 // Only considers items the character knows are healing.
 // Returns nil if no known healing items are available.
-func findHealingIntent(char *entity.Character, pos types.Position, items []*entity.Item, tier int, log *ActionLog) *entity.Intent {
+func findHealingIntent(char *entity.Character, pos types.Position, items []*entity.Item, tier int, log *ActionLog, gameMap *game.Map) *entity.Intent {
 	// Get only items the character knows are healing
 	knownHealing := char.KnownHealingItems(items)
 	if len(knownHealing) == 0 {
@@ -604,7 +613,7 @@ func findHealingIntent(char *entity.Character, pos types.Position, items []*enti
 
 	npos := nearest.Pos()
 	tx, ty := npos.X, npos.Y
-	nx, ny := NextStep(pos.X, pos.Y, tx, ty)
+	nx, ny := NextStepBFS(pos.X, pos.Y, tx, ty, gameMap)
 
 	newActivity := "Moving to " + nearest.Description() + " (healing)"
 	if char.CurrentActivity != newActivity {
@@ -863,6 +872,11 @@ func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 func NextStepBFS(fromX, fromY, toX, toY int, gameMap *game.Map) (int, int) {
 	if fromX == toX && fromY == toY {
 		return fromX, fromY
+	}
+
+	// Nil map fallback - used in tests that don't need pathfinding
+	if gameMap == nil {
+		return NextStep(fromX, fromY, toX, toY)
 	}
 
 	from := types.Position{X: fromX, Y: fromY}

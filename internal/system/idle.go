@@ -50,7 +50,7 @@ func selectIdleActivity(char *entity.Character, pos types.Position, items []*ent
 			return intent
 		}
 		if CanPickUpMore(char, gameMap.Varieties()) {
-			if intent := findForageIntent(char, pos, items, log, gameMap.Varieties()); intent != nil {
+			if intent := findForageIntent(char, pos, items, log, gameMap.Varieties(), gameMap); intent != nil {
 				return intent
 			}
 		}
@@ -64,14 +64,14 @@ func selectIdleActivity(char *entity.Character, pos types.Position, items []*ent
 			return intent
 		}
 		if CanPickUpMore(char, gameMap.Varieties()) {
-			if intent := findForageIntent(char, pos, items, log, gameMap.Varieties()); intent != nil {
+			if intent := findForageIntent(char, pos, items, log, gameMap.Varieties(), gameMap); intent != nil {
 				return intent
 			}
 		}
 	case 2:
 		// Try foraging (only if can pick up more)
 		if CanPickUpMore(char, gameMap.Varieties()) {
-			if intent := findForageIntent(char, pos, items, log, gameMap.Varieties()); intent != nil {
+			if intent := findForageIntent(char, pos, items, log, gameMap.Varieties(), gameMap); intent != nil {
 				return intent
 			}
 		}
