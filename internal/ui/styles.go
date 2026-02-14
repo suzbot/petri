@@ -60,6 +60,9 @@ var (
 	areaSelectStyle   = lipgloss.NewStyle().Background(lipgloss.Color("58"))                                   // olive bg for area selection
 	areaUnselectStyle = lipgloss.NewStyle().Background(lipgloss.Color("52"))                                   // dark red bg for unmark selection
 
+	// Unfulfillable order style (dimmed)
+	unfulfillableStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // gray
+
 	// Title style
 	titleStyle = lipgloss.NewStyle().Bold(true)
 )

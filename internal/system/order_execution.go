@@ -45,7 +45,7 @@ func selectOrderActivity(char *entity.Character, pos types.Position, items []*en
 
 	// Second priority: take a new order if one is available and character can execute it
 	// Orders can be taken with full inventory - will drop current item if needed during execution
-	order := findAvailableOrder(char, orders)
+	order := findAvailableOrder(char, orders, items, gameMap)
 	if order == nil {
 		return nil
 	}
@@ -74,16 +74,21 @@ func selectOrderActivity(char *entity.Character, pos types.Position, items []*en
 }
 
 // findAvailableOrder finds the first open order that the character can execute.
-// Checks activity requirements (know-how) against character's known activities.
+// Checks activity requirements (know-how) and world feasibility (components exist).
 // Future: can be extended to consider character preference, order urgency, etc.
-func findAvailableOrder(char *entity.Character, orders []*entity.Order) *entity.Order {
+func findAvailableOrder(char *entity.Character, orders []*entity.Order, items []*entity.Item, gameMap *game.Map) *entity.Order {
 	for _, order := range orders {
 		if order.Status != entity.OrderOpen {
 			continue
 		}
-		if canExecuteOrder(char, order) {
-			return order
+		if !canExecuteOrder(char, order) {
+			continue
 		}
+		feasible, _ := IsOrderFeasible(order, items, gameMap)
+		if !feasible {
+			continue
+		}
+		return order
 	}
 	return nil
 }
@@ -404,6 +409,105 @@ func FindNextHarvestTarget(char *entity.Character, cx, cy int, items []*entity.I
 		Action:     entity.ActionPickup,
 		TargetItem: target,
 	}
+}
+
+// IsOrderFeasible checks whether an order can potentially be fulfilled given current world state.
+// Returns (feasible, noKnowHow) — noKnowHow is true when the failure is due to no character
+// having the required know-how (vs missing components).
+// This is computed on demand, not cached — cheap O(n) check over items and characters.
+func IsOrderFeasible(order *entity.Order, items []*entity.Item, gameMap *game.Map) (bool, bool) {
+	activity, ok := entity.ActivityRegistry[order.ActivityID]
+	if !ok {
+		return false, false
+	}
+
+	// Check know-how: does any living character know this activity?
+	if activity.Availability == entity.AvailabilityKnowHow {
+		chars := gameMap.Characters()
+		knowHowExists := false
+		for _, c := range chars {
+			if c.KnowsActivity(order.ActivityID) {
+				knowHowExists = true
+				break
+			}
+		}
+		if !knowHowExists {
+			return false, true
+		}
+	}
+
+	// Check components per activity type
+	chars := gameMap.Characters()
+
+	// Recipe-based activities (craft): check if any recipe's inputs all exist in world
+	if len(entity.GetRecipesForActivity(order.ActivityID)) > 0 {
+		return isAnyRecipeWorldFeasible(order.ActivityID, chars, items), false
+	}
+
+	switch order.ActivityID {
+	case "harvest":
+		return growingItemExists(items, order.TargetType), false
+	case "tillSoil":
+		return itemExistsInWorld("hoe", chars, items) && hasUnfilledTillingPositions(gameMap), false
+	default:
+		return true, false // Unknown activity type, assume feasible
+	}
+}
+
+// itemExistsInWorld checks if an item of the given type exists anywhere —
+// in any character's inventory/vessels or on the ground.
+func itemExistsInWorld(itemType string, chars []*entity.Character, items []*entity.Item) bool {
+	for _, c := range chars {
+		if c.HasAccessibleItem(itemType) {
+			return true
+		}
+	}
+	for _, item := range items {
+		if item.ItemType == itemType {
+			return true
+		}
+	}
+	return false
+}
+
+// growingItemExists checks if any growing item of the given type exists on the map.
+func growingItemExists(items []*entity.Item, itemType string) bool {
+	for _, item := range items {
+		if item.ItemType == itemType && item.Plant != nil && item.Plant.IsGrowing {
+			return true
+		}
+	}
+	return false
+}
+
+// isAnyRecipeWorldFeasible checks if any recipe for the given activity has all its
+// input types present somewhere in the world (character inventories or ground items).
+func isAnyRecipeWorldFeasible(activityID string, chars []*entity.Character, items []*entity.Item) bool {
+	recipes := entity.GetRecipesForActivity(activityID)
+	for _, recipe := range recipes {
+		allInputsExist := true
+		for _, input := range recipe.Inputs {
+			if !itemExistsInWorld(input.ItemType, chars, items) {
+				allInputsExist = false
+				break
+			}
+		}
+		if allInputsExist {
+			return true
+		}
+	}
+	return false
+}
+
+// hasUnfilledTillingPositions checks if the marked-for-tilling pool has any positions
+// that haven't been tilled yet.
+func hasUnfilledTillingPositions(gameMap *game.Map) bool {
+	for _, pos := range gameMap.MarkedForTillingPositions() {
+		if !gameMap.IsTilled(pos) {
+			return true
+		}
+	}
+	return false
 }
 
 // PauseOrder marks an order as paused due to character needs interruption.

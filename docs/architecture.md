@@ -232,6 +232,7 @@ case PickupToInventory:
 - `idle.go` - Orchestrates idle eligibility, calls `selectOrderActivity()` first
 - `order_execution.go` - Order selection, assignment, intent finding, completion logic
 - Order eligibility is generic: checks activity's `Availability` requirement against character's known activities
+- `IsOrderFeasible(order, items, gameMap)` is computed on demand (not cached) at assignment time and render time — returns `(feasible bool, noKnowHow bool)`. Unfeasible orders are skipped during `findAvailableOrder`; the orders panel renders them dimmed with `[Unfulfillable]` or `[No one knows how]`.
 
 ## Pickup Activity Code Organization
 

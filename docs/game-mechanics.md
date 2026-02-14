@@ -418,6 +418,8 @@ To add an order:
 - **Open**: Available to be taken by a character with the required know-how
 - **Assigned**: Currently being worked on by a character
 - **Paused**: Interrupted by character needs; will resume when needs are satisfied
+- **Unfulfillable** *(display only)*: Required items don't exist anywhere in the world. Shown dimmed; characters skip these orders. Automatically clears when world state changes (e.g., a hoe is crafted, berries grow back).
+- **No one knows how** *(display only)*: No living character has learned the required activity. Shown dimmed; characters skip these orders.
 
 ### Requirements
 

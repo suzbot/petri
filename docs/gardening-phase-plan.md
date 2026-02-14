@@ -901,14 +901,90 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 3. Unfulfillable status shown on orders screen
 4. Characters don't assign themselves to unfulfillable orders (no assign/abandon loop)
 
-**[TEST] Checkpoint:** Create a Till Soil order when no hoe exists and no stick/shell available. Verify it shows as unfulfillable. Characters skip it and take other orders. Create a Craft Hoe order; after hoe is crafted, Till Soil becomes fulfillable again.
+#### Design: Feasibility as Computed Property
 
-**Feature questions:**
+Unfulfillable is **not a persisted order status** — it's computed on the fly from current world state. A Till Soil order becomes feasible the moment someone crafts a hoe. No dirty flags, no event system, no cache invalidation.
 
-- Should unfulfillable be re-evaluated every tick, or only when world state changes (item added/removed)?
-  - Make reccomendation
-- UI treatment: grayed out? Different status text? Icon?
-  - Show examples of different options
+`IsOrderFeasible(order, items, gameMap)` is called:
+- At assignment time: `findAvailableOrder` skips unfeasible orders
+- At render time: orders panel shows dimmed label for unfeasible orders
+
+The check is O(n) over items + characters, which is negligible on a 60x60 map.
+
+#### Design: Two Failure Modes
+
+| Failure | Label | When |
+|---------|-------|------|
+| Components missing | `[Unfulfillable]` | Required items don't exist in the world |
+| Know-how gap | `[No one knows how]` | No living character has learned the activity |
+
+Know-how failure is only reachable via character death (order creation already requires know-how). Included for future-proofing and debugging — essentially free to implement.
+
+Both rendered in dimmed style in the orders panel.
+
+#### Design: Per-Activity Feasibility Checks
+
+Each order type checks only its **direct requirements** — no recursive dependency chains. The player manages the dependency chain (order Craft Hoe before Till Soil if no hoe exists).
+
+- **Harvest**: Growing items of target type exist on map
+- **Craft** (recipe-based): At least one recipe has all input types present in the world (ground items + character inventories)
+- **Till Soil**: Hoe exists in world (ground or inventory) AND marked-for-tilling pool has untilled positions
+
+#### Implementation Steps
+
+Each step follows the TDD cycle: write tests → implement → verify green.
+
+##### Step 1: IsOrderFeasible + Helper Functions ✅
+
+**Tests** (in `internal/system/order_execution_test.go`):
+- Harvest feasible when growing target items exist on map
+- Harvest unfeasible when no growing target items exist
+- Craft feasible when all recipe inputs exist in world (ground or inventory)
+- Craft unfeasible when a recipe input is missing from world
+- TillSoil feasible when hoe exists (ground) and marked positions exist
+- TillSoil feasible when hoe exists (character inventory) and marked positions exist
+- TillSoil unfeasible when no hoe exists in world
+- TillSoil unfeasible when no marked-for-tilling positions exist
+- Know-how: unfeasible when no living character knows the activity
+- Know-how: feasible when at least one character knows it
+- Returns `noKnowHow=true` for know-how failures, `false` for component failures
+
+**Implementation** (`internal/system/order_execution.go`):
+- `IsOrderFeasible(order, items, gameMap) (feasible bool, noKnowHow bool)` — exported, gets characters via `gameMap.Characters()`
+- `itemExistsInWorld(itemType, chars, items)` — checks character inventories + ground items
+- `growingItemExists(items, itemType)` — harvest-specific (growing plants only)
+- `isAnyRecipeWorldFeasible(activityID, chars, items)` — all inputs exist for at least one recipe
+
+##### Step 2: Wire into findAvailableOrder ✅
+
+**Tests** (in `internal/system/order_execution_test.go`):
+- Character skips unfeasible order and takes next feasible one
+- Character takes no order when all orders are unfeasible
+
+**Implementation:**
+- `findAvailableOrder` gains `items []*entity.Item` and `gameMap *game.Map` parameters
+- Adds `IsOrderFeasible` check alongside existing `canExecuteOrder` check
+- Update `selectOrderActivity` call site (already has these params)
+
+##### Step 3: UI Rendering (no tests per CLAUDE.md) ✅
+
+**Implementation** (`internal/ui/view.go`, `internal/ui/styles.go`):
+- In `renderOrdersContent`: call `system.IsOrderFeasible` for each order
+- Unfeasible orders: dimmed style + `[Unfulfillable]` or `[No one knows how]` label
+- Dimmed style for the entire order line (name + label)
+
+**[TEST] Checkpoint — Full unfulfillable flow:**
+- `go test ./...` passes
+- Create a Till Soil order when no hoe exists → shows `[Unfulfillable]`, dimmed, characters skip it
+- Create a Craft Hoe order → characters craft hoe → Till Soil becomes feasible, characters take it
+- Create Harvest berries when no berries growing → `[Unfulfillable]`
+- Berry grows back → order becomes feasible again
+- No more assign/abandon log spam for unfeasible orders
+- Save, load — orders still display correct feasibility (computed, not persisted)
+
+**[DOCS]** Update README (Latest Updates), CLAUDE.md, game-mechanics, architecture as needed.
+
+**[RETRO]** Run /retro.
 
 [Pause for evaluation before continuing for Part II, opportunity to pull in quick wins or opportunistic random items.]
 ---

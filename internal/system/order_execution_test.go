@@ -1424,3 +1424,321 @@ func TestSelectOrderActivity_AbandonsTillSoil_WhenNoHoeAvailable(t *testing.T) {
 		t.Error("Expected char.AssignedOrderID to be cleared after abandonment")
 	}
 }
+
+// =============================================================================
+// IsOrderFeasible
+// =============================================================================
+
+func TestIsOrderFeasible_HarvestFeasible_WhenGrowingItemsExist(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"harvest"}
+	gameMap.AddCharacter(char)
+
+	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	order := entity.NewOrder(1, "harvest", "berry")
+	items := gameMap.Items()
+
+	feasible, noKnowHow := IsOrderFeasible(order, items, gameMap)
+
+	if !feasible {
+		t.Error("Harvest should be feasible when growing berries exist")
+	}
+	if noKnowHow {
+		t.Error("noKnowHow should be false")
+	}
+}
+
+func TestIsOrderFeasible_HarvestUnfeasible_WhenNoGrowingItems(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"harvest"}
+	gameMap.AddCharacter(char)
+
+	// No berries on map
+
+	order := entity.NewOrder(1, "harvest", "berry")
+	items := gameMap.Items()
+
+	feasible, noKnowHow := IsOrderFeasible(order, items, gameMap)
+
+	if feasible {
+		t.Error("Harvest should be unfeasible when no growing berries exist")
+	}
+	if noKnowHow {
+		t.Error("noKnowHow should be false (components missing, not know-how)")
+	}
+}
+
+func TestIsOrderFeasible_CraftFeasible_WhenRecipeInputsExist(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftHoe"}
+	gameMap.AddCharacter(char)
+
+	stick := entity.NewStick(7, 5)
+	shell := entity.NewShell(8, 5, types.ColorSilver)
+	gameMap.AddItem(stick)
+	gameMap.AddItem(shell)
+
+	order := entity.NewOrder(1, "craftHoe", "")
+	items := gameMap.Items()
+
+	feasible, noKnowHow := IsOrderFeasible(order, items, gameMap)
+
+	if !feasible {
+		t.Error("Craft hoe should be feasible when stick and shell exist on map")
+	}
+	if noKnowHow {
+		t.Error("noKnowHow should be false")
+	}
+}
+
+func TestIsOrderFeasible_CraftFeasible_WhenInputInCharacterInventory(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftHoe"}
+	char.AddToInventory(entity.NewStick(0, 0))
+	gameMap.AddCharacter(char)
+
+	// Shell on map, stick in inventory
+	shell := entity.NewShell(8, 5, types.ColorSilver)
+	gameMap.AddItem(shell)
+
+	order := entity.NewOrder(1, "craftHoe", "")
+	items := gameMap.Items()
+
+	feasible, _ := IsOrderFeasible(order, items, gameMap)
+
+	if !feasible {
+		t.Error("Craft should be feasible when inputs exist across inventory and map")
+	}
+}
+
+func TestIsOrderFeasible_CraftUnfeasible_WhenInputMissing(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftHoe"}
+	gameMap.AddCharacter(char)
+
+	// Only a stick, no shell
+	stick := entity.NewStick(7, 5)
+	gameMap.AddItem(stick)
+
+	order := entity.NewOrder(1, "craftHoe", "")
+	items := gameMap.Items()
+
+	feasible, noKnowHow := IsOrderFeasible(order, items, gameMap)
+
+	if feasible {
+		t.Error("Craft hoe should be unfeasible when shell is missing")
+	}
+	if noKnowHow {
+		t.Error("noKnowHow should be false (components missing, not know-how)")
+	}
+}
+
+func TestIsOrderFeasible_TillSoilFeasible_WhenHoeOnGround(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"tillSoil"}
+	gameMap.AddCharacter(char)
+
+	hoe := entity.NewHoe(7, 5, types.ColorSilver)
+	gameMap.AddItem(hoe)
+	gameMap.MarkForTilling(types.Position{X: 3, Y: 3})
+
+	order := entity.NewOrder(1, "tillSoil", "")
+	items := gameMap.Items()
+
+	feasible, _ := IsOrderFeasible(order, items, gameMap)
+
+	if !feasible {
+		t.Error("Till soil should be feasible when hoe exists on ground and tiles are marked")
+	}
+}
+
+func TestIsOrderFeasible_TillSoilFeasible_WhenHoeInInventory(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"tillSoil"}
+	hoe := entity.NewHoe(0, 0, types.ColorSilver)
+	char.AddToInventory(hoe)
+	gameMap.AddCharacter(char)
+
+	gameMap.MarkForTilling(types.Position{X: 3, Y: 3})
+
+	order := entity.NewOrder(1, "tillSoil", "")
+	items := gameMap.Items()
+
+	feasible, _ := IsOrderFeasible(order, items, gameMap)
+
+	if !feasible {
+		t.Error("Till soil should be feasible when hoe is in character inventory")
+	}
+}
+
+func TestIsOrderFeasible_TillSoilUnfeasible_WhenNoHoe(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"tillSoil"}
+	gameMap.AddCharacter(char)
+
+	gameMap.MarkForTilling(types.Position{X: 3, Y: 3})
+
+	order := entity.NewOrder(1, "tillSoil", "")
+	items := gameMap.Items()
+
+	feasible, noKnowHow := IsOrderFeasible(order, items, gameMap)
+
+	if feasible {
+		t.Error("Till soil should be unfeasible when no hoe exists")
+	}
+	if noKnowHow {
+		t.Error("noKnowHow should be false")
+	}
+}
+
+func TestIsOrderFeasible_TillSoilUnfeasible_WhenNoMarkedPositions(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"tillSoil"}
+	gameMap.AddCharacter(char)
+
+	hoe := entity.NewHoe(7, 5, types.ColorSilver)
+	gameMap.AddItem(hoe)
+	// No tiles marked for tilling
+
+	order := entity.NewOrder(1, "tillSoil", "")
+	items := gameMap.Items()
+
+	feasible, _ := IsOrderFeasible(order, items, gameMap)
+
+	if feasible {
+		t.Error("Till soil should be unfeasible when no tiles are marked for tilling")
+	}
+}
+
+func TestIsOrderFeasible_NoKnowHow_WhenNoCharacterKnowsActivity(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	// Character does NOT know harvest
+	gameMap.AddCharacter(char)
+
+	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	order := entity.NewOrder(1, "harvest", "berry")
+	items := gameMap.Items()
+
+	feasible, noKnowHow := IsOrderFeasible(order, items, gameMap)
+
+	if feasible {
+		t.Error("Should be unfeasible when no character knows the activity")
+	}
+	if !noKnowHow {
+		t.Error("noKnowHow should be true")
+	}
+}
+
+func TestIsOrderFeasible_KnowHow_WhenAtLeastOneCharacterKnows(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	// First character doesn't know harvest
+	char1 := entity.NewCharacter(1, 5, 5, "Test1", "berry", types.ColorRed)
+	gameMap.AddCharacter(char1)
+	// Second character knows harvest
+	char2 := entity.NewCharacter(2, 3, 3, "Test2", "berry", types.ColorBlue)
+	char2.KnownActivities = []string{"harvest"}
+	gameMap.AddCharacter(char2)
+
+	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	order := entity.NewOrder(1, "harvest", "berry")
+	items := gameMap.Items()
+
+	feasible, noKnowHow := IsOrderFeasible(order, items, gameMap)
+
+	if !feasible {
+		t.Error("Should be feasible when at least one character knows the activity")
+	}
+	if noKnowHow {
+		t.Error("noKnowHow should be false when a character has the know-how")
+	}
+}
+
+// =============================================================================
+// findAvailableOrder — skips unfeasible orders
+// =============================================================================
+
+func TestFindAvailableOrder_SkipsUnfeasibleOrder(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"harvest"}
+	gameMap.AddCharacter(char)
+
+	// Berry exists for the second order but not for first
+	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	// First order: harvest mushrooms (no mushrooms on map — unfeasible)
+	order1 := entity.NewOrder(1, "harvest", "mushroom")
+	// Second order: harvest berries (berries exist — feasible)
+	order2 := entity.NewOrder(2, "harvest", "berry")
+	orders := []*entity.Order{order1, order2}
+
+	items := gameMap.Items()
+	result := findAvailableOrder(char, orders, items, gameMap)
+
+	if result != order2 {
+		t.Errorf("Should skip unfeasible order1 and return order2, got %v", result)
+	}
+}
+
+func TestFindAvailableOrder_ReturnsNilWhenAllUnfeasible(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"harvest"}
+	gameMap.AddCharacter(char)
+
+	// No items on map at all
+
+	order1 := entity.NewOrder(1, "harvest", "berry")
+	order2 := entity.NewOrder(2, "harvest", "mushroom")
+	orders := []*entity.Order{order1, order2}
+
+	items := gameMap.Items()
+	result := findAvailableOrder(char, orders, items, gameMap)
+
+	if result != nil {
+		t.Error("Should return nil when all orders are unfeasible")
+	}
+}

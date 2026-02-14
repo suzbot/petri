@@ -1442,6 +1442,7 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 				charByID[c.ID] = c
 			}
 
+			items := m.gameMap.Items()
 			for i, order := range m.orders {
 				prefix := selectIndent
 				if i == m.selectedOrderIndex {
@@ -1453,7 +1454,18 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 						statusStr = fmt.Sprintf("%s: %s", order.StatusDisplay(), char.Name)
 					}
 				}
-				lines = append(lines, fmt.Sprintf("%s%s [%s]", prefix, order.DisplayName(), statusStr))
+				// Check feasibility for unfulfillable display
+				feasible, noKnowHow := system.IsOrderFeasible(order, items, m.gameMap)
+				if !feasible {
+					if noKnowHow {
+						statusStr = "No one knows how"
+					} else {
+						statusStr = "Unfulfillable"
+					}
+					lines = append(lines, unfulfillableStyle.Render(fmt.Sprintf("%s%s [%s]", prefix, order.DisplayName(), statusStr)))
+				} else {
+					lines = append(lines, fmt.Sprintf("%s%s [%s]", prefix, order.DisplayName(), statusStr))
+				}
 			}
 		}
 	} else {
@@ -1475,6 +1487,7 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 				charByID[c.ID] = c
 			}
 
+			items := m.gameMap.Items()
 			for _, order := range m.orders {
 				statusStr := order.StatusDisplay()
 				if order.AssignedTo != 0 {
@@ -1482,7 +1495,18 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 						statusStr = fmt.Sprintf("%s: %s", order.StatusDisplay(), char.Name)
 					}
 				}
-				lines = append(lines, fmt.Sprintf("%s%s [%s]", indent, order.DisplayName(), statusStr))
+				// Check feasibility for unfulfillable display
+				feasible, noKnowHow := system.IsOrderFeasible(order, items, m.gameMap)
+				if !feasible {
+					if noKnowHow {
+						statusStr = "No one knows how"
+					} else {
+						statusStr = "Unfulfillable"
+					}
+					lines = append(lines, unfulfillableStyle.Render(fmt.Sprintf("%s%s [%s]", indent, order.DisplayName(), statusStr)))
+				} else {
+					lines = append(lines, fmt.Sprintf("%s%s [%s]", indent, order.DisplayName(), statusStr))
+				}
 			}
 		}
 	}

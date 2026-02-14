@@ -25,6 +25,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **UI extensibility refactoring** | UI structure blocks adding new activities or features; Area selection pattern needs generalization |
 | **Preference-weighted component procurement** | Multiple craft recipes with varied inputs; Characters feel flat when seeking components; Scoring math exists in foraging.go to reuse |
 | **applyIntent duplication (simulation.go)** | INTENTIONALLY SEPARATE - simulation.go is lighter test harness; only unify if maintaining both becomes burdensome |
+| **Temporarily-blocked order cooldown** | Assign/abandon churn noticeable for temporarily-blocked (but feasible) orders; Character visibly thrashes between taking and abandoning the same order |
 
 ### Future Enhancement Details
 

@@ -20,7 +20,6 @@ then they can be removed from this list.
 1. **Order Selection UX**
    - Pain point: Scrolling through list every time
    - Single keypress selection (underlined unique letter or numbered list)
-   - Add confirmation feedback when order is created (flash message or highlight new order)
 2. **Capitalization** consistency clean-up (not quick - lots of strings to sweep through)
 3. **Natural Language Descriptions**
    - Replace details view in regular mode, supplement in debug mode.
@@ -49,24 +48,27 @@ Remove single/multi mode distinction from UI and add character count control:
 
 ## Tech Updates
 
-3. Consider sequential problem solving MCS
-4. Evaluate how to make architecture doc more useful
-5. move name file to config dir for clearer access to users
+1. Evaluate how to make architecture doc more useful
+   - Pain point: I never see this skill used or the doc read
+   - It is referenced in at least one other skill, should these references be clearer or in more/other places?
+   - One intent is that this saves time/tokens by pointing in the right directions before explore is used
+   - Another intent is to explain the patterns that we intend to be extended
+   - Question: if the code is the source of truth, is this document redundant? why spend the effort of maintaining it if you are always going to end up looking at a large amount of code directly anyway?
+   - Is there a better/more focused intent that would be more valueable for this document? is there a better way to leverage it than the way the skills are set up to currently?
+2. move name file to config dir for clearer access to users
 
 ## Unallocated Features
 
-1. **Helping** - The closest character who isn't already addressing a need (ie they are doing an idle activity or an order) 
-can be interrupted to help a character who is in crisis.
+1. **Helping** - The closest character who isn't already addressing a need (ie they are doing an idle activity or an order)
+   can be interrupted to help a character who is in crisis.
    - the helping character will give them the item they are carrying, if it will address a severe or crisis need of the needy char
    - otherwise they will target an item that will address the worst-off need of the needy char, and creates the shortest path from helper to item to needy char
    - helping character will drop one unhelpful item if their inventory is too full to pick up the helpful item
    - helper will resume their order if they had one assigned
 2. **Activity Preferences**
-   - A Character who does something in an order category (eg: 'Garden', 'Harvest', 'Craft') has a chance to form a preference for orders in thaat category. 
-   - They will 
-   - They will get a mood increase from completing orders in that category.
+   - A Character who does something in an order category (eg: 'Garden', 'Harvest', 'Craft') has a chance to form a preference for orders in thaat category.
+   - They will get a mood imapct from completing orders in that category.
    - Future: preference would affect what orders they accept
-
 
 # Ideas that aren't ready yet
 
