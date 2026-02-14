@@ -128,11 +128,17 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 
 	// Remove item from map
 	gameMap.RemoveItem(item)
+
+	// Gourd consumption creates a seed at character's position
+	if item.ItemType == "gourd" {
+		seed := entity.NewSeed(char.X, char.Y, "gourd", item.Color, item.Pattern, item.Texture)
+		gameMap.AddItem(seed)
+	}
 }
 
 // ConsumeFromInventory handles a character eating an item from their inventory
 // Same effects as Consume, but clears inventory instead of removing from map
-func ConsumeFromInventory(char *entity.Character, item *entity.Item, log *ActionLog) {
+func ConsumeFromInventory(char *entity.Character, item *entity.Item, gameMap *game.Map, log *ActionLog) {
 	itemName := item.Description()
 	oldHunger := char.Hunger
 
@@ -251,6 +257,12 @@ func ConsumeFromInventory(char *entity.Character, item *entity.Item, log *Action
 
 	// Remove item from inventory (item consumed from inventory, not map)
 	char.RemoveFromInventory(item)
+
+	// Gourd consumption creates a seed at character's position
+	if item.ItemType == "gourd" && gameMap != nil {
+		seed := entity.NewSeed(char.X, char.Y, "gourd", item.Color, item.Pattern, item.Texture)
+		gameMap.AddItem(seed)
+	}
 }
 
 // Drink handles a character drinking from a water source
@@ -315,7 +327,7 @@ func StartSleep(char *entity.Character, atBed bool, log *ActionLog) {
 // ConsumeFromVessel handles eating from a vessel's contents.
 // Decrements the stack count and removes the stack when empty.
 // The vessel remains in the character's inventory.
-func ConsumeFromVessel(char *entity.Character, vessel *entity.Item, log *ActionLog) {
+func ConsumeFromVessel(char *entity.Character, vessel *entity.Item, gameMap *game.Map, log *ActionLog) {
 	if vessel.Container == nil || len(vessel.Container.Contents) == 0 {
 		return // Nothing to eat
 	}
@@ -434,6 +446,12 @@ func ConsumeFromVessel(char *entity.Character, vessel *entity.Item, log *ActionL
 	// Remove stack if empty
 	if stack.Count <= 0 {
 		vessel.Container.Contents = vessel.Container.Contents[1:]
+	}
+
+	// Gourd consumption creates a seed at character's position
+	if variety.ItemType == "gourd" && gameMap != nil {
+		seed := entity.NewSeed(char.X, char.Y, "gourd", variety.Color, variety.Pattern, variety.Texture)
+		gameMap.AddItem(seed)
 	}
 
 	// Note: We don't remove from inventory - vessel stays with character

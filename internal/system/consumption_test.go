@@ -795,7 +795,7 @@ func TestConsumeFromInventory_ClearsCarrying(t *testing.T) {
 	item := entity.NewBerry(0, 0, types.ColorRed, false, false)
 	char.AddToInventory(item)
 
-	ConsumeFromInventory(char, item, nil)
+	ConsumeFromInventory(char, item, nil, nil)
 
 	if len(char.Inventory) != 0 {
 		t.Error("Inventory should be empty after consuming from inventory")
@@ -810,7 +810,7 @@ func TestConsumeFromInventory_ReducesHunger(t *testing.T) {
 	item := entity.NewBerry(0, 0, types.ColorRed, false, false)
 	char.AddToInventory(item)
 
-	ConsumeFromInventory(char, item, nil)
+	ConsumeFromInventory(char, item, nil, nil)
 
 	expected := 80 - config.FoodHungerReduction
 	if char.Hunger != expected {
@@ -826,7 +826,7 @@ func TestConsumeFromInventory_AppliesPoison(t *testing.T) {
 	item := entity.NewBerry(0, 0, types.ColorRed, true, false) // Poisonous
 	char.AddToInventory(item)
 
-	ConsumeFromInventory(char, item, nil)
+	ConsumeFromInventory(char, item, nil, nil)
 
 	if !char.Poisoned {
 		t.Error("Eating poisonous item from inventory should apply poison")
@@ -841,7 +841,7 @@ func TestConsumeFromInventory_AppliesHealing(t *testing.T) {
 	item := entity.NewBerry(0, 0, types.ColorRed, false, true) // Healing
 	char.AddToInventory(item)
 
-	ConsumeFromInventory(char, item, nil)
+	ConsumeFromInventory(char, item, nil, nil)
 
 	expected := 60 + config.HealAmount
 	if char.Health != expected {
@@ -858,7 +858,7 @@ func TestConsumeFromInventory_AppliesMoodFromPreference(t *testing.T) {
 	item := entity.NewBerry(0, 0, types.ColorRed, false, false) // +2 preference
 	char.AddToInventory(item)
 
-	ConsumeFromInventory(char, item, nil)
+	ConsumeFromInventory(char, item, nil, nil)
 
 	expected := 50 + 2*config.MoodPreferenceModifier
 	if char.Mood != expected {
@@ -887,7 +887,7 @@ func TestConsumeFromInventory_TriggersPreferenceFormation(t *testing.T) {
 		testItem := entity.NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
 		testChar.AddToInventory(testItem)
 
-		ConsumeFromInventory(testChar, testItem, nil)
+		ConsumeFromInventory(testChar, testItem, nil, nil)
 
 		if len(testChar.Preferences) > 0 {
 			formed = true
@@ -908,7 +908,7 @@ func TestConsumeFromInventory_LearnsKnowledge(t *testing.T) {
 	item := entity.NewBerry(0, 0, types.ColorRed, true, false) // Poisonous
 	char.AddToInventory(item)
 
-	ConsumeFromInventory(char, item, nil)
+	ConsumeFromInventory(char, item, nil, nil)
 
 	if len(char.Knowledge) != 1 {
 		t.Fatalf("Expected 1 knowledge entry, got %d", len(char.Knowledge))
@@ -932,7 +932,7 @@ func TestConsumeFromVessel_ReducesHunger(t *testing.T) {
 	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, false)
 	char.AddToInventory(vessel)
 
-	ConsumeFromVessel(char, vessel, nil)
+	ConsumeFromVessel(char, vessel, nil, nil)
 
 	expected := 80 - config.FoodHungerReduction
 	if char.Hunger != expected {
@@ -949,7 +949,7 @@ func TestConsumeFromVessel_DecrementsStackCount(t *testing.T) {
 	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, false)
 	char.AddToInventory(vessel)
 
-	ConsumeFromVessel(char, vessel, nil)
+	ConsumeFromVessel(char, vessel, nil, nil)
 
 	if len(vessel.Container.Contents) != 1 {
 		t.Fatalf("Expected 1 stack, got %d", len(vessel.Container.Contents))
@@ -968,7 +968,7 @@ func TestConsumeFromVessel_RemovesEmptyStack(t *testing.T) {
 	vessel := createTestVesselWithContents("berry", types.ColorRed, 1, false, false)
 	char.AddToInventory(vessel)
 
-	ConsumeFromVessel(char, vessel, nil)
+	ConsumeFromVessel(char, vessel, nil, nil)
 
 	if len(vessel.Container.Contents) != 0 {
 		t.Errorf("Expected empty contents after eating last item, got %d stacks", len(vessel.Container.Contents))
@@ -984,7 +984,7 @@ func TestConsumeFromVessel_VesselStaysInInventory(t *testing.T) {
 	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, false)
 	char.AddToInventory(vessel)
 
-	ConsumeFromVessel(char, vessel, nil)
+	ConsumeFromVessel(char, vessel, nil, nil)
 
 	if char.FindInInventory(func(i *entity.Item) bool { return i == vessel }) == nil {
 		t.Error("Vessel should remain in inventory after eating from it")
@@ -1001,7 +1001,7 @@ func TestConsumeFromVessel_AppliesPoisonFromVariety(t *testing.T) {
 	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, true, false) // Poisonous
 	char.AddToInventory(vessel)
 
-	ConsumeFromVessel(char, vessel, nil)
+	ConsumeFromVessel(char, vessel, nil, nil)
 
 	if !char.Poisoned {
 		t.Error("Character should be poisoned after eating poisonous variety from vessel")
@@ -1023,7 +1023,7 @@ func TestConsumeFromVessel_AppliesHealingFromVariety(t *testing.T) {
 	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, true) // Healing
 	char.AddToInventory(vessel)
 
-	ConsumeFromVessel(char, vessel, nil)
+	ConsumeFromVessel(char, vessel, nil, nil)
 
 	expectedHealth := 50 + config.HealAmount
 	if char.Health != expectedHealth {
@@ -1046,12 +1046,184 @@ func TestConsumeFromVessel_MoodAdjustedByPreference(t *testing.T) {
 	vessel := createTestVesselWithContents("berry", types.ColorRed, 5, false, false)
 	char.AddToInventory(vessel)
 
-	ConsumeFromVessel(char, vessel, nil)
+	ConsumeFromVessel(char, vessel, nil, nil)
 
 	// Mood should increase by NetPreference(+2) * MoodPreferenceModifier
 	expectedMood := 50 + 2*config.MoodPreferenceModifier
 	if char.Mood != expectedMood {
 		t.Errorf("Mood: got %.2f, want %.2f", char.Mood, expectedMood)
+	}
+}
+
+// =============================================================================
+// Gourd Seed Creation on Consumption
+// =============================================================================
+
+func TestConsume_GourdCreatesSeed(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+	char.X = 10
+	char.Y = 10
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	gourd := entity.NewGourd(5, 5, types.ColorGreen, types.PatternSpotted, types.TextureWarty, false, false)
+	gameMap.AddItem(gourd)
+
+	Consume(char, gourd, gameMap, nil)
+
+	// Seed should be at character's position
+	seed := gameMap.ItemAt(types.Position{X: 10, Y: 10})
+	if seed == nil {
+		t.Fatal("Expected seed to be created at character position after eating gourd")
+	}
+	if seed.ItemType != "seed" {
+		t.Errorf("Seed ItemType: got %q, want %q", seed.ItemType, "seed")
+	}
+	if seed.Kind != "gourd seed" {
+		t.Errorf("Seed Kind: got %q, want %q", seed.Kind, "gourd seed")
+	}
+	if seed.Color != types.ColorGreen {
+		t.Errorf("Seed Color: got %q, want %q", seed.Color, types.ColorGreen)
+	}
+	if seed.Pattern != types.PatternSpotted {
+		t.Errorf("Seed Pattern: got %q, want %q", seed.Pattern, types.PatternSpotted)
+	}
+	if seed.Texture != types.TextureWarty {
+		t.Errorf("Seed Texture: got %q, want %q", seed.Texture, types.TextureWarty)
+	}
+	if !seed.Plantable {
+		t.Error("Seed should be Plantable")
+	}
+}
+
+func TestConsume_BerryDoesNotCreateSeed(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+	char.X = 10
+	char.Y = 10
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	Consume(char, berry, gameMap, nil)
+
+	seed := gameMap.ItemAt(types.Position{X: 10, Y: 10})
+	if seed != nil {
+		t.Error("Eating a berry should NOT create a seed")
+	}
+}
+
+func TestConsume_MushroomDoesNotCreateSeed(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+	char.X = 10
+	char.Y = 10
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	mush := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+	gameMap.AddItem(mush)
+
+	Consume(char, mush, gameMap, nil)
+
+	seed := gameMap.ItemAt(types.Position{X: 10, Y: 10})
+	if seed != nil {
+		t.Error("Eating a mushroom should NOT create a seed")
+	}
+}
+
+func TestConsumeFromInventory_GourdCreatesSeed(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+	char.X = 10
+	char.Y = 10
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	gourd := entity.NewGourd(0, 0, types.ColorOrange, types.PatternStriped, types.TextureWarty, false, false)
+	char.AddToInventory(gourd)
+
+	ConsumeFromInventory(char, gourd, gameMap, nil)
+
+	seed := gameMap.ItemAt(types.Position{X: 10, Y: 10})
+	if seed == nil {
+		t.Fatal("Expected seed to be created at character position after eating gourd from inventory")
+	}
+	if seed.ItemType != "seed" {
+		t.Errorf("Seed ItemType: got %q, want %q", seed.ItemType, "seed")
+	}
+	if seed.Kind != "gourd seed" {
+		t.Errorf("Seed Kind: got %q, want %q", seed.Kind, "gourd seed")
+	}
+	if seed.Color != types.ColorOrange {
+		t.Errorf("Seed Color: got %q, want %q", seed.Color, types.ColorOrange)
+	}
+}
+
+func TestConsumeFromVessel_GourdCreatesSeed(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+	char.X = 10
+	char.Y = 10
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	vessel := createTestVesselWithContents("gourd", types.ColorGreen, 3, false, false)
+	vessel.Container.Contents[0].Variety.Pattern = types.PatternSpotted
+	vessel.Container.Contents[0].Variety.Texture = types.TextureWarty
+	char.AddToInventory(vessel)
+
+	ConsumeFromVessel(char, vessel, gameMap, nil)
+
+	seed := gameMap.ItemAt(types.Position{X: 10, Y: 10})
+	if seed == nil {
+		t.Fatal("Expected seed to be created at character position after eating gourd from vessel")
+	}
+	if seed.ItemType != "seed" {
+		t.Errorf("Seed ItemType: got %q, want %q", seed.ItemType, "seed")
+	}
+	if seed.Kind != "gourd seed" {
+		t.Errorf("Seed Kind: got %q, want %q", seed.Kind, "gourd seed")
+	}
+	if seed.Color != types.ColorGreen {
+		t.Errorf("Seed Color: got %q, want %q", seed.Color, types.ColorGreen)
+	}
+	if seed.Pattern != types.PatternSpotted {
+		t.Errorf("Seed Pattern: got %q, want %q", seed.Pattern, types.PatternSpotted)
+	}
+	if seed.Texture != types.TextureWarty {
+		t.Errorf("Seed Texture: got %q, want %q", seed.Texture, types.TextureWarty)
+	}
+	if !seed.Plantable {
+		t.Error("Seed should be Plantable")
+	}
+}
+
+func TestConsumeFromVessel_BerryDoesNotCreateSeed(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+	char.X = 10
+	char.Y = 10
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	vessel := createTestVesselWithContents("berry", types.ColorRed, 3, false, false)
+	char.AddToInventory(vessel)
+
+	ConsumeFromVessel(char, vessel, gameMap, nil)
+
+	seed := gameMap.ItemAt(types.Position{X: 10, Y: 10})
+	if seed != nil {
+		t.Error("Eating a berry from vessel should NOT create a seed")
 	}
 }
 

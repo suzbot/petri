@@ -686,7 +686,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 						if item := m.gameMap.ItemAt(types.Position{X: cx, Y: cy}); item == targetItem {
 							if isVesselWithFood {
 								// Eat from vessel contents (vessel stays on map)
-								system.ConsumeFromVessel(char, item, m.actionLog)
+								system.ConsumeFromVessel(char, item, m.gameMap, m.actionLog)
 							} else {
 								// Eat the item directly (removes from map)
 								system.Consume(char, item, m.gameMap, m.actionLog)
@@ -944,10 +944,10 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 				// Check if it's a vessel with edible contents
 				if targetItem.Container != nil && len(targetItem.Container.Contents) > 0 {
 					// Eat from vessel contents
-					system.ConsumeFromVessel(char, targetItem, m.actionLog)
+					system.ConsumeFromVessel(char, targetItem, m.gameMap, m.actionLog)
 				} else {
 					// Eat the carried item directly
-					system.ConsumeFromInventory(char, targetItem, m.actionLog)
+					system.ConsumeFromInventory(char, targetItem, m.gameMap, m.actionLog)
 				}
 			}
 		}

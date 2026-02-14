@@ -147,9 +147,9 @@ func applyIntent(char *entity.Character, gameMap *game.Map, delta float64, actio
 			if inInventory {
 				// Check if it's a vessel with edible contents
 				if targetItem.Container != nil && len(targetItem.Container.Contents) > 0 {
-					system.ConsumeFromVessel(char, targetItem, actionLog)
+					system.ConsumeFromVessel(char, targetItem, gameMap, actionLog)
 				} else {
-					system.ConsumeFromInventory(char, targetItem, actionLog)
+					system.ConsumeFromInventory(char, targetItem, gameMap, actionLog)
 				}
 			}
 		}
