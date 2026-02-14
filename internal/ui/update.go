@@ -261,7 +261,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 										order := entity.NewOrder(m.nextOrderID, catActivity.ID, "")
 										m.nextOrderID++
 										m.orders = append(m.orders, order)
-
+										m.setOrderFlash(order.DisplayName())
 										// Stay in add mode, return to activity selection
 										m.ordersAddStep = 0
 										m.selectedActivityIndex = 0
@@ -275,6 +275,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 									order := entity.NewOrder(m.nextOrderID, selectedActivity.ID, targetType)
 									m.nextOrderID++
 									m.orders = append(m.orders, order)
+									m.setOrderFlash(order.DisplayName())
 
 									// Stay in add mode, return to activity selection
 									m.ordersAddStep = 0
@@ -288,6 +289,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 							order := entity.NewOrder(m.nextOrderID, "tillSoil", "")
 							m.nextOrderID++
 							m.orders = append(m.orders, order)
+							m.setOrderFlash(order.DisplayName())
 						}
 						m.ordersAddStep = 1
 						m.selectedTargetIndex = 0
@@ -1606,5 +1608,19 @@ func (m *Model) saveGame() error {
 	m.lastSaveGameTime = m.elapsedGameTime
 	m.saveIndicatorEnd = time.Now().Add(1 * time.Second) // Show "Saving" for 1 second
 	return nil
+}
+
+// setOrderFlash sets or updates the order creation flash confirmation.
+// If the same order type is created consecutively within the flash duration,
+// the count increments. Otherwise, it resets to 1.
+func (m *Model) setOrderFlash(displayName string) {
+	now := time.Now()
+	if displayName == m.orderFlashMessage && now.Before(m.orderFlashEnd) {
+		m.orderFlashCount++
+	} else {
+		m.orderFlashMessage = displayName
+		m.orderFlashCount = 1
+	}
+	m.orderFlashEnd = now.Add(2 * time.Second)
 }
 

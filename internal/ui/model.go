@@ -96,6 +96,11 @@ type Model struct {
 	selectedActivityIndex int
 	selectedTargetIndex   int
 
+	// Order creation flash confirmation
+	orderFlashMessage string    // Display name of last created order
+	orderFlashEnd     time.Time // When to stop showing the flash
+	orderFlashCount   int       // Consecutive count of same order type
+
 	// Area selection state (used during ordersAddStep == 2)
 	areaSelectAnchor     *types.Position // nil = no anchor set yet
 	areaSelectUnmarkMode bool            // true = unmark mode, false = mark mode

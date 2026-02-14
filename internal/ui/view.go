@@ -1487,6 +1487,15 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 		}
 	}
 
+	// Order creation flash confirmation
+	if time.Now().Before(m.orderFlashEnd) {
+		flash := indent + "+ " + m.orderFlashMessage + " added"
+		if m.orderFlashCount > 1 {
+			flash += fmt.Sprintf(" (x%d)", m.orderFlashCount)
+		}
+		lines = append(lines, "", orderStyle.Render(flash))
+	}
+
 	return lines
 }
 

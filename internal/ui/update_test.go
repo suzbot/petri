@@ -2,6 +2,7 @@ package ui
 
 import (
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -1396,6 +1397,77 @@ func TestApplyIntent_TillSoil_DisplacesToCharPosWhenNoAdjacentSpace(t *testing.T
 	}
 	if !stickFound {
 		t.Error("Non-growing item should still exist when no adjacent space (dropped at char pos)")
+	}
+}
+
+// =============================================================================
+// Order Flash Confirmation Tests
+// =============================================================================
+
+func TestSetOrderFlash_SetsMessageAndTimer(t *testing.T) {
+	t.Parallel()
+
+	m := Model{}
+	m.setOrderFlash("Harvest berries")
+
+	if m.orderFlashMessage != "Harvest berries" {
+		t.Errorf("Expected orderFlashMessage 'Harvest berries', got %q", m.orderFlashMessage)
+	}
+	if m.orderFlashCount != 1 {
+		t.Errorf("Expected orderFlashCount 1, got %d", m.orderFlashCount)
+	}
+	if m.orderFlashEnd.IsZero() {
+		t.Error("Expected orderFlashEnd to be set")
+	}
+}
+
+func TestSetOrderFlash_IncrementsCountForSameOrder(t *testing.T) {
+	t.Parallel()
+
+	m := Model{}
+	m.setOrderFlash("Harvest berries")
+	m.setOrderFlash("Harvest berries")
+	m.setOrderFlash("Harvest berries")
+
+	if m.orderFlashMessage != "Harvest berries" {
+		t.Errorf("Expected orderFlashMessage 'Harvest berries', got %q", m.orderFlashMessage)
+	}
+	if m.orderFlashCount != 3 {
+		t.Errorf("Expected orderFlashCount 3, got %d", m.orderFlashCount)
+	}
+}
+
+func TestSetOrderFlash_ResetsCountForDifferentOrder(t *testing.T) {
+	t.Parallel()
+
+	m := Model{}
+	m.setOrderFlash("Harvest berries")
+	m.setOrderFlash("Harvest berries")
+	m.setOrderFlash("Craft hollow gourd")
+
+	if m.orderFlashMessage != "Craft hollow gourd" {
+		t.Errorf("Expected orderFlashMessage 'Craft hollow gourd', got %q", m.orderFlashMessage)
+	}
+	if m.orderFlashCount != 1 {
+		t.Errorf("Expected orderFlashCount 1, got %d", m.orderFlashCount)
+	}
+}
+
+func TestSetOrderFlash_ResetsCountWhenTimerExpired(t *testing.T) {
+	t.Parallel()
+
+	m := Model{}
+	m.setOrderFlash("Harvest berries")
+	m.setOrderFlash("Harvest berries")
+
+	// Expire the timer
+	m.orderFlashEnd = m.orderFlashEnd.Add(-3 * time.Second)
+
+	// Same order name but timer expired — should reset to 1
+	m.setOrderFlash("Harvest berries")
+
+	if m.orderFlashCount != 1 {
+		t.Errorf("Expected orderFlashCount to reset to 1 after timer expired, got %d", m.orderFlashCount)
 	}
 }
 
