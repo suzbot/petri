@@ -222,13 +222,7 @@ func findTillSoilIntent(char *entity.Character, pos types.Position, items []*ent
 	// Step 3: Move to or till the target tile
 	if pos.X == nearest.X && pos.Y == nearest.Y {
 		// At target — start tilling
-		newActivity := "Tilling soil"
-		if char.CurrentActivity != newActivity {
-			char.CurrentActivity = newActivity
-			if log != nil {
-				log.Add(char.ID, char.Name, "order", "Tilling soil")
-			}
-		}
+		char.CurrentActivity = "Tilling soil"
 		return &entity.Intent{
 			Target: *nearest,
 			Dest:   *nearest,
