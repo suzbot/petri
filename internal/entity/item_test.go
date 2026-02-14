@@ -373,6 +373,76 @@ func TestNewFlower_NotPlantable(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// Seed tests
+// =============================================================================
+
+// TestNewSeed_Properties verifies NewSeed creates seed with correct properties
+func TestNewSeed_Properties(t *testing.T) {
+	t.Parallel()
+
+	item := NewSeed(3, 7, "gourd", types.ColorGreen, types.PatternSpotted, types.TextureWarty)
+
+	pos := item.Pos()
+	if pos.X != 3 || pos.Y != 7 {
+		t.Errorf("NewSeed Pos(): got (%d, %d), want (3, 7)", pos.X, pos.Y)
+	}
+	if item.ItemType != "seed" {
+		t.Errorf("NewSeed ItemType: got %q, want %q", item.ItemType, "seed")
+	}
+	if item.Kind != "gourd seed" {
+		t.Errorf("NewSeed Kind: got %q, want %q", item.Kind, "gourd seed")
+	}
+	if item.Symbol() != config.CharSeed {
+		t.Errorf("NewSeed Symbol(): got %c, want %c", item.Symbol(), config.CharSeed)
+	}
+	if item.Color != types.ColorGreen {
+		t.Errorf("NewSeed Color: got %q, want %q", item.Color, types.ColorGreen)
+	}
+	if item.Pattern != types.PatternSpotted {
+		t.Errorf("NewSeed Pattern: got %q, want %q", item.Pattern, types.PatternSpotted)
+	}
+	if item.Texture != types.TextureWarty {
+		t.Errorf("NewSeed Texture: got %q, want %q", item.Texture, types.TextureWarty)
+	}
+	if item.IsEdible() {
+		t.Error("NewSeed IsEdible: got true, want false")
+	}
+	if item.Plant != nil {
+		t.Error("NewSeed Plant: got non-nil, want nil")
+	}
+	if !item.Plantable {
+		t.Error("NewSeed Plantable: got false, want true")
+	}
+	if item.Type() != TypeItem {
+		t.Errorf("NewSeed Type(): got %d, want %d", item.Type(), TypeItem)
+	}
+}
+
+// TestNewSeed_Description verifies seed description combines parent attributes with kind
+func TestNewSeed_Description(t *testing.T) {
+	t.Parallel()
+
+	item := NewSeed(0, 0, "gourd", types.ColorGreen, types.PatternSpotted, types.TextureWarty)
+	got := item.Description()
+	want := "warty spotted green gourd seed"
+	if got != want {
+		t.Errorf("Seed Description(): got %q, want %q", got, want)
+	}
+}
+
+// TestNewSeed_DescriptionColorOnly verifies seed description for color-only parent
+func TestNewSeed_DescriptionColorOnly(t *testing.T) {
+	t.Parallel()
+
+	item := NewSeed(0, 0, "gourd", types.ColorOrange, types.PatternNone, types.TextureNone)
+	got := item.Description()
+	want := "orange gourd seed"
+	if got != want {
+		t.Errorf("Seed Description(): got %q, want %q", got, want)
+	}
+}
+
 // TestItem_Description_KindWithMultipleAttributes verifies Description with Kind + pattern + texture + color
 func TestItem_Description_KindWithMultipleAttributes(t *testing.T) {
 	t.Parallel()

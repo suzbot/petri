@@ -144,6 +144,35 @@ func TestGenerateVarieties_UniqueIDs(t *testing.T) {
 	}
 }
 
+func TestGenerateVarieties_SeedVarietiesForGourds(t *testing.T) {
+	registry := GenerateVarieties()
+
+	gourds := registry.VarietiesOfType("gourd")
+	seeds := registry.VarietiesOfType("seed")
+
+	if len(seeds) == 0 {
+		t.Fatal("Expected seed varieties to be registered")
+	}
+	if len(seeds) != len(gourds) {
+		t.Errorf("Expected %d seed varieties (one per gourd), got %d", len(gourds), len(seeds))
+	}
+
+	// Each gourd variety should have a corresponding seed variety
+	for _, g := range gourds {
+		seedVariety := registry.GetByAttributes("seed", g.Color, g.Pattern, g.Texture)
+		if seedVariety == nil {
+			t.Errorf("Expected seed variety for gourd %q, got nil", g.ID)
+			continue
+		}
+		if seedVariety.ItemType != "seed" {
+			t.Errorf("Seed variety ItemType: got %q, want %q", seedVariety.ItemType, "seed")
+		}
+		if seedVariety.IsEdible() {
+			t.Errorf("Seed variety %q should not be edible", seedVariety.ID)
+		}
+	}
+}
+
 func TestGenerateVarieties_CorrectSymbols(t *testing.T) {
 	registry := GenerateVarieties()
 

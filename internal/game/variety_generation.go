@@ -84,6 +84,19 @@ func GenerateVarieties() *VarietyRegistry {
 		}
 	}
 
+	// Generate seed varieties for gourds (one seed variety per gourd variety)
+	for _, g := range registry.VarietiesOfType("gourd") {
+		seedID := entity.GenerateVarietyID("seed", g.Color, g.Pattern, g.Texture)
+		registry.Register(&entity.ItemVariety{
+			ID:       seedID,
+			ItemType: "seed",
+			Color:    g.Color,
+			Pattern:  g.Pattern,
+			Texture:  g.Texture,
+			Sym:      config.CharSeed,
+		})
+	}
+
 	// Assign poison and healing to edible varieties
 	assignPoisonAndHealing(registry)
 

@@ -186,6 +186,24 @@ func NewShell(x, y int, color types.Color) *Item {
 	}
 }
 
+// NewSeed creates a new seed item from a parent plant type
+func NewSeed(x, y int, parentItemType string, color types.Color, pattern types.Pattern, texture types.Texture) *Item {
+	return &Item{
+		BaseEntity: BaseEntity{
+			X:     x,
+			Y:     y,
+			Sym:   config.CharSeed,
+			EType: TypeItem,
+		},
+		ItemType:  "seed",
+		Kind:      parentItemType + " seed",
+		Color:     color,
+		Pattern:   pattern,
+		Texture:   texture,
+		Plantable: true,
+	}
+}
+
 // NewHoe creates a new hoe item (non-edible, non-plant, crafted from stick + shell)
 func NewHoe(x, y int, color types.Color) *Item {
 	return &Item{

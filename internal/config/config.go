@@ -32,6 +32,7 @@ const (
 	CharNut      = 'o'
 	CharShell    = '<'
 	CharHoe        = 'L'
+	CharSeed       = '.'
 	CharTilledSoil = '═'
 	CharSleeping = 'z'
 
@@ -159,6 +160,7 @@ var StackSize = map[string]int{
 	"flower":   10,
 	"gourd":    1,
 	"nut":      10,
+	"seed":     20,
 }
 
 // GetStackSize returns the stack size for an item type, defaulting to 1 if not defined
