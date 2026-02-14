@@ -333,6 +333,46 @@ func TestNewHoe_Description(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// Plantable field tests
+// =============================================================================
+
+// TestNewBerry_NotPlantableByDefault verifies berries start non-plantable (only becomes plantable when picked)
+func TestNewBerry_NotPlantableByDefault(t *testing.T) {
+	t.Parallel()
+	item := NewBerry(0, 0, types.ColorRed, false, false)
+	if item.Plantable {
+		t.Error("NewBerry should have Plantable=false (only set on pickup)")
+	}
+}
+
+// TestNewMushroom_NotPlantableByDefault verifies mushrooms start non-plantable
+func TestNewMushroom_NotPlantableByDefault(t *testing.T) {
+	t.Parallel()
+	item := NewMushroom(0, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+	if item.Plantable {
+		t.Error("NewMushroom should have Plantable=false (only set on pickup)")
+	}
+}
+
+// TestNewGourd_NotPlantable verifies gourds are never directly plantable
+func TestNewGourd_NotPlantable(t *testing.T) {
+	t.Parallel()
+	item := NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
+	if item.Plantable {
+		t.Error("NewGourd should have Plantable=false (gourds produce seeds when eaten, not directly plantable)")
+	}
+}
+
+// TestNewFlower_NotPlantable verifies flowers are not plantable
+func TestNewFlower_NotPlantable(t *testing.T) {
+	t.Parallel()
+	item := NewFlower(0, 0, types.ColorBlue)
+	if item.Plantable {
+		t.Error("NewFlower should have Plantable=false")
+	}
+}
+
 // TestItem_Description_KindWithMultipleAttributes verifies Description with Kind + pattern + texture + color
 func TestItem_Description_KindWithMultipleAttributes(t *testing.T) {
 	t.Parallel()

@@ -872,6 +872,10 @@ func (m Model) renderDetails() string {
 		if item.Plant != nil && item.Plant.IsGrowing {
 			lines = append(lines, " "+growingStyle.Render("Growing"))
 		}
+		// Show Plantable status
+		if item.Plantable {
+			lines = append(lines, " "+growingStyle.Render("Plantable"))
+		}
 		// Show vessel contents if this is a container
 		if item.Container != nil {
 			lines = append(lines, "")
@@ -1228,7 +1232,11 @@ func (m Model) renderInventoryPanel() string {
 			} else {
 				lines = append(lines, fmt.Sprintf(" Inventory: %d/%d slots", len(char.Inventory), entity.InventoryCapacity))
 				for i, item := range char.Inventory {
-					lines = append(lines, fmt.Sprintf("  [%d] %s", i+1, item.Description()))
+					label := item.Description()
+					if attrs := inventoryItemAttrs(item); attrs != "" {
+						label += " (" + attrs + ")"
+					}
+					lines = append(lines, fmt.Sprintf("  [%d] %s", i+1, label))
 
 					// Show vessel contents if this item is a vessel
 					if item.Container != nil {
@@ -1256,6 +1264,25 @@ func (m Model) renderInventoryPanel() string {
 	lines = append(lines, "", " I or Esc to return")
 
 	return strings.Join(lines, "\n")
+}
+
+// inventoryItemAttrs returns a parenthetical summary of boolean item attributes.
+// Returns empty string if no attributes are true.
+func inventoryItemAttrs(item *entity.Item) string {
+	var parts []string
+	if item.IsEdible() {
+		parts = append(parts, "Edible")
+	}
+	if item.IsPoisonous() {
+		parts = append(parts, "Poison")
+	}
+	if item.IsHealing() {
+		parts = append(parts, "Healing")
+	}
+	if item.Plantable {
+		parts = append(parts, "Plantable")
+	}
+	return strings.Join(parts, ", ")
 }
 
 // renderPreferencesPanel renders the preferences panel for the selected character

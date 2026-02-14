@@ -164,6 +164,8 @@ type ItemSave struct {
 	Poisonous bool `json:"poisonous"`
 	Healing   bool `json:"healing"`
 
+	Plantable bool `json:"plantable,omitempty"`
+
 	DeathTimer float64 `json:"death_timer"`
 }
 

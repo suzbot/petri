@@ -66,7 +66,7 @@ var CharacterNames = []string{
 	"Verd", "Vetch", "Vi", "Vole",
 
 	// W
-	"Web", "Weed", "Weir", "Wilt" "Wing", "Wold", "Woad", "Wort",
+	"Web", "Weed", "Weir", "Wilt", "Wing", "Wold", "Woad", "Wort",
 
 	// Y
 	"Yew",

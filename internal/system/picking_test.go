@@ -691,6 +691,146 @@ func TestEnsureHasItem_ReturnsNilWhenNoItemExists(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// Pickup Plantable Tests
+// =============================================================================
+
+func TestPickup_SetsPlantableForBerry(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	berry := entity.NewBerry(3, 3, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
+	}
+	char.X = 3
+	char.Y = 3
+
+	result := Pickup(char, berry, gameMap, nil, registry)
+	if result != PickupToInventory {
+		t.Fatalf("Expected PickupToInventory, got %d", result)
+	}
+	if !berry.Plantable {
+		t.Error("Picked up berry should have Plantable=true")
+	}
+}
+
+func TestPickup_SetsPlantableForMushroom(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	mushroom := entity.NewMushroom(3, 3, types.ColorBrown, types.PatternSpotted, types.TextureSlimy, false, false)
+	gameMap.AddItem(mushroom)
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
+	}
+	char.X = 3
+	char.Y = 3
+
+	result := Pickup(char, mushroom, gameMap, nil, registry)
+	if result != PickupToInventory {
+		t.Fatalf("Expected PickupToInventory, got %d", result)
+	}
+	if !mushroom.Plantable {
+		t.Error("Picked up mushroom should have Plantable=true")
+	}
+}
+
+func TestPickup_DoesNotSetPlantableForGourd(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	gourd := entity.NewGourd(3, 3, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
+	gameMap.AddItem(gourd)
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
+	}
+	char.X = 3
+	char.Y = 3
+
+	result := Pickup(char, gourd, gameMap, nil, registry)
+	if result != PickupToInventory {
+		t.Fatalf("Expected PickupToInventory, got %d", result)
+	}
+	if gourd.Plantable {
+		t.Error("Picked up gourd should NOT have Plantable=true")
+	}
+}
+
+func TestPickup_DoesNotSetPlantableForFlower(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	flower := entity.NewFlower(3, 3, types.ColorBlue)
+	gameMap.AddItem(flower)
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
+	}
+	char.X = 3
+	char.Y = 3
+
+	result := Pickup(char, flower, gameMap, nil, registry)
+	if result != PickupToInventory {
+		t.Fatalf("Expected PickupToInventory, got %d", result)
+	}
+	if flower.Plantable {
+		t.Error("Picked up flower should NOT have Plantable=true")
+	}
+}
+
+func TestPickup_VesselPathSetsPlantableForBerry(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	berry := entity.NewBerry(3, 3, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	vessel := createTestVessel()
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{vessel},
+	}
+	char.X = 3
+	char.Y = 3
+
+	result := Pickup(char, berry, gameMap, nil, registry)
+	if result != PickupToVessel {
+		t.Fatalf("Expected PickupToVessel, got %d", result)
+	}
+	if !berry.Plantable {
+		t.Error("Berry picked up to vessel should have Plantable=true")
+	}
+}
+
 func TestEnsureHasRecipeInputs_SingleInputRecipe(t *testing.T) {
 	gameMap := game.NewMap(10, 10)
 

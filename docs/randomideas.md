@@ -57,6 +57,24 @@ Remove single/multi mode distinction from UI and add character count control:
    - Is there a better/more focused intent that would be more valueable for this document? is there a better way to leverage it than the way the skills are set up to currently?
 2. move name file to config dir for clearer access to users
 
+## Flower Seeds / Flower Cultivation
+
+Deferred from Gardening Phase (was in Feature Set 2). Flower cultivation is cultural/aesthetic, not survival-critical — the core gardening loop works with gourd seeds + plantable berries/mushrooms.
+
+**The mechanic tension:** Flower seed gathering doesn't fit cleanly into any existing activity archetype:
+- **Foraging** is becoming food-centric ("go find snacks"). Flower seeds aren't food.
+- **Collecting** (future, for Construction) is about gathering raw materials from the ground. But flower seeds come *from* an interaction with a living plant, not the ground.
+- **Flower seed gathering** is "interact with a living plant to extract something, without destroying it" — a different verb from foraging, collecting, or harvesting (which kills the plant).
+
+This is genuinely a fourth pattern without enough examples yet to know the right abstraction. Revisit after Construction introduces more "interact with world objects" patterns, which may reveal a natural home for this mechanic.
+
+**Original requirement (Gardening-Reqs line 67):** "Foraging a flower produces 1 flower variety seed without removing the flower."
+
+**Open questions:**
+- Does this become its own know-how? Part of a broader "tend" or "gather" activity?
+- Can the same flower be gathered from repeatedly? Timer per flower? Match flower reproduction cadence?
+- Standard pickup logic for the seed, or special handling?
+
 ## Unallocated Features
 
 1. **Helping** - The closest character who isn't already addressing a need (ie they are doing an idle activity or an order)

@@ -994,44 +994,114 @@ Each step follows the TDD cycle: write tests → implement → verify green.
 ### Feature Set 2: Seeds, Plantable Attribute, and Food Satiation
 
 **Reqs covered:**
-- New ItemType: Seed (lines 65-77) [Descoped: foraging from flowers, read requirements to get updated behavior for collecting flower seeds]
+- New ItemType: Seed (lines 65-77) [Descoped: flower seeds deferred to randomideas.md — mechanic doesn't fit existing activity archetypes yet]
 - New Item Attribute: Plantable (lines 79-82)
-- Food Turning: Satiation tiers (lines 133-137)
 
-#### Step 1: Seeds and other Plantable Itmes
+#### Design: Plantable Attribute
 
-Seeds carry the full variety of their parent (ItemType, Color, Pattern, Texture). A "warty green gourd seed" stores the gourd's attributes so the planted sprout inherits them. Seeds are not edible, not growing, have `Plantable: true`. Max stack size 20, same-variety stacking only.
-- Seed symbol and color: `.` in parent's color. 
-- Seed description format: "warty green gourd seed", including all parent attributes
-- Explicit `Plantable bool` on Item struct. (See Decisions Log.) Seeds get `Plantable: true` at creation. Berries and mushrooms get `Plantable: true` when picked up (alongside `IsGrowing = false`).
+Explicit `Plantable bool` on Item struct. (See Decisions Log.) Only berries and mushrooms become plantable when picked — they ARE the plantable item (no seeds needed). Gourds and flowers do NOT become plantable when picked. Gourds produce seeds when eaten instead. Flower seed collection deferred (see randomideas.md).
 
-[TEST]
-- `Plantable` bool on Item: berries/mushrooms when picked, visible in details
-- Save and load preserves plantable state correctly
+#### Design: Seed Item Type
 
-#### Step 2: **Gourd Seeds**: When eating consumption completes on a gourd, create a seed with the gourd's variety and apply standard pickup logic (matching container > empty container > inventory slot > drop on ground).
+Seeds use the Kind pattern: `ItemType: "seed"`, `Kind: "<parent> seed"` (e.g., `Kind: "gourd seed"`). `Description()` naturally produces "warty green gourd seed" from attributes + Kind.
 
-[TEST]
-- Eat a gourd → seed appears with correct variety description
-- Save and load preserves seeds and plantable state correctly
+- Symbol: `.` in parent's color
+- Inherits parent's full variety (Color, Pattern, Texture)
+- Not edible, `Plant: nil`, `Plantable: true`
+- Stack size 20, same-variety stacking only (via vessel system)
 
-[DOCS]
+**Seed varieties in VarietyRegistry**: Registered at world gen alongside parent varieties. A "warty green gourd" variety generates a corresponding "seed" variety with the same color/pattern/texture. This keeps existing vessel stacking infrastructure working (`AddToVessel` uses `VarietyRegistry.GetByAttributes`).
+
+#### Design: Gourd Seed Creation
+
+When consumption completes on a gourd, create a seed with the gourd's variety and **auto-drop** to ground at character's position (same pattern as crafted items). No pickup logic chain — seed is immediately available to any character doing seed-related tasks.
+
+For `ConsumeFromVessel()`, seed inherits variety from the stack's `ItemVariety`.
+
+---
+
+#### Implementation Steps
+
+Each step follows the TDD cycle: write tests → implement → verify green → human testing checkpoint.
+
+##### Step 1: Plantable Field on Item + Serialization ✅
+
+**Tests** (in `internal/entity/item_test.go`):
+- `NewBerry` has `Plantable: false` (only becomes plantable when picked)
+- `NewMushroom` has `Plantable: false`
+- `NewGourd` has `Plantable: false` (gourds are never directly plantable)
+- `NewFlower` has `Plantable: false`
+
+**Tests** (in `internal/system/picking_test.go`):
+- `Pickup` sets `Plantable = true` for berry items (ItemType "berry")
+- `Pickup` sets `Plantable = true` for mushroom items (ItemType "mushroom")
+- `Pickup` does NOT set `Plantable` for gourd items
+- `Pickup` does NOT set `Plantable` for flower items
+- Pickup to vessel also sets `Plantable = true` for berries/mushrooms
+
+**Implementation:**
+- Add `Plantable bool` to Item struct
+- In `Pickup()` (picking.go): set `Plantable = true` when `item.ItemType == "berry" || item.ItemType == "mushroom"`, alongside existing `IsGrowing = false` logic (both the vessel path and inventory path)
+- `ItemSave`: add `Plantable bool` field with `json:"plantable,omitempty"`
+- `serialize.go`: wire `Plantable` through both save paths (ground items + inventory) and `itemFromSave`
+- Bug fix: inventory save path is missing `Kind` field (ground items path has it). Fix alongside Plantable addition.
+- Details panel: show "Plantable" when `item.Plantable == true`
+
+**[TEST] Checkpoint — Plantable attribute:**
+- `go test ./...` passes
+- Build and run: pick up a berry, check details — shows "Plantable"
+- Pick up a gourd, check details — does NOT show "Plantable"
+- Pick up a flower, check details — does NOT show "Plantable"
+- Save, load — plantable state preserved
+
+##### Step 2: Seed Item Type + Varieties
+
+**Tests** (in `internal/entity/item_test.go`):
+- `NewSeed` returns correct properties (symbol `.`, ItemType `"seed"`, Kind `"gourd seed"`, color/pattern/texture from parent, not edible, `Plant == nil`, `Plantable == true`)
+- `NewSeed` description: "warty green gourd seed" for a warty green gourd parent
+
+**Tests** (in `internal/game/variety_generation_test.go` or existing test file):
+- Seed varieties registered in VarietyRegistry for each edible parent variety
+- `GetByAttributes("seed", color, pattern, texture)` returns correct seed variety
+
+**Implementation:**
+- `NewSeed(x, y int, parentItemType string, color types.Color, pattern types.Pattern, texture types.Texture)` in item.go
+- `CharSeed = '.'` in config.go
+- `"seed"` entry in `StackSize` map (20)
+- Register seed varieties in `variety_generation.go` — for each gourd variety, generate corresponding seed variety
+- `itemFromSave` handles ItemType `"seed"` (no special case needed — generic path already works with Kind)
+- Rendering: `.` in parent's color (uses existing color switch in `styledSymbol()`)
+
+**[TEST] Checkpoint — Seed item type:**
+- `go test ./...` passes
+- No human testing yet (seeds aren't created in gameplay until Step 3)
+
+##### Step 3: Gourd Seed Creation on Consumption
+
+**Tests** (in `internal/system/consumption_test.go`):
+- `Consume` on gourd creates a seed at character position with gourd's variety attributes
+- `Consume` on gourd: seed has `Kind: "gourd seed"`, `Plantable: true`
+- `Consume` on berry does NOT create a seed
+- `Consume` on mushroom does NOT create a seed
+- `ConsumeFromInventory` on gourd creates a seed at character position
+- `ConsumeFromVessel` on gourd creates a seed at character position with stack variety
+
+**Implementation:**
+- In `Consume()`: after removing item from map, if `item.ItemType == "gourd"`, create seed via `NewSeed()` at character position, add to map
+- In `ConsumeFromInventory()`: same check, create seed at character position
+- In `ConsumeFromVessel()`: if variety ItemType is "gourd", create seed from variety attributes at character position
+- All three: seed auto-drops to ground (no pickup logic)
+
+**[TEST] Checkpoint — Full gourd seed flow:**
+- `go test ./...` passes
+- Build and run: character eats a gourd (from ground, inventory, or vessel). Seed appears on ground at character's position with correct variety description (e.g., "warty green gourd seed")
+- Cursor over seed shows correct description + "Plantable" in details
+- Seeds can be picked up and added to vessels (stacking works)
+- Save, load — seeds persist correctly
+
+**[DOCS]** Update README (Latest Updates), CLAUDE.md, game-mechanics, architecture as needed.
 
 **[RETRO]** Run /retro if there were any interruptions
-
-
-2. **Flower Seeds**: 
-- (check with user to determine if requirements have been updated, shouldn't be foraging based)
-- Flower foraging cadence: can the same flower be foraged repeatedly? Timer per flower? Consider matching flower reproduction cadence.
-- Does flower seed go through standard pickup logic at character position, or special handling?
-
-[TEST]
-- Foraging a flower creates 1 seed of that flower's variety (flower remains)
-- Save and load preserves seeds and plantable state correctly
-
-**[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture as needed.
-
-**[RETRO]** Run /retro
 
 ---
 

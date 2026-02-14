@@ -99,6 +99,7 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 					Position:   item.Pos(),
 					Name:       item.Name,
 					ItemType:   item.ItemType,
+					Kind:       item.Kind,
 					Color:      string(item.Color),
 					Pattern:    string(item.Pattern),
 					Texture:    string(item.Texture),
@@ -107,6 +108,7 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 					Edible:     item.IsEdible(),
 					Poisonous:  item.IsPoisonous(),
 					Healing:    item.IsHealing(),
+					Plantable:  item.Plantable,
 					DeathTimer: item.DeathTimer,
 				}
 			}
@@ -238,6 +240,7 @@ func itemsToSave(items []*entity.Item) []save.ItemSave {
 			Edible:     item.IsEdible(),
 			Poisonous:  item.IsPoisonous(),
 			Healing:    item.IsHealing(),
+			Plantable:  item.Plantable,
 			DeathTimer: item.DeathTimer,
 		}
 	}
@@ -595,6 +598,7 @@ func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item
 		Plant:      plant,
 		Container:  containerFromSave(is.Container, registry),
 		Edible:     edible,
+		Plantable:  is.Plantable,
 		DeathTimer: is.DeathTimer,
 	}
 	item.X = is.Position.X

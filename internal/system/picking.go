@@ -536,6 +536,11 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 			}
 			item.DeathTimer = 0
 
+			// Berries and mushrooms become plantable when picked
+			if item.ItemType == "berry" || item.ItemType == "mushroom" {
+				item.Plantable = true
+			}
+
 			// Log the addition
 			if log != nil {
 				count := vessel.Container.Contents[0].Count
@@ -572,6 +577,11 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 	}
 	// Clear death timer - carried items don't decay
 	item.DeathTimer = 0
+
+	// Berries and mushrooms become plantable when picked
+	if item.ItemType == "berry" || item.ItemType == "mushroom" {
+		item.Plantable = true
+	}
 
 	// Add to inventory
 	char.AddToInventory(item)

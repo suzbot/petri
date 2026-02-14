@@ -53,6 +53,9 @@ type Item struct {
 	// Edible properties (nil for non-edible items like vessels, flowers)
 	Edible *EdibleProperties
 
+	// Plantable - set when berries/mushrooms are picked, or for seeds
+	Plantable bool
+
 	// Lifecycle
 	DeathTimer float64 // countdown until death (0 = immortal)
 }
