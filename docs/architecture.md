@@ -58,7 +58,10 @@ type EdibleProperties struct {
 }
 ```
 
-**PlantProperties** controls spawning behavior - items with `Plant.IsGrowing = true` can spawn new items of their variety. When picked up, `IsGrowing` is set to false.
+**PlantProperties** controls spawning behavior and sprout state:
+- `IsGrowing bool` — item can spawn new items of its variety. Set to false when picked up.
+- `IsSprout bool` — item is in the sprout phase. Lifecycle skips reproduction for sprouts. Maturation logic converts sprout to full-grown item when `SproutTimer` expires.
+- `SproutTimer float64` — countdown to maturation (see `config.SproutDuration`).
 
 **ContainerData** enables storage - vessels have `Capacity: 1` (one stack). Contents tracked as `[]Stack` where each Stack has a Variety pointer and count.
 
@@ -71,7 +74,7 @@ When adding a new plant type (like gourd was added in Phase 5):
 1. `entity/item.go` - Add `NewX()` constructor
 2. `config/config.go` - Add to `ItemLifecycle` map (spawn/death intervals)
 3. `game/variety_generation.go` - Add variety generation logic
-4. `game/world.go` - Add to `GetItemTypeConfigs()` for UI/character creation
+4. `game/world.go` - Add to `GetItemTypeConfigs()` for UI/character creation. Set `Plantable: true` if items of this type can be planted directly; set `CanProduceSeeds: true` if consuming produces seeds. These flags drive the Plant order UI sub-menu and the `IsOrderFeasible` check for plant orders.
 
 Note: `spawnItem()` in `lifecycle.go` is generic - copies parent properties, no changes needed.
 
@@ -90,6 +93,7 @@ Some item types use a `Kind` subtype field for hierarchical identity:
 - **Kind**: recipe- or origin-specific subtype (e.g., `"shell hoe"`, `"gourd seed"`) — what the character produces or what was consumed to create it
 - `Description()` uses Kind when set, falls back to ItemType
 - Seeds use this pattern: `ItemType: "seed"`, `Kind: "gourd seed"`, inheriting the parent gourd's full variety (Color, Pattern, Texture)
+- `ItemVariety` also carries a `Kind` field (mirrors `Item.Kind`) so vessel contents can restore the correct Kind when items are extracted via `ConsumeAccessibleItem`
 - Natural items leave Kind empty
 
 ### Future Extensions
@@ -181,8 +185,11 @@ When adding fields to saved structs, ensure ALL fields are included:
 1. **Display fields**: Symbols (`Sym`), colors, styles set by constructors
 2. **All attribute fields**: Easy to miss nested fields (e.g., Pattern/Texture on preferences)
 3. **Round-trip tests**: Save → load → verify all fields match
+4. **Variety fields**: `VarietySave` must include all fields that `ConsumeAccessibleItem` / `ConsumePlantable` need to restore (currently: `Kind`, `Plantable`, `Sym`)
 
 Constructor-set fields like `Sym` won't be populated when deserializing directly into structs - must be explicitly restored based on type.
+
+**PlantProperties serialization**: `IsSprout` and `SproutTimer` are saved/loaded as part of the plant save fields. Both must round-trip correctly to preserve sprout state across save/load.
 
 ## Orders and Actions Pattern
 
@@ -241,7 +248,8 @@ case PickupToInventory:
 - `idle.go` - Orchestrates idle eligibility, calls `selectOrderActivity()` first
 - `order_execution.go` - Order selection, assignment, intent finding, completion logic
 - Order eligibility is generic: checks activity's `Availability` requirement against character's known activities
-- `IsOrderFeasible(order, items, gameMap)` is computed on demand (not cached) at assignment time and render time — returns `(feasible bool, noKnowHow bool)`. Unfeasible orders are skipped during `findAvailableOrder`; the orders panel renders them dimmed with `[Unfulfillable]` or `[No one knows how]`.
+- `IsOrderFeasible(order, items, gameMap)` is computed on demand (not cached) at assignment time and render time — returns `(feasible bool, noKnowHow bool)`. Unfeasible orders are skipped during `findAvailableOrder`; the orders panel renders them dimmed with `[Unfulfillable]` or `[No one knows how]`. For plant orders, feasibility checks `item.Plantable && (item.ItemType == targetType || item.Kind == targetType)`.
+- `LockedVariety string` on Order: set when the first item is planted. After locking, the character only seeks items of that exact variety, keeping a single order focused on one plant variety.
 
 ## Pickup Activity Code Organization
 
@@ -249,9 +257,9 @@ Picking up items is shared across multiple activities (foraging, harvesting) wit
 
 | File | Contents | Responsibility |
 |------|----------|----------------|
-| `picking.go` | `Pickup()`, `Drop()`, `DropItem()`, vessel helpers, `EnsureHasVesselFor()`, `EnsureHasRecipeInputs()`, `findNearestItemByType()` | Physical pickup/drop, vessel operations, prerequisite helpers, map search utilities |
+| `picking.go` | `Pickup()`, `Drop()`, `DropItem()`, vessel helpers, `EnsureHasVesselFor()`, `EnsureHasRecipeInputs()`, `findNearestItemByType()`, `ConsumePlantable()` | Physical pickup/drop, vessel operations, prerequisite helpers, map search utilities |
 | `foraging.go` | `findForageIntent()`, scoring functions | Foraging targeting and unified scoring |
-| `order_execution.go` | `findHarvestIntent()`, `findCraftIntent()` | Order-specific intent finding |
+| `order_execution.go` | `findHarvestIntent()`, `findCraftIntent()`, `findPlantIntent()` | Order-specific intent finding |
 | `idle.go` | `selectIdleActivity()` | Calls foraging as one idle option |
 | `update.go` | `applyIntent()` ActionPickup/ActionCraft cases | Executes actions, handles continuation |
 
@@ -284,8 +292,11 @@ For actions that consume items from inventory or vessel contents:
 |----------|---------|
 | `HasAccessibleItem(itemType)` | Check if item exists in inventory OR inside carried vessel |
 | `ConsumeAccessibleItem(itemType)` | Remove and return item from inventory or vessel contents |
+| `ConsumePlantable(targetType, lockedVariety)` | Remove and return a plantable item from inventory or vessel contents, restoring `Kind`, `Plantable`, `Sym`, and `Edible` from the variety |
 
 **Pattern**: Check availability at intent creation (no extraction), consume at action completion. This supports pause/resume - item stays accessible until actually consumed.
+
+**Variety restoration on extraction**: When items are reconstructed from vessel stacks, `ConsumeAccessibleItem` and `ConsumePlantable` restore constructor-set fields (`Sym`, `Plantable`, `Kind`, `Edible`) from the variety. This is necessary because vessel stacks store variety references, not full item structs — direct struct reconstruction skips constructor logic. Serialization checklist: any new field set by a constructor must be listed in the variety and restored on extraction.
 
 ### Side Effects on Consumption (consumption.go)
 
@@ -433,13 +444,14 @@ Know-how activities are discovered through experience:
 
 ```go
 type DiscoveryTrigger struct {
-    Action         ActionType  // ActionPickup, ActionLook, ActionConsume
-    ItemType       string      // Specific type or empty for any
-    RequiresEdible bool        // Only trigger if item is edible
+    Action            ActionType  // ActionPickup, ActionLook, ActionConsume
+    ItemType          string      // Specific type or empty for any
+    RequiresEdible    bool        // Only trigger if item is edible
+    RequiresPlantable bool        // Only trigger if item is plantable
 }
 ```
 
-Example: Harvest is discovered by picking up, eating, or looking at edible items.
+Example: Harvest is discovered by picking up, eating, or looking at edible items. Plant is discovered by picking up or looking at plantable items (`RequiresPlantable: true`).
 
 ### Adding a New Activity
 

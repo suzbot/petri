@@ -46,6 +46,50 @@ func TestTillSoilActivity_Registered(t *testing.T) {
 	}
 }
 
+// TestPlantActivity_Registered verifies plant activity exists with correct properties
+func TestPlantActivity_Registered(t *testing.T) {
+	t.Parallel()
+
+	activity, ok := ActivityRegistry["plant"]
+	if !ok {
+		t.Fatal("plant activity not found in ActivityRegistry")
+	}
+
+	if activity.Name != "Plant" {
+		t.Errorf("plant Name: got %q, want %q", activity.Name, "Plant")
+	}
+	if activity.IntentFormation != IntentOrderable {
+		t.Errorf("plant IntentFormation: got %q, want %q", activity.IntentFormation, IntentOrderable)
+	}
+	if activity.Availability != AvailabilityKnowHow {
+		t.Errorf("plant Availability: got %q, want %q", activity.Availability, AvailabilityKnowHow)
+	}
+	if activity.Category != "garden" {
+		t.Errorf("plant Category: got %q, want %q", activity.Category, "garden")
+	}
+
+	// Verify discovery triggers with RequiresPlantable
+	if len(activity.DiscoveryTriggers) == 0 {
+		t.Fatal("plant DiscoveryTriggers: got empty, want triggers with RequiresPlantable")
+	}
+	hasLookPlantable := false
+	hasPickupPlantable := false
+	for _, trigger := range activity.DiscoveryTriggers {
+		if trigger.Action == ActionLook && trigger.RequiresPlantable {
+			hasLookPlantable = true
+		}
+		if trigger.Action == ActionPickup && trigger.RequiresPlantable {
+			hasPickupPlantable = true
+		}
+	}
+	if !hasLookPlantable {
+		t.Error("plant DiscoveryTriggers: missing ActionLook with RequiresPlantable trigger")
+	}
+	if !hasPickupPlantable {
+		t.Error("plant DiscoveryTriggers: missing ActionPickup with RequiresPlantable trigger")
+	}
+}
+
 // TestCraftActivities_HaveCategory verifies existing craft activities have Category set
 func TestCraftActivities_HaveCategory(t *testing.T) {
 	t.Parallel()

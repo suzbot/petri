@@ -17,11 +17,13 @@ Read these before discussing approach:
 ### Step 2: Discussion First (REQUIRED)
 **Do NOT write code yet.** First:
 - Ask any deferred clarifying questions
+- **Check `docs/architecture.md` for applicable patterns** — especially the Component Procurement Pattern (item acquisition), Pickup Activity, and Order execution sections. If the feature involves acquiring, dropping, or seeking items, identify which `EnsureHas*` variant applies before proposing an approach.
 - Present implementation approach with trade-offs as **conversation** (not structured multiple-choice — reserve that for simple bounded decisions)
 - Critically evaluate assumptions in existing plans, not just implement what's written
 - Get user confirmation on approach
 - Update the existing planning document in `docs/` with design decisions and implementation steps
   - Tests listed first (TDD)
+  - **New entity fields require same-step serialization** — if a step adds fields to an entity struct (Character, Item, ItemVariety, PlantProperties, etc.), the corresponding Save struct and serialize/deserialize code must be updated in that same step, not deferred to a later phase. Fields that aren't serialized silently revert to zero values on load.
   - Human testing checkpoints after each meaningful milestone, not just at the end
   - Reconcile back to original requirements at each checkpoint
 

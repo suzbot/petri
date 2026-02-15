@@ -22,6 +22,7 @@ Detailed game mechanics. For exact values, see `internal/config/config.go`.
 - [Know-how System](#know-how-system)
 - [Orders System](#orders-system)
 - [Tilled Soil](#tilled-soil)
+- [Sprouts](#sprouts)
 - [Inventory](#inventory)
 - [Crafting](#crafting)
 - [Vessels & Containers](#vessels--containers)
@@ -323,7 +324,7 @@ When knowledge is gained, "Learned something!" appears in the action log (darker
 
 Press `K` in select mode to toggle the Knowledge panel (replaces action log). Shows two sections:
 - **Facts**: Learned poison/healing knowledge (e.g., "Red berries are poisonous")
-- **Knows how to**: Discovered activity skills (e.g., "Harvest")
+- **Knows how to**: Discovered activity skills (e.g., "Harvest", "Garden: Plant", "Garden: Till Soil")
 
 Press `K` again to return to action log.
 
@@ -374,6 +375,7 @@ Know-how represents activity skills that characters discover through experience.
 
 Characters can discover know-how by performing related activities. Currently discoverable:
 - **Harvest**: Discovered when foraging (picking up items), eating edible items, or looking at edible items
+- **Plant**: Discovered when picking up or looking at plantable items (berries, mushrooms, gourd seeds). Discovery triggers use the `RequiresPlantable` flag, which fires only when the item has `Plantable: true`
 
 Discovery chance depends on mood:
 - **Joyful**: Uses `config.KnowHowDiscoveryChance` (e.g., 5%)
@@ -412,8 +414,10 @@ Panel controls:
 To add an order:
 1. Press `+` to start add order flow
 2. Select an activity (only activities known by at least one living character appear)
-3. Select a target type (e.g., for Harvest: choose berry, mushroom, or gourd)
+3. Select a target type (e.g., for Harvest: choose berry, mushroom, or gourd; for Plant: choose from plantable item kinds such as Gourd seeds, Berries, or Mushrooms)
 4. Press Enter to confirm
+
+Press `Esc` at any step to go back one level (step 2 → step 1 → exit add mode).
 
 ### Order Status
 
@@ -426,6 +430,10 @@ To add an order:
 ### Requirements
 
 Orders can only be created for activities that at least one living character knows. For example, Harvest orders require at least one character to have discovered Harvest know-how.
+
+### Variety Locking (Plant Orders)
+
+Plant orders track a `LockedVariety` that is set when the first item is planted. After locking, the character seeks only items of the exact same variety. The order completes when no further matching items are available. This keeps a single Plant order focused on one plant variety per planting session.
 
 ### Order Execution
 
@@ -501,6 +509,40 @@ When a character tills a marked tile:
 - Non-growing items at the position are displaced to an adjacent empty tile
 
 An individual character's Till Soil order completes when they find no remaining marked-but-not-tilled tiles in the pool.
+
+## Sprouts
+
+When a character executes a Plant order, the planted item is consumed and replaced with a sprout at that position.
+
+### Sprout Appearance
+
+Sprouts render as `𖧧` (bold). Color depends on conditions:
+- **Wet tile** (adjacent to water): green
+- **Mushroom variety**: variety's own color
+- **Otherwise**: olive
+
+When a sprout is on tilled soil, the tile renders as `═𖧧═` (same fill pattern as other entities on tilled soil).
+
+### Sprout Details Panel
+
+The details panel shows:
+- **Type**: Sprout
+- **Kind**: e.g., "berry sprout", "gourd sprout"
+
+`Description()` appends "sprout" to the variety description for sprout items.
+
+### Plant Order Execution
+
+When a character works a Plant order:
+1. **Procure**: pick up a plantable item matching the order's target type (from inventory, carried vessel, or ground). If inventory is full, drop unneeded items to make room.
+2. **Move**: navigate to the nearest empty tilled tile.
+3. **Plant**: spend `ActionDurationMedium` time planting, then consume the item and place a sprout.
+4. **Lock variety**: on first plant, the order locks to that exact variety (`LockedVariety`). Subsequent procurement only seeks the same variety.
+5. **Complete**: when no empty tilled tiles remain, or no matching items are available.
+
+### ConsumePlantable Helper
+
+`ConsumePlantable` extracts a plantable item from a character's inventory or vessel contents for use in planting. It handles both loose inventory items and vessel stack items, restoring the item's `Kind`, `Plantable`, `Sym`, and `Edible` fields from the variety on extraction.
 
 ## Inventory
 

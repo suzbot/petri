@@ -1691,6 +1691,140 @@ func TestIsOrderFeasible_KnowHow_WhenAtLeastOneCharacterKnows(t *testing.T) {
 	}
 }
 
+func TestIsOrderFeasible_PlantFeasible_WhenPlantableSeedExistsByKind(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	seed := entity.NewSeed(7, 5, "gourd", types.ColorGreen, types.PatternNone, types.TextureNone)
+	gameMap.AddItem(seed)
+
+	// Target is the Kind "gourd seed", not the ItemType "seed"
+	order := entity.NewOrder(1, "plant", "gourd seed")
+	items := gameMap.Items()
+
+	feasible, noKnowHow := IsOrderFeasible(order, items, gameMap)
+
+	if !feasible {
+		t.Error("Plant should be feasible when plantable gourd seed exists (matched by Kind)")
+	}
+	if noKnowHow {
+		t.Error("noKnowHow should be false")
+	}
+}
+
+func TestIsOrderFeasible_PlantFeasible_WhenPlantableBerryExists(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	berry := &entity.Item{
+		ItemType:  "berry",
+		Plantable: true,
+	}
+	gameMap.AddItem(berry)
+
+	order := entity.NewOrder(1, "plant", "berry")
+	items := gameMap.Items()
+
+	feasible, noKnowHow := IsOrderFeasible(order, items, gameMap)
+
+	if !feasible {
+		t.Error("Plant should be feasible when plantable berry exists (matched by ItemType)")
+	}
+	if noKnowHow {
+		t.Error("noKnowHow should be false")
+	}
+}
+
+func TestIsOrderFeasible_PlantFeasible_WhenPlantableBerryInVessel(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	// Berry stored in vessel (Plantable flag lost, but config says berry is plantable)
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{
+				{Variety: &entity.ItemVariety{ItemType: "berry", Color: types.ColorRed}, Count: 3},
+			},
+		},
+	}
+	char.Inventory = []*entity.Item{vessel}
+	gameMap.AddCharacter(char)
+
+	order := entity.NewOrder(1, "plant", "berry")
+	items := gameMap.Items()
+
+	feasible, noKnowHow := IsOrderFeasible(order, items, gameMap)
+
+	if !feasible {
+		t.Error("Plant should be feasible when berries exist in a vessel")
+	}
+	if noKnowHow {
+		t.Error("noKnowHow should be false")
+	}
+}
+
+func TestIsOrderFeasible_PlantUnfeasible_WhenNoPlantableItems(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	// Berry on map is growing (not plantable)
+	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	order := entity.NewOrder(1, "plant", "berry")
+	items := gameMap.Items()
+
+	feasible, noKnowHow := IsOrderFeasible(order, items, gameMap)
+
+	if feasible {
+		t.Error("Plant should be unfeasible when no plantable berries exist")
+	}
+	if noKnowHow {
+		t.Error("noKnowHow should be false (items missing, not know-how)")
+	}
+}
+
+func TestIsOrderFeasible_PlantUnfeasible_WhenWrongSeedKind(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	// Gourd seed exists but order targets flower seeds
+	seed := entity.NewSeed(7, 5, "gourd", types.ColorGreen, types.PatternNone, types.TextureNone)
+	gameMap.AddItem(seed)
+
+	order := entity.NewOrder(1, "plant", "flower seed")
+	items := gameMap.Items()
+
+	feasible, noKnowHow := IsOrderFeasible(order, items, gameMap)
+
+	if feasible {
+		t.Error("Plant should be unfeasible when no flower seeds exist (only gourd seeds)")
+	}
+	if noKnowHow {
+		t.Error("noKnowHow should be false (items missing, not know-how)")
+	}
+}
+
 // =============================================================================
 // findAvailableOrder — skips unfeasible orders
 // =============================================================================
@@ -1718,6 +1852,259 @@ func TestFindAvailableOrder_SkipsUnfeasibleOrder(t *testing.T) {
 
 	if result != order2 {
 		t.Errorf("Should skip unfeasible order1 and return order2, got %v", result)
+	}
+}
+
+// =============================================================================
+// findPlantIntent
+// =============================================================================
+
+func TestFindPlantIntent_ReturnsProcurementIntent_WhenNoPlantableCarried(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	// Tilled empty tile
+	gameMap.SetTilled(types.Position{X: 3, Y: 3})
+
+	// Plantable seed on the ground (not carried)
+	seed := entity.NewSeed(7, 5, "gourd", types.ColorGreen, types.PatternNone, types.TextureNone)
+	gameMap.AddItem(seed)
+
+	order := entity.NewOrder(1, "plant", "gourd seed")
+	items := gameMap.Items()
+
+	intent := findPlantIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected procurement intent to pick up seed")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Expected ActionPickup, got %d", intent.Action)
+	}
+	if intent.TargetItem != seed {
+		t.Error("Expected intent to target the seed on the ground")
+	}
+}
+
+func TestFindPlantIntent_ReturnsMovementIntent_WhenCarryingPlantable(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	// Carrying a plantable berry
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	berry.Plantable = true
+	char.AddToInventory(berry)
+	gameMap.AddCharacter(char)
+
+	// Tilled empty tile away from character
+	gameMap.SetTilled(types.Position{X: 8, Y: 5})
+
+	order := entity.NewOrder(1, "plant", "berry")
+	items := gameMap.Items()
+
+	intent := findPlantIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected movement intent toward tilled tile")
+	}
+	if intent.Action != entity.ActionPlant {
+		t.Errorf("Expected ActionPlant, got %d", intent.Action)
+	}
+	// Dest should be the tilled tile
+	if intent.Dest.X != 8 || intent.Dest.Y != 5 {
+		t.Errorf("Expected Dest (8,5), got (%d,%d)", intent.Dest.X, intent.Dest.Y)
+	}
+	// Target (next step) should be moving toward the tilled tile
+	if intent.Target.X <= 5 {
+		t.Error("Expected Target to move toward tilled tile (X > 5)")
+	}
+}
+
+func TestFindPlantIntent_ReturnsActionPlant_WhenAtEmptyTilledTileWithPlantable(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	berry.Plantable = true
+	char.AddToInventory(berry)
+	gameMap.AddCharacter(char)
+
+	// Character is standing on tilled empty tile
+	gameMap.SetTilled(types.Position{X: 5, Y: 5})
+
+	order := entity.NewOrder(1, "plant", "berry")
+	items := gameMap.Items()
+
+	intent := findPlantIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected ActionPlant intent")
+	}
+	if intent.Action != entity.ActionPlant {
+		t.Errorf("Expected ActionPlant, got %d", intent.Action)
+	}
+	if intent.Target.X != 5 || intent.Target.Y != 5 {
+		t.Errorf("Expected Target (5,5), got (%d,%d)", intent.Target.X, intent.Target.Y)
+	}
+	if intent.Dest.X != 5 || intent.Dest.Y != 5 {
+		t.Errorf("Expected Dest (5,5), got (%d,%d)", intent.Dest.X, intent.Dest.Y)
+	}
+}
+
+func TestFindPlantIntent_ReturnsNil_WhenNoEmptyTilledTiles(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	berry.Plantable = true
+	char.AddToInventory(berry)
+	gameMap.AddCharacter(char)
+
+	// No tilled tiles at all
+	order := entity.NewOrder(1, "plant", "berry")
+	items := gameMap.Items()
+
+	intent := findPlantIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent != nil {
+		t.Error("Expected nil intent when no tilled tiles exist")
+	}
+}
+
+func TestFindPlantIntent_ReturnsNil_WhenNoPlantableItemsAvailable(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	// Tilled tile exists
+	gameMap.SetTilled(types.Position{X: 3, Y: 3})
+
+	// No plantable items on map or in inventory
+	order := entity.NewOrder(1, "plant", "berry")
+	items := gameMap.Items()
+
+	intent := findPlantIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent != nil {
+		t.Error("Expected nil intent when no plantable items available")
+	}
+}
+
+func TestFindPlantIntent_WithLockedVariety_OnlySeeksMatchingVariety(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	// Tilled tile
+	gameMap.SetTilled(types.Position{X: 3, Y: 3})
+
+	// Blue berry on map (plantable but wrong variety)
+	blueBerry := entity.NewBerry(7, 5, types.ColorBlue, false, false)
+	blueBerry.Plantable = true
+	blueBerry.Plant.IsGrowing = false
+	gameMap.AddItem(blueBerry)
+
+	// Order has locked variety to "red berry"
+	order := entity.NewOrder(1, "plant", "berry")
+	order.LockedVariety = entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone)
+	items := gameMap.Items()
+
+	intent := findPlantIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	// Should return nil — blue berry doesn't match locked red variety
+	if intent != nil {
+		t.Error("Expected nil intent — only blue berry available but locked to red variety")
+	}
+}
+
+func TestFindPlantIntent_SkipsTilledTilesWithItems(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	berry.Plantable = true
+	char.AddToInventory(berry)
+	gameMap.AddCharacter(char)
+
+	// Two tilled tiles: one has a sprout, one is empty
+	occupiedPos := types.Position{X: 6, Y: 5}
+	emptyPos := types.Position{X: 8, Y: 5}
+	gameMap.SetTilled(occupiedPos)
+	gameMap.SetTilled(emptyPos)
+
+	// Place a sprout on the occupied tile
+	sprout := entity.CreateSprout(occupiedPos.X, occupiedPos.Y, berry, berry.Edible)
+	gameMap.AddItem(sprout)
+
+	order := entity.NewOrder(1, "plant", "berry")
+	items := gameMap.Items()
+
+	intent := findPlantIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected intent targeting empty tilled tile")
+	}
+	// Should target the empty tile, not the occupied one
+	if intent.Dest.X != emptyPos.X || intent.Dest.Y != emptyPos.Y {
+		t.Errorf("Expected Dest %v, got (%d,%d)", emptyPos, intent.Dest.X, intent.Dest.Y)
+	}
+}
+
+func TestFindPlantIntent_DropsUnneededItem_WhenInventoryFull(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	// Fill inventory with non-plantable items (hoe + stick)
+	hoe := entity.NewHoe(0, 0, types.ColorSilver)
+	stick := entity.NewStick(0, 0)
+	char.AddToInventory(hoe)
+	char.AddToInventory(stick)
+
+	// Tilled empty tile
+	gameMap.SetTilled(types.Position{X: 3, Y: 3})
+
+	// Plantable seed on the ground
+	seed := entity.NewSeed(7, 5, "gourd", types.ColorGreen, types.PatternNone, types.TextureNone)
+	gameMap.AddItem(seed)
+
+	order := entity.NewOrder(1, "plant", "gourd seed")
+	actionLog := NewActionLog(100)
+	items := gameMap.Items()
+
+	intent := findPlantIntent(char, char.Pos(), items, order, actionLog, gameMap)
+
+	// Should have dropped an item to make room
+	if !char.HasInventorySpace() {
+		t.Error("Expected character to drop an item to make inventory space")
+	}
+	// Should return pickup intent for the seed
+	if intent == nil {
+		t.Fatal("Expected procurement intent after dropping item")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Expected ActionPickup, got %d", intent.Action)
 	}
 }
 

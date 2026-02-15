@@ -1166,7 +1166,7 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 
 **[RETRO]** Run /retro.
 
-##### Step 1a: Plant Activity Registration + Order UI
+##### Step 1a: Plant Activity Registration + Order UI ✅
 
 **Tests** (in `internal/entity/activity_test.go`):
 - `plant` activity registered with Category `"garden"`, IntentOrderable, AvailabilityKnowHow
@@ -1182,22 +1182,26 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 
 **Implementation:**
 - Add `RequiresPlantable bool` to `DiscoveryTrigger` struct in activity.go
-- Update know-how discovery check to handle `RequiresPlantable` (check `item.Plantable`)
+- Update `triggerMatches()` in discovery.go to handle `RequiresPlantable` (check `item.Plantable`)
 - Register `plant` activity: ID `"plant"`, Name `"Plant"`, Category `"garden"`, IntentOrderable, AvailabilityKnowHow, triggers on ActionLook + ActionPickup with RequiresPlantable
-- Add `LockedVariety string` to Order struct, `json:"locked_variety,omitempty"` in save
-- Order UI: selecting "Plant" in garden step 1 → step 2 shows plantable types: "Seeds" (`"seed"`), "Berries" (`"berry"`), "Mushrooms" (`"mushroom"`). Selecting creates order with TargetItemType set.
-- `DisplayName()`: follows harvest pattern → "Plant seeds", "Plant berries", "Plant mushrooms"
-- Unfulfillable check: plant order unfulfillable when no plantable items of target type exist in world
+- Add `LockedVariety string` to Order struct, `json:"locked_variety,omitempty"` in save state
+- Add `Plantable bool` and `CanProduceSeeds bool` to `ItemTypeConfig` in variety_generation.go. Berry + mushroom get `Plantable: true`. Gourd gets `CanProduceSeeds: true`.
+- `getPlantableTypes()` derives menu entries from config: types with `Plantable` appear as-is ("Berries", "Mushrooms"); types with `CanProduceSeeds` appear as "{type} seeds" ("Gourd seeds"). Per reqs line 89: `Garden > Plant > Select Plantable ItemType (gourd seeds, flower seeds, mushrooms, berries, future: nuts)`.
+- Order UI: selecting "Plant" in garden step 1 → reuse step 2 for plantable type sub-menu (branch on activity ID: tillSoil → area selection, plant → type list). Selecting creates order with TargetType set (ItemType for berry/mushroom, Kind for seeds e.g. `"gourd seed"`).
+- `DisplayName()`: plant activity uses harvest-style pattern → "Plant gourd seeds", "Plant berries", "Plant mushrooms"
+- Unfulfillable check: plant order unfulfillable when no plantable items of target type exist in world. Match on `item.Plantable && (item.ItemType == targetType || item.Kind == targetType)`.
 - Serialization: LockedVariety in order save/load
+- **Esc back-navigation fix (orders only):** Align Esc behavior within the order add flow with the "esc = back one level" principle from `randomideas.md` #2. Currently Esc at step 1 exits add mode entirely; fix so step 2 → step 1 → step 0 → exit add mode. This scopes the fix to orders only; the broader cross-panel Esc cleanup remains a separate future task.
 
 **[TEST] Checkpoint — Plant activity registration + order UI:**
 - `go test ./...` passes
 - Build and run: character discovers Plant from looking at/picking up plantable items
 - Knowledge panel shows "Garden: Plant"
-- Orders → Garden → Plant → sub-menu shows Seeds/Berries/Mushrooms
-- Selecting one creates order showing "Plant seeds" in orders panel
+- Orders → Garden → Plant → sub-menu shows kind-level types: "Gourd seeds", "Berries", "Mushrooms"
+- Selecting one creates order showing "Plant gourd seeds" / "Plant berries" etc. in orders panel
 - Plant order shows [Unfulfillable] when no plantable items exist
-- Esc navigates back through sub-menus correctly
+- Esc navigates back through sub-menus correctly (step by step, not jumping out)
+- Esc back-navigation also works for existing activities (Till Soil, Craft, Harvest)
 - Order can be cancelled normally
 - Note: ordering Plant creates the order but character can't execute it yet (Step 1b)
 
@@ -1205,7 +1209,9 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 
 **[RETRO]** Run /retro.
 
-##### Step 1b: Sprout Creation + findPlantIntent + ActionPlant
+##### Step 1b: Sprout Creation + findPlantIntent + ActionPlant ✅
+
+**Investigation resolved: Plantable flag and vessel extraction.** `ConsumeAccessibleItem` reconstructs items from vessel stacks but only copies ItemType/Color/Pattern/Texture — it does NOT restore `Edible`, `Sym`, `Plantable`, or `Kind`. Edible properties appear to survive only because the consumption system handles poison/healing through a separate path. **Fix: Add `Plantable bool` to `ItemVariety`** (mirrors `Edible` pattern), set during variety generation for berry/mushroom/seed varieties. Fix `ConsumeAccessibleItem` to restore `Plantable`, `Edible`, and `Sym` from the variety on extraction. This means items in vessels always know their plantable status via the variety — no config-inference needed.
 
 **Design: Sprout Data Model**
 
@@ -1221,7 +1227,7 @@ Creates a sprout item from a plantable item:
 **Design: findPlantIntent Flow**
 
 1. Find nearest empty tilled tile (no item at position). If none → return nil (order complete).
-2. Check if character has accessible plantable item of target type (inventory + vessel). If LockedVariety set, filter to matching variety.
+2. Check if character has accessible plantable item of target type (inventory + vessel). If LockedVariety set, filter to matching variety. Accessible check uses `Plantable` on inventory items and `variety.Plantable` on vessel contents. Seed matching: targetType `"gourd seed"` matches items with Kind `"gourd seed"` or vessel stacks where variety is seed type with matching attributes.
 3. If no accessible item: seek nearest plantable item of target type on ground. If LockedVariety set, filter to matching variety.
 4. If no item findable → return nil (completion if LockedVariety set, abandon if never started).
 5. If carrying item but not at tilled tile → move intent (BFS).
@@ -1229,12 +1235,28 @@ Creates a sprout item from a plantable item:
 
 **Logging note (from Till Soil retro):** Only log on completion — not on start. Log "Planted [variety]" per tile completion.
 
-**Tests** (in `internal/entity/item_test.go`):
+**Config:** `CharSprout = '𖧧'`, `SproutDuration = 30.0`
+
+---
+
+**Phase 1: Data model + CreateSprout**
+
+_Tests_ (in `internal/entity/item_test.go`):
 - CreateSprout from gourd seed: sprout has ItemType `"gourd"`, IsSprout true, symbol CharSprout, parent variety
 - CreateSprout from berry: sprout has ItemType `"berry"`, IsSprout true, symbol CharSprout, parent variety
 - CreateSprout from mushroom: sprout preserves edible properties (poisonous/healing)
 
-**Tests** (in `internal/system/order_execution_test.go`):
+_Implementation:_
+- Add `Plantable bool` to `ItemVariety`; set during generation for berry/mushroom/seed varieties
+- Fix `ConsumeAccessibleItem` to restore `Plantable`, `Edible`, `Sym` from variety on extraction
+- Add `IsSprout bool`, `SproutTimer float64` to PlantProperties
+- Add `CharSprout`, `SproutDuration` constants to config.go
+- Add `ActionPlant` to ActionType enum
+- `CreateSprout(x, y int, plantedItem *Item, ...)` helper in entity/item.go
+
+**Phase 2: findPlantIntent**
+
+_Tests_ (in `internal/system/order_execution_test.go`):
 - `findPlantIntent` returns procurement intent when no plantable item carried
 - `findPlantIntent` returns movement intent toward nearest empty tilled tile when carrying plantable
 - `findPlantIntent` returns ActionPlant when at empty tilled tile with plantable item
@@ -1243,34 +1265,28 @@ Creates a sprout item from a plantable item:
 - `findPlantIntent` with LockedVariety only seeks matching variety
 - `findPlantIntent` skips tilled tiles that already have items
 
-**Tests** (in `internal/ui/update_test.go`):
+_Implementation:_
+- `findPlantIntent()` in order_execution.go (see flow above)
+- New helpers: `hasAccessiblePlantable(char, targetType, lockedVariety)`, `findNearestPlantableItem(...)` in picking.go
+- Wire into `findOrderIntent()`: `case "plant"` → `findPlantIntent()`
+- Order completion: nil from `findPlantIntent` → complete if LockedVariety set, abandon if empty
+
+**Phase 3: ActionPlant handler + rendering**
+
+_Tests_ (in `internal/ui/update_test.go`):
 - ActionPlant consumes plantable item from inventory, creates sprout at position
 - ActionPlant from gourd seed: sprout has ItemType `"gourd"`, correct variety
 - ActionPlant from berry: sprout has ItemType `"berry"`, correct variety
 - ActionPlant sets LockedVariety on order when first planted
 - Sprout has IsSprout=true, IsGrowing=true, symbol CharSprout
 
-**Tests** (serialization):
-- IsSprout and SproutTimer round-trip through save/load
-
-**Config:** `CharSprout = '𖧧'`, `SproutDuration = 30.0`
-
-**Implementation:**
-- Add `IsSprout bool`, `SproutTimer float64` to PlantProperties
-- Add `CharSprout`, `SproutDuration` constants to config.go
-- `CreateSprout(x, y int, plantedItem *Item, ...)` helper for sprout creation
-- Add `ActionPlant` to ActionType enum
-- `findPlantIntent()` in order_execution.go (see flow above)
-- New helper: `findNearestPlantableItem(itemType, items, charPos, lockedVariety)` in picking.go
-- Wire into `findOrderIntent()`: `case "plant"` → `findPlantIntent()`
+_Implementation:_
 - ActionPlant handler in update.go: progress-based (ActionDurationMedium), on completion consume item + create sprout + set LockedVariety + log "Planted [variety]"
-- Order completion: nil from `findPlantIntent` → complete if LockedVariety set, abandon if empty
 - Sprout rendering in `renderCell()`: mushroom=variety color, wet=green, else=olive (`growingStyle`)
 - Tilled soil rendering: `═𖧧═` for sprout on tilled tile (existing fill pattern)
 - Details panel: "Sprout of [variety]" for sprout items
-- Serialization: IsSprout, SproutTimer in plant save fields; LockedVariety in order save
 
-**[TEST] Checkpoint — Full Plant flow:**
+**[TEST] Checkpoint — Plant flow (pre-serialization):**
 - `go test ./...` passes
 - Build and run (use `/test-world` with Plant know-how + tilled soil + seeds/berries):
   - Order Plant > Seeds: character picks up gourd seed, moves to tilled soil, plants
@@ -1282,8 +1298,18 @@ Creates a sprout item from a plantable item:
   - Order completes when seeds exhausted or no empty tilled tiles
   - Order Plant > Berries: character picks up plantable berry, plants on tilled soil
   - Multiple characters can plant simultaneously with different orders
-  - Save, load preserves sprouts, locked variety, and sprout timers
   - Note: sprouts do NOT mature yet (Step 2)
+
+**Phase 4: Serialization**
+
+_Tests:_
+- IsSprout and SproutTimer round-trip through save/load
+
+_Implementation:_
+- IsSprout, SproutTimer in plant save fields
+
+**[TEST] Checkpoint — Serialization:**
+- Save, load preserves sprouts, locked variety, and sprout timers
 
 **Reqs reconciliation:** Lines 84-99. _"Discoverable Know-How"_ ✓, _"Orderable"_ ✓, _"Garden > Plant > Select Plantable ItemType"_ ✓, _"planted item becomes a growing 'sprout'"_ ✓, _"sprouts appear olive unless tile is watered"_ ✓, _"mushrooms always the color of their variety"_ ✓, _"keep planting until that specific variety... is no longer available OR... no more unplanted tilled soil"_ ✓, _"More than one character can be planting at once"_ ✓.
 

@@ -132,6 +132,60 @@ func EnsureHasItem(char *entity.Character, itemType string, items []*entity.Item
 	return createItemPickupIntent(char, char.Pos(), target, gameMap, log)
 }
 
+// EnsureHasPlantable returns an intent to acquire a plantable item matching
+// the target type and optional locked variety, or nil if the character already
+// has one (or none exists on the map).
+// Follows the same pattern as EnsureHasItem but with plantable-specific matching.
+func EnsureHasPlantable(char *entity.Character, targetType string, lockedVariety string, items []*entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
+	// Check if already carrying a matching plantable
+	if hasAccessiblePlantable(char, targetType, lockedVariety) {
+		return nil
+	}
+
+	// Need to find one — make inventory space if needed
+	if !char.HasInventorySpace() {
+		dropped := false
+		for _, inv := range char.Inventory {
+			if inv == nil {
+				continue
+			}
+			// Don't drop plantable items matching our target
+			if inv.Plantable && matchesPlantTarget(inv.ItemType, inv.Kind, inv.Color, inv.Pattern, inv.Texture, targetType, lockedVariety) {
+				continue
+			}
+			// Don't drop vessels containing matching plantable items
+			if inv.Container != nil {
+				hasMatch := false
+				for _, stack := range inv.Container.Contents {
+					if stack.Variety != nil && stack.Count > 0 && stack.Variety.Plantable {
+						if matchesPlantTargetVariety(stack.Variety, targetType, lockedVariety) {
+							hasMatch = true
+							break
+						}
+					}
+				}
+				if hasMatch {
+					continue
+				}
+			}
+			DropItem(char, inv, gameMap, log)
+			dropped = true
+			break
+		}
+		if !dropped {
+			return nil
+		}
+	}
+
+	// Find nearest plantable on map
+	target := findNearestPlantableOnGround(char.X, char.Y, items, targetType, lockedVariety)
+	if target == nil {
+		return nil
+	}
+
+	return createItemPickupIntent(char, char.Pos(), target, gameMap, log)
+}
+
 // =============================================================================
 // EnsureHasRecipeInputs
 // =============================================================================
@@ -292,6 +346,153 @@ func findNearestItemByType(cx, cy int, items []*entity.Item, itemType string, gr
 		}
 	}
 
+	return nearest
+}
+
+// =============================================================================
+// Plantable Item Helpers
+// =============================================================================
+
+// hasAccessiblePlantable returns true if the character has a plantable item
+// ConsumePlantable removes and returns a plantable item from the character's inventory
+// matching the target type, optionally filtered by locked variety.
+// Prefers loose inventory items, then checks vessel contents.
+// Returns the consumed item (extracted from vessel if needed), or nil if none found.
+func ConsumePlantable(char *entity.Character, targetType string, lockedVariety string) *entity.Item {
+	// First check loose inventory (prefer loose items)
+	for _, item := range char.Inventory {
+		if item == nil {
+			continue
+		}
+		if item.Plantable && matchesPlantTarget(item.ItemType, item.Kind, item.Color, item.Pattern, item.Texture, targetType, lockedVariety) {
+			char.RemoveFromInventory(item)
+			return item
+		}
+	}
+	// Check vessel contents
+	for _, vessel := range char.Inventory {
+		if vessel == nil || vessel.Container == nil {
+			continue
+		}
+		for i, stack := range vessel.Container.Contents {
+			if stack.Variety != nil && stack.Count > 0 && stack.Variety.Plantable {
+				if matchesPlantTargetVariety(stack.Variety, targetType, lockedVariety) {
+					// Decrement count
+					vessel.Container.Contents[i].Count--
+					if vessel.Container.Contents[i].Count <= 0 {
+						vessel.Container.Contents = append(
+							vessel.Container.Contents[:i],
+							vessel.Container.Contents[i+1:]...,
+						)
+					}
+					// Reconstruct item from variety
+					item := &entity.Item{
+						ItemType:  stack.Variety.ItemType,
+						Kind:      stack.Variety.Kind,
+						Color:     stack.Variety.Color,
+						Pattern:   stack.Variety.Pattern,
+						Texture:   stack.Variety.Texture,
+						Edible:    stack.Variety.Edible,
+						Plantable: stack.Variety.Plantable,
+					}
+					item.EType = entity.TypeItem
+					item.Sym = stack.Variety.Sym
+					return item
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// hasAccessiblePlantable checks if the character has a plantable item accessible
+// matching the target type, optionally filtered by locked variety.
+// Checks loose inventory items (by Plantable + ItemType/Kind match) and
+// vessel contents (by variety.Plantable + ItemType/Kind match).
+func hasAccessiblePlantable(char *entity.Character, targetType string, lockedVariety string) bool {
+	for _, item := range char.Inventory {
+		if item == nil {
+			continue
+		}
+		if item.Plantable && matchesPlantTarget(item.ItemType, item.Kind, item.Color, item.Pattern, item.Texture, targetType, lockedVariety) {
+			return true
+		}
+		// Check vessel contents
+		if item.Container != nil {
+			for _, stack := range item.Container.Contents {
+				if stack.Variety != nil && stack.Count > 0 && stack.Variety.Plantable {
+					if matchesPlantTargetVariety(stack.Variety, targetType, lockedVariety) {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
+}
+
+// matchesPlantTarget checks if an item matches the plant order's target type and locked variety.
+// For seeds: targetType is "gourd seed", matched against Kind.
+// For berries/mushrooms: targetType is "berry"/"mushroom", matched against ItemType.
+func matchesPlantTarget(itemType, kind string, color types.Color, pattern types.Pattern, texture types.Texture, targetType string, lockedVariety string) bool {
+	if !(itemType == targetType || kind == targetType) {
+		return false
+	}
+	if lockedVariety != "" {
+		// Match against the item's variety ID
+		varItemType := itemType
+		if kind != "" && kind == targetType {
+			// For seeds, use seed as the variety item type
+			varItemType = itemType
+		}
+		vid := entity.GenerateVarietyID(varItemType, color, pattern, texture)
+		if vid != lockedVariety {
+			return false
+		}
+	}
+	return true
+}
+
+// matchesPlantTargetVariety checks if a variety matches the plant order's target type and locked variety.
+// For seeds: targetType is "gourd seed", variety.ItemType is "seed".
+// For berries/mushrooms: targetType matches variety.ItemType directly.
+func matchesPlantTargetVariety(v *entity.ItemVariety, targetType string, lockedVariety string) bool {
+	matches := false
+	if v.ItemType == targetType {
+		matches = true
+	} else if v.ItemType == "seed" && len(targetType) > 5 && targetType[len(targetType)-5:] == " seed" {
+		matches = true
+	}
+	if !matches {
+		return false
+	}
+	if lockedVariety != "" && v.ID != lockedVariety {
+		return false
+	}
+	return true
+}
+
+// findNearestPlantableOnGround finds the nearest plantable item on the map matching
+// the target type and optional locked variety.
+func findNearestPlantableOnGround(cx, cy int, items []*entity.Item, targetType string, lockedVariety string) *entity.Item {
+	pos := types.Position{X: cx, Y: cy}
+	var nearest *entity.Item
+	nearestDist := int(^uint(0) >> 1) // Max int
+
+	for _, item := range items {
+		if !item.Plantable {
+			continue
+		}
+		if !matchesPlantTarget(item.ItemType, item.Kind, item.Color, item.Pattern, item.Texture, targetType, lockedVariety) {
+			continue
+		}
+		ipos := item.Pos()
+		dist := pos.DistanceTo(ipos)
+		if dist < nearestDist {
+			nearestDist = dist
+			nearest = item
+		}
+	}
 	return nearest
 }
 

@@ -564,8 +564,8 @@ func (m Model) renderCell(x, y int) string {
 		fill = growingStyle.Render(string(config.CharTilledSoil))
 	}
 
-	// Area selection highlighting (only visible during step 2)
-	if m.ordersAddMode && m.ordersAddStep == 2 {
+	// Area selection highlighting (only visible during tillSoil step 2)
+	if m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID == "tillSoil" {
 		// Rectangle highlight when anchor is set
 		if m.areaSelectAnchor != nil && !isCursor {
 			cursor := types.Position{X: m.cursorX, Y: m.cursorY}
@@ -668,6 +668,13 @@ func (m Model) styledSymbol(e entity.Entity) string {
 		return allSymbols[idx].style.Render(allSymbols[idx].symbol)
 
 	case *entity.Item:
+		// Sprout rendering: sage for most, green on wet ground, variety color for mushrooms
+		if v.Plant != nil && v.Plant.IsSprout && v.ItemType != "mushroom" {
+			if m.gameMap.IsWet(v.Pos()) {
+				return greenStyle.Render(sym)
+			}
+			return sproutStyle.Render(sym)
+		}
 		switch v.Color {
 		case types.ColorRed:
 			return redStyle.Render(sym)
@@ -840,7 +847,11 @@ func (m Model) renderDetails() string {
 		}
 
 	} else if item != nil {
-		lines = append(lines, " Type: Item")
+		if item.Plant != nil && item.Plant.IsSprout {
+			lines = append(lines, " Type: "+growingStyle.Render("Sprout"))
+		} else {
+			lines = append(lines, " Type: Item")
+		}
 		if m.testCfg.Debug {
 			lines = append(lines, fmt.Sprintf(" Pos: (%d, %d)", m.cursorX, m.cursorY))
 		}
@@ -848,8 +859,12 @@ func (m Model) renderDetails() string {
 		if item.Name != "" {
 			lines = append(lines, fmt.Sprintf(" Name: %s", item.Name))
 		}
+		kindLabel := item.ItemType
+		if item.Plant != nil && item.Plant.IsSprout {
+			kindLabel += " sprout"
+		}
 		lines = append(lines,
-			fmt.Sprintf(" Kind: %s", item.ItemType),
+			fmt.Sprintf(" Kind: %s", kindLabel),
 			fmt.Sprintf(" Color: %s", item.Color),
 		)
 		// Show Pattern/Texture if item has them (works for both natural and crafted items)
@@ -1379,7 +1394,7 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 	orderableActivities := m.getOrderableActivities()
 
 	// Add hints at top so they're always visible
-	if m.ordersAddMode && m.ordersAddStep == 2 {
+	if m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID == "tillSoil" {
 		// Area selection hints
 		modeName := "Mark"
 		if m.areaSelectUnmarkMode {
@@ -1434,9 +1449,21 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 				}
 			}
 		} else if m.ordersAddStep == 2 {
-			// Step 2: Area selection — hints are already rendered above, nothing else needed
+			if m.step2ActivityID == "plant" {
+				// Step 2 (plant): show plantable type selection
+				plantTypes := game.GetPlantableTypes()
+				lines = append(lines, indent+"Select type to plant:", "")
+				for i, pt := range plantTypes {
+					prefix := selectIndent
+					if i == m.selectedPlantTypeIndex {
+						prefix = selectPrefix
+					}
+					lines = append(lines, prefix+pt.DisplayName)
+				}
+			}
+			// tillSoil: hints already rendered above, nothing else needed
 		} else {
-			// Step 2: Select sub-item based on selected category/activity
+			// Step 1: Select sub-item based on selected category/activity
 			if m.selectedActivityIndex < len(orderableActivities) &&
 				isSyntheticCategory(orderableActivities[m.selectedActivityIndex].ID) {
 				category := syntheticCategoryID(orderableActivities[m.selectedActivityIndex].ID)

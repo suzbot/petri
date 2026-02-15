@@ -42,11 +42,12 @@ func ordersToSave(orders []*entity.Order) []save.OrderSave {
 	result := make([]save.OrderSave, len(orders))
 	for i, o := range orders {
 		result[i] = save.OrderSave{
-			ID:         o.ID,
-			ActivityID: o.ActivityID,
-			TargetType: o.TargetType,
-			Status:     string(o.Status),
-			AssignedTo: o.AssignedTo,
+			ID:            o.ID,
+			ActivityID:    o.ActivityID,
+			TargetType:    o.TargetType,
+			LockedVariety: o.LockedVariety,
+			Status:        string(o.Status),
+			AssignedTo:    o.AssignedTo,
 		}
 	}
 	return result
@@ -62,12 +63,15 @@ func varietiesToSave(registry *game.VarietyRegistry) []save.VarietySave {
 	for i, v := range varieties {
 		result[i] = save.VarietySave{
 			ItemType:  v.ItemType,
+			Kind:      v.Kind,
 			Color:     string(v.Color),
 			Pattern:   string(v.Pattern),
 			Texture:   string(v.Texture),
 			Edible:    v.IsEdible(),
 			Poisonous: v.IsPoisonous(),
 			Healing:   v.IsHealing(),
+			Plantable: v.Plantable,
+			Sym:       string(v.Sym),
 		}
 	}
 	return result
@@ -90,8 +94,10 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 				var plantSave *save.PlantPropertiesSave
 				if item.Plant != nil {
 					plantSave = &save.PlantPropertiesSave{
-						IsGrowing:  item.Plant.IsGrowing,
-						SpawnTimer: item.Plant.SpawnTimer,
+						IsGrowing:   item.Plant.IsGrowing,
+						SpawnTimer:  item.Plant.SpawnTimer,
+						IsSprout:    item.Plant.IsSprout,
+						SproutTimer: item.Plant.SproutTimer,
 					}
 				}
 				inventory[idx] = save.ItemSave{
@@ -222,8 +228,10 @@ func itemsToSave(items []*entity.Item) []save.ItemSave {
 		var plantSave *save.PlantPropertiesSave
 		if item.Plant != nil {
 			plantSave = &save.PlantPropertiesSave{
-				IsGrowing:  item.Plant.IsGrowing,
-				SpawnTimer: item.Plant.SpawnTimer,
+				IsGrowing:   item.Plant.IsGrowing,
+				SpawnTimer:  item.Plant.SpawnTimer,
+				IsSprout:    item.Plant.IsSprout,
+				SproutTimer: item.Plant.SproutTimer,
 			}
 		}
 		result[i] = save.ItemSave{
@@ -409,11 +417,12 @@ func ordersFromSave(orders []save.OrderSave) []*entity.Order {
 	result := make([]*entity.Order, len(orders))
 	for i, os := range orders {
 		result[i] = &entity.Order{
-			ID:         os.ID,
-			ActivityID: os.ActivityID,
-			TargetType: os.TargetType,
-			Status:     entity.OrderStatus(os.Status),
-			AssignedTo: os.AssignedTo,
+			ID:            os.ID,
+			ActivityID:    os.ActivityID,
+			TargetType:    os.TargetType,
+			LockedVariety: os.LockedVariety,
+			Status:        entity.OrderStatus(os.Status),
+			AssignedTo:    os.AssignedTo,
 		}
 	}
 	return result
@@ -430,13 +439,20 @@ func varietiesFromSave(varieties []save.VarietySave) *game.VarietyRegistry {
 				Healing:   vs.Healing,
 			}
 		}
+		var sym rune
+		if vs.Sym != "" {
+			sym = []rune(vs.Sym)[0]
+		}
 		v := &entity.ItemVariety{
-			ID:       entity.GenerateVarietyID(vs.ItemType, types.Color(vs.Color), types.Pattern(vs.Pattern), types.Texture(vs.Texture)),
-			ItemType: vs.ItemType,
-			Color:    types.Color(vs.Color),
-			Pattern:  types.Pattern(vs.Pattern),
-			Texture:  types.Texture(vs.Texture),
-			Edible:   edible,
+			ID:        entity.GenerateVarietyID(vs.ItemType, types.Color(vs.Color), types.Pattern(vs.Pattern), types.Texture(vs.Texture)),
+			ItemType:  vs.ItemType,
+			Kind:      vs.Kind,
+			Color:     types.Color(vs.Color),
+			Pattern:   types.Pattern(vs.Pattern),
+			Texture:   types.Texture(vs.Texture),
+			Edible:    edible,
+			Plantable: vs.Plantable,
+			Sym:       sym,
 		}
 		registry.Register(v)
 	}
@@ -574,8 +590,10 @@ func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item
 	var plant *entity.PlantProperties
 	if is.Plant != nil {
 		plant = &entity.PlantProperties{
-			IsGrowing:  is.Plant.IsGrowing,
-			SpawnTimer: is.Plant.SpawnTimer,
+			IsGrowing:   is.Plant.IsGrowing,
+			SpawnTimer:  is.Plant.SpawnTimer,
+			IsSprout:    is.Plant.IsSprout,
+			SproutTimer: is.Plant.SproutTimer,
 		}
 	}
 

@@ -17,6 +17,7 @@ Read the roadmap section of CLAUDE.md to find what's next. This skill only needs
 ### Step 3: Discuss Approach
 **Do NOT enter plan mode.** Discuss as conversation.
 - Use /architecture to get a jumpstart on finding and understanding current design patterns
+- **Identify which established patterns apply** to each planned step (Component Procurement, Order execution, Pickup helpers, Recipe system, etc.). Steps that involve item acquisition should name which `EnsureHas*` variant they'll use. Steps that add entity fields should include serialization. Catching pattern mismatches here prevents rework during implementation.
 - Ask clarifying questions about requirements
 - Present high-level approach options with trade-offs as **prose discussion**
 - Identify an iterative approach with frequent human testing checkpoints

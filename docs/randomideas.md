@@ -18,11 +18,22 @@ then they can be removed from this list.
    - esc from any expanded view collapses the view
    - esc from all activity view goes nowhere
    - esc from orders goes back to all activity 
+   - esc from within orders only goes back one level 
    - esc from select: details view/action log or no panel goes back to all activity view
    - esc from select: details view/any other panel goes back to action log
    - 'l' from select: details view/any other panel goes back to action log
    - q from anywhere goes to start file menu
    - q from start file menu quits
+3. Why have we started running into all these tab/whitespace problems while editing just in the last week or so? especially since claude is the only one reading/writing code?
+4. Latest model is much more expensive in terms of tokens. How can I better leverage skills and agents to use simpler models for simpler tasks? We already have a good pattern with docs and test world creation. Anything else this would make sense for? 
+   - I notice 'explore' doesn't always get loaded when another skill is being used to look at a lot of documents -- can that be called out to ensure we aren't spending there? 
+   - Anything we can do to make the architecture document or skill aid in this goal of spending less tokens?
+      - Pain point: I rarely see this skill used or the doc read
+      - It is referenced in at least one other skill, should these references be clearer or in more/other places?
+      - One intent is that this saves time/tokens by pointing in the right directions before explore is used
+      - Another intent is to explain the patterns that we intend to be extended
+      - Question: if the code is the source of truth, is this document redundant? why spend the effort of maintaining it if you are always going to end up looking at a large amount of code directly anyway?
+      - Is there a better/more focused intent that would be more valueable for this document? is there a better way to leverage it than the way the skills are set up to currently?
 
 ## UI Improvements (after Gardening)
 
@@ -57,14 +68,8 @@ Remove single/multi mode distinction from UI and add character count control:
 
 ## Tech Updates
 
-1. Evaluate how to make architecture doc more useful
-   - Pain point: I never see this skill used or the doc read
-   - It is referenced in at least one other skill, should these references be clearer or in more/other places?
-   - One intent is that this saves time/tokens by pointing in the right directions before explore is used
-   - Another intent is to explain the patterns that we intend to be extended
-   - Question: if the code is the source of truth, is this document redundant? why spend the effort of maintaining it if you are always going to end up looking at a large amount of code directly anyway?
-   - Is there a better/more focused intent that would be more valueable for this document? is there a better way to leverage it than the way the skills are set up to currently?
 2. move name file to config dir for clearer access to users
+3. why is create item from variety logic in character.go? are there other functions that ended up in unintuitive places?
 
 ## Flower Seeds / Flower Cultivation
 

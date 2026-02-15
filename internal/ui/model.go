@@ -92,16 +92,18 @@ type Model struct {
 	ordersCancelMode      bool
 	selectedOrderIndex    int
 	ordersAddMode         bool
-	ordersAddStep         int // 0 = select activity, 1 = select target, 2 = area selection
+	ordersAddStep         int // 0 = select activity, 1 = select target, 2 = area/type selection
 	selectedActivityIndex int
 	selectedTargetIndex   int
+	step2ActivityID       string // Activity that triggered step 2 (e.g., "tillSoil", "plant")
+	selectedPlantTypeIndex int   // Index within plantable types list at step 2
 
 	// Order creation flash confirmation
 	orderFlashMessage string    // Display name of last created order
 	orderFlashEnd     time.Time // When to stop showing the flash
 	orderFlashCount   int       // Consecutive count of same order type
 
-	// Area selection state (used during ordersAddStep == 2)
+	// Area selection state (used during ordersAddStep == 2 for tillSoil)
 	areaSelectAnchor     *types.Position // nil = no anchor set yet
 	areaSelectUnmarkMode bool            // true = unmark mode, false = mark mode
 

@@ -2,6 +2,8 @@ package game
 
 import (
 	"math/rand"
+	"sort"
+	"unicode"
 
 	"petri/internal/config"
 	"petri/internal/entity"
@@ -15,6 +17,8 @@ type ItemTypeConfig struct {
 	Textures             []types.Texture // nil if textures don't apply
 	Edible               bool
 	CanBePoisonOrHealing bool // if false, never assigned poison/healing (e.g., gourds)
+	Plantable            bool // if true, picked items of this type become plantable
+	CanProduceSeeds      bool // if true, this type produces plantable seeds (e.g., gourd → gourd seed)
 	Sym                  rune
 	SpawnCount           int
 	NonPlantSpawned      bool // if true, spawned by ground spawning system, not SpawnItems()
@@ -29,6 +33,7 @@ func GetItemTypeConfigs() map[string]ItemTypeConfig {
 			Textures:             nil, // berries don't have textures
 			Edible:               true,
 			CanBePoisonOrHealing: true,
+			Plantable:            true,
 			Sym:                  config.CharBerry,
 			SpawnCount:           config.ItemSpawnCount,
 		},
@@ -38,6 +43,7 @@ func GetItemTypeConfigs() map[string]ItemTypeConfig {
 			Textures:             types.MushroomTextures,
 			Edible:               true,
 			CanBePoisonOrHealing: true,
+			Plantable:            true,
 			Sym:                  config.CharMushroom,
 			SpawnCount:           config.ItemSpawnCount,
 		},
@@ -56,6 +62,7 @@ func GetItemTypeConfigs() map[string]ItemTypeConfig {
 			Textures:             types.GourdTextures,
 			Edible:               true,
 			CanBePoisonOrHealing: false, // gourds are never poisonous or healing
+			CanProduceSeeds:      true,
 			Sym:                  config.CharGourd,
 			SpawnCount:           config.ItemSpawnCount,
 		},
@@ -70,6 +77,54 @@ func GetItemTypeConfigs() map[string]ItemTypeConfig {
 			NonPlantSpawned:      true, // spawned by ground spawning, not SpawnItems
 		},
 	}
+}
+
+// PlantableTypeEntry represents a plantable type for the order UI menu.
+type PlantableTypeEntry struct {
+	DisplayName string // e.g., "Gourd seeds", "Berries"
+	TargetType  string // value stored in order.TargetType: "gourd seed" for seeds, "berry" for direct
+}
+
+// GetPlantableTypes returns the list of plantable types derived from item type configs.
+// Includes directly plantable types (berry, mushroom) and seed-producing types (gourd → "gourd seed").
+func GetPlantableTypes() []PlantableTypeEntry {
+	configs := GetItemTypeConfigs()
+	var entries []PlantableTypeEntry
+
+	// Collect sorted keys for deterministic ordering
+	var keys []string
+	for k := range configs {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, itemType := range keys {
+		cfg := configs[itemType]
+		if cfg.CanProduceSeeds {
+			entries = append(entries, PlantableTypeEntry{
+				DisplayName: capitalize(itemType) + " seeds",
+				TargetType:  itemType + " seed",
+			})
+		}
+		if cfg.Plantable {
+			entries = append(entries, PlantableTypeEntry{
+				DisplayName: capitalize(entity.Pluralize(itemType)),
+				TargetType:  itemType,
+			})
+		}
+	}
+
+	return entries
+}
+
+// capitalize returns s with the first letter uppercased.
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	r := []rune(s)
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
 }
 
 // GenerateVarieties creates all item varieties for a new world
@@ -88,12 +143,14 @@ func GenerateVarieties() *VarietyRegistry {
 	for _, g := range registry.VarietiesOfType("gourd") {
 		seedID := entity.GenerateVarietyID("seed", g.Color, g.Pattern, g.Texture)
 		registry.Register(&entity.ItemVariety{
-			ID:       seedID,
-			ItemType: "seed",
-			Color:    g.Color,
-			Pattern:  g.Pattern,
-			Texture:  g.Texture,
-			Sym:      config.CharSeed,
+			ID:        seedID,
+			ItemType:  "seed",
+			Kind:      "gourd seed",
+			Color:     g.Color,
+			Pattern:   g.Pattern,
+			Texture:   g.Texture,
+			Plantable: true,
+			Sym:       config.CharSeed,
 		})
 	}
 
@@ -148,13 +205,14 @@ func generateVarietiesForType(itemType string, cfg ItemTypeConfig) []*entity.Ite
 			edible = &entity.EdibleProperties{}
 		}
 		variety := &entity.ItemVariety{
-			ID:       id,
-			ItemType: itemType,
-			Color:    color,
-			Pattern:  pattern,
-			Texture:  texture,
-			Edible:   edible,
-			Sym:      cfg.Sym,
+			ID:        id,
+			ItemType:  itemType,
+			Color:     color,
+			Pattern:   pattern,
+			Texture:   texture,
+			Edible:    edible,
+			Plantable: cfg.Plantable,
+			Sym:       cfg.Sym,
 		}
 		varieties = append(varieties, variety)
 	}

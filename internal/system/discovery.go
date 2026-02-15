@@ -136,5 +136,12 @@ func triggerMatches(trigger entity.DiscoveryTrigger, action entity.ActionType, i
 		}
 	}
 
+	// Check plantable requirement
+	if trigger.RequiresPlantable {
+		if item == nil || !item.Plantable {
+			return false
+		}
+	}
+
 	return true
 }

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -102,20 +103,30 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.saveGame() // Save before quitting
 			return m, tea.Quit
 		case "esc":
-			// Area selection: clear anchor if set, otherwise exit
-			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
-				if m.areaSelectAnchor != nil {
-					m.areaSelectAnchor = nil
-				} else {
+			// Orders add mode: esc navigates back one level
+			if m.showOrdersPanel && m.ordersAddMode {
+				if m.ordersAddStep == 2 {
+					if m.step2ActivityID == "tillSoil" && m.areaSelectAnchor != nil {
+						// Clear anchor first, then back to step 1 on next esc
+						m.areaSelectAnchor = nil
+					} else {
+						// Back to step 1
+						m.ordersAddStep = 1
+						m.selectedTargetIndex = 0
+						m.areaSelectUnmarkMode = false
+					}
+				} else if m.ordersAddStep == 1 {
+					// Step 1 (sub-menu): back to step 0
 					m.ordersAddStep = 0
 					m.selectedActivityIndex = 0
-					m.areaSelectUnmarkMode = false
+				} else {
+					// Step 0: exit add mode
+					m.ordersAddMode = false
 				}
 				return m, nil
 			}
-			// If in orders add/cancel mode, exit that mode
-			if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
-				m.ordersAddMode = false
+			// If in orders cancel mode, exit that mode
+			if m.showOrdersPanel && m.ordersCancelMode {
 				m.ordersCancelMode = false
 				return m, nil
 			}
@@ -220,8 +231,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "tab":
-			// Toggle mark/unmark mode during area selection
-			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
+			// Toggle mark/unmark mode during area selection (tillSoil only)
+			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID == "tillSoil" {
 				m.areaSelectUnmarkMode = !m.areaSelectUnmarkMode
 				m.areaSelectAnchor = nil // Reset anchor when toggling mode
 				return m, nil
@@ -252,11 +263,16 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 								if m.selectedTargetIndex < len(categoryActivities) {
 									catActivity := categoryActivities[m.selectedTargetIndex]
 
-									// Activities that need area selection
+									// Activities that need a further step
 									if catActivity.ID == "tillSoil" {
 										m.ordersAddStep = 2
+										m.step2ActivityID = "tillSoil"
 										m.areaSelectAnchor = nil
 										m.areaSelectUnmarkMode = false
+									} else if catActivity.ID == "plant" {
+										m.ordersAddStep = 2
+										m.step2ActivityID = "plant"
+										m.selectedPlantTypeIndex = 0
 									} else {
 										order := entity.NewOrder(m.nextOrderID, catActivity.ID, "")
 										m.nextOrderID++
@@ -284,17 +300,31 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 							}
 						}
 					} else if m.ordersAddStep == 2 {
-						// Step 2: Enter = done, create order if tiles marked, back to step 1
-						if len(m.gameMap.MarkedForTillingPositions()) > 0 {
-							order := entity.NewOrder(m.nextOrderID, "tillSoil", "")
-							m.nextOrderID++
-							m.orders = append(m.orders, order)
-							m.setOrderFlash(order.DisplayName())
+						if m.step2ActivityID == "plant" {
+							// Step 2 (plant): select plantable type to create order
+							plantTypes := game.GetPlantableTypes()
+							if m.selectedPlantTypeIndex < len(plantTypes) {
+								order := entity.NewOrder(m.nextOrderID, "plant", plantTypes[m.selectedPlantTypeIndex].TargetType)
+								m.nextOrderID++
+								m.orders = append(m.orders, order)
+								m.setOrderFlash(order.DisplayName())
+								// Back to activity selection
+								m.ordersAddStep = 0
+								m.selectedActivityIndex = 0
+							}
+						} else {
+							// Step 2 (tillSoil): Enter = done, create order if tiles marked
+							if len(m.gameMap.MarkedForTillingPositions()) > 0 {
+								order := entity.NewOrder(m.nextOrderID, "tillSoil", "")
+								m.nextOrderID++
+								m.orders = append(m.orders, order)
+								m.setOrderFlash(order.DisplayName())
+							}
+							m.ordersAddStep = 1
+							m.selectedTargetIndex = 0
+							m.areaSelectAnchor = nil
+							m.areaSelectUnmarkMode = false
 						}
-						m.ordersAddStep = 1
-						m.selectedTargetIndex = 0
-						m.areaSelectAnchor = nil
-						m.areaSelectUnmarkMode = false
 					}
 				} else if m.ordersCancelMode {
 					// Handle cancel order confirmation inline
@@ -349,8 +379,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "p":
-			// Plot: anchor/confirm rectangle during area selection
-			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
+			// Plot: anchor/confirm rectangle during area selection (tillSoil only)
+			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID == "tillSoil" {
 				if m.areaSelectAnchor == nil {
 					anchor := types.Position{X: m.cursorX, Y: m.cursorY}
 					m.areaSelectAnchor = &anchor
@@ -397,8 +427,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		case "up":
 			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
-				// Area selection: move cursor on map
-				m.moveCursor(0, -1)
+				if m.step2ActivityID == "plant" {
+					if m.selectedPlantTypeIndex > 0 {
+						m.selectedPlantTypeIndex--
+					}
+				} else {
+					// Area selection: move cursor on map
+					m.moveCursor(0, -1)
+				}
 			} else if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
 				// Handle orders panel navigation inline
 				if m.ordersAddMode {
@@ -421,8 +457,15 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		case "down":
 			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
-				// Area selection: move cursor on map
-				m.moveCursor(0, 1)
+				if m.step2ActivityID == "plant" {
+					plantTypes := game.GetPlantableTypes()
+					if m.selectedPlantTypeIndex < len(plantTypes)-1 {
+						m.selectedPlantTypeIndex++
+					}
+				} else {
+					// Area selection: move cursor on map
+					m.moveCursor(0, 1)
+				}
 			} else if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
 				// Handle orders panel navigation inline
 				if m.ordersAddMode {
@@ -455,13 +498,13 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.moveCursor(0, 1)
 			}
 		case "left":
-			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
+			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID != "plant" {
 				m.moveCursor(-1, 0) // Area selection: move cursor on map
 			} else if !(m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode)) {
 				m.moveCursor(-1, 0)
 			}
 		case "right":
-			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
+			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID != "plant" {
 				m.moveCursor(1, 0) // Area selection: move cursor on map
 			} else if !(m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode)) {
 				m.moveCursor(1, 0)
@@ -1059,6 +1102,67 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 
 			if m.actionLog != nil {
 				m.actionLog.Add(char.ID, char.Name, "activity", "Tilled soil")
+			}
+
+			char.CurrentActivity = "Idle"
+			char.Intent = nil
+		}
+
+	case entity.ActionPlant:
+		cpos := char.Pos()
+		dest := char.Intent.Dest
+
+		if cpos.X != dest.X || cpos.Y != dest.Y {
+			// Not at destination — move toward it
+			tx, ty := char.Intent.Target.X, char.Intent.Target.Y
+			speed := char.EffectiveSpeed()
+			char.SpeedAccumulator += float64(speed) * delta
+			const movementThreshold = 7.5
+			if char.SpeedAccumulator < movementThreshold {
+				return
+			}
+			char.SpeedAccumulator -= movementThreshold
+			m.gameMap.MoveCharacter(char, types.Position{X: tx, Y: ty})
+			return
+		}
+
+		// At destination — accumulate planting progress
+		char.ActionProgress += delta
+		if char.ActionProgress >= config.ActionDurationMedium {
+			char.ActionProgress = 0
+
+			// Find the order to get target type and locked variety
+			var order *entity.Order
+			if char.AssignedOrderID != 0 {
+				order = m.findOrderByID(char.AssignedOrderID)
+			}
+			if order == nil {
+				char.CurrentActivity = "Idle"
+				char.Intent = nil
+				return
+			}
+
+			// Consume a plantable item matching the order
+			plantedItem := system.ConsumePlantable(char, order.TargetType, order.LockedVariety)
+			if plantedItem == nil {
+				char.CurrentActivity = "Idle"
+				char.Intent = nil
+				return
+			}
+
+			// Create sprout from the planted item
+			sprout := entity.CreateSprout(dest.X, dest.Y, plantedItem, plantedItem.Edible)
+			m.gameMap.AddItem(sprout)
+
+			// Lock the variety on the order (subsequent plants use same variety)
+			if order.LockedVariety == "" {
+				order.LockedVariety = entity.GenerateVarietyID(
+					plantedItem.ItemType, plantedItem.Color, plantedItem.Pattern, plantedItem.Texture,
+				)
+			}
+
+			if m.actionLog != nil {
+				m.actionLog.Add(char.ID, char.Name, "activity", fmt.Sprintf("Planted %s", plantedItem.Description()))
 			}
 
 			char.CurrentActivity = "Idle"

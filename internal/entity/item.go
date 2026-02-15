@@ -1,14 +1,18 @@
 package entity
 
 import (
+	"strings"
+
 	"petri/internal/config"
 	"petri/internal/types"
 )
 
 // PlantProperties contains properties specific to growing plants
 type PlantProperties struct {
-	IsGrowing  bool    // Can reproduce at location (gates spawning)
-	SpawnTimer float64 // Countdown until next spawn opportunity
+	IsGrowing   bool    // Can reproduce at location (gates spawning)
+	SpawnTimer  float64 // Countdown until next spawn opportunity
+	IsSprout    bool    // True if this is a newly planted sprout (not yet mature)
+	SproutTimer float64 // Countdown until sprout matures into full plant
 }
 
 // Stack represents a quantity of items of a single variety in a container
@@ -253,5 +257,39 @@ func (i *Item) Description() string {
 		}
 		result += part
 	}
+	if i.Plant != nil && i.Plant.IsSprout {
+		result += " sprout"
+	}
 	return result
+}
+
+// CreateSprout creates a sprout item from a plantable item.
+// For seeds (ItemType="seed"), derives parent type from Kind ("gourd seed" → "gourd").
+// For berries/mushrooms, uses the item's own type.
+// Caller provides edible properties (from item.Edible for berries/mushrooms,
+// from registry lookup for seeds since seeds themselves aren't edible).
+func CreateSprout(x, y int, plantedItem *Item, edible *EdibleProperties) *Item {
+	parentType := plantedItem.ItemType
+	if plantedItem.ItemType == "seed" {
+		parentType = strings.TrimSuffix(plantedItem.Kind, " seed")
+	}
+
+	return &Item{
+		BaseEntity: BaseEntity{
+			X:     x,
+			Y:     y,
+			Sym:   config.CharSprout,
+			EType: TypeItem,
+		},
+		ItemType: parentType,
+		Color:    plantedItem.Color,
+		Pattern:  plantedItem.Pattern,
+		Texture:  plantedItem.Texture,
+		Plant: &PlantProperties{
+			IsGrowing:   true,
+			IsSprout:    true,
+			SproutTimer: config.SproutDuration,
+		},
+		Edible: edible,
+	}
 }

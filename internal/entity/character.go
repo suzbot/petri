@@ -94,6 +94,7 @@ const (
 	ActionPickup   // Picking up an item (used by both foraging and harvest orders)
 	ActionCraft    // Crafting an item (uses ActionProgress with Recipe.Duration)
 	ActionTillSoil // Tilling a marked tile (uses ActionProgress with ActionDurationMedium)
+	ActionPlant    // Planting a plantable item on tilled soil (uses ActionProgress with ActionDurationMedium)
 )
 
 // NewCharacter creates a new character with the given preferences
@@ -578,14 +579,18 @@ func (c *Character) ConsumeAccessibleItem(itemType string) *Item {
 						vessel.Container.Contents[i+1:]...,
 					)
 				}
-				// Create item from variety
+				// Create item from variety (restore all variety-level properties)
 				item := &Item{
-					ItemType: stack.Variety.ItemType,
-					Color:    stack.Variety.Color,
-					Pattern:  stack.Variety.Pattern,
-					Texture:  stack.Variety.Texture,
+					ItemType:  stack.Variety.ItemType,
+					Kind:      stack.Variety.Kind,
+					Color:     stack.Variety.Color,
+					Pattern:   stack.Variety.Pattern,
+					Texture:   stack.Variety.Texture,
+					Edible:    stack.Variety.Edible,
+					Plantable: stack.Variety.Plantable,
 				}
 				item.EType = TypeItem
+				item.Sym = stack.Variety.Sym
 				return item
 			}
 		}

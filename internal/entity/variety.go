@@ -14,12 +14,16 @@ type ItemVariety struct {
 
 	// Descriptive attributes (opinion-formable)
 	ItemType string
+	Kind     string        // recipe subtype: "gourd seed", "shell hoe" (empty for natural items)
 	Color    types.Color
 	Pattern  types.Pattern // zero value if not applicable to this item type
 	Texture  types.Texture // zero value if not applicable to this item type
 
 	// Edible properties (nil for non-edible varieties like flowers)
 	Edible *EdibleProperties
+
+	// Plantable - true for varieties that can be planted (berries, mushrooms, seeds)
+	Plantable bool
 
 	// Display
 	Sym rune // symbol for rendering
@@ -54,7 +58,11 @@ func (v *ItemVariety) Description() string {
 	if v.Color != "" {
 		parts = append(parts, string(v.Color))
 	}
-	parts = append(parts, v.ItemType)
+	if v.Kind != "" {
+		parts = append(parts, v.Kind)
+	} else {
+		parts = append(parts, v.ItemType)
+	}
 
 	return strings.Join(parts, " ")
 }

@@ -223,6 +223,70 @@ func TestTryDiscoverKnowHow_LogsDiscovery(t *testing.T) {
 	}
 }
 
+// Plant discovery tests (RequiresPlantable trigger)
+
+func TestTryDiscoverKnowHow_DiscoverPlantOnLookAtPlantable(t *testing.T) {
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{},
+	}
+	item := &entity.Item{
+		ItemType:  "seed",
+		Plantable: true,
+	}
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected discovery with 100% chance on plantable item")
+	}
+	if !char.KnowsActivity("plant") {
+		t.Error("Expected character to know plant after discovery")
+	}
+}
+
+func TestTryDiscoverKnowHow_DiscoverPlantOnPickupPlantable(t *testing.T) {
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{},
+	}
+	item := &entity.Item{
+		ItemType:  "berry",
+		Plantable: true,
+		Edible:    &entity.EdibleProperties{},
+	}
+
+	// Character already knows harvest so plant can trigger
+	char.KnownActivities = []string{"harvest"}
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionPickup, item, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected discovery with 100% chance on plantable item")
+	}
+	if !char.KnowsActivity("plant") {
+		t.Error("Expected character to know plant after discovery")
+	}
+}
+
+func TestTryDiscoverKnowHow_NoPlantDiscoverOnNonPlantable(t *testing.T) {
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{"harvest"}, // already knows harvest
+	}
+	item := &entity.Item{
+		ItemType:  "berry",
+		Plantable: false, // not plantable (still growing on map)
+		Edible:    &entity.EdibleProperties{},
+	}
+
+	TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
+
+	if char.KnowsActivity("plant") {
+		t.Error("Should not discover plant from non-plantable item")
+	}
+}
+
 // Recipe discovery tests
 
 func TestTryDiscoverKnowHow_DiscoverRecipeOnGourdLook(t *testing.T) {

@@ -31,7 +31,7 @@ func selectOrderActivity(char *entity.Character, pos types.Position, items []*en
 				return intent
 			}
 			// Check if this is a tillSoil completion (pool empty) vs failure
-			if isTillSoilComplete(order, gameMap) {
+			if isMultiStepOrderComplete(order, gameMap) {
 				CompleteOrder(char, order, log)
 				return nil
 			}
@@ -63,7 +63,7 @@ func selectOrderActivity(char *entity.Character, pos types.Position, items []*en
 	}
 
 	// Check if this is a tillSoil completion (pool empty) vs failure
-	if isTillSoilComplete(order, gameMap) {
+	if isMultiStepOrderComplete(order, gameMap) {
 		CompleteOrder(char, order, log)
 		return nil
 	}
@@ -125,6 +125,8 @@ func findOrderIntent(char *entity.Character, pos types.Position, items []*entity
 		return findHarvestIntent(char, pos, items, order, log, gameMap)
 	case "tillSoil":
 		return findTillSoilIntent(char, pos, items, order, log, gameMap)
+	case "plant":
+		return findPlantIntent(char, pos, items, order, log, gameMap)
 	default:
 		// Unknown activity type - cannot create intent
 		return nil
@@ -243,18 +245,79 @@ func findTillSoilIntent(char *entity.Character, pos types.Position, items []*ent
 	}
 }
 
-// isTillSoilComplete checks if a tillSoil order should be considered complete.
-// Returns true when the marked-for-tilling pool has no remaining untilled tiles.
-func isTillSoilComplete(order *entity.Order, gameMap *game.Map) bool {
-	if order.ActivityID != "tillSoil" {
-		return false
-	}
-	for _, pos := range gameMap.MarkedForTillingPositions() {
-		if !gameMap.IsTilled(pos) {
-			return false // Still has work to do
+// findPlantIntent creates an intent to plant items on tilled soil.
+// Flow: find empty tilled tile → check for accessible plantable item → procure if needed → plant.
+// Returns nil when no empty tilled tiles (order complete) or no plantable items (abandon/complete).
+func findPlantIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	// Step 1: Find nearest empty tilled tile (no item at position)
+	var nearestTile *types.Position
+	nearestTileDist := int(^uint(0) >> 1)
+
+	for _, tpos := range gameMap.TilledPositions() {
+		if gameMap.ItemAt(tpos) != nil {
+			continue // Tile already has a plant/sprout
+		}
+		dist := pos.DistanceTo(tpos)
+		if dist < nearestTileDist {
+			nearestTileDist = dist
+			p := tpos
+			nearestTile = &p
 		}
 	}
-	return true
+
+	if nearestTile == nil {
+		return nil // No empty tilled tiles — order complete
+	}
+
+	// Step 2: Check if character has accessible plantable item
+	if hasAccessiblePlantable(char, order.TargetType, order.LockedVariety) {
+		// Has item — move to tilled tile or plant
+		if pos.X == nearestTile.X && pos.Y == nearestTile.Y {
+			// At tilled tile — plant
+			char.CurrentActivity = "Planting"
+			return &entity.Intent{
+				Target: *nearestTile,
+				Dest:   *nearestTile,
+				Action: entity.ActionPlant,
+			}
+		}
+
+		// Move toward tilled tile
+		nx, ny := NextStepBFS(pos.X, pos.Y, nearestTile.X, nearestTile.Y, gameMap)
+		newActivity := "Moving to plant"
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+		}
+		return &entity.Intent{
+			Target: types.Position{X: nx, Y: ny},
+			Dest:   *nearestTile,
+			Action: entity.ActionPlant,
+		}
+	}
+
+	// Step 3: No accessible item — use EnsureHasPlantable to acquire one
+	// (handles dropping unneeded items, finding on ground, creating pickup intent)
+	return EnsureHasPlantable(char, order.TargetType, order.LockedVariety, items, gameMap, log)
+}
+
+// isMultiStepOrderComplete checks if a multi-step order should be considered complete
+// (vs abandoned due to failure). Returns true when the work pool is exhausted.
+func isMultiStepOrderComplete(order *entity.Order, gameMap *game.Map) bool {
+	switch order.ActivityID {
+	case "tillSoil":
+		for _, pos := range gameMap.MarkedForTillingPositions() {
+			if !gameMap.IsTilled(pos) {
+				return false // Still has work to do
+			}
+		}
+		return true
+	case "plant":
+		// Plant order is complete when LockedVariety is set (character planted at least once)
+		// and findPlantIntent returned nil (no more empty tiles or no more items).
+		return order.LockedVariety != ""
+	default:
+		return false
+	}
 }
 
 // findCraftIntent creates an intent to craft an item using the recipe system.
@@ -443,6 +506,8 @@ func IsOrderFeasible(order *entity.Order, items []*entity.Item, gameMap *game.Ma
 		return growingItemExists(items, order.TargetType), false
 	case "tillSoil":
 		return itemExistsInWorld("hoe", chars, items) && hasUnfilledTillingPositions(gameMap), false
+	case "plant":
+		return plantableItemExists(items, chars, order.TargetType), false
 	default:
 		return true, false // Unknown activity type, assume feasible
 	}
@@ -462,6 +527,46 @@ func itemExistsInWorld(itemType string, chars []*entity.Character, items []*enti
 		}
 	}
 	return false
+}
+
+// plantableItemExists checks if any plantable item matching the target exists in the world
+// (on the ground, in character inventories, or inside carried vessels). Matches on ItemType
+// or Kind to support both direct plantables ("berry") and seed kinds ("gourd seed").
+// Vessel contents lose the Plantable flag, so we infer plantability from ItemTypeConfig.
+func plantableItemExists(items []*entity.Item, chars []*entity.Character, targetType string) bool {
+	configs := game.GetItemTypeConfigs()
+	for _, item := range items {
+		if isPlantableMatch(item, targetType) {
+			return true
+		}
+	}
+	for _, c := range chars {
+		for _, item := range c.Inventory {
+			if item == nil {
+				continue
+			}
+			if isPlantableMatch(item, targetType) {
+				return true
+			}
+			// Check vessel contents — infer plantability from config since
+			// the Plantable flag is lost when items enter vessels
+			if item.Container != nil {
+				for _, stack := range item.Container.Contents {
+					if stack.Variety != nil && stack.Count > 0 &&
+						stack.Variety.ItemType == targetType {
+						if cfg, ok := configs[stack.Variety.ItemType]; ok && cfg.Plantable {
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+	return false
+}
+
+func isPlantableMatch(item *entity.Item, targetType string) bool {
+	return item.Plantable && (item.ItemType == targetType || item.Kind == targetType)
 }
 
 // growingItemExists checks if any growing item of the given type exists on the map.

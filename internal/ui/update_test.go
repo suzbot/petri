@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"petri/internal/config"
 	"petri/internal/entity"
 	"petri/internal/game"
 	"petri/internal/save"
@@ -1516,5 +1517,326 @@ func TestApplyIntent_TillSoil_CompletesOrderWhenPoolEmpty(t *testing.T) {
 	// Intent should be cleared (ready for next tick to re-evaluate)
 	if char.Intent != nil {
 		t.Error("Expected intent to be cleared after tilling")
+	}
+}
+
+// =============================================================================
+// ActionPlant Tests
+// =============================================================================
+
+func TestApplyIntent_Plant_ConsumesItemAndCreatesSprout(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	// Create a plantable berry and add to inventory
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	berry.Plantable = true
+	char.AddToInventory(berry)
+
+	// Tile must be tilled
+	target := types.Position{X: 5, Y: 5}
+	gameMap.SetTilled(target)
+
+	// Create and assign order
+	order := entity.NewOrder(1, "plant", "berry")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionPlant,
+		Target: target,
+		Dest:   target,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	// Apply with enough time to complete (ActionDurationMedium = 4.0)
+	for i := 0; i < 50; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Berry should be consumed from inventory
+	if len(char.Inventory) != 0 {
+		nonNil := 0
+		for _, item := range char.Inventory {
+			if item != nil {
+				nonNil++
+			}
+		}
+		if nonNil != 0 {
+			t.Errorf("Expected berry consumed from inventory, got %d items", nonNil)
+		}
+	}
+
+	// Sprout should exist at the position
+	sprout := gameMap.ItemAt(target)
+	if sprout == nil {
+		t.Fatal("Expected sprout at tilled position")
+	}
+	if sprout.Plant == nil || !sprout.Plant.IsSprout {
+		t.Error("Expected sprout to have IsSprout=true")
+	}
+	if !sprout.Plant.IsGrowing {
+		t.Error("Expected sprout to have IsGrowing=true")
+	}
+	if sprout.Sym != config.CharSprout {
+		t.Errorf("Expected sprout symbol %c, got %c", config.CharSprout, sprout.Sym)
+	}
+	if sprout.ItemType != "berry" {
+		t.Errorf("Expected sprout ItemType 'berry', got %q", sprout.ItemType)
+	}
+	if sprout.Color != types.ColorRed {
+		t.Errorf("Expected sprout color red, got %q", sprout.Color)
+	}
+
+	// Intent should be cleared
+	if char.Intent != nil {
+		t.Error("Expected intent to be cleared after planting")
+	}
+}
+
+func TestApplyIntent_Plant_GourdSeed_SproutHasGourdType(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	// Create a gourd seed and add to inventory
+	seed := entity.NewSeed(0, 0, "gourd", types.ColorGreen, types.PatternSpotted, types.TextureWarty)
+	char.AddToInventory(seed)
+
+	// Tile must be tilled
+	target := types.Position{X: 5, Y: 5}
+	gameMap.SetTilled(target)
+
+	// Create and assign order for gourd seeds
+	order := entity.NewOrder(1, "plant", "gourd seed")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionPlant,
+		Target: target,
+		Dest:   target,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	for i := 0; i < 50; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	sprout := gameMap.ItemAt(target)
+	if sprout == nil {
+		t.Fatal("Expected sprout at tilled position")
+	}
+	// Gourd seed → sprout with ItemType "gourd"
+	if sprout.ItemType != "gourd" {
+		t.Errorf("Expected sprout ItemType 'gourd', got %q", sprout.ItemType)
+	}
+	// Should preserve the seed's visual attributes
+	if sprout.Color != types.ColorGreen {
+		t.Errorf("Expected sprout color green, got %q", sprout.Color)
+	}
+	if sprout.Pattern != types.PatternSpotted {
+		t.Errorf("Expected sprout pattern spotted, got %q", sprout.Pattern)
+	}
+}
+
+func TestApplyIntent_Plant_SetsLockedVarietyOnOrder(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	berry := entity.NewBerry(0, 0, types.ColorBlue, true, false)
+	berry.Plantable = true
+	char.AddToInventory(berry)
+
+	target := types.Position{X: 5, Y: 5}
+	gameMap.SetTilled(target)
+
+	order := entity.NewOrder(1, "plant", "berry")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+	// LockedVariety should be empty initially
+	if order.LockedVariety != "" {
+		t.Fatal("Expected LockedVariety to be empty initially")
+	}
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionPlant,
+		Target: target,
+		Dest:   target,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	for i := 0; i < 50; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// LockedVariety should now be set to the berry's variety ID
+	expectedVariety := entity.GenerateVarietyID("berry", types.ColorBlue, types.PatternNone, types.TextureNone)
+	if order.LockedVariety != expectedVariety {
+		t.Errorf("Expected LockedVariety %q, got %q", expectedVariety, order.LockedVariety)
+	}
+}
+
+func TestApplyIntent_Plant_PreservesEdibleOnSprout(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	// Create a poisonous mushroom
+	mush := entity.NewMushroom(0, 0, types.ColorPurple, types.PatternSpotted, types.TextureSlimy, true, false)
+	mush.Plantable = true
+	char.AddToInventory(mush)
+
+	target := types.Position{X: 5, Y: 5}
+	gameMap.SetTilled(target)
+
+	order := entity.NewOrder(1, "plant", "mushroom")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionPlant,
+		Target: target,
+		Dest:   target,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	for i := 0; i < 50; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	sprout := gameMap.ItemAt(target)
+	if sprout == nil {
+		t.Fatal("Expected sprout at tilled position")
+	}
+	if sprout.Edible == nil {
+		t.Fatal("Expected sprout to have Edible properties")
+	}
+	if !sprout.Edible.Poisonous {
+		t.Error("Expected sprout to be poisonous (inherited from parent)")
+	}
+}
+
+func TestApplyIntent_Plant_ExtractsFromVessel(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+
+	// Create variety registry with a plantable berry variety
+	registry := game.NewVarietyRegistry()
+	berryVariety := &entity.ItemVariety{
+		ID:        entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ItemType:  "berry",
+		Color:     types.ColorRed,
+		Plantable: true,
+		Edible:    &entity.EdibleProperties{},
+		Sym:       config.CharBerry,
+	}
+	registry.Register(berryVariety)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	// Vessel containing 2 plantable berries — no loose berries in inventory
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{
+				{Variety: berryVariety, Count: 2},
+			},
+		},
+	}
+	vessel.EType = entity.TypeItem
+	vessel.Sym = config.CharVessel
+	char.AddToInventory(vessel)
+
+	target := types.Position{X: 5, Y: 5}
+	gameMap.SetTilled(target)
+
+	order := entity.NewOrder(1, "plant", "berry")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionPlant,
+		Target: target,
+		Dest:   target,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	for i := 0; i < 50; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Sprout should exist
+	sprout := gameMap.ItemAt(target)
+	if sprout == nil {
+		t.Fatal("Expected sprout at tilled position (berry extracted from vessel)")
+	}
+	if sprout.ItemType != "berry" {
+		t.Errorf("Expected sprout ItemType 'berry', got %q", sprout.ItemType)
+	}
+	if sprout.Plant == nil || !sprout.Plant.IsSprout {
+		t.Error("Expected sprout to have IsSprout=true")
+	}
+
+	// Vessel should have 1 berry remaining
+	if len(vessel.Container.Contents) == 0 {
+		t.Fatal("Expected vessel to still have berries")
+	}
+	if vessel.Container.Contents[0].Count != 1 {
+		t.Errorf("Expected 1 berry remaining in vessel, got %d", vessel.Container.Contents[0].Count)
 	}
 }

@@ -730,3 +730,81 @@ func createTestModel() Model {
 
 	return m
 }
+
+func TestSproutSerialization_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	m := createTestModel()
+
+	// Create a sprout on the map
+	berry := entity.NewBerry(0, 0, types.ColorRed, true, false)
+	berry.Plantable = true
+	sprout := entity.CreateSprout(15, 15, berry, berry.Edible)
+	m.gameMap.AddItem(sprout)
+
+	// Save
+	state := m.ToSaveState()
+
+	// Load into a new model
+	m2 := FromSaveState(state, "test", TestConfig{})
+
+	// Find the sprout
+	restoredSprout := m2.gameMap.ItemAt(types.Position{X: 15, Y: 15})
+	if restoredSprout == nil {
+		t.Fatal("Expected sprout at (15,15) after round-trip")
+	}
+	if restoredSprout.Plant == nil {
+		t.Fatal("Expected plant properties on restored sprout")
+	}
+	if !restoredSprout.Plant.IsSprout {
+		t.Error("Expected IsSprout=true after round-trip")
+	}
+	if !restoredSprout.Plant.IsGrowing {
+		t.Error("Expected IsGrowing=true after round-trip")
+	}
+	if restoredSprout.Plant.SproutTimer <= 0 {
+		t.Errorf("Expected positive SproutTimer, got %f", restoredSprout.Plant.SproutTimer)
+	}
+	if restoredSprout.ItemType != "berry" {
+		t.Errorf("Expected ItemType 'berry', got %q", restoredSprout.ItemType)
+	}
+}
+
+func TestVarietySerialization_PreservesPlantableAndKind(t *testing.T) {
+	t.Parallel()
+
+	m := createTestModel()
+
+	// Register a seed variety with Kind and Plantable
+	registry := m.gameMap.Varieties()
+	seedVariety := &entity.ItemVariety{
+		ID:        entity.GenerateVarietyID("seed", types.ColorGreen, types.PatternSpotted, types.TextureWarty),
+		ItemType:  "seed",
+		Kind:      "gourd seed",
+		Color:     types.ColorGreen,
+		Pattern:   types.PatternSpotted,
+		Texture:   types.TextureWarty,
+		Plantable: true,
+		Sym:       '.',
+	}
+	registry.Register(seedVariety)
+
+	state := m.ToSaveState()
+
+	m2 := FromSaveState(state, "test", TestConfig{})
+
+	restoredRegistry := m2.gameMap.Varieties()
+	restored := restoredRegistry.Get(seedVariety.ID)
+	if restored == nil {
+		t.Fatal("Expected seed variety in registry after round-trip")
+	}
+	if restored.Kind != "gourd seed" {
+		t.Errorf("Expected Kind 'gourd seed', got %q", restored.Kind)
+	}
+	if !restored.Plantable {
+		t.Error("Expected Plantable=true after round-trip")
+	}
+	if restored.Sym != '.' {
+		t.Errorf("Expected Sym '.', got %c", restored.Sym)
+	}
+}

@@ -13,11 +13,12 @@ const (
 
 // Order represents a player-issued work order
 type Order struct {
-	ID         int         // Unique identifier
-	ActivityID string      // Activity to perform (e.g., "harvest")
-	TargetType string      // Item type to target (e.g., "berry", "gourd")
-	Status     OrderStatus // Current status
-	AssignedTo int         // Character ID working on this order, 0 if unassigned
+	ID            int         // Unique identifier
+	ActivityID    string      // Activity to perform (e.g., "harvest")
+	TargetType    string      // Item type to target (e.g., "berry", "gourd")
+	LockedVariety string      // Specific variety locked in at planting time (used by plant orders)
+	Status        OrderStatus // Current status
+	AssignedTo    int         // Character ID working on this order, 0 if unassigned
 }
 
 // NewOrder creates a new order with the given activity and target
@@ -41,6 +42,9 @@ func (o *Order) DisplayName() string {
 	case "craft":
 		return "Craft " + strings.ToLower(activity.Name)
 	case "garden":
+		if o.TargetType != "" {
+			return activity.Name + " " + Pluralize(o.TargetType)
+		}
 		return activity.Name
 	default:
 		return activity.Name + " " + Pluralize(o.TargetType)

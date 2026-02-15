@@ -54,6 +54,7 @@ var (
 
 	// Agricultural/plant status
 	growingStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("142")).Bold(true) // olive (gardening: growing, tilled soil)
+	sproutStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("108")).Bold(true) // sage (sprouts on dry ground)
 
 	// UI highlight (background)
 	highlightStyle    = lipgloss.NewStyle().Background(lipgloss.Color("23")).Foreground(lipgloss.Color("255"))  // dark cyan bg, white text

@@ -443,6 +443,113 @@ func TestNewSeed_DescriptionColorOnly(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// CreateSprout tests
+// =============================================================================
+
+// TestCreateSprout_FromGourdSeed verifies sprout from seed has parent type and attributes
+func TestCreateSprout_FromGourdSeed(t *testing.T) {
+	t.Parallel()
+
+	seed := NewSeed(0, 0, "gourd", types.ColorGreen, types.PatternSpotted, types.TextureWarty)
+	edible := &EdibleProperties{} // gourds are edible, not poison/healing
+
+	sprout := CreateSprout(5, 10, seed, edible)
+
+	if sprout.ItemType != "gourd" {
+		t.Errorf("CreateSprout ItemType: got %q, want %q", sprout.ItemType, "gourd")
+	}
+	if sprout.Color != types.ColorGreen {
+		t.Errorf("CreateSprout Color: got %q, want %q", sprout.Color, types.ColorGreen)
+	}
+	if sprout.Pattern != types.PatternSpotted {
+		t.Errorf("CreateSprout Pattern: got %q, want %q", sprout.Pattern, types.PatternSpotted)
+	}
+	if sprout.Texture != types.TextureWarty {
+		t.Errorf("CreateSprout Texture: got %q, want %q", sprout.Texture, types.TextureWarty)
+	}
+	if sprout.Symbol() != config.CharSprout {
+		t.Errorf("CreateSprout Symbol: got %c, want %c", sprout.Symbol(), config.CharSprout)
+	}
+	if sprout.Plant == nil {
+		t.Fatal("CreateSprout Plant: got nil")
+	}
+	if !sprout.Plant.IsSprout {
+		t.Error("CreateSprout IsSprout: got false, want true")
+	}
+	if !sprout.Plant.IsGrowing {
+		t.Error("CreateSprout IsGrowing: got false, want true")
+	}
+	if sprout.Plant.SproutTimer != config.SproutDuration {
+		t.Errorf("CreateSprout SproutTimer: got %f, want %f", sprout.Plant.SproutTimer, config.SproutDuration)
+	}
+	pos := sprout.Pos()
+	if pos.X != 5 || pos.Y != 10 {
+		t.Errorf("CreateSprout Pos: got (%d, %d), want (5, 10)", pos.X, pos.Y)
+	}
+	if !sprout.IsEdible() {
+		t.Error("CreateSprout from gourd seed should be edible")
+	}
+}
+
+// TestCreateSprout_FromBerry verifies sprout from berry preserves type and edible properties
+func TestCreateSprout_FromBerry(t *testing.T) {
+	t.Parallel()
+
+	berry := NewBerry(0, 0, types.ColorRed, false, false)
+	berry.Plantable = true
+
+	sprout := CreateSprout(3, 7, berry, berry.Edible)
+
+	if sprout.ItemType != "berry" {
+		t.Errorf("CreateSprout ItemType: got %q, want %q", sprout.ItemType, "berry")
+	}
+	if sprout.Color != types.ColorRed {
+		t.Errorf("CreateSprout Color: got %q, want %q", sprout.Color, types.ColorRed)
+	}
+	if sprout.Symbol() != config.CharSprout {
+		t.Errorf("CreateSprout Symbol: got %c, want %c", sprout.Symbol(), config.CharSprout)
+	}
+	if sprout.Plant == nil {
+		t.Fatal("CreateSprout Plant: got nil")
+	}
+	if !sprout.Plant.IsSprout {
+		t.Error("CreateSprout IsSprout: got false, want true")
+	}
+	if !sprout.Plant.IsGrowing {
+		t.Error("CreateSprout IsGrowing: got false, want true")
+	}
+	if !sprout.IsEdible() {
+		t.Error("CreateSprout from berry should be edible")
+	}
+}
+
+// TestCreateSprout_FromMushroom_PreservesEdible verifies poisonous/healing survives
+func TestCreateSprout_FromMushroom_PreservesEdible(t *testing.T) {
+	t.Parallel()
+
+	mush := NewMushroom(0, 0, types.ColorBlue, types.PatternSpotted, types.TextureSlimy, true, false)
+	mush.Plantable = true
+
+	sprout := CreateSprout(2, 4, mush, mush.Edible)
+
+	if sprout.ItemType != "mushroom" {
+		t.Errorf("CreateSprout ItemType: got %q, want %q", sprout.ItemType, "mushroom")
+	}
+	if !sprout.IsPoisonous() {
+		t.Error("CreateSprout from poisonous mushroom should be poisonous")
+	}
+	if sprout.IsHealing() {
+		t.Error("CreateSprout from non-healing mushroom should not be healing")
+	}
+	if sprout.Pattern != types.PatternSpotted {
+		t.Errorf("CreateSprout Pattern: got %q, want %q", sprout.Pattern, types.PatternSpotted)
+	}
+	if sprout.Texture != types.TextureSlimy {
+		t.Errorf("CreateSprout Texture: got %q, want %q", sprout.Texture, types.TextureSlimy)
+	}
+}
+
 // TestItem_Description_KindWithMultipleAttributes verifies Description with Kind + pattern + texture + color
 func TestItem_Description_KindWithMultipleAttributes(t *testing.T) {
 	t.Parallel()

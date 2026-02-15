@@ -37,11 +37,12 @@ type SaveState struct {
 
 // OrderSave represents an order for serialization
 type OrderSave struct {
-	ID         int    `json:"id"`
-	ActivityID string `json:"activity_id"`
-	TargetType string `json:"target_type"`
-	Status     string `json:"status"`
-	AssignedTo int    `json:"assigned_to"`
+	ID            int    `json:"id"`
+	ActivityID    string `json:"activity_id"`
+	TargetType    string `json:"target_type"`
+	LockedVariety string `json:"locked_variety,omitempty"`
+	Status        string `json:"status"`
+	AssignedTo    int    `json:"assigned_to"`
 }
 
 // WorldMeta contains display info for world selection (separate from full state)
@@ -123,8 +124,10 @@ type CharacterSave struct {
 
 // PlantPropertiesSave represents plant properties for serialization
 type PlantPropertiesSave struct {
-	IsGrowing  bool    `json:"is_growing"`
-	SpawnTimer float64 `json:"spawn_timer"`
+	IsGrowing   bool    `json:"is_growing"`
+	SpawnTimer  float64 `json:"spawn_timer"`
+	IsSprout    bool    `json:"is_sprout,omitempty"`
+	SproutTimer float64 `json:"sprout_timer,omitempty"`
 }
 
 // StackSave represents a stack in a container for serialization
@@ -207,10 +210,13 @@ type KnowledgeSave struct {
 // VarietySave represents an item variety for serialization
 type VarietySave struct {
 	ItemType  string `json:"item_type"`
+	Kind      string `json:"kind,omitempty"`
 	Color     string `json:"color"`
 	Pattern   string `json:"pattern"`
 	Texture   string `json:"texture"`
 	Edible    bool   `json:"edible"`
 	Poisonous bool   `json:"poisonous"`
 	Healing   bool   `json:"healing"`
+	Plantable bool   `json:"plantable,omitempty"`
+	Sym       string `json:"sym,omitempty"` // rune stored as string for JSON
 }

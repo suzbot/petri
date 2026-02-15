@@ -34,6 +34,7 @@ const (
 	CharHoe        = 'L'
 	CharSeed       = '.'
 	CharTilledSoil = '═'
+	CharSprout     = '𖧧'
 	CharSleeping = 'z'
 
 	// Speed system
@@ -84,6 +85,9 @@ const (
 	MoodPreferenceModifier = 5.0 // mood change per NetPreference point on consumption
 	MoodPenaltyPoisoned    = 2.0 // per second while poisoned (additive with need decay)
 	MoodPenaltyFrustrated  = 2.0 // per second while frustrated (additive with need decay)
+
+	// Sprout maturation
+	SproutDuration = 30.0 // seconds until sprout matures into a full plant
 
 	// Healing
 	HealAmount = 20.0 // health restored by healing items (instant)
