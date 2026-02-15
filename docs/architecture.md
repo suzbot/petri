@@ -83,6 +83,15 @@ Crafted items (like vessels) differ from natural items:
 - Inherit appearance (Color, Pattern, Texture) from input materials
 - May have `Container` for storage capability
 
+### Kind Pattern for Subtypes
+
+Some item types use a `Kind` subtype field for hierarchical identity:
+- **ItemType**: broad product category (e.g., `"hoe"`, `"seed"`) — what the player orders or conceptually groups
+- **Kind**: recipe- or origin-specific subtype (e.g., `"shell hoe"`, `"gourd seed"`) — what the character produces or what was consumed to create it
+- `Description()` uses Kind when set, falls back to ItemType
+- Seeds use this pattern: `ItemType: "seed"`, `Kind: "gourd seed"`, inheriting the parent gourd's full variety (Color, Pattern, Texture)
+- Natural items leave Kind empty
+
 ### Future Extensions
 
 When adding new item types (tools, materials):
@@ -278,6 +287,10 @@ For actions that consume items from inventory or vessel contents:
 
 **Pattern**: Check availability at intent creation (no extraction), consume at action completion. This supports pause/resume - item stays accessible until actually consumed.
 
+### Side Effects on Consumption (consumption.go)
+
+`ConsumeFromInventory` and `ConsumeFromVessel` accept a `gameMap *game.Map` parameter to support side effects at the consumption site. Currently used to drop seeds when a gourd is consumed: after the item is removed from inventory or vessel, a seed of the same variety is created at the character's position and added to the map. This pattern generalizes to any future consumption side effect (e.g., leaving a core, shell, or husk).
+
 ### Look-for-Container Pattern
 
 When foraging or harvesting without a vessel:
@@ -295,7 +308,9 @@ Water tiles (springs, ponds) are stored as map terrain (`water map[Position]Wate
 | Water Type | Symbol | Interaction |
 |------------|--------|-------------|
 | WaterSpring | `☉` | Drink from cardinally adjacent tile (N/E/S/W) |
-| WaterPond | `≈` | Drink from cardinally adjacent tile (N/E/S/W) |
+| WaterPond | `▓` | Drink from cardinally adjacent tile (N/E/S/W) |
+
+Pond tiles render as a three-character fill `▓▓▓` (matching the terrain fill system used by tilled soil `═══`). Tiles 8-directionally adjacent to any water tile are "wet" — computed on the fly via `IsWet(pos)`, no persistent state.
 
 Water tiles are impassable. Characters drink from cardinal-adjacent tiles, allowing multiple characters to drink from the same water source simultaneously (from different sides).
 
@@ -369,7 +384,7 @@ type Position struct {
 All Map query methods take `types.Position`:
 - `EntityAt(pos)`, `CharacterAt(pos)`, `ItemAt(pos)`, `FeatureAt(pos)`
 - `IsValid(pos)`, `IsOccupied(pos)`, `IsBlocked(pos)`, `IsEmpty(pos)`
-- `IsWater(pos)`, `WaterAt(pos)`, `FindNearestWater(pos)`, `FindNearestBed(pos)`
+- `IsWater(pos)`, `WaterAt(pos)`, `IsWet(pos)`, `FindNearestWater(pos)`, `FindNearestBed(pos)`
 
 ### Guidelines
 
@@ -626,3 +641,5 @@ Pool is serialized in `SaveState.MarkedForTillingPositions`.
 **View transitions**: When switching between views with different rendering approaches (game view uses direct rendering, menus use lipgloss.Place for centering), add dimension safeguards for edge cases.
 
 **Save compatibility when changing entity storage**: When changing how entities are stored (e.g., moving data between fields, maps, or types), verify save/load round-trip as part of the same step. Check: (1) new state serializes, (2) old saves migrate, (3) serialize tests updated.
+
+**Terrain fill in `renderCell()`**: Terrain that renders as solid blocks (tilled soil `═══`, water `▓▓▓`) requires both `sym` AND `fill` set to the styled terrain character. Setting only `sym` produces a single character flanked by spaces (` ▓ `), creating a vertical stripe appearance. Future terrain types (e.g., construction walls) should follow this pattern.

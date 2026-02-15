@@ -14,6 +14,15 @@ then they can be removed from this list.
 1. **Game Mechanics Doc Reorg**: they are little disorganized, inconsistent about what level of detail it shares, not in the most intuitive order.
    a. Reorganize in order of gameflow
    b. Remove anything unnecessary for user, or summarize where makes sense
+2. **esc key clean up**: still a little bit inconsistant how esc behaves. New pattern: esc always takes you 'back' a level. Ideal if there's a way to generalize this behavior. desired behavior:
+   - esc from any expanded view collapses the view
+   - esc from all activity view goes nowhere
+   - esc from orders goes back to all activity 
+   - esc from select: details view/action log or no panel goes back to all activity view
+   - esc from select: details view/any other panel goes back to action log
+   - 'l' from select: details view/any other panel goes back to action log
+   - q from anywhere goes to start file menu
+   - q from start file menu quits
 
 ## UI Improvements (after Gardening)
 

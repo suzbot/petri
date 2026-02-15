@@ -543,7 +543,10 @@ func (m Model) renderCell(x, y int) string {
 		case game.WaterSpring:
 			sym = waterStyle.Render(string(config.CharSpring))
 		case game.WaterPond:
-			sym = waterStyle.Render(string(config.CharWater))
+			// Full terrain fill — ▓▓▓ avoids vertical stripe appearance
+			waterFill := waterStyle.Render(string(config.CharWater))
+			sym = waterFill
+			fill = waterFill
 		}
 	} else if m.gameMap.IsTilled(pos) {
 		// Empty tilled tile — full terrain fill
@@ -730,6 +733,9 @@ func (m Model) renderDetails() string {
 		} else {
 			lines = append(lines, " Type: Empty")
 		}
+		if m.gameMap.IsWet(cursorPos) {
+			lines = append(lines, " "+waterStyle.Render("Wet"))
+		}
 		if m.testCfg.Debug {
 			lines = append(lines, fmt.Sprintf(" Pos: (%d, %d)", m.cursorX, m.cursorY))
 		}
@@ -897,6 +903,9 @@ func (m Model) renderDetails() string {
 			lines = append(lines, " "+growingStyle.Render("On tilled soil"))
 		} else if m.gameMap.IsMarkedForTilling(cursorPos) {
 			lines = append(lines, " "+growingStyle.Render("Marked for tilling"))
+		}
+		if m.gameMap.IsWet(cursorPos) {
+			lines = append(lines, " "+waterStyle.Render("Wet"))
 		}
 	} else if waterType != game.WaterNone {
 		lines = append(lines, " Type: Water")

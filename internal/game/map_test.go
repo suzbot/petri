@@ -729,3 +729,65 @@ func TestIsEmpty_MarkedTileNoOccupants(t *testing.T) {
 		t.Error("IsEmpty() should return true for marked-for-tilling tile with no occupants")
 	}
 }
+
+// =============================================================================
+// Wet Tile Tests
+// =============================================================================
+
+func TestIsWet_AdjacentToWater(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	m.AddWater(types.Position{X: 10, Y: 10}, WaterPond)
+
+	// All 8 directions around the water tile should be wet
+	adjacentPositions := []types.Position{
+		{X: 9, Y: 9},   // NW
+		{X: 10, Y: 9},  // N
+		{X: 11, Y: 9},  // NE
+		{X: 9, Y: 10},  // W
+		{X: 11, Y: 10}, // E
+		{X: 9, Y: 11},  // SW
+		{X: 10, Y: 11}, // S
+		{X: 11, Y: 11}, // SE
+	}
+
+	for _, pos := range adjacentPositions {
+		if !m.IsWet(pos) {
+			t.Errorf("IsWet(%d,%d) should return true for tile adjacent to water", pos.X, pos.Y)
+		}
+	}
+}
+
+func TestIsWet_NotAdjacentToWater(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	m.AddWater(types.Position{X: 10, Y: 10}, WaterPond)
+
+	// Tiles 2+ away from water should NOT be wet
+	farPositions := []types.Position{
+		{X: 8, Y: 10},  // 2 tiles west
+		{X: 12, Y: 10}, // 2 tiles east
+		{X: 10, Y: 8},  // 2 tiles north
+		{X: 5, Y: 5},   // far away
+	}
+
+	for _, pos := range farPositions {
+		if m.IsWet(pos) {
+			t.Errorf("IsWet(%d,%d) should return false for tile not adjacent to water", pos.X, pos.Y)
+		}
+	}
+}
+
+func TestIsWet_WaterTileItself(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	m.AddWater(types.Position{X: 10, Y: 10}, WaterPond)
+
+	// Water tiles themselves are NOT "wet" — they ARE water (impassable)
+	if m.IsWet(types.Position{X: 10, Y: 10}) {
+		t.Error("IsWet() should return false for water tiles themselves")
+	}
+}

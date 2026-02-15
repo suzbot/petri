@@ -32,6 +32,13 @@
 | Growth speed tiers    | Fast / Medium / Slow                   | Berry/mushroom=fast, flower=medium (6-min sprout), gourd=slow. Affects sprouting duration and reproduction intervals. |
 | Watered tile decay    | 3 world days (360 game seconds)        | Manual watering creates temporary wet status. Tiles adjacent to water are permanently wet (computed). |
 | Water symbol          | `▓▓▓` dark shade block in waterStyle   | Textured block for ponds (suggests water movement). Springs keep `☉`. Aligns with terrain fill system (`═══` tilled, `▓▓▓` water). Structure walls TBD. |
+| Sprout symbol         | `𖧧` (bold style)                       | Visually distinct from mature plants. Suggests early growth stage. |
+| Sprout colors         | Olive (dry) / green (wet) / mushroom variety | Consistent with tilled soil olive. Green indicates water benefit. Mushrooms always variety-colored. |
+| Tilled plant visual   | `═X═` fill, no underline               | Existing fill pattern communicates tilled soil. Underline has terminal compatibility concerns. |
+| Plant discovery       | `RequiresPlantable` on DiscoveryTrigger | Matches existing `RequiresEdible` pattern. Extensible for future plantable types. |
+| Variety locking       | `LockedVariety` on Order               | Per-order lock set on first plant. Character seeks only matching variety after lock. Completion when variety exhausted. |
+| Sprout maturation     | In-place symbol change from ItemType   | `MatureSymbol()` helper derives mature symbol. No stored state needed. |
+| Growth tuning         | Deferred to Slice 9                    | Flat 30s sprout for testing. Tier differentiation and bonus values in Slice 9 tuning. |
 
 ---
 
@@ -1054,7 +1061,7 @@ Each step follows the TDD cycle: write tests → implement → verify green → 
 - Pick up a flower, check details — does NOT show "Plantable"
 - Save, load — plantable state preserved
 
-##### Step 2: Seed Item Type + Varieties
+##### Step 2: Seed Item Type + Varieties ✅
 
 **Tests** (in `internal/entity/item_test.go`):
 - `NewSeed` returns correct properties (symbol `.`, ItemType `"seed"`, Kind `"gourd seed"`, color/pattern/texture from parent, not edible, `Plant == nil`, `Plantable == true`)
@@ -1076,7 +1083,7 @@ Each step follows the TDD cycle: write tests → implement → verify green → 
 - `go test ./...` passes
 - No human testing yet (seeds aren't created in gameplay until Step 3)
 
-##### Step 3: Gourd Seed Creation on Consumption
+##### Step 3: Gourd Seed Creation on Consumption ✅
 
 **Tests** (in `internal/system/consumption_test.go`):
 - `Consume` on gourd creates a seed at character position with gourd's variety attributes
@@ -1099,7 +1106,9 @@ Each step follows the TDD cycle: write tests → implement → verify green → 
 - Seeds can be picked up and added to vessels (stacking works)
 - Save, load — seeds persist correctly
 
-**[DOCS]** Update README (Latest Updates), CLAUDE.md, game-mechanics, architecture as needed.
+**Bug fix:** Removed redundant "Tilling soil" log message that fired each time a character started tilling a new tile. Only "Tilled soil" (on completion) remains.
+
+**[DOCS]** ✅ Update README (Latest Updates), CLAUDE.md, game-mechanics, architecture as needed.
 
 **[RETRO]** Run /retro if there were any interruptions
 
@@ -1111,102 +1120,244 @@ Each step follows the TDD cycle: write tests → implement → verify green → 
 - Quick change: Water symbol (line 63)
 - New Activity: Plant (lines 84-99)
 - Enhanced Logic: Garden Plant Growth and Reproduction (lines 125-131)
-- Food Turning: Growth speed tiers (lines 138-141)
+- Growth speed tiers (lines 138-141) — flat 30s sprout for testing; tier differentiation deferred to Slice 9
 
-#### Step 0: Wet areas
-- Change the water symbol for ponds to `▓` (dark shade block) in waterStyle blue
-- **Wet tiles from water adjacency**: Tiles within 8-directional adjacency of water sources are always "wet." Computed on the fly via `IsWet(pos)` — no persistent state. 
+**Resolved feature questions:**
+- Sprout symbol: `𖧧` (bold style) ✓
+- Occupied tilled tile: character skips it, finds next empty tilled tile ✓
+- Underline styling: skip, rely on `═X═` fill pattern ✓
+- Sprout → full plant: in-place symbol change, derive mature symbol from ItemType ✓
+- Growth bonus values: simple multipliers, exact values tunable in Slice 9 ✓
 
-[TEST]
-- user verifies appearance
-- user verifies wet tile state in details view
+---
 
-#### Step 1: Plant Activity
+#### Implementation Steps
 
-Orderable, discoverable (trigger from looking at or picking up plantable items). Order UI: Garden > Plant > select plantable item type (gourd seeds, flower seeds, mushrooms, berries). Character plants selected type on tilled soil tiles using standard component procurement (check inventory → seek plantable items by preference/distance → abandon if unavailable).
+Each step follows the TDD cycle: write tests → add minimal stubs to compile → verify red → implement → verify green → human testing checkpoint.
 
-Planting consumes the plantable item and creates a sprout of that variety on the tilled tile. Character continues planting the same specific variety until supply is exhausted or no unplanted tilled tiles remain. Multiple characters can plant simultaneously with different varieties.
+##### Step 0: Water Symbol + Wet Tiles ✅
 
-[TEST]
-- Plant know-how is discovered
-- Plant option in order menu, shows plantable item sub options
-- Plant order is assigned to char with plan know-how
-- Char procures planting components and completes task
-- Note: this should yield a tile that when examined has detail about what was planted on it -- but growth and UI for it will mostly be deferred to the next step
+**Tests** (in `internal/game/map_test.go`):
+- `IsWet(pos)` returns true for tiles 8-directionally adjacent to water
+- `IsWet(pos)` returns false for tiles not adjacent to water
+- `IsWet(pos)` returns false for water tiles themselves (impassable, nothing grows on them)
 
-[DOCS]
+**Config:** Change `CharWater = '▓'`
 
-**[RETRO]** Run /retro if there were any interruptions
+**Implementation** (`internal/game/map.go`, `internal/config/config.go`, `internal/ui/view.go`):
+- Change `CharWater` constant to `'▓'` (dark shade block)
+- Add `IsWet(pos Position) bool` to Map — checks 8 neighbors for water
+- Rendering: pond symbol changes automatically from constant
+- Details panel: show "Wet" when cursor is on a wet tile (not water itself)
 
-#### Step 2: Sprout Phase for All Reproduction
+**[TEST] Checkpoint — Water symbol + wet tiles:**
+- `go test ./...` passes
+- Build and run: ponds appear as blue `▓` blocks instead of `≈`
+- Springs still appear as `☉` (unchanged)
+- Cursor over tile adjacent to water shows "Wet" in details
+- Cursor over tile far from water does NOT show "Wet"
+- No functional changes to drinking, pathfinding
 
-Both planted items and naturally reproducing plants now go through a sprout phase. Sprouts start as immature versions and grow into full plants over time. This changes the existing lifecycle system — `spawnItem()` creates sprouts instead of full-grown plants.
+**Reqs reconciliation:** Line 63 _"convert water symbol to medium-shade tile"_ — `▓` is dark shade block. Line 131 _"tiles adjacent (including diagonal) to water sources are always 'wet'"_ ✓.
 
-**Sprout visuals** (see Decisions Log):
-- Sprout symbol (TBD during implementation)
-- Olive color unless on a wet tile (then green)
-- Mushroom sprouts always show their variety color
-- Plants on tilled soil are underlined
-- Tilled soil without a plant shows a parallel lines ground symbol
+**Bug fixed during testing:** The pond fill pattern must be `▓▓▓` (three characters) to match the terrain fill system width, not a single `▓`. A single character left two empty-looking cells flanking the symbol, breaking visual consistency with tilled soil `═══`. Fixed by rendering pond tiles as `▓▓▓`.
 
-[TEST]
-- Planted ground appears as sprout with correct styles
-- Details view shows appropriate description of sprout
-- Note: Sprout will not grow until next step
+**[DOCS]** Update README, game-mechanics as needed.
 
-[DOCS]
+**[RETRO]** Run /retro.
 
-**[RETRO]** Run /retro if there were any interruptions
+##### Step 1a: Plant Activity Registration + Order UI
 
-#### Design: Growth Speed Tiers
+**Tests** (in `internal/entity/activity_test.go`):
+- `plant` activity registered with Category `"garden"`, IntentOrderable, AvailabilityKnowHow
+- `plant` activity has DiscoveryTriggers with `RequiresPlantable: true` for ActionLook and ActionPickup
 
-| Tier | Sprout Duration | Reproduction | Items |
-|------|----------------|--------------|-------|
-| Fast | Shorter | Shorter | Berry, Mushroom |
-| Medium | 3 world days | Existing (potentially adjusted for sprout time) | Flower |
-| Slow | Longer | Longer | Gourd |
+**Tests** (in `internal/system/preference_test.go` or knowledge test):
+- Know-how discovery fires when looking at plantable item with RequiresPlantable trigger
+- Know-how discovery does NOT fire for non-plantable item with RequiresPlantable trigger
 
-- May need to shorten existing life cycle by 3 days to account for sprouting stage and maintain same food availability
-- Testing sprout duration: 30 seconds (all tiers compressed for faster iteration).
+**Tests** (in `internal/system/order_execution_test.go`):
+- Plant order unfulfillable when no plantable items of target type exist in world
+- Plant order feasible when plantable items of target type exist
 
-**Tilled ground bonus**: Plants on tilled soil grow and reproduce faster than wild plants.
+**Implementation:**
+- Add `RequiresPlantable bool` to `DiscoveryTrigger` struct in activity.go
+- Update know-how discovery check to handle `RequiresPlantable` (check `item.Plantable`)
+- Register `plant` activity: ID `"plant"`, Name `"Plant"`, Category `"garden"`, IntentOrderable, AvailabilityKnowHow, triggers on ActionLook + ActionPickup with RequiresPlantable
+- Add `LockedVariety string` to Order struct, `json:"locked_variety,omitempty"` in save
+- Order UI: selecting "Plant" in garden step 1 → step 2 shows plantable types: "Seeds" (`"seed"`), "Berries" (`"berry"`), "Mushrooms" (`"mushroom"`). Selecting creates order with TargetItemType set.
+- `DisplayName()`: follows harvest pattern → "Plant seeds", "Plant berries", "Plant mushrooms"
+- Unfulfillable check: plant order unfulfillable when no plantable items of target type exist in world
+- Serialization: LockedVariety in order save/load
 
-**Watered bonus**: Plants on wet tiles grow and reproduce faster. Stacks with tilled bonus. Precise bonus values determined during implementation.
+**[TEST] Checkpoint — Plant activity registration + order UI:**
+- `go test ./...` passes
+- Build and run: character discovers Plant from looking at/picking up plantable items
+- Knowledge panel shows "Garden: Plant"
+- Orders → Garden → Plant → sub-menu shows Seeds/Berries/Mushrooms
+- Selecting one creates order showing "Plant seeds" in orders panel
+- Plant order shows [Unfulfillable] when no plantable items exist
+- Esc navigates back through sub-menus correctly
+- Order can be cancelled normally
+- Note: ordering Plant creates the order but character can't execute it yet (Step 1b)
 
-**Outcomes:**
+**[DOCS]** Update README, game-mechanics as needed.
 
-1. Plant activity: orderable, discoverable from plantable items
-2. Order UI: Garden > Plant > select plantable type
-3. Character plants items on tilled soil, continues until supply or soil exhausted
-4. Multi-assignment: multiple characters can plant simultaneously
-5. Sprout phase for all plant reproduction (natural + planted)
-6. Sprout duration: 30 seconds (testing), tier-differentiated in final tuning
-7. Growth speed tiers: fast (berry/mushroom), medium (flower), slow (gourd)
-8. Tilled ground growth bonus
-9. Water-adjacent tiles always wet → growth bonus near water
-10. Sprout visuals: olive (dry) / green (wet), underlined on tilled soil
+**[RETRO]** Run /retro.
 
-**[TEST] Checkpoint**
-- Till soil (from Slice 3), order Plant > gourd seeds. Character fetches seeds, plants on tilled tiles. Sprouts appear with correct visual.
-- Plant berries directly (no seed needed, just picked berries with Plantable flag)
-- Sprouts grow into full plants over time
-- Plants on tilled soil grow faster than wild plants
-- Plants near a pond (water-adjacent) grow faster, Planting on naturally wet ground near a pond or spring gives a natural growth bonus without manual watering.
-- Natural plant reproduction now goes through sprout phase (not just planted items)
-- Test multi-assignment: two characters planting different varieties
-- Abandonment when no plantable items available
-- Save and load preserves tilled state, sprouts, growth timers
+##### Step 1b: Sprout Creation + findPlantIntent + ActionPlant
+
+**Design: Sprout Data Model**
+
+Add `IsSprout bool` and `SproutTimer float64` to PlantProperties. Sprouts have `IsGrowing: true` (they're in the ground) but can't reproduce yet (lifecycle skips them). `SproutTimer` counts down; maturation logic added in Step 2.
+
+**Design: CreateSprout Helper**
+
+Creates a sprout item from a plantable item:
+- From seed: ItemType = parent type (extract from Kind: `"gourd seed"` → `"gourd"`), variety from seed. Edible properties looked up from variety registry by parent type + attributes.
+- From berry/mushroom: ItemType = same as planted item, variety from item. Edible properties copied directly.
+- Sets `Plant: {IsGrowing: true, IsSprout: true, SproutTimer: SproutDuration}`, symbol `CharSprout`
+
+**Design: findPlantIntent Flow**
+
+1. Find nearest empty tilled tile (no item at position). If none → return nil (order complete).
+2. Check if character has accessible plantable item of target type (inventory + vessel). If LockedVariety set, filter to matching variety.
+3. If no accessible item: seek nearest plantable item of target type on ground. If LockedVariety set, filter to matching variety.
+4. If no item findable → return nil (completion if LockedVariety set, abandon if never started).
+5. If carrying item but not at tilled tile → move intent (BFS).
+6. At tilled tile with plantable item → ActionPlant intent.
+
+**Logging note (from Till Soil retro):** Only log on completion — not on start. Log "Planted [variety]" per tile completion.
+
+**Tests** (in `internal/entity/item_test.go`):
+- CreateSprout from gourd seed: sprout has ItemType `"gourd"`, IsSprout true, symbol CharSprout, parent variety
+- CreateSprout from berry: sprout has ItemType `"berry"`, IsSprout true, symbol CharSprout, parent variety
+- CreateSprout from mushroom: sprout preserves edible properties (poisonous/healing)
+
+**Tests** (in `internal/system/order_execution_test.go`):
+- `findPlantIntent` returns procurement intent when no plantable item carried
+- `findPlantIntent` returns movement intent toward nearest empty tilled tile when carrying plantable
+- `findPlantIntent` returns ActionPlant when at empty tilled tile with plantable item
+- `findPlantIntent` returns nil when no empty tilled tiles (order complete)
+- `findPlantIntent` returns nil when no plantable items available
+- `findPlantIntent` with LockedVariety only seeks matching variety
+- `findPlantIntent` skips tilled tiles that already have items
+
+**Tests** (in `internal/ui/update_test.go`):
+- ActionPlant consumes plantable item from inventory, creates sprout at position
+- ActionPlant from gourd seed: sprout has ItemType `"gourd"`, correct variety
+- ActionPlant from berry: sprout has ItemType `"berry"`, correct variety
+- ActionPlant sets LockedVariety on order when first planted
+- Sprout has IsSprout=true, IsGrowing=true, symbol CharSprout
+
+**Tests** (serialization):
+- IsSprout and SproutTimer round-trip through save/load
+
+**Config:** `CharSprout = '𖧧'`, `SproutDuration = 30.0`
+
+**Implementation:**
+- Add `IsSprout bool`, `SproutTimer float64` to PlantProperties
+- Add `CharSprout`, `SproutDuration` constants to config.go
+- `CreateSprout(x, y int, plantedItem *Item, ...)` helper for sprout creation
+- Add `ActionPlant` to ActionType enum
+- `findPlantIntent()` in order_execution.go (see flow above)
+- New helper: `findNearestPlantableItem(itemType, items, charPos, lockedVariety)` in picking.go
+- Wire into `findOrderIntent()`: `case "plant"` → `findPlantIntent()`
+- ActionPlant handler in update.go: progress-based (ActionDurationMedium), on completion consume item + create sprout + set LockedVariety + log "Planted [variety]"
+- Order completion: nil from `findPlantIntent` → complete if LockedVariety set, abandon if empty
+- Sprout rendering in `renderCell()`: mushroom=variety color, wet=green, else=olive (`growingStyle`)
+- Tilled soil rendering: `═𖧧═` for sprout on tilled tile (existing fill pattern)
+- Details panel: "Sprout of [variety]" for sprout items
+- Serialization: IsSprout, SproutTimer in plant save fields; LockedVariety in order save
+
+**[TEST] Checkpoint — Full Plant flow:**
+- `go test ./...` passes
+- Build and run (use `/test-world` with Plant know-how + tilled soil + seeds/berries):
+  - Order Plant > Seeds: character picks up gourd seed, moves to tilled soil, plants
+  - Sprout `𖧧` appears in olive on tilled soil (`═𖧧═`)
+  - Sprout near water appears green
+  - Mushroom sprout appears in variety color
+  - Details panel shows "Sprout of warty green gourd" (or similar)
+  - Character continues planting same variety until supply exhausted
+  - Order completes when seeds exhausted or no empty tilled tiles
+  - Order Plant > Berries: character picks up plantable berry, plants on tilled soil
+  - Multiple characters can plant simultaneously with different orders
+  - Save, load preserves sprouts, locked variety, and sprout timers
+  - Note: sprouts do NOT mature yet (Step 2)
+
+**Reqs reconciliation:** Lines 84-99. _"Discoverable Know-How"_ ✓, _"Orderable"_ ✓, _"Garden > Plant > Select Plantable ItemType"_ ✓, _"planted item becomes a growing 'sprout'"_ ✓, _"sprouts appear olive unless tile is watered"_ ✓, _"mushrooms always the color of their variety"_ ✓, _"keep planting until that specific variety... is no longer available OR... no more unplanted tilled soil"_ ✓, _"More than one character can be planting at once"_ ✓.
+
+**[DOCS]** Update README (Plant activity, sprouts), CLAUDE.md, game-mechanics, architecture.
+
+**[RETRO]** Run /retro.
+
+##### Step 2: Sprout Maturation + All Reproduction Through Sprouts
+
+**Design: Growth Multipliers**
+
+Sprout timer and reproduction timer decremented faster on tilled/wet tiles. Applied per-tick as a multiplier on delta:
+- `TilledGrowthMultiplier` (> 1.0, e.g., 1.25 = 25% faster on tilled soil)
+- `WetGrowthMultiplier` (> 1.0, e.g., 1.25 = 25% faster on wet tile)
+- Stacking: multiplicative (tilled × wet). Exact values tunable in Slice 9.
+
+**Design: spawnItem Change**
+
+`spawnItem()` in lifecycle.go creates sprouts instead of mature plants:
+- `IsSprout: true`, `SproutTimer: SproutDuration`, symbol `CharSprout`
+- `IsGrowing: true` but skipped for reproduction in `UpdateSpawnTimers`
+- No SpawnTimer or DeathTimer yet — set on maturation
+
+**Design: MatureSymbol**
+
+Helper deriving mature symbol from ItemType: berry→`●`, mushroom→`♠`, flower→`✿`, gourd→`G`.
+
+**Tests** (in `internal/system/lifecycle_test.go`):
+- `UpdateSproutTimers` decrements SproutTimer by delta
+- Sprout matures when SproutTimer reaches 0: IsSprout becomes false
+- Mature sprout has correct symbol (berry→●, mushroom→♠, flower→✿, gourd→G)
+- Mature plant has SpawnTimer set for reproduction
+- Mature plant has DeathTimer set (for mortal types like flowers)
+- Sprout on tilled soil: timer decremented faster by TilledGrowthMultiplier
+- Sprout on wet tile: timer decremented faster by WetGrowthMultiplier
+- `spawnItem` creates sprout (IsSprout=true, CharSprout symbol) instead of mature plant
+- `spawnItem` sprout has correct parent variety and edible properties
+- `UpdateSpawnTimers` skips sprouts for reproduction
+- Reproduction timer also affected by tilled/wet multipliers
+
+**Config:**
+- `TilledGrowthMultiplier = 1.25` (25% faster — tunable in Slice 9)
+- `WetGrowthMultiplier = 1.25` (25% faster — tunable in Slice 9)
+
+**Implementation** (`internal/system/lifecycle.go`, `internal/config/config.go`, `internal/ui/update.go`):
+- `MatureSymbol(itemType string) rune` helper
+- `UpdateSproutTimers(gameMap *Map, initialItemCount int, delta float64)`:
+  - Iterate items, find sprouts (`Plant.IsSprout == true`)
+  - Calculate effective delta: `delta × TilledGrowthMultiplier (if tilled) × WetGrowthMultiplier (if wet)`
+  - Decrement SproutTimer by effective delta
+  - On maturation (timer ≤ 0): `IsSprout = false`, set Sym to `MatureSymbol(itemType)`, set SpawnTimer, set DeathTimer
+- Modify `spawnItem()`: create sprout instead of mature plant (CharSprout symbol, IsSprout, SproutTimer)
+- Modify `UpdateSpawnTimers`: skip sprouts (`if item.Plant.IsSprout { continue }`)
+- Apply growth multipliers to reproduction SpawnTimer delta in `UpdateSpawnTimers`
+- Wire `UpdateSproutTimers()` into game loop (after `UpdateSpawnTimers`, before `UpdateDeathTimers`)
+
+**[TEST] Checkpoint — Full sprout lifecycle:**
+- `go test ./...` passes
+- Build and run:
+  - Plant a seed on tilled soil → sprout appears → after ~30s matures into full plant with correct symbol
+  - Mature plant reproduces normally → offspring appear as sprouts → they mature too
+  - Wild plants (not on tilled soil) also reproduce through sprout phase
+  - Sprout on tilled soil near water matures noticeably faster than wild sprout
+  - Growth hierarchy: tilled+wet > tilled or wet alone > wild
+  - Full food loop: gourd eaten → seed → plant → sprout → mature gourd → eat → more seeds
+  - Berry picked → plantable → plant on tilled soil → sprout → mature berry
+  - Existing gameplay unbroken: food supply maintained despite sprout phase
+  - Save, load preserves sprout timers and maturation state
+
+**Reqs reconciliation:** Lines 125-131. _"sprout eventually becomes a full grown version"_ ✓, _"extend normal plant reproduction to have sprout phase"_ ✓, _"tilled ground makes it grow faster"_ ✓, _"wet tile makes it grow faster"_ ✓, _"tiles adjacent to water sources are always 'wet'"_ ✓ (from Step 0).
 
 **[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture.
 
 **[RETRO]** Run /retro.
-
-**Feature questions:**
-- Sprout symbol: what character? Evaluate options during implementation.
-- Precise tilled/watered growth bonus percentages?
-- What happens if character tries to plant on already-occupied tilled tile?
-- Does the underline styling render across common terminal emulators? Fallback plan?
-- Sprout → full plant transition: symbol change in place, or item replacement?
 
 ---
 
@@ -1279,6 +1430,8 @@ Water sources (ponds and springs) need to be lookable — this requires the look
 Orderable, discoverable (looking at sprout, water source, or hollow gourd). No recipe needed. Prerequisite: vessel with water, procured via standard logic (check inventory for water vessel → seek water vessel on ground → fill empty vessel at source → abandon if impossible).
 
 **Watering action**: Character waters the closest dry tilled planted tile. Uses 1 unit of water per tile. If water remains, continues to next dry tilled planted tile. If vessel empty but more dry tiles exist, character refills at nearest water source and continues. Completion: no remaining dry tilled planted tiles. Multi-assignment supported.
+
+**Logging note (from Till Soil retro):** For bulk repeated actions, only log on completion — not on start. Per-tile "Watering..." messages will create spam. Log "Watered [tile]" on completion only.
 
 #### Design: Wet Tile System
 

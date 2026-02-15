@@ -14,6 +14,8 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 
 ## Latest Updates
 
+- **Water Appearance + Wet Tiles**: Ponds now render as filled blocks (`▓`) instead of waves. Tiles adjacent to water (including diagonally) show "Wet" in the details panel.
+- **Gourd Seeds**: Eating a gourd now drops a seed on the ground. Seeds are plantable and stack in vessels.
 - **Unfulfillable Orders**: Orders that can't be completed (no required items in the world, or no character has the needed know-how) are shown as dimmed and skipped by characters
 - **Till Soil**: Players can mark rectangular areas for tilling using an area selection tool. Characters with till know-how procure a hoe and till the marked tiles.
 - **Craft Hoe**: New craftable tool from sticks and shells. Hoes inherit shell color.

@@ -165,11 +165,13 @@ Items are generated from varieties at world creation. Each variety defines a uni
 - **Sticks**: Brown `/`; non-edible, non-plant. Periodically falls from the canopy onto random empty tiles (see `config.GroundSpawnInterval`).
 - **Nuts**: Brown `o`; edible (not poisonous/healing), non-plant. Periodically falls from the canopy onto random empty tiles (see `config.GroundSpawnInterval`). Forageable by characters seeking food.
 - **Shells**: Colored `<`; non-edible, non-plant. Multiple color variants (see `types.ShellColors`). Periodically washes up adjacent to pond tiles (see `config.GroundSpawnInterval`).
+- **Seeds**: Dot `.` in parent's color; uses the Kind pattern (`ItemType: "seed"`, `Kind: "gourd seed"`). Inherits parent's full variety (Color, Pattern, Texture). Not edible, plantable. Stack size defined in `config.GetStackSize()`. Seeds are auto-dropped to ground when a gourd is consumed (from ground, inventory, or vessel). Seed varieties are registered in VarietyRegistry at world generation alongside their parent gourd varieties.
 
 ### World Features
 
 - **Springs**: Single water tiles (`☉`), impassable, drink from adjacent tile
-- **Ponds**: Contiguous blob-shaped clusters of 4-16 water tiles (`≈`), impassable, drink from adjacent tile. 1-5 ponds generated per world. Map connectivity verified after generation.
+- **Ponds**: Contiguous blob-shaped clusters of 4-16 water tiles (`▓`), impassable, drink from adjacent tile. 1-5 ponds generated per world. Map connectivity verified after generation.
+- **Wet tiles**: Tiles 8-directionally adjacent to any water tile (pond or spring) are considered wet. Computed on the fly — no persistent state. Water tiles themselves are not wet (they're impassable). Wet status is shown as "Wet" (in blue) in the details panel when the cursor is on a wet empty tile or an item on a wet tile.
 - **Leaf Piles**: Passable, used as beds for sleeping
 
 ### Variety Generation
@@ -519,6 +521,7 @@ When an item is picked up:
 - IsGrowing set to false (picked items don't spawn new items)
 - Spawn/death timers are cleared (carried items are static)
 - Item remains in inventory until consumed or dropped
+- Berries and mushrooms become Plantable on pickup (shown as "Plantable" in details panel)
 
 ### Dropping Items
 

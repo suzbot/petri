@@ -113,7 +113,7 @@ internal/
 
 **Up Next:**
 
-- Gardening in progress (Slices 1-3 complete: ponds/sticks/shells/nuts, craft hoe, till soil with area selection). Next: Slice 4 — Unfulfillable Orders. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
+- Gardening in progress (Slices 1-5 complete; Slice 6 started: Step 0 — water symbol + wet tiles done). Next: Slice 6 Step 1 — Plant Activity. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
 
 ## Reference and Planning Documents
 

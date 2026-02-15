@@ -389,6 +389,27 @@ func (m *Map) FindNearestWater(pos types.Position) (types.Position, bool) {
 	return nearestPos, found
 }
 
+// IsWet returns true if the position is adjacent (8-directional) to a water tile.
+// Water tiles themselves are not "wet" — they ARE water (impassable).
+// Computed on the fly, no persistent state.
+func (m *Map) IsWet(pos types.Position) bool {
+	if m.IsWater(pos) {
+		return false
+	}
+	dirs := [][2]int{
+		{-1, -1}, {0, -1}, {1, -1},
+		{-1, 0}, {1, 0},
+		{-1, 1}, {0, 1}, {1, 1},
+	}
+	for _, d := range dirs {
+		neighbor := types.Position{X: pos.X + d[0], Y: pos.Y + d[1]}
+		if m.IsWater(neighbor) {
+			return true
+		}
+	}
+	return false
+}
+
 // SetTilled marks a position as tilled soil
 func (m *Map) SetTilled(pos types.Position) {
 	m.tilled[pos] = true

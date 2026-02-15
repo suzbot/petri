@@ -27,7 +27,7 @@ const (
 	CharVessel   = 'U'
 	CharSpring   = '☉'
 	CharLeafPile = '#'
-	CharWater    = '≈'
+	CharWater    = '▓'
 	CharStick    = '/'
 	CharNut      = 'o'
 	CharShell    = '<'
