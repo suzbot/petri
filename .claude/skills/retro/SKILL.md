@@ -86,6 +86,8 @@ Assess whether Step 1 insights revealed **clear, recurring, or token/context-hea
   - Did the user request the retro? If so, provide the analysis and the reasoning for no change.
   - Was the retro automatic? No output is needed, do not solicit user response.
 
+Take what you learned about user values, and propose additions to docs/Values.md.
+
 ---
 
 ## Output Rules

@@ -41,4 +41,6 @@ Read each of these files, then apply only the changes warranted by the summary:
 1. Read all five files
 2. For each file, determine what (if anything) needs updating based on the summary
 3. Make edits
-4. **IMPORTANT**: Your final message MUST include a summary of what was changed in each file (or "no changes needed"). This summary is the only output the caller sees — without it, they have no visibility into what you did. Format as a bulleted list per file.
+4. **IMPORTANT**: Your final message MUST include a summary of what was changed in each file (or "no changes needed"). This summary is the only output the caller sees — without it, they have no visibility into what you did. 
+  - Format as a bulleted list per file.
+  - Include a suggestion for a short commit message

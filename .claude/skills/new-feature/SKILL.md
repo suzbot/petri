@@ -9,7 +9,7 @@ description: "Start implementing a feature, step, or task — whether part of a 
 
 ### Step 1: Review Context (REQUIRED)
 Read these before discussing approach:
-- Reread the original requirements document for full context
+- Reread the **original requirements document** for full context (linked at top of phase plan doc). Proposals that contradict or miss requirements waste discussion time.
 - Phase plan document in `docs/` (if exists) — this is the planning artifact, not a new file
 - Any questions deferred from phase planning
 - Run /architecture if exploring unfamiliar areas of the codebase

@@ -57,6 +57,7 @@ Pay special attention to:
 2. **Use Read, Grep, and Glob tools** to examine the code thoroughly
 3. **Check for related code** that might be affected by changes
 4. **Reference existing patterns** in the codebase for consistency checks
+5. **Assess build path context** - When flagging issues, consider whether they are permanent problems or expected consequences of incomplete work (e.g., a missing handler that the next planned step will implement). Read the relevant phase plan in `docs/` to understand what's coming next. Flag permanent issues as critical; flag temporary/known-incomplete issues as informational with a note like "this will be resolved when step X adds Y"
 
 ## Output Format
 

@@ -24,7 +24,7 @@ Read the roadmap section of CLAUDE.md to find what's next. This skill only needs
 
 ### Step 4: Create Phase Plan
 Save the high-level phase plan to `docs/[name]-phase-plan.md` — this is the **single planning artifact** for the phase. Do not create separate plan files. Contents:
-- Original requirements reference
+- Original requirements reference — include an explicit link to the requirements document (e.g., `[Gardening-Reqs.txt](Gardening-Reqs.txt)`) at the top of the plan so it's easy to find during implementation
 - User-facing outcomes for each sub-phase
 - [TEST] checkpoints where user can verify behavior
 - [DOCS] checkpoint after each [TEST] to update README, CLAUDE.md, game-mechanics, and architecture as needed
