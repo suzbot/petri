@@ -27,10 +27,9 @@ then they can be removed from this list.
 3. Why have we started running into all these tab/whitespace problems while editing just in the last week or so? especially since claude is the only one reading/writing code?
 4. Latest model is much more expensive in terms of tokens. How can I better leverage skills and agents to use simpler models for simpler tasks? We already have a good pattern with docs and test world creation. Anything else this would make sense for? 
    - Can retro use a simpler model?
-   - break new feature skill into two:
-      1. feature refinement
-      2. feature implementation and testing
+   - I broke the new feature skill into two: refine-feature and implement-feature
       Why: often this happens over two sessions or with a clear in between. Uses two different skill sets. Implementation and testing skill can roll out of context by the time we get to it. Can call back to refinement if we hit further discussion mid implementation.
+      Question: could implementation use a simpler model since problem solving could call back to the more sophisticated model?
    - I notice 'explore' doesn't always get loaded when another skill is being used to look at a lot of documents -- can that be called out anywherer to ensure we aren't spending expensive model tokens on doc search if we don't need to? 
    - Anything we can do to make the architecture document or skill aid in this goal of spending less tokens?
       - Pain point: I rarely see this skill used or the doc read, sometimes important things in that architecture doc get missed

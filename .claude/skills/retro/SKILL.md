@@ -66,7 +66,7 @@ collaboration friction was observed**. If any of the above did occur, carry the 
 
 ### Step 2: Process Refinement
 
-Assess whether Step 1 insights revealed **clear, recurring, or token/context-heavy friction**
+A. Assess whether Step 1 insights revealed **clear, recurring, or token/context-heavy friction**
 - If yes:
   - are improvements best addressed by one or more of the following:
 
@@ -80,13 +80,13 @@ Assess whether Step 1 insights revealed **clear, recurring, or token/context-hea
     - Explain **why it is worth the cost**
     - Specify **what future context, effort, or friction it saves**
     - Keep recommendations minimal, concrete, and scoped
-    - **Prefer docs, skills, or agents over CLAUDE.md** — CLAUDE.md is always-loaded context and should stay lightweight. Place refinements where they'll be loaded contextually.
+    - **Prefer docs, skills, or agents over CLAUDE.md or Memories** — CLAUDE.md and Memories are always-loaded context and should stay lightweight and should only contain broadly applicable notes. Place refinements where they'll be loaded contextually.
 
 - If No: changes do not clearly pass the cost-benefit threshold
   - Did the user request the retro? If so, provide the analysis and the reasoning for no change.
   - Was the retro automatic? No output is needed, do not solicit user response.
 
-Take what you learned about user values, and propose additions to docs/Values.md.
+B. Take what you learned about user values, and propose additions to docs/Values.md.
 
 ---
 

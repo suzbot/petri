@@ -5,7 +5,7 @@ description: "Quick reference to Petri's architecture patterns. Use before readi
 
 ## Architecture Quick Reference
 
-Read `docs/architecture.md` for the complete reference. Key patterns:
+Read `docs/architecture.md` for the complete reference and details on desired patterns. Key patterns:
 
 ### Core Design
 - **MVU Architecture**: Bubble Tea Model-View-Update, rendering diffs automatic
