@@ -1,0 +1,5 @@
+a62ca3acf4b97d16dfa75bc461ab37725f11bda6d9e20beea9289bf0ff6145f1  petri-v0.0.1-darwin-amd64.tar.gz
+d1f0d08989dfa9d1dfb8cab455dd691bbbd34a0ec682ab51e4d6691e3cb08db0  petri-v0.0.1-darwin-arm64.tar.gz
+d2c45b9b5339b957862a34b0b80da8369dd9a8f64d21db16d4164025b7cb250b  petri-v0.0.1-linux-amd64.tar.gz
+31c4aa09b3ce6529be6a22576a0c99b41ba88553afbc6c424b4b11073e769c13  petri-v0.0.1-linux-arm64.tar.gz
+b52afb35770c6526f7fbc11036b27441dc5afd8b7e032eccf4fbdcf4312ded2e  petri-v0.0.1-windows-amd64.zip
