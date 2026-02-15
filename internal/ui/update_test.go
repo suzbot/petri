@@ -1472,7 +1472,7 @@ func TestSetOrderFlash_ResetsCountWhenTimerExpired(t *testing.T) {
 	}
 }
 
-func TestApplyIntent_TillSoil_CompletesOrderWhenPoolEmpty(t *testing.T) {
+func TestApplyIntent_TillSoil_CompletesAndRemovesOrderWhenPoolEmpty(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(20, 20)
@@ -1514,9 +1514,20 @@ func TestApplyIntent_TillSoil_CompletesOrderWhenPoolEmpty(t *testing.T) {
 		t.Fatal("Expected tile to be tilled")
 	}
 
-	// Intent should be cleared (ready for next tick to re-evaluate)
-	if char.Intent != nil {
-		t.Error("Expected intent to be cleared after tilling")
+	// Order should be marked completed
+	if order.Status != entity.OrderCompleted {
+		t.Errorf("Order status: got %s, want %s", order.Status, entity.OrderCompleted)
+	}
+
+	// Character should be unassigned
+	if char.AssignedOrderID != 0 {
+		t.Error("Expected char.AssignedOrderID to be cleared after completion")
+	}
+
+	// Sweep should remove completed orders
+	m.sweepCompletedOrders()
+	if len(m.orders) != 0 {
+		t.Errorf("Expected order to be removed after sweep, got %d orders", len(m.orders))
 	}
 }
 
@@ -1838,5 +1849,137 @@ func TestApplyIntent_Plant_ExtractsFromVessel(t *testing.T) {
 	}
 	if vessel.Container.Contents[0].Count != 1 {
 		t.Errorf("Expected 1 berry remaining in vessel, got %d", vessel.Container.Contents[0].Count)
+	}
+}
+
+// =============================================================================
+// Order Completion Sweep Tests
+// =============================================================================
+
+func TestSweepCompletedOrders_RemovesCompletedOrders(t *testing.T) {
+	t.Parallel()
+
+	order1 := entity.NewOrder(1, "harvest", "berry")
+	order1.Status = entity.OrderCompleted
+	order2 := entity.NewOrder(2, "harvest", "mushroom")
+	order2.Status = entity.OrderOpen
+	order3 := entity.NewOrder(3, "tillSoil", "")
+	order3.Status = entity.OrderCompleted
+
+	m := Model{
+		orders: []*entity.Order{order1, order2, order3},
+	}
+
+	m.sweepCompletedOrders()
+
+	if len(m.orders) != 1 {
+		t.Fatalf("Expected 1 order remaining, got %d", len(m.orders))
+	}
+	if m.orders[0].ID != 2 {
+		t.Errorf("Expected remaining order ID=2, got ID=%d", m.orders[0].ID)
+	}
+}
+
+func TestApplyIntent_Plant_CompletesOrderWhenLastItemPlanted(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	// Only one plantable berry — after planting it, no more items
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	berry.Plantable = true
+	char.AddToInventory(berry)
+
+	// Two tilled tiles — but only one plantable item, so order completes after first plant
+	target := types.Position{X: 5, Y: 5}
+	gameMap.SetTilled(target)
+	gameMap.SetTilled(types.Position{X: 6, Y: 5})
+
+	order := entity.NewOrder(1, "plant", "berry")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionPlant,
+		Target: target,
+		Dest:   target,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	for i := 0; i < 50; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Sprout should exist
+	if gameMap.ItemAt(target) == nil {
+		t.Fatal("Expected sprout at tilled position")
+	}
+
+	// Order should be marked completed (last plantable item used)
+	if order.Status != entity.OrderCompleted {
+		t.Errorf("Order status: got %s, want %s", order.Status, entity.OrderCompleted)
+	}
+
+	if char.AssignedOrderID != 0 {
+		t.Error("Expected char.AssignedOrderID to be cleared after completion")
+	}
+}
+
+func TestApplyIntent_Plant_CompletesOrderWhenNoMoreTilledTiles(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	// Two plantable berries but only one tilled tile
+	berry1 := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	berry1.Plantable = true
+	char.AddToInventory(berry1)
+
+	berry2 := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	berry2.Plantable = true
+	char.AddToInventory(berry2)
+
+	// Only one tilled tile — after planting, no more empty tiles
+	target := types.Position{X: 5, Y: 5}
+	gameMap.SetTilled(target)
+
+	order := entity.NewOrder(1, "plant", "berry")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionPlant,
+		Target: target,
+		Dest:   target,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	for i := 0; i < 50; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Order should be marked completed (no more empty tilled tiles)
+	if order.Status != entity.OrderCompleted {
+		t.Errorf("Order status: got %s, want %s", order.Status, entity.OrderCompleted)
 	}
 }

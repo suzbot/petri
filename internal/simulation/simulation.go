@@ -106,6 +106,7 @@ func RunTick(world *TestWorld, delta float64) {
 	// Phase 4: Update item lifecycle
 	initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers
 	system.UpdateSpawnTimers(world.GameMap, initialItemCount, delta)
+	system.UpdateSproutTimers(world.GameMap, initialItemCount, delta)
 	system.UpdateDeathTimers(world.GameMap, delta)
 
 	// Phase 5: Update ground spawning (sticks, nuts, shells)

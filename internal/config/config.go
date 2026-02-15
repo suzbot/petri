@@ -87,7 +87,9 @@ const (
 	MoodPenaltyFrustrated  = 2.0 // per second while frustrated (additive with need decay)
 
 	// Sprout maturation
-	SproutDuration = 30.0 // seconds until sprout matures into a full plant
+	SproutDuration         = 30.0 // seconds until sprout matures into a full plant
+	TilledGrowthMultiplier = 1.25 // 25% faster growth on tilled soil (tunable in Slice 9)
+	WetGrowthMultiplier    = 1.25 // 25% faster growth on wet tiles (tunable in Slice 9)
 
 	// Healing
 	HealAmount = 20.0 // health restored by healing items (instant)

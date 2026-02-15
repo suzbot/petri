@@ -850,3 +850,224 @@ func TestEnsureHasRecipeInputs_SingleInputRecipe(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// FindVesselContaining Tests
+// =============================================================================
+
+func TestFindVesselContaining_ReturnsVesselWithMatchingContents(t *testing.T) {
+	t.Parallel()
+
+	vessel := createTestVessel()
+	vessel.X = 3
+	vessel.Y = 3
+	vessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{
+			ID:        entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+			ItemType:  "berry",
+			Color:     types.ColorRed,
+			Plantable: true,
+		}, Count: 2},
+	}
+
+	items := []*entity.Item{vessel}
+	result := FindVesselContaining(0, 0, items, "berry", "")
+	if result == nil {
+		t.Fatal("Expected to find vessel containing berries")
+	}
+	if result != vessel {
+		t.Error("Expected the vessel with berries to be returned")
+	}
+}
+
+func TestFindVesselContaining_ReturnsNil_WrongType(t *testing.T) {
+	t.Parallel()
+
+	vessel := createTestVessel()
+	vessel.X = 3
+	vessel.Y = 3
+	vessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{
+			ID:        entity.GenerateVarietyID("mushroom", types.ColorRed, types.PatternNone, types.TextureNone),
+			ItemType:  "mushroom",
+			Color:     types.ColorRed,
+			Plantable: true,
+		}, Count: 2},
+	}
+
+	items := []*entity.Item{vessel}
+	result := FindVesselContaining(0, 0, items, "berry", "")
+	if result != nil {
+		t.Error("Expected nil when vessel contains wrong item type")
+	}
+}
+
+func TestFindVesselContaining_ReturnsNil_NoVessels(t *testing.T) {
+	t.Parallel()
+
+	berry := entity.NewBerry(3, 3, types.ColorRed, false, false)
+	items := []*entity.Item{berry}
+
+	result := FindVesselContaining(0, 0, items, "berry", "")
+	if result != nil {
+		t.Error("Expected nil when no vessels on ground")
+	}
+}
+
+func TestFindVesselContaining_RespectsLockedVariety(t *testing.T) {
+	t.Parallel()
+
+	redID := entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone)
+	blueID := entity.GenerateVarietyID("berry", types.ColorBlue, types.PatternNone, types.TextureNone)
+
+	// Vessel with blue berries
+	vessel := createTestVessel()
+	vessel.X = 3
+	vessel.Y = 3
+	vessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{
+			ID:        blueID,
+			ItemType:  "berry",
+			Color:     types.ColorBlue,
+			Plantable: true,
+		}, Count: 2},
+	}
+
+	items := []*entity.Item{vessel}
+
+	// Looking for red berries — should not match
+	result := FindVesselContaining(0, 0, items, "berry", redID)
+	if result != nil {
+		t.Error("Expected nil when vessel has wrong variety")
+	}
+
+	// Looking for blue berries — should match
+	result = FindVesselContaining(0, 0, items, "berry", blueID)
+	if result == nil {
+		t.Fatal("Expected to find vessel containing blue berries")
+	}
+}
+
+func TestFindVesselContaining_FindsNearest(t *testing.T) {
+	t.Parallel()
+
+	makeVessel := func(x, y int) *entity.Item {
+		v := createTestVessel()
+		v.X = x
+		v.Y = y
+		v.Container.Contents = []entity.Stack{
+			{Variety: &entity.ItemVariety{
+				ItemType:  "berry",
+				Color:     types.ColorRed,
+				Plantable: true,
+			}, Count: 1},
+		}
+		return v
+	}
+
+	far := makeVessel(10, 10)
+	near := makeVessel(2, 2)
+	items := []*entity.Item{far, near}
+
+	result := FindVesselContaining(0, 0, items, "berry", "")
+	if result != near {
+		t.Error("Expected nearest vessel to be returned")
+	}
+}
+
+// =============================================================================
+// EnsureHasPlantable — ground vessel tests
+// =============================================================================
+
+func TestEnsureHasPlantable_PicksUpGroundVessel(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 0, 0, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Vessel on the ground with berries
+	vessel := createTestVessel()
+	vessel.X = 5
+	vessel.Y = 0
+	vessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{
+			ItemType:  "berry",
+			Color:     types.ColorRed,
+			Plantable: true,
+		}, Count: 3},
+	}
+	gameMap.AddItem(vessel)
+
+	items := gameMap.Items()
+	intent := EnsureHasPlantable(char, "berry", "", items, gameMap, nil)
+	if intent == nil {
+		t.Fatal("Expected intent to pick up vessel with berries")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Expected ActionPickup, got %v", intent.Action)
+	}
+	if intent.TargetItem != vessel {
+		t.Error("Expected target to be the vessel")
+	}
+}
+
+func TestEnsureHasPlantable_PrefersVesselOverLoose(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 0, 0, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Loose berry on the ground — farther away
+	looseBerry := entity.NewBerry(8, 0, types.ColorRed, false, false)
+	looseBerry.Plantable = true
+	gameMap.AddItem(looseBerry)
+
+	// Vessel with berries — closer
+	vessel := createTestVessel()
+	vessel.X = 3
+	vessel.Y = 0
+	vessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{
+			ItemType:  "berry",
+			Color:     types.ColorRed,
+			Plantable: true,
+		}, Count: 2},
+	}
+	gameMap.AddItem(vessel)
+
+	items := gameMap.Items()
+	intent := EnsureHasPlantable(char, "berry", "", items, gameMap, nil)
+	if intent == nil {
+		t.Fatal("Expected intent")
+	}
+	if intent.TargetItem != vessel {
+		t.Error("Expected vessel to be preferred over loose item (vessel checked first)")
+	}
+}
+
+// =============================================================================
+// PlantableItemExists — ground vessel tests
+// =============================================================================
+
+func TestPlantableItemExists_FindsItemsInGroundVessel(t *testing.T) {
+	t.Parallel()
+
+	vessel := createTestVessel()
+	vessel.X = 5
+	vessel.Y = 5
+	vessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{
+			ItemType:  "berry",
+			Color:     types.ColorRed,
+			Plantable: true,
+		}, Count: 2},
+	}
+
+	items := []*entity.Item{vessel}
+	if !PlantableItemExists(items, nil, "berry") {
+		t.Error("Expected PlantableItemExists to find berries inside ground vessel")
+	}
+}
+
+

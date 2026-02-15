@@ -6,9 +6,10 @@ import "strings"
 type OrderStatus string
 
 const (
-	OrderOpen     OrderStatus = "open"     // Available to be taken
-	OrderAssigned OrderStatus = "assigned" // Currently being worked on
-	OrderPaused   OrderStatus = "paused"   // Interrupted by character needs
+	OrderOpen      OrderStatus = "open"      // Available to be taken
+	OrderAssigned  OrderStatus = "assigned"  // Currently being worked on
+	OrderPaused    OrderStatus = "paused"    // Interrupted by character needs
+	OrderCompleted OrderStatus = "completed" // Finished — swept up and removed by game loop
 )
 
 // Order represents a player-issued work order
@@ -60,6 +61,8 @@ func (o *Order) StatusDisplay() string {
 		return "Assigned"
 	case OrderPaused:
 		return "Paused"
+	case OrderCompleted:
+		return "Completed"
 	default:
 		return string(o.Status)
 	}

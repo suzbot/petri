@@ -822,8 +822,8 @@ func TestOrderLifecycle_FullFlow(t *testing.T) {
 	if char.AssignedOrderID != 0 {
 		t.Errorf("Step 6: char.AssignedOrderID should be 0 after completion, got %d", char.AssignedOrderID)
 	}
-	if order.Status != entity.OrderOpen {
-		t.Errorf("Step 6: Order status should be Open (ready for removal), got %s", order.Status)
+	if order.Status != entity.OrderCompleted {
+		t.Errorf("Step 6: Order status should be Completed, got %s", order.Status)
 	}
 	if order.AssignedTo != 0 {
 		t.Errorf("Step 6: order.AssignedTo should be 0 after completion, got %d", order.AssignedTo)
@@ -2105,6 +2105,81 @@ func TestFindPlantIntent_DropsUnneededItem_WhenInventoryFull(t *testing.T) {
 	}
 	if intent.Action != entity.ActionPickup {
 		t.Errorf("Expected ActionPickup, got %d", intent.Action)
+	}
+}
+
+// =============================================================================
+// CompleteOrder + OrderCompleted status
+// =============================================================================
+
+func TestCompleteOrder_SetsOrderCompletedStatus(t *testing.T) {
+	t.Parallel()
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	order := entity.NewOrder(1, "harvest", "berry")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	log := NewActionLog(100)
+	CompleteOrder(char, order, log)
+
+	if order.Status != entity.OrderCompleted {
+		t.Errorf("Order status: got %s, want %s", order.Status, entity.OrderCompleted)
+	}
+	if char.AssignedOrderID != 0 {
+		t.Error("Expected char.AssignedOrderID to be cleared")
+	}
+}
+
+func TestSelectOrderActivity_SkipsCompletedOrders(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"harvest"}
+	gameMap.AddCharacter(char)
+
+	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	// Completed order should be skipped, open order should be taken
+	completedOrder := entity.NewOrder(1, "harvest", "berry")
+	completedOrder.Status = entity.OrderCompleted
+	openOrder := entity.NewOrder(2, "harvest", "berry")
+	orders := []*entity.Order{completedOrder, openOrder}
+
+	items := gameMap.Items()
+	intent := selectOrderActivity(char, char.Pos(), items, gameMap, orders, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent from open order")
+	}
+	if char.AssignedOrderID != openOrder.ID {
+		t.Errorf("Should have taken open order (id=2), got assigned to %d", char.AssignedOrderID)
+	}
+}
+
+func TestFindAvailableOrder_SkipsCompletedOrders(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"harvest"}
+	gameMap.AddCharacter(char)
+
+	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	completedOrder := entity.NewOrder(1, "harvest", "berry")
+	completedOrder.Status = entity.OrderCompleted
+	orders := []*entity.Order{completedOrder}
+
+	items := gameMap.Items()
+	result := findAvailableOrder(char, orders, items, gameMap)
+
+	if result != nil {
+		t.Error("Should not return completed order")
 	}
 }
 

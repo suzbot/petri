@@ -660,6 +660,7 @@ func (m Model) updateGame(now time.Time) (Model, tea.Cmd) {
 	if !m.testCfg.NoFood {
 		initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers
 		system.UpdateSpawnTimers(m.gameMap, initialItemCount, delta)
+		system.UpdateSproutTimers(m.gameMap, initialItemCount, delta)
 	}
 
 	// Update item death timers (flowers die regardless of no-food mode)
@@ -684,6 +685,9 @@ func (m Model) updateGame(now time.Time) (Model, tea.Cmd) {
 	for _, char := range m.gameMap.Characters() {
 		m.applyIntent(char, delta)
 	}
+
+	// Remove completed orders
+	m.sweepCompletedOrders()
 
 	// Update cursor if following
 	if m.following != nil {
@@ -907,7 +911,6 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 							if order := m.findOrderByID(char.AssignedOrderID); order != nil {
 								if order.ActivityID == "harvest" {
 									system.CompleteOrder(char, order, m.actionLog)
-									m.removeOrder(order.ID)
 								}
 							}
 						}
@@ -941,7 +944,6 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 								}
 								// No more space or targets - complete order
 								system.CompleteOrder(char, order, m.actionLog)
-								m.removeOrder(order.ID)
 							}
 						}
 					}
@@ -1051,7 +1053,6 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			if char.AssignedOrderID != 0 {
 				if order := m.findOrderByID(char.AssignedOrderID); order != nil {
 					system.CompleteOrder(char, order, m.actionLog)
-					m.removeOrder(order.ID)
 				}
 			}
 
@@ -1106,6 +1107,15 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 
 			char.CurrentActivity = "Idle"
 			char.Intent = nil
+
+			// Check if till order is complete (pool exhausted)
+			if char.AssignedOrderID != 0 {
+				if order := m.findOrderByID(char.AssignedOrderID); order != nil && order.ActivityID == "tillSoil" {
+					if !system.HasUnfilledTillingPositions(m.gameMap) {
+						system.CompleteOrder(char, order, m.actionLog)
+					}
+				}
+			}
 		}
 
 	case entity.ActionPlant:
@@ -1163,6 +1173,12 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 
 			if m.actionLog != nil {
 				m.actionLog.Add(char.ID, char.Name, "activity", fmt.Sprintf("Planted %s", plantedItem.Description()))
+			}
+
+			// Check if plant order is complete (no more tiles or no more items)
+			if !system.HasEmptyTilledTile(m.gameMap) ||
+				!system.PlantableItemExists(m.gameMap.Items(), m.gameMap.Characters(), order.TargetType) {
+				system.CompleteOrder(char, order, m.actionLog)
 			}
 
 			char.CurrentActivity = "Idle"
@@ -1351,6 +1367,7 @@ func (m *Model) stepForward() {
 	if !m.testCfg.NoFood {
 		initialItemCount := config.ItemSpawnCount*2 + config.FlowerSpawnCount // berries + mushrooms + flowers
 		system.UpdateSpawnTimers(m.gameMap, initialItemCount, delta)
+		system.UpdateSproutTimers(m.gameMap, initialItemCount, delta)
 	}
 
 	// Update item death timers (flowers die regardless of no-food mode)
@@ -1372,6 +1389,9 @@ func (m *Model) stepForward() {
 	for _, char := range m.gameMap.Characters() {
 		m.applyIntent(char, delta)
 	}
+
+	// Remove completed orders
+	m.sweepCompletedOrders()
 
 	// Update cursor if following
 	if m.following != nil {

@@ -416,19 +416,15 @@ func findOrderByID(orders []*entity.Order, id int) *entity.Order {
 	return nil
 }
 
-// CompleteOrder handles order completion (e.g., when inventory is full for Harvest).
-// Removes the order and clears the character's assignment.
+// CompleteOrder handles order completion. Logs, unassigns the character, and marks
+// the order as OrderCompleted. The game loop sweep removes completed orders.
 func CompleteOrder(char *entity.Character, order *entity.Order, log *ActionLog) {
 	if log != nil {
 		log.Add(char.ID, char.Name, "order", fmt.Sprintf("Completed order: %s", order.DisplayName()))
 	}
 
-	// Clear character's assignment
 	char.AssignedOrderID = 0
-
-	// Mark order as completed (will be removed by UI layer)
-	// For now, just reset it - actual removal handled elsewhere
-	order.Status = entity.OrderOpen
+	order.Status = entity.OrderCompleted
 	order.AssignedTo = 0
 }
 
@@ -505,9 +501,9 @@ func IsOrderFeasible(order *entity.Order, items []*entity.Item, gameMap *game.Ma
 	case "harvest":
 		return growingItemExists(items, order.TargetType), false
 	case "tillSoil":
-		return itemExistsInWorld("hoe", chars, items) && hasUnfilledTillingPositions(gameMap), false
+		return itemExistsInWorld("hoe", chars, items) && HasUnfilledTillingPositions(gameMap), false
 	case "plant":
-		return plantableItemExists(items, chars, order.TargetType), false
+		return PlantableItemExists(items, chars, order.TargetType), false
 	default:
 		return true, false // Unknown activity type, assume feasible
 	}
@@ -529,15 +525,26 @@ func itemExistsInWorld(itemType string, chars []*entity.Character, items []*enti
 	return false
 }
 
-// plantableItemExists checks if any plantable item matching the target exists in the world
+// PlantableItemExists checks if any plantable item matching the target exists in the world
 // (on the ground, in character inventories, or inside carried vessels). Matches on ItemType
 // or Kind to support both direct plantables ("berry") and seed kinds ("gourd seed").
 // Vessel contents lose the Plantable flag, so we infer plantability from ItemTypeConfig.
-func plantableItemExists(items []*entity.Item, chars []*entity.Character, targetType string) bool {
+func PlantableItemExists(items []*entity.Item, chars []*entity.Character, targetType string) bool {
 	configs := game.GetItemTypeConfigs()
 	for _, item := range items {
 		if isPlantableMatch(item, targetType) {
 			return true
+		}
+		// Check ground vessel contents
+		if item.Container != nil {
+			for _, stack := range item.Container.Contents {
+				if stack.Variety != nil && stack.Count > 0 &&
+					stack.Variety.ItemType == targetType {
+					if cfg, ok := configs[stack.Variety.ItemType]; ok && cfg.Plantable {
+						return true
+					}
+				}
+			}
 		}
 	}
 	for _, c := range chars {
@@ -598,11 +605,21 @@ func isAnyRecipeWorldFeasible(activityID string, chars []*entity.Character, item
 	return false
 }
 
-// hasUnfilledTillingPositions checks if the marked-for-tilling pool has any positions
+// HasUnfilledTillingPositions checks if the marked-for-tilling pool has any positions
 // that haven't been tilled yet.
-func hasUnfilledTillingPositions(gameMap *game.Map) bool {
+func HasUnfilledTillingPositions(gameMap *game.Map) bool {
 	for _, pos := range gameMap.MarkedForTillingPositions() {
 		if !gameMap.IsTilled(pos) {
+			return true
+		}
+	}
+	return false
+}
+
+// HasEmptyTilledTile checks if any tilled tile on the map has no item on it.
+func HasEmptyTilledTile(gameMap *game.Map) bool {
+	for _, tpos := range gameMap.TilledPositions() {
+		if gameMap.ItemAt(tpos) == nil {
 			return true
 		}
 	}

@@ -9,6 +9,56 @@ import (
 	"petri/internal/types"
 )
 
+// MatureSymbol returns the correct symbol for a mature plant of the given item type
+func MatureSymbol(itemType string) rune {
+	switch itemType {
+	case "berry":
+		return config.CharBerry
+	case "mushroom":
+		return config.CharMushroom
+	case "flower":
+		return config.CharFlower
+	case "gourd":
+		return config.CharGourd
+	default:
+		return config.CharSprout // fallback
+	}
+}
+
+// effectiveDelta calculates the growth-adjusted delta for an item position,
+// applying tilled and wet multipliers when applicable
+func effectiveDelta(delta float64, pos types.Position, gameMap *game.Map) float64 {
+	d := delta
+	if gameMap.IsTilled(pos) {
+		d *= config.TilledGrowthMultiplier
+	}
+	if gameMap.IsWet(pos) {
+		d *= config.WetGrowthMultiplier
+	}
+	return d
+}
+
+// UpdateSproutTimers decrements sprout timers and matures sprouts when timers expire
+func UpdateSproutTimers(gameMap *game.Map, initialItemCount int, delta float64) {
+	for _, item := range gameMap.Items() {
+		if item.Plant == nil || !item.Plant.IsSprout {
+			continue
+		}
+
+		pos := item.Pos()
+		item.Plant.SproutTimer -= effectiveDelta(delta, pos, gameMap)
+
+		if item.Plant.SproutTimer <= 0 {
+			// Mature the sprout
+			item.Plant.IsSprout = false
+			item.Plant.SproutTimer = 0
+			item.Sym = MatureSymbol(item.ItemType)
+			item.Plant.SpawnTimer = CalculateSpawnInterval(item.ItemType, initialItemCount)
+			item.DeathTimer = CalculateDeathInterval(item.ItemType, initialItemCount)
+		}
+	}
+}
+
 // UpdateSpawnTimers decrements spawn timers for growing plants and spawns new items when timers expire
 func UpdateSpawnTimers(gameMap *game.Map, initialItemCount int, delta float64) {
 	items := gameMap.Items()
@@ -18,11 +68,12 @@ func UpdateSpawnTimers(gameMap *game.Map, initialItemCount int, delta float64) {
 	if len(items) >= maxItems {
 		// Still decrement timers but don't spawn
 		for _, item := range items {
-			// Only process growing plants
-			if item.Plant == nil || !item.Plant.IsGrowing {
+			// Only process growing plants (skip sprouts — they can't reproduce yet)
+			if item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout {
 				continue
 			}
-			item.Plant.SpawnTimer -= delta
+			pos := item.Pos()
+			item.Plant.SpawnTimer -= effectiveDelta(delta, pos, gameMap)
 			if item.Plant.SpawnTimer <= 0 {
 				item.Plant.SpawnTimer = CalculateSpawnInterval(item.ItemType, initialItemCount)
 			}
@@ -32,12 +83,13 @@ func UpdateSpawnTimers(gameMap *game.Map, initialItemCount int, delta float64) {
 
 	// Process each growing plant's spawn timer
 	for _, item := range items {
-		// Only process growing plants
-		if item.Plant == nil || !item.Plant.IsGrowing {
+		// Only process growing plants (skip sprouts — they can't reproduce yet)
+		if item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout {
 			continue
 		}
 
-		item.Plant.SpawnTimer -= delta
+		pos := item.Pos()
+		item.Plant.SpawnTimer -= effectiveDelta(delta, pos, gameMap)
 
 		if item.Plant.SpawnTimer <= 0 {
 			// Reset timer regardless of spawn success
@@ -146,8 +198,8 @@ func FindEmptyAdjacent(x, y int, gameMap *game.Map) (int, int, bool) {
 	return 0, 0, false
 }
 
-// spawnItem creates a new item matching the parent's properties
-// Uses generic copying so new plant types don't require code changes here
+// spawnItem creates a new sprout matching the parent's properties.
+// Offspring start as sprouts and mature via UpdateSproutTimers.
 func spawnItem(gameMap *game.Map, parent *entity.Item, x, y int, initialItemCount int) {
 	// Copy edible properties if parent is edible
 	var edible *entity.EdibleProperties
@@ -162,7 +214,7 @@ func spawnItem(gameMap *game.Map, parent *entity.Item, x, y int, initialItemCoun
 		BaseEntity: entity.BaseEntity{
 			X:     x,
 			Y:     y,
-			Sym:   parent.Sym,
+			Sym:   config.CharSprout,
 			EType: entity.TypeItem,
 		},
 		ItemType: parent.ItemType,
@@ -170,14 +222,14 @@ func spawnItem(gameMap *game.Map, parent *entity.Item, x, y int, initialItemCoun
 		Pattern:  parent.Pattern,
 		Texture:  parent.Texture,
 		Plant: &entity.PlantProperties{
-			IsGrowing:  true,
-			SpawnTimer: CalculateSpawnInterval(parent.ItemType, initialItemCount),
+			IsGrowing:   true,
+			IsSprout:    true,
+			SproutTimer: config.SproutDuration,
 		},
 		Edible: edible,
 	}
 
-	// Set death timer for mortal items
-	newItem.DeathTimer = CalculateDeathInterval(newItem.ItemType, initialItemCount)
+	// No SpawnTimer or DeathTimer — set on maturation by UpdateSproutTimers
 
 	gameMap.AddItem(newItem)
 }

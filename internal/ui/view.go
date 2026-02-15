@@ -1724,6 +1724,19 @@ func (m *Model) removeOrder(id int) {
 	}
 }
 
+// sweepCompletedOrders removes all orders with OrderCompleted status.
+// Called once per game tick after intents are applied.
+func (m *Model) sweepCompletedOrders() {
+	n := 0
+	for _, order := range m.orders {
+		if order.Status != entity.OrderCompleted {
+			m.orders[n] = order
+			n++
+		}
+	}
+	m.orders = m.orders[:n]
+}
+
 // viewFullScreenOrders renders full-screen orders panel
 func (m Model) viewFullScreenOrders() string {
 	var lines []string

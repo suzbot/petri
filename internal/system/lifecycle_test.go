@@ -281,16 +281,15 @@ func TestSpawnItem_MushroomInheritsProperties(t *testing.T) {
 	}
 }
 
-func TestSpawnItem_SetsSpawnTimer(t *testing.T) {
+func TestSpawnItem_SetsSproutTimer(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(10, 10)
-	initialItemCount := 40
 
 	parent := entity.NewBerry(5, 5, types.ColorRed, false, false)
 	gameMap.AddItem(parent)
 
-	spawnItem(gameMap, parent, 6, 5, initialItemCount)
+	spawnItem(gameMap, parent, 6, 5, 40)
 
 	var spawned *entity.Item
 	for _, item := range gameMap.Items() {
@@ -300,11 +299,406 @@ func TestSpawnItem_SetsSpawnTimer(t *testing.T) {
 		}
 	}
 
+	if spawned.Plant.SproutTimer != config.SproutDuration {
+		t.Errorf("SproutTimer: got %.2f, want %.2f", spawned.Plant.SproutTimer, config.SproutDuration)
+	}
+}
+
+// =============================================================================
+// MatureSymbol
+// =============================================================================
+
+func TestMatureSymbol_ReturnsCorrectSymbols(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		itemType string
+		want     rune
+	}{
+		{"berry", config.CharBerry},
+		{"mushroom", config.CharMushroom},
+		{"flower", config.CharFlower},
+		{"gourd", config.CharGourd},
+	}
+
+	for _, tt := range tests {
+		if got := MatureSymbol(tt.itemType); got != tt.want {
+			t.Errorf("MatureSymbol(%q): got %c, want %c", tt.itemType, got, tt.want)
+		}
+	}
+}
+
+// =============================================================================
+// UpdateSproutTimers
+// =============================================================================
+
+func TestUpdateSproutTimers_DecrementsSproutTimer(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	sprout := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	sprout.Sym = config.CharSprout
+	sprout.Plant.IsSprout = true
+	sprout.Plant.SproutTimer = 20.0
+	gameMap.AddItem(sprout)
+
+	UpdateSproutTimers(gameMap, 40, 5.0)
+
+	if sprout.Plant.SproutTimer != 15.0 {
+		t.Errorf("SproutTimer: got %.2f, want 15.0", sprout.Plant.SproutTimer)
+	}
+}
+
+func TestUpdateSproutTimers_MaturesWhenTimerReachesZero(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	sprout := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	sprout.Sym = config.CharSprout
+	sprout.Plant.IsSprout = true
+	sprout.Plant.SproutTimer = 1.0
+	gameMap.AddItem(sprout)
+
+	UpdateSproutTimers(gameMap, 40, 2.0)
+
+	if sprout.Plant.IsSprout {
+		t.Error("Expected IsSprout=false after maturation")
+	}
+}
+
+func TestUpdateSproutTimers_MatureSproutHasCorrectSymbol(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		itemType string
+		newFn    func() *entity.Item
+		wantSym  rune
+	}{
+		{"berry", func() *entity.Item { return entity.NewBerry(5, 5, types.ColorRed, false, false) }, config.CharBerry},
+		{"mushroom", func() *entity.Item {
+			return entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+		}, config.CharMushroom},
+		{"flower", func() *entity.Item { return entity.NewFlower(5, 5, types.ColorBlue) }, config.CharFlower},
+		{"gourd", func() *entity.Item {
+			return entity.NewGourd(5, 5, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
+		}, config.CharGourd},
+	}
+
+	for _, tt := range tests {
+		gameMap := game.NewMap(10, 10)
+		sprout := tt.newFn()
+		sprout.Sym = config.CharSprout
+		sprout.Plant.IsSprout = true
+		sprout.Plant.SproutTimer = 1.0
+		gameMap.AddItem(sprout)
+
+		UpdateSproutTimers(gameMap, 40, 2.0)
+
+		if sprout.Sym != tt.wantSym {
+			t.Errorf("MatureSymbol(%s): got %c, want %c", tt.itemType, sprout.Sym, tt.wantSym)
+		}
+	}
+}
+
+func TestUpdateSproutTimers_MaturePlantHasSpawnTimer(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	sprout := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	sprout.Sym = config.CharSprout
+	sprout.Plant.IsSprout = true
+	sprout.Plant.SproutTimer = 1.0
+	sprout.Plant.SpawnTimer = 0 // no spawn timer yet
+	gameMap.AddItem(sprout)
+
+	initialItemCount := 40
+	UpdateSproutTimers(gameMap, initialItemCount, 2.0)
+
 	base := config.ItemLifecycle["berry"].SpawnInterval * float64(initialItemCount)
 	variance := base * config.LifecycleIntervalVariance
 
-	if spawned.Plant.SpawnTimer < base-variance || spawned.Plant.SpawnTimer > base+variance {
-		t.Errorf("SpawnTimer %.2f should be in range [%.2f, %.2f]", spawned.Plant.SpawnTimer, base-variance, base+variance)
+	if sprout.Plant.SpawnTimer < base-variance || sprout.Plant.SpawnTimer > base+variance {
+		t.Errorf("SpawnTimer %.2f should be in range [%.2f, %.2f]", sprout.Plant.SpawnTimer, base-variance, base+variance)
+	}
+}
+
+func TestUpdateSproutTimers_MaturePlantHasDeathTimer(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	// Flowers have a death interval
+	sprout := entity.NewFlower(5, 5, types.ColorBlue)
+	sprout.Sym = config.CharSprout
+	sprout.Plant.IsSprout = true
+	sprout.Plant.SproutTimer = 1.0
+	gameMap.AddItem(sprout)
+
+	initialItemCount := 40
+	UpdateSproutTimers(gameMap, initialItemCount, 2.0)
+
+	base := config.ItemLifecycle["flower"].DeathInterval * float64(initialItemCount)
+	variance := base * config.LifecycleIntervalVariance
+
+	if sprout.DeathTimer < base-variance || sprout.DeathTimer > base+variance {
+		t.Errorf("DeathTimer %.2f should be in range [%.2f, %.2f]", sprout.DeathTimer, base-variance, base+variance)
+	}
+}
+
+func TestUpdateSproutTimers_ImmortalPlantHasZeroDeathTimer(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	// Berries are immortal (DeathInterval = 0)
+	sprout := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	sprout.Sym = config.CharSprout
+	sprout.Plant.IsSprout = true
+	sprout.Plant.SproutTimer = 1.0
+	gameMap.AddItem(sprout)
+
+	UpdateSproutTimers(gameMap, 40, 2.0)
+
+	if sprout.DeathTimer != 0 {
+		t.Errorf("DeathTimer: got %.2f, want 0 (immortal)", sprout.DeathTimer)
+	}
+}
+
+func TestUpdateSproutTimers_TilledSoilMultiplier(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	pos := types.Position{X: 5, Y: 5}
+	gameMap.SetTilled(pos)
+
+	sprout := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	sprout.Sym = config.CharSprout
+	sprout.Plant.IsSprout = true
+	sprout.Plant.SproutTimer = 20.0
+	gameMap.AddItem(sprout)
+
+	delta := 10.0
+	UpdateSproutTimers(gameMap, 40, delta)
+
+	expectedTimer := 20.0 - (delta * config.TilledGrowthMultiplier)
+	if sprout.Plant.SproutTimer != expectedTimer {
+		t.Errorf("SproutTimer on tilled: got %.2f, want %.2f", sprout.Plant.SproutTimer, expectedTimer)
+	}
+}
+
+func TestUpdateSproutTimers_WetTileMultiplier(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	// Place water adjacent to sprout position so (5,5) is wet
+	gameMap.AddWater(types.Position{X: 4, Y: 5}, game.WaterPond)
+
+	sprout := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	sprout.Sym = config.CharSprout
+	sprout.Plant.IsSprout = true
+	sprout.Plant.SproutTimer = 20.0
+	gameMap.AddItem(sprout)
+
+	delta := 10.0
+	UpdateSproutTimers(gameMap, 40, delta)
+
+	expectedTimer := 20.0 - (delta * config.WetGrowthMultiplier)
+	if sprout.Plant.SproutTimer != expectedTimer {
+		t.Errorf("SproutTimer on wet: got %.2f, want %.2f", sprout.Plant.SproutTimer, expectedTimer)
+	}
+}
+
+func TestUpdateSproutTimers_TilledAndWetStack(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	pos := types.Position{X: 5, Y: 5}
+	gameMap.SetTilled(pos)
+	gameMap.AddWater(types.Position{X: 4, Y: 5}, game.WaterPond)
+
+	sprout := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	sprout.Sym = config.CharSprout
+	sprout.Plant.IsSprout = true
+	sprout.Plant.SproutTimer = 20.0
+	gameMap.AddItem(sprout)
+
+	delta := 10.0
+	UpdateSproutTimers(gameMap, 40, delta)
+
+	expectedTimer := 20.0 - (delta * config.TilledGrowthMultiplier * config.WetGrowthMultiplier)
+	if sprout.Plant.SproutTimer != expectedTimer {
+		t.Errorf("SproutTimer on tilled+wet: got %.2f, want %.2f", sprout.Plant.SproutTimer, expectedTimer)
+	}
+}
+
+func TestUpdateSproutTimers_SkipsNonSprouts(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	// Mature plant, not a sprout
+	mature := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	mature.Plant.SpawnTimer = 100.0
+	gameMap.AddItem(mature)
+
+	UpdateSproutTimers(gameMap, 40, 5.0)
+
+	// SpawnTimer should be unchanged (UpdateSproutTimers doesn't touch non-sprouts)
+	if mature.Plant.SpawnTimer != 100.0 {
+		t.Errorf("SpawnTimer: got %.2f, want 100.0 (should be unchanged)", mature.Plant.SpawnTimer)
+	}
+}
+
+// =============================================================================
+// spawnItem creates sprouts
+// =============================================================================
+
+func TestSpawnItem_CreatesSproutInsteadOfMaturePlant(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	parent := entity.NewBerry(5, 5, types.ColorBlue, false, false)
+	gameMap.AddItem(parent)
+
+	spawnItem(gameMap, parent, 6, 5, 40)
+
+	var spawned *entity.Item
+	for _, item := range gameMap.Items() {
+		if item != parent {
+			spawned = item
+			break
+		}
+	}
+
+	if spawned == nil {
+		t.Fatal("Could not find spawned item")
+	}
+
+	if !spawned.Plant.IsSprout {
+		t.Error("Spawned item should be a sprout (IsSprout=true)")
+	}
+	if spawned.Sym != config.CharSprout {
+		t.Errorf("Spawned sprout symbol: got %c, want %c", spawned.Sym, config.CharSprout)
+	}
+	if spawned.Plant.SproutTimer != config.SproutDuration {
+		t.Errorf("SproutTimer: got %.2f, want %.2f", spawned.Plant.SproutTimer, config.SproutDuration)
+	}
+}
+
+func TestSpawnItem_SproutHasParentVarietyAndEdible(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	parent := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternSpotted, types.TextureWarty, true, true)
+	gameMap.AddItem(parent)
+
+	spawnItem(gameMap, parent, 6, 5, 40)
+
+	var spawned *entity.Item
+	for _, item := range gameMap.Items() {
+		if item != parent {
+			spawned = item
+			break
+		}
+	}
+
+	if spawned.Color != types.ColorBrown {
+		t.Errorf("Color: got %s, want brown", spawned.Color)
+	}
+	if spawned.Pattern != types.PatternSpotted {
+		t.Errorf("Pattern: got %s, want spotted", spawned.Pattern)
+	}
+	if spawned.Texture != types.TextureWarty {
+		t.Errorf("Texture: got %s, want warty", spawned.Texture)
+	}
+	if !spawned.IsPoisonous() {
+		t.Error("Spawned sprout should be poisonous like parent")
+	}
+	if !spawned.IsHealing() {
+		t.Error("Spawned sprout should be healing like parent")
+	}
+}
+
+func TestSpawnItem_SproutHasNoSpawnOrDeathTimer(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	parent := entity.NewFlower(5, 5, types.ColorBlue)
+	gameMap.AddItem(parent)
+
+	spawnItem(gameMap, parent, 6, 5, 40)
+
+	var spawned *entity.Item
+	for _, item := range gameMap.Items() {
+		if item != parent {
+			spawned = item
+			break
+		}
+	}
+
+	if spawned.Plant.SpawnTimer != 0 {
+		t.Errorf("Sprout SpawnTimer: got %.2f, want 0 (set on maturation)", spawned.Plant.SpawnTimer)
+	}
+	if spawned.DeathTimer != 0 {
+		t.Errorf("Sprout DeathTimer: got %.2f, want 0 (set on maturation)", spawned.DeathTimer)
+	}
+}
+
+// =============================================================================
+// UpdateSpawnTimers skips sprouts + growth multipliers
+// =============================================================================
+
+func TestUpdateSpawnTimers_SkipsSproutsForReproduction(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	sprout := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	sprout.Sym = config.CharSprout
+	sprout.Plant.IsSprout = true
+	sprout.Plant.SproutTimer = 20.0
+	sprout.Plant.SpawnTimer = 10.0 // shouldn't be decremented
+	gameMap.AddItem(sprout)
+
+	UpdateSpawnTimers(gameMap, 40, 5.0)
+
+	if sprout.Plant.SpawnTimer != 10.0 {
+		t.Errorf("SpawnTimer: got %.2f, want 10.0 (sprouts should be skipped)", sprout.Plant.SpawnTimer)
+	}
+}
+
+func TestUpdateSpawnTimers_TilledMultiplierOnReproduction(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	pos := types.Position{X: 5, Y: 5}
+	gameMap.SetTilled(pos)
+
+	plant := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	plant.Plant.SpawnTimer = 100.0
+	gameMap.AddItem(plant)
+
+	delta := 10.0
+	UpdateSpawnTimers(gameMap, 40, delta)
+
+	expectedTimer := 100.0 - (delta * config.TilledGrowthMultiplier)
+	if plant.Plant.SpawnTimer != expectedTimer {
+		t.Errorf("SpawnTimer on tilled: got %.2f, want %.2f", plant.Plant.SpawnTimer, expectedTimer)
+	}
+}
+
+func TestUpdateSpawnTimers_WetMultiplierOnReproduction(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	gameMap.AddWater(types.Position{X: 4, Y: 5}, game.WaterPond)
+
+	plant := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	plant.Plant.SpawnTimer = 100.0
+	gameMap.AddItem(plant)
+
+	delta := 10.0
+	UpdateSpawnTimers(gameMap, 40, delta)
+
+	expectedTimer := 100.0 - (delta * config.WetGrowthMultiplier)
+	if plant.Plant.SpawnTimer != expectedTimer {
+		t.Errorf("SpawnTimer on wet: got %.2f, want %.2f", plant.Plant.SpawnTimer, expectedTimer)
 	}
 }
 

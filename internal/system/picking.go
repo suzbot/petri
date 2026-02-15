@@ -177,7 +177,13 @@ func EnsureHasPlantable(char *entity.Character, targetType string, lockedVariety
 		}
 	}
 
-	// Find nearest plantable on map
+	// Check ground vessels first — a vessel with matching contents is most efficient
+	vessel := FindVesselContaining(char.X, char.Y, items, targetType, lockedVariety)
+	if vessel != nil {
+		return createItemPickupIntent(char, char.Pos(), vessel, gameMap, log)
+	}
+
+	// Fall back to loose plantable items on the ground
 	target := findNearestPlantableOnGround(char.X, char.Y, items, targetType, lockedVariety)
 	if target == nil {
 		return nil
@@ -491,6 +497,37 @@ func findNearestPlantableOnGround(cx, cy int, items []*entity.Item, targetType s
 		if dist < nearestDist {
 			nearestDist = dist
 			nearest = item
+		}
+	}
+	return nearest
+}
+
+// FindVesselContaining finds the nearest ground vessel whose contents include
+// a plantable item matching the target type and optional locked variety.
+// Returns the vessel itself (for pickup). Sibling of FindAvailableVessel
+// (which finds vessels that can *receive* items — this finds vessels that can *provide* items).
+func FindVesselContaining(cx, cy int, items []*entity.Item, targetType string, lockedVariety string) *entity.Item {
+	pos := types.Position{X: cx, Y: cy}
+	var nearest *entity.Item
+	nearestDist := int(^uint(0) >> 1)
+
+	for _, item := range items {
+		if item.Container == nil {
+			continue
+		}
+		for _, stack := range item.Container.Contents {
+			if stack.Variety == nil || stack.Count <= 0 || !stack.Variety.Plantable {
+				continue
+			}
+			if matchesPlantTargetVariety(stack.Variety, targetType, lockedVariety) {
+				ipos := item.Pos()
+				dist := pos.DistanceTo(ipos)
+				if dist < nearestDist {
+					nearestDist = dist
+					nearest = item
+				}
+				break // Found a match in this vessel, no need to check more stacks
+			}
 		}
 	}
 	return nearest
