@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"petri/internal/entity"
+	"petri/internal/config"
 	"testing"
 )
 
@@ -19,9 +19,9 @@ func TestNewCharacterCreationState_DefaultValues(t *testing.T) {
 		t.Errorf("Expected 4 characters, got %d", len(state.Characters))
 	}
 
-	// Build valid names map from entity.CharacterNames
+	// Build valid names map from config.CharacterNames
 	validNames := make(map[string]bool)
-	for _, n := range entity.CharacterNames {
+	for _, n := range config.CharacterNames {
 		validNames[n] = true
 	}
 
@@ -346,9 +346,9 @@ func TestCharacterCreationState_RandomizeAll(t *testing.T) {
 
 	state.RandomizeAll()
 
-	// Build valid names map from entity.CharacterNames
+	// Build valid names map from config.CharacterNames
 	validNames := make(map[string]bool)
-	for _, n := range entity.CharacterNames {
+	for _, n := range config.CharacterNames {
 		validNames[n] = true
 	}
 

@@ -1,13 +1,13 @@
-// Package entity provides character names for random selection.
+// Package config provides character names for random selection.
 // Names are organized alphabetically by starting letter for easy maintenance.
 // Add new names to the appropriate section to keep the list organized.
-package entity
+package config
 
 // CharacterNames contains all available names for random character generation.
 // Organized alphabetically by starting letter to prevent duplicates and ease additions.
 var CharacterNames = []string{
 	// A
-	"Ash", "Awn",
+	"Ash", "Arb", "Awn",
 
 	// B
 	"Bane", "Bean", "Beech", "Beff", "Bine", "Birch", "Bit", "Bloom", "Bog", "Bole", "Bolt", "Bough", "Branch",

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"petri/internal/entity"
+	"petri/internal/config"
 	"petri/internal/game"
 	"petri/internal/types"
 )
@@ -187,11 +187,11 @@ func randomColor() string {
 	return colorOptions[rand.Intn(len(colorOptions))]
 }
 
-// randomUniqueNames returns n unique random names from entity.CharacterNames
+// randomUniqueNames returns n unique random names from config.CharacterNames
 func randomUniqueNames(n int) []string {
 	// Shuffle a copy of CharacterNames
-	shuffled := make([]string, len(entity.CharacterNames))
-	copy(shuffled, entity.CharacterNames)
+	shuffled := make([]string, len(config.CharacterNames))
+	copy(shuffled, config.CharacterNames)
 	rand.Shuffle(len(shuffled), func(i, j int) {
 		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 	})
