@@ -12,6 +12,7 @@ argument-hint: Feature or step to refine (e.g., "Slice 6 Step 3" or "sprout matu
 ### Step 1: Build Context (REQUIRED)
 Read these before discussing approach:
 - **`docs/architecture.md`** — Read sections relevant to this feature FIRST. Identify which established patterns apply (Component Procurement, Order execution, Pickup helpers, Recipe system, etc.). This is the routing table that prevents expensive broad code exploration — use it before reaching for Explore or reading implementation files.
+- **`docs/Values.md`** — Design principles that shape implementation decisions (consistency, source of truth, reuse). Keep these in mind when evaluating approaches.
 - **Original requirements document** for full context (linked at top of phase plan doc if part of larger phase). Proposals that contradict or miss requirements waste discussion time.
 - **Phase plan document** in `docs/` (if exists) — this is the planning artifact, not a new file
 - Any questions deferred from phase planning

@@ -12,6 +12,7 @@ argument-hint: Feature or step to implement (e.g., "Slice 6 Step 3" or "sprout m
 ### Step 1: Load the Plan
 - Read the **phase plan document** in `docs/` — find the step(s) to implement
 - Read the **relevant sections of `docs/architecture.md`** that the plan references — confirm you understand the patterns this step extends
+- Read **`docs/Values.md`** — these are the design principles that implementation must not drift from
 - Do NOT re-read the full requirements doc — the plan should capture what matters. Only consult requirements if the plan explicitly flags an open question.
 
 ### Step 2: Quick Validation (REQUIRED)
