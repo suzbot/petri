@@ -248,8 +248,9 @@ case PickupToInventory:
 - `idle.go` - Orchestrates idle eligibility, calls `selectOrderActivity()` first
 - `order_execution.go` - Order selection, assignment, intent finding, completion logic
 - Order eligibility is generic: checks activity's `Availability` requirement against character's known activities
-- `IsOrderFeasible(order, items, gameMap)` is computed on demand (not cached) at assignment time and render time — returns `(feasible bool, noKnowHow bool)`. Unfeasible orders are skipped during `findAvailableOrder`; the orders panel renders them dimmed with `[Unfulfillable]` or `[No one knows how]`. For plant orders, feasibility checks `item.Plantable && (item.ItemType == targetType || item.Kind == targetType)`.
+- `IsOrderFeasible(order, items, gameMap)` is computed on demand (not cached) at assignment time and render time — returns `(feasible bool, noKnowHow bool)`. Unfeasible orders are skipped during `findAvailableOrder`; the orders panel renders them dimmed with `[Unfulfillable]` or `[No one knows how]`. For plant orders, feasibility checks `item.Plantable && (item.ItemType == targetType || item.Kind == targetType)`, including contents of ground vessels.
 - `LockedVariety string` on Order: set when the first item is planted. After locking, the character only seeks items of that exact variety, keeping a single order focused on one plant variety.
+- **Unified order completion**: all order types (harvest, craft, till, plant) call `CompleteOrder()`, which sets `OrderCompleted` status. A sweep in the game loop after intent application removes all `OrderCompleted` orders that tick. Action handlers contain inline completion checks; `selectOrderActivity` and `findAvailableOrder` skip `OrderCompleted` orders as a safety net.
 
 ## Pickup Activity Code Organization
 
@@ -543,7 +544,8 @@ picking.go is organized into three responsibility layers:
 
 **1. Map Search Utilities:**
 - `findNearestItemByType(cx, cy, items, itemType, growingOnly)` - Find nearest item by type, with optional growing-only filter
-- `FindAvailableVessel(cx, cy, items, targetItem, registry)` - Find nearest vessel that can hold target item
+- `FindAvailableVessel(cx, cy, items, targetItem, registry)` - Find nearest vessel that can hold target item (i.e., can *receive* items)
+- `FindVesselContaining(cx, cy, items, targetType, lockedVariety)` - Find nearest ground vessel whose *contents* match a plant target type/variety. Sibling of `FindAvailableVessel` used during plant order procurement.
 
 **2. Prerequisite Orchestration:**
 - `EnsureHasVesselFor(char, target, ...)` - Ensure character has compatible vessel or go get one (handles drop conflicts, availability checks)

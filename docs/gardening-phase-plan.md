@@ -1381,7 +1381,7 @@ Helper deriving mature symbol from ItemType: berry→`●`, mushroom→`♠`, fl
 
 **Reqs reconciliation:** Lines 125-131. _"sprout eventually becomes a full grown version"_ ✓, _"extend normal plant reproduction to have sprout phase"_ ✓, _"tilled ground makes it grow faster"_ ✓, _"wet tile makes it grow faster"_ ✓, _"tiles adjacent to water sources are always 'wet'"_ ✓ (from Step 0).
 
-##### Step 2b: Order Completion Refactor (bug fix from Step 2 testing)
+##### Step 2b: Order Completion Refactor (bug fix from Step 2 testing) ✅
 
 **Bugs found during Step 2 human testing:**
 1. Completed plant orders stay on the order list after "Order Completed" message
@@ -1426,7 +1426,7 @@ Triggered enhancement "Order completion criteria refactor" — implementing now.
   - No phantom "Order Completed" messages for characters that didn't do work
   - Save/load during active orders works correctly
 
-##### Step 2c: Plant order procurement — ground vessel awareness (bug fix from Step 2b testing)
+##### Step 2c: Plant order procurement — ground vessel awareness (bug fix from Step 2b testing) ✅
 
 **Bug:** Characters abandon plant orders even when a vessel containing matching plantable items sits on the ground. Each character takes the order, can't find items, and abandons.
 

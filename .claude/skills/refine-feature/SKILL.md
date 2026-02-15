@@ -37,15 +37,15 @@ Read these before discussing approach:
 
 Sections below describe what [TEST], [DOCS], and [RETRO] checkpoints will involve. The plan doc controls *when* they happen — these steps won't stay in context through long implementation, so the plan doc is the source of truth for sequencing.
 
-### Step 4: Human Testing Checkpoint ([TEST])
+### Human Testing Checkpoint ([TEST])
 - After implementation, the system will run its test suite and then prompt the user to test
 - If scenario for verification is complex, it may be worth planning to create a save file for the user via /test-world
 - This checkpoint will force pause for explicit confirmation from user before marking the feature as complete
 
-### Step 5: Update Documentation ([DOCS])
+### Update Documentation ([DOCS])
 Will be run only after human testing confirms success using /update-docs
 
-### Step 6: Retro ([RETRO])
+### Retro ([RETRO])
 Will be run after documentation is updated, using /retro.
 
 

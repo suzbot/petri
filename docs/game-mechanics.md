@@ -424,6 +424,7 @@ Press `Esc` at any step to go back one level (step 2 → step 1 → exit add mod
 - **Open**: Available to be taken by a character with the required know-how
 - **Assigned**: Currently being worked on by a character
 - **Paused**: Interrupted by character needs; will resume when needs are satisfied
+- **Completed** *(internal)*: Set by `CompleteOrder()` when an action handler determines the order is done. Swept from the order list at the end of the same game tick. All order types (harvest, craft, till, plant) use this unified path — no scattered removal calls in action handlers.
 - **Unfulfillable** *(display only)*: Required items don't exist anywhere in the world. Shown dimmed; characters skip these orders. Automatically clears when world state changes (e.g., a hoe is crafted, berries grow back).
 - **No one knows how** *(display only)*: No living character has learned the required activity. Shown dimmed; characters skip these orders.
 
@@ -534,11 +535,15 @@ The details panel shows:
 ### Plant Order Execution
 
 When a character works a Plant order:
-1. **Procure**: pick up a plantable item matching the order's target type (from inventory, carried vessel, or ground). If inventory is full, drop unneeded items to make room.
+1. **Procure**: pick up a plantable item matching the order's target type. Search order: (a) already in inventory or carried vessel, (b) inside a vessel on the ground (picked up and used directly), (c) loose item on the ground. If inventory is full, drop unneeded items to make room.
 2. **Move**: navigate to the nearest empty tilled tile.
 3. **Plant**: spend `ActionDurationMedium` time planting, then consume the item and place a sprout.
 4. **Lock variety**: on first plant, the order locks to that exact variety (`LockedVariety`). Subsequent procurement only seeks the same variety.
-5. **Complete**: when no empty tilled tiles remain, or no matching items are available.
+5. **Complete**: when no empty tilled tiles remain, or no matching items are available (including inside ground vessels).
+
+### Sprout Pickup Guard
+
+Sprouts cannot be picked up, foraged, or targeted by harvest orders. All `IsGrowing` filters used in foraging scoring, harvest targeting, and growing-item existence checks include an `IsSprout` guard. This ensures sprouts remain in place and mature naturally rather than being harvested before they grow.
 
 ### ConsumePlantable Helper
 
