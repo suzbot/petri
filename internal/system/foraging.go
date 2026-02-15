@@ -64,8 +64,8 @@ func scoreForageItems(char *entity.Character, pos types.Position, items []*entit
 	bestScore := float64(int(^uint(0)>>1)) * -1 // Negative max float
 
 	for _, item := range items {
-		// Only consider edible, growing items
-		if !item.IsEdible() || (item.Plant != nil && !item.Plant.IsGrowing) {
+		// Only consider edible, growing items (not sprouts — they're still maturing)
+		if !item.IsEdible() || (item.Plant != nil && (!item.Plant.IsGrowing || item.Plant.IsSprout)) {
 			continue
 		}
 
@@ -143,7 +143,7 @@ func hasMatchingGrowingItems(items []*entity.Item, variety *entity.ItemVariety) 
 		return false
 	}
 	for _, item := range items {
-		if item.Plant == nil || !item.Plant.IsGrowing {
+		if item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout {
 			continue
 		}
 		if item.ItemType == variety.ItemType &&
@@ -231,8 +231,8 @@ func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.It
 	nearestDist := int(^uint(0) >> 1) // Max int
 
 	for _, item := range items {
-		// Must be growing (not dropped)
-		if item.Plant == nil || !item.Plant.IsGrowing {
+		// Must be growing (not dropped) and not a sprout
+		if item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout {
 			continue
 		}
 		// Must match variety

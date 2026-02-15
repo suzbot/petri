@@ -579,7 +579,7 @@ func isPlantableMatch(item *entity.Item, targetType string) bool {
 // growingItemExists checks if any growing item of the given type exists on the map.
 func growingItemExists(items []*entity.Item, itemType string) bool {
 	for _, item := range items {
-		if item.ItemType == itemType && item.Plant != nil && item.Plant.IsGrowing {
+		if item.ItemType == itemType && item.Plant != nil && item.Plant.IsGrowing && !item.Plant.IsSprout {
 			return true
 		}
 	}

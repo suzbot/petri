@@ -338,8 +338,8 @@ func findNearestItemByType(cx, cy int, items []*entity.Item, itemType string, gr
 			continue
 		}
 		if growingOnly {
-			// Only consider growing items
-			if item.Plant == nil || !item.Plant.IsGrowing {
+			// Only consider growing items (not sprouts — they're still maturing)
+			if item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout {
 				continue
 			}
 		}
