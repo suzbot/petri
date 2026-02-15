@@ -15,7 +15,6 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Wandering activity**                 | More idle activities needed; Looking feels repetitive; Want more organic movement |
 | **ItemType constants**                 | Adding new item types; Want compile-time safety for item type checks              |
 | **Activity enum**                      | Need to enumerate/filter activities; Activity-based game logic beyond display     |
-| **Order completion criteria refactor** | Adding new order types; Completion logic scattered across update.go becomes unwieldy |
 | **Action pattern unification investigation** | Post-Gardening; Have 3+ action types with item consumption; Patterns diverge or duplicate |
 | **Feature capability derivation**      | Adding new feature types; DrinkSource/Bed bools become redundant                  |
 | **Action log retention policy**        | Implementing character memory; May need world time vs real time consideration     |
@@ -62,24 +61,6 @@ for _, char := range chars {
     }(char)
 }
 wg.Wait()
-```
-
----
-
-**Order completion criteria refactor (post-Gardening evaluation):**
-
-Pre-Gardening audit identified this as "monitor during Gardening." Current state:
-- Harvest completion: update.go lines 733-765
-- Craft completion: update.go lines 840-846
-
-Gardening adds 3+ order types (Till Soil, Plant, Water Garden). If completion logic exceeds ~50 lines of conditionals, refactor to handler pattern:
-```go
-type OrderCompletionHandler func(char *Character, order *Order, result PickupResult) bool
-var OrderCompletionHandlers = map[string]OrderCompletionHandler{
-    "harvest": handleHarvestCompletion,
-    "craftVessel": handleCraftCompletion,
-    // ... new handlers
-}
 ```
 
 ---
@@ -146,6 +127,18 @@ Candidates to generalize into picking.go when this triggers:
 **Recipe selection by preference** is a natural extension of this same system. `findCraftIntent` currently picks the first feasible recipe for an activity. When multiple recipes produce the same product (e.g., shell hoe, metal hoe, wooden hoe), the character could score each feasible recipe by net preference for its inputs — a character who likes silver shells would prefer the shell-hoe recipe and then prefer silver shells as input. The `findCraftIntent` structure (get feasible recipes → pick one → gather inputs) has the selection point built in at step 3.
 
 Deferred because: Craft Hoe is the first multi-component recipe, and there's only one recipe per activity. Nearest-distance works fine. Revisit when multiple recipes per activity create enough variety that "character ignores preferred recipe/material" feels wrong.
+
+---
+
+**Plant order variety locking → character-driven behavior:**
+
+Currently, `LockedVariety` is a field on the Order struct — the order itself remembers which variety the character started planting. This is a game-mechanical constraint rather than emergent character behavior. Two directions to explore:
+
+1. **Knowledge/memory approach**: The character develops working memory ("I'm planting green gourds") rather than the order dictating it. Aligns with VISION.txt's principle that state lives in characters, not global structures. Evaluate when the knowledge system gets richer.
+
+2. **Emergent from pickup limitations**: The order just says "plant gourds." The variety lock emerges naturally because the character picks up whatever gourd seeds are nearest/preferred, and once they have a vessel full of one variety, they keep planting that variety until it runs out. No explicit lock needed — the lock is a side effect of inventory state. This is more realistic and removes a special-case field from Order.
+
+Deferred because: Current implementation works. Revisit when orders gain more character-agency features or when the knowledge system supports working memory.
 
 ---
 

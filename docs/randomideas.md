@@ -26,9 +26,14 @@ then they can be removed from this list.
    - q from start file menu quits
 3. Why have we started running into all these tab/whitespace problems while editing just in the last week or so? especially since claude is the only one reading/writing code?
 4. Latest model is much more expensive in terms of tokens. How can I better leverage skills and agents to use simpler models for simpler tasks? We already have a good pattern with docs and test world creation. Anything else this would make sense for? 
-   - I notice 'explore' doesn't always get loaded when another skill is being used to look at a lot of documents -- can that be called out to ensure we aren't spending there? 
+   - Can retro use a simpler model?
+   - break new feature skill into two:
+      1. feature refinement
+      2. feature implementation and testing
+      Why: often this happens over two sessions or with a clear in between. Uses two different skill sets. Implementation and testing skill can roll out of context by the time we get to it. Can call back to refinement if we hit further discussion mid implementation.
+   - I notice 'explore' doesn't always get loaded when another skill is being used to look at a lot of documents -- can that be called out anywherer to ensure we aren't spending expensive model tokens on doc search if we don't need to? 
    - Anything we can do to make the architecture document or skill aid in this goal of spending less tokens?
-      - Pain point: I rarely see this skill used or the doc read
+      - Pain point: I rarely see this skill used or the doc read, sometimes important things in that architecture doc get missed
       - It is referenced in at least one other skill, should these references be clearer or in more/other places?
       - One intent is that this saves time/tokens by pointing in the right directions before explore is used
       - Another intent is to explain the patterns that we intend to be extended
@@ -39,10 +44,9 @@ then they can be removed from this list.
 
 1. **Order Selection UX**
    - Pain point: Scrolling through list every time
-   - Single keypress selection (underlined unique letter or numbered list)
+   - Single keypress selection (numbered list)
 2. **Capitalization** consistency clean-up (not quick - lots of strings to sweep through)
 3. **Natural Language Descriptions**
-   - Replace details view in regular mode, supplement in debug mode.
    - Key words shown in relevant color (color text is color, poison red, healing green, growing olive) and bolded
    - Everything non-null/non-false reflected in a sentence
    - Design must easily expand as new attribute types added
@@ -71,6 +75,19 @@ Remove single/multi mode distinction from UI and add character count control:
 2. move name file to config dir for clearer access to users
 3. why is create item from variety logic in character.go? are there other functions that ended up in unintuitive places?
 
+## Unallocated Features
+
+1. **Helping** - The closest character who isn't already addressing a need (ie they are doing an idle activity or an order)
+   can be interrupted to help a character who is in crisis.
+   - the helping character will give them the item they are carrying, if it will address a severe or crisis need of the needy char
+   - otherwise they will target an item that will address the worst-off need of the needy char, and creates the shortest path from helper to item to needy char
+   - helping character will drop one unhelpful item if their inventory is too full to pick up the helpful item
+   - helper will resume their order if they had one assigned
+2. **Activity Preferences**
+   - A Character who does something in an order category (eg: 'Garden', 'Harvest', 'Craft') has a chance to form a preference for orders in thaat category.
+   - They will get a mood imapct from completing orders in that category.
+   - Future: preference would affect what orders they accept
+
 ## Flower Seeds / Flower Cultivation
 
 Deferred from Gardening Phase (was in Feature Set 2). Flower cultivation is cultural/aesthetic, not survival-critical — the core gardening loop works with gourd seeds + plantable berries/mushrooms.
@@ -88,19 +105,6 @@ This is genuinely a fourth pattern without enough examples yet to know the right
 - Does this become its own know-how? Part of a broader "tend" or "gather" activity?
 - Can the same flower be gathered from repeatedly? Timer per flower? Match flower reproduction cadence?
 - Standard pickup logic for the seed, or special handling?
-
-## Unallocated Features
-
-1. **Helping** - The closest character who isn't already addressing a need (ie they are doing an idle activity or an order)
-   can be interrupted to help a character who is in crisis.
-   - the helping character will give them the item they are carrying, if it will address a severe or crisis need of the needy char
-   - otherwise they will target an item that will address the worst-off need of the needy char, and creates the shortest path from helper to item to needy char
-   - helping character will drop one unhelpful item if their inventory is too full to pick up the helpful item
-   - helper will resume their order if they had one assigned
-2. **Activity Preferences**
-   - A Character who does something in an order category (eg: 'Garden', 'Harvest', 'Craft') has a chance to form a preference for orders in thaat category.
-   - They will get a mood imapct from completing orders in that category.
-   - Future: preference would affect what orders they accept
 
 # Ideas that aren't ready yet
 

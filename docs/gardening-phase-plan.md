@@ -1381,6 +1381,96 @@ Helper deriving mature symbol from ItemType: berry→`●`, mushroom→`♠`, fl
 
 **Reqs reconciliation:** Lines 125-131. _"sprout eventually becomes a full grown version"_ ✓, _"extend normal plant reproduction to have sprout phase"_ ✓, _"tilled ground makes it grow faster"_ ✓, _"wet tile makes it grow faster"_ ✓, _"tiles adjacent to water sources are always 'wet'"_ ✓ (from Step 0).
 
+##### Step 2b: Order Completion Refactor (bug fix from Step 2 testing)
+
+**Bugs found during Step 2 human testing:**
+1. Completed plant orders stay on the order list after "Order Completed" message
+2. Characters log "Order Completed" for planting without actually planting anything
+
+**Root cause:** `CompleteOrder()` resets order to `status=open, assignedTo=0` but never removes the order from the list. For harvest/craft, removal happens in their action handlers in update.go via `m.removeOrder()`. But for till/plant, completion is detected in `selectOrderActivity` (system layer), which can't call the UI-layer `removeOrder`. The order sits there as `open` forever, gets re-assigned, and immediately "completes" again because `LockedVariety` is already set from the previous run.
+
+**Design: Unified order completion pattern**
+
+Triggered enhancement "Order completion criteria refactor" — implementing now. The principle: each order type checks its own completion criteria, but once those are met, a single consistent completion path handles logging, unassignment, and removal.
+
+- Add `OrderCompleted` status to Order
+- `CompleteOrder()` sets `OrderCompleted` (instead of resetting to `open`)
+- Remove all `m.removeOrder()` calls that follow `CompleteOrder` in action handlers — harvest, craft, till, plant all just call `CompleteOrder`
+- Add one sweep in the game loop: after applying intents, remove all `OrderCompleted` orders
+- For till/plant action handlers: add inline completion checks (same pattern as harvest/craft) so completion is immediate, not deferred to next tick's `selectOrderActivity`
+- `isMultiStepOrderComplete` in `selectOrderActivity` remains as safety net for edge cases (another worker finished the last tile while this character was walking)
+
+**Tests** (in `internal/system/order_execution_test.go`):
+- `CompleteOrder` sets order status to `OrderCompleted`
+- `selectOrderActivity` skips orders with `OrderCompleted` status
+- `findAvailableOrder` skips orders with `OrderCompleted` status
+
+**Tests** (in `internal/ui/update_test.go`):
+- ActionTillSoil completes and removes order when last marked tile tilled
+- ActionPlant completes and removes order when no more plantable items or tilled tiles
+- Completed harvest order removed from order list (existing test, verify no regression)
+- Completed craft order removed from order list (existing test, verify no regression)
+
+**Implementation:**
+- `entity/order.go`: add `OrderCompleted` status, update `StatusDisplay()`
+- `system/order_execution.go`: `CompleteOrder` sets `OrderCompleted`; `selectOrderActivity` and `findAvailableOrder` skip `OrderCompleted` orders
+- `ui/update.go`: remove `m.removeOrder()` calls paired with `CompleteOrder`; add sweep after intent application; add completion checks in ActionTillSoil and ActionPlant handlers
+- `save/state.go`: handle `OrderCompleted` in serialization (or skip — completed orders shouldn't persist)
+
+**[TEST] Checkpoint — Order completion:**
+- `go test ./...` passes
+- Build and run:
+  - Plant order: character plants items, order completes and disappears from list
+  - Till order: character tills all tiles, order completes and disappears from list
+  - Harvest/craft orders: no regression, still complete and disappear
+  - No phantom "Order Completed" messages for characters that didn't do work
+  - Save/load during active orders works correctly
+
+##### Step 2c: Plant order procurement — ground vessel awareness (bug fix from Step 2b testing)
+
+**Bug:** Characters abandon plant orders even when a vessel containing matching plantable items sits on the ground. Each character takes the order, can't find items, and abandons.
+
+**Root cause:** Two functions only look at loose ground items, not inside ground vessels:
+- `findNearestPlantableOnGround` — searches `item.Plantable` on direct ground items only
+- `PlantableItemExists` — checks ground items + character inventory vessels, but not ground vessels
+
+The procurement flow in `EnsureHasPlantable` goes: check inventory → search ground → nothing found → return nil → abandon. Ground vessels are invisible.
+
+**Design: New Layer 1 search utility + adjusted procurement order**
+
+Per architecture.md's picking.go layering (Map Search → Prerequisite Orchestration → Physical Actions):
+
+- New Layer 1 utility: `FindVesselContaining(cx, cy, items, targetType, lockedVariety)` — finds nearest ground vessel whose contents match the plant target. Sibling of `FindAvailableVessel` (which finds vessels that can *receive* items). Uses existing `matchesPlantTargetVariety` for content matching.
+- `EnsureHasPlantable` (Layer 2) adjusted search order:
+  1. `hasAccessiblePlantable` — already carrying? done
+  2. Make inventory space if needed
+  3. `FindVesselContaining` — ground vessel with matching contents? pick it up
+  4. `findNearestPlantableOnGround` — loose item? pick it up
+  5. Nothing → return nil (abandonment)
+- `PlantableItemExists` (feasibility) — add ground vessel contents check to the ground-items loop, mirroring the existing character-vessel check.
+
+Deferred: empty vessel + loose item orchestration (pick up empty vessel, fill it, then plant). Adds multi-step complexity for a minor optimization.
+
+**Tests** (in `internal/system/picking_test.go` or `order_execution_test.go`):
+- `FindVesselContaining` returns vessel with matching contents
+- `FindVesselContaining` returns nil when vessel has wrong type
+- `FindVesselContaining` returns nil when no vessels on ground
+- `FindVesselContaining` respects locked variety
+- `EnsureHasPlantable` returns pickup intent for ground vessel containing target
+- `EnsureHasPlantable` prefers ground vessel over loose item (vessel checked first)
+- `PlantableItemExists` returns true when matching items in ground vessel
+
+**Implementation:**
+- `system/picking.go`: add `FindVesselContaining`; reorder `EnsureHasPlantable` search (vessel before loose)
+- `system/order_execution.go`: add ground vessel check to `PlantableItemExists`
+
+**[TEST] Checkpoint — Plant procurement with ground vessels:**
+- `go test ./...` passes
+- Build and run:
+  - Place vessel of berries on ground, issue plant berries order
+  - Character picks up vessel, then plants berries from it
+  - No order abandonment spam
+
 **[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture.
 
 **[RETRO]** Run /retro.
