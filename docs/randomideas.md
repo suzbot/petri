@@ -17,27 +17,14 @@ then they can be removed from this list.
 2. **esc key clean up**: still a little bit inconsistant how esc behaves. New pattern: esc always takes you 'back' a level. Ideal if there's a way to generalize this behavior. desired behavior:
    - esc from any expanded view collapses the view
    - esc from all activity view goes nowhere
-   - esc from orders goes back to all activity 
-   - esc from within orders only goes back one level 
+   - esc from orders goes back to all activity
+   - esc from within orders only goes back one level
    - esc from select: details view/action log or no panel goes back to all activity view
    - esc from select: details view/any other panel goes back to action log
    - 'l' from select: details view/any other panel goes back to action log
    - q from anywhere goes to start file menu
    - q from start file menu quits
 3. Why have we started running into all these tab/whitespace problems while editing just in the last week or so? especially since claude is the only one reading/writing code?
-4. Latest model is much more expensive in terms of tokens. How can I better leverage skills and agents to use simpler models for simpler tasks? We already have a good pattern with docs and test world creation. Anything else this would make sense for? 
-   - Can retro use a simpler model?
-   - I broke the new feature skill into two: refine-feature and implement-feature
-      Why: often this happens over two sessions or with a clear in between. Uses two different skill sets. Implementation and testing skill can roll out of context by the time we get to it. Can call back to refinement if we hit further discussion mid implementation.
-      Question: could implementation use a simpler model since problem solving could call back to the more sophisticated model?
-   - I notice 'explore' doesn't always get loaded when another skill is being used to look at a lot of documents -- can that be called out anywherer to ensure we aren't spending expensive model tokens on doc search if we don't need to? 
-   - Anything we can do to make the architecture document or skill aid in this goal of spending less tokens?
-      - Pain point: I rarely see this skill used or the doc read, sometimes important things in that architecture doc get missed
-      - It is referenced in at least one other skill, should these references be clearer or in more/other places?
-      - One intent is that this saves time/tokens by pointing in the right directions before explore is used
-      - Another intent is to explain the patterns that we intend to be extended
-      - Question: if the code is the source of truth, is this document redundant? why spend the effort of maintaining it if you are always going to end up looking at a large amount of code directly anyway?
-      - Is there a better/more focused intent that would be more valueable for this document? is there a better way to leverage it than the way the skills are set up to currently?
 
 ## UI Improvements (after Gardening)
 
@@ -71,7 +58,6 @@ Remove single/multi mode distinction from UI and add character count control:
 
 ## Tech Updates
 
-2. move name file to config dir for clearer access to users
 3. why is create item from variety logic in character.go? are there other functions that ended up in unintuitive places?
 
 ## Unallocated Features
@@ -92,8 +78,9 @@ Remove single/multi mode distinction from UI and add character count control:
 Deferred from Gardening Phase (was in Feature Set 2). Flower cultivation is cultural/aesthetic, not survival-critical — the core gardening loop works with gourd seeds + plantable berries/mushrooms.
 
 **The mechanic tension:** Flower seed gathering doesn't fit cleanly into any existing activity archetype:
+
 - **Foraging** is becoming food-centric ("go find snacks"). Flower seeds aren't food.
-- **Collecting** (future, for Construction) is about gathering raw materials from the ground. But flower seeds come *from* an interaction with a living plant, not the ground.
+- **Collecting** (future, for Construction) is about gathering raw materials from the ground. But flower seeds come _from_ an interaction with a living plant, not the ground.
 - **Flower seed gathering** is "interact with a living plant to extract something, without destroying it" — a different verb from foraging, collecting, or harvesting (which kills the plant).
 
 This is genuinely a fourth pattern without enough examples yet to know the right abstraction. Revisit after Construction introduces more "interact with world objects" patterns, which may reveal a natural home for this mechanic.
@@ -101,6 +88,7 @@ This is genuinely a fourth pattern without enough examples yet to know the right
 **Original requirement (Gardening-Reqs line 67):** "Foraging a flower produces 1 flower variety seed without removing the flower."
 
 **Open questions:**
+
 - Does this become its own know-how? Part of a broader "tend" or "gather" activity?
 - Can the same flower be gathered from repeatedly? Timer per flower? Match flower reproduction cadence?
 - Standard pickup logic for the seed, or special handling?

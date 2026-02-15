@@ -1,6 +1,14 @@
 ---
 name: retro
 description: "Post-feature reflection to identify process changes that reduce future friction and context overhead. Run after a feature is marked complete, or mid-session when the user wants a process check-in."
+user-invocable: true
+argument-hint: Brief context about what was just completed (optional)
+model: sonnet
+agent: true
+allowed-tools:
+  - Read
+  - Glob
+  - Grep
 ---
 
 ## Retro Skill
@@ -95,6 +103,5 @@ B. Take what you learned about user values, and propose additions to docs/Values
 - Be concise and concrete
 - Avoid speculative suggestions
 - Present all changes as **proposals**, not decisions
-- All suggestions require **explicit user approval**
-
-End by asking the user to approve, reject, or modify each proposal.
+- End with a clear list of proposals for the caller to relay to the user for approval
+- All suggestions require **explicit user approval** before implementation
