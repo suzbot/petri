@@ -10,6 +10,8 @@ import (
 	"petri/internal/ui"
 )
 
+const Version = "v0.0.0"
+
 func main() {
 	// Test mode flags
 	noFood := flag.Bool("no-food", false, "Skip spawning food items (test mode)")
@@ -18,7 +20,13 @@ func main() {
 	noCharacters := flag.Bool("no-characters", false, "Skip spawning characters (test mode)")
 	debug := flag.Bool("debug", false, "Show debug info (action progress, etc.)")
 	mushroomsOnly := flag.Bool("mushrooms-only", false, "Replace all items with mushroom varieties (test mode)")
+	version := flag.Bool("version", false, "Show version")
 	flag.Parse()
+
+	if *version {
+		fmt.Println("Version:", Version)
+		os.Exit(0)
+	}
 
 	testCfg := ui.TestConfig{
 		NoFood:        *noFood,
