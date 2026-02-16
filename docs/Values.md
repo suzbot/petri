@@ -19,3 +19,15 @@ Example: item.Kind belongs on ItemVariety, not reconstructed from order.targetTy
 Before creating a new utility, helper, or pattern, ask: "Does something existing already handle this, or can it be extended?" Even if the answer is no, the question itself often reveals the right shape for the new code by identifying what's adjacent. The cost of a brief analysis is always lower than the cost of discovering redundant abstractions later.
 
 Example: FindVesselContaining — checked whether FindAvailableVessel could serve the need first. It couldn't (inverted semantics), but the analysis confirmed the new utility should be a structural sibling.
+
+## Design Types for Future Siblings
+
+When introducing a new type or category, ask: "What else will eventually live alongside this?" and design the type hierarchy to accommodate those future siblings — even if only one member exists today. A narrow type that fits only the current case creates refactoring debt when the next sibling arrives.
+
+Example: Water as ItemType "liquid", Kind "water" (not ItemType "water"). Future beverages (mead, beer, wine) become Kind variants under the same ItemType, with no structural changes needed.
+
+## Idle Activities Should Be Non-Destructive
+
+Idle activities — the things characters choose to do on their own when no needs or orders are pressing — should never destroy player-relevant state. Need-driven behavior (eating, drinking, sleeping) may consume or displace things to ensure survival, and that's appropriate for a simulation. But idle choices should be safe by default.
+
+Example: Fetch Water only triggers when a character has or can find an empty vessel. It never dumps existing vessel contents to make room for water.

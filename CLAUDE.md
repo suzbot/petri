@@ -113,7 +113,7 @@ internal/
 
 **Up Next:**
 
-- Gardening in progress (Slices 1-5 complete; Slice 6 started: Steps 0-2c done). Next: Slice 6 Step 3 — Sprout Maturation + All Reproduction Through Sprouts. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
+- Gardening in progress (Slices 1-6 complete). Next: Slice 7 — Fetch Water and Water Vessel Drinking. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
 
 ## Reference and Planning Documents
 
