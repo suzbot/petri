@@ -39,6 +39,13 @@
 | Variety locking       | `LockedVariety` on Order               | Per-order lock set on first plant. Character seeks only matching variety after lock. Completion when variety exhausted. |
 | Sprout maturation     | In-place symbol change from ItemType   | `MatureSymbol()` helper derives mature symbol. No stored state needed. |
 | Growth tuning         | Deferred to Slice 9                    | Flat 30s sprout for testing. Tier differentiation and bonus values in Slice 9 tuning. |
+| Liquid type model     | ItemType `"liquid"`, Kind `"water"`    | Extensible for future beverages (mead, beer, wine) as Kind variants under same ItemType. Parallels Kind pattern from seeds/hoes. |
+| Fetch water idle slot | Own 1/5 slot in idle roll              | Expand from 4 options to 5: look/talk/forage/fetch-water/idle. Equal probability. |
+| Vessel filling action | New `ActionFillVessel`                 | Distinct from ActionPickup — creates liquid from terrain interaction, no source item. Vessel-seeking phase reuses foraging patterns. |
+| Drink source search   | Unified distance-based (like hunger)   | Carried vessel (dist 0), ground vessel (dist to vessel), water terrain (dist to adjacent). Closest wins. Future: preference scoring for beverages. |
+| Vessel drink continuation | Re-evaluate after each drink        | Vessel: drink once, re-evaluate (source is finite). Terrain: existing continuation until sated (infinite source). |
+| Ground vessel drinking | Drink in place, don't pick up         | Character moves to ground vessel and drinks from it like a small water source. Multiple characters can share. |
+| Earlier vessel thirst trigger | Deferred to Slice 9              | Keep same thirst threshold for now. Distance=0 already prioritizes carried vessel. Tune threshold in Slice 9. |
 
 ---
 
@@ -1317,7 +1324,7 @@ _Implementation:_
 
 **[RETRO]** Run /retro.
 
-##### Step 2: Sprout Maturation + All Reproduction Through Sprouts
+##### Step 2: Sprout Maturation + All Reproduction Through Sprouts ✅
 
 **Design: Growth Multipliers**
 
@@ -1482,49 +1489,240 @@ Deferred: empty vessel + loose item orchestration (pick up empty vessel, fill it
 **Reqs covered:**
 
 - New Idle Activity: Fetch Water (lines 101-108)
+- Drinking from carried/dropped water vessels (lines 105-108)
+
+**Resolved feature questions:**
+
+- Fetch Water gets its own 1/5 idle slot (look/talk/forage/fetch-water/idle) ✓
+- Earlier thirst trigger for carried vessel: deferred to Slice 9 tuning ✓
+- Water vessel display: show contents in existing inventory/details panels (e.g., "Water 3/4"), no vessel name change ✓
+- Water vessels can be dropped and re-picked-up normally (existing vessel drop/pickup works) ✓
+- Preference formation for beverages: defer until beverage variety exists (tracked in triggered-enhancements.md) ✓
+- Ground water vessel drinking: character drinks in place without picking up the vessel ✓
 
 #### Design: Liquids as Vessel Stacks
 
-Water stored in ContainerData.Contents as a Stack with ItemType `"water"` and Count = units (max 4). A vessel holds items OR liquid, never both. Existing vessel infrastructure (CanVesselAccept, IsVesselFull, variety-lock) applies naturally. Future liquids (mead, beer, wine) become new item types in the same system.
+Water stored in ContainerData.Contents as a Stack. The liquid type system uses the Kind pattern:
+- **ItemType**: `"liquid"` — broad category for all liquid/beverage types
+- **Kind**: `"water"` — specific liquid type (future: `"mead"`, `"beer"`, `"wine"`)
+- **Stack size**: 4 (per reqs line 108: "4 drinks/units of water")
+
+A vessel holds items OR liquid, never both. Existing vessel infrastructure (CanVesselAccept, IsVesselFull, variety-lock) applies naturally — a vessel with water can't accept berries, and vice versa.
 
 Water is not an item that exists on the ground — it is created by interacting with water terrain and exists only inside vessels. This keeps water terrain (map state) separate from water as a usable liquid.
 
+A water `ItemVariety` is registered at world generation: ItemType `"liquid"`, Kind `"water"`, no Color/Pattern/Texture variation (single variety). This allows Stacks in vessels to reference the variety. Config adds `"liquid": 4` to `StackSize`.
+
+**Future extensions (tracked in triggered-enhancements.md):**
+- `Drinkable bool` on ItemVariety — when non-drinkable liquids appear (lamp oil, dye)
+- `Watertight bool` on ContainerData — when non-watertight containers appear (baskets)
+
+#### Design: Liquid Vessel Helpers
+
+Two new helpers in picking.go (Layer 1 — physical actions):
+
+- `AddLiquidToVessel(vessel *Item, variety *ItemVariety, amount int) bool` — creates/fills a liquid Stack without a source item. Returns false if vessel is non-empty with different variety or already full. Uses existing Stack infrastructure.
+- `DrinkFromVessel(vessel *Item) bool` — decrements liquid stack count by 1. Removes stack when count reaches 0 (vessel becomes empty). Returns false if no liquid contents.
+
+These parallel existing vessel helpers (`AddToVessel`, `ConsumeAccessibleItem`) but handle the "liquid from terrain" and "consume one unit" cases that don't map to item-based operations.
+
+#### Design: ActionFillVessel
+
+New ActionType for filling a vessel at water terrain. Distinct from ActionPickup because:
+- **ActionPickup**: picks up a ground item → item goes into vessel via `AddToVessel()`
+- **ActionFillVessel**: interacts with water terrain → creates liquid Stack in vessel from nothing
+
+Duration: `ActionDurationShort` (quick interaction with water source).
+Outcome: vessel filled to capacity with water Stack (4 units).
+
 #### Design: Fetch Water Idle Activity
 
-New option in `selectIdleActivity`. Character with an empty vessel (or who finds one on the ground) goes to nearest water source and fills vessel with 4 units of water. Reuses vessel-seeking from picking.go.
+New 1/5 idle slot in `selectIdleActivity()` (expanding from 4 to 5 options: look/talk/forage/fetch-water/idle).
 
-#### Design: Drinking from Water Vessel
+`findFetchWaterIntent()` flow:
+1. Check if character has empty vessel (carried, with no contents) → skip to step 3
+2. No empty vessel carried → search ground for empty vessel → ActionPickup intent to pick it up
+3. Has empty vessel → find nearest water terrain via `FindNearestWater()`
+4. If not adjacent to water → ActionMove toward water
+5. If adjacent to water → ActionFillVessel intent
+6. If no empty vessel available and none on ground → return nil (skip this idle option)
 
-When thirsty, characters check for carried water vessel before seeking a water source on the map. Drinking from a carried vessel consumes 1 unit (decrement stack count). Distance = 0, so carried water is always closer than walking to a source. Dropped water vessels can also be targeted for drinking by other characters.
+Non-destructive: never dumps existing vessel contents. Only triggers when character has or can find an empty vessel.
 
-**Outcomes:**
+Vessel-seeking reuses existing patterns from foraging (find vessel on ground, pick it up). The "go to water" phase reuses `FindNearestWater()` and cardinal adjacency from drinking.
 
-1. Fetch Water as idle activity option (characters autonomously fill empty vessels)
-2. Water stored as Stack in vessel (4 units per full vessel)
-3. Drinking from carried water vessel when thirsty (prioritized over walking to source)
-4. Dropped water vessels targetable for drinking
-5. Water vessel display in UI (inventory panel, details panel)
+#### Design: Unified Drink Source Search
 
-**[TEST] Checkpoint — Fetch Water:**
-- Character with empty vessel fills it at nearest pond/spring
-- Vessel shows water contents in inventory panel (e.g., "Water 4/4")
-- Thirsty character drinks from carried water vessel instead of walking to water
-- Each drink reduces water by 1 unit. After 4 drinks, vessel is empty.
-- Drop a water vessel → another character can drink from it
-- Empty vessel after drinking can be refilled or used for foraging
-- Save and load preserves water vessel contents
+Refactor `findDrinkIntent()` to search all water sources by distance, mirroring hunger/foraging's unified distance-based approach:
+
+| Source | Distance | How to drink |
+|--------|----------|-------------|
+| Carried water vessel | 0 (always closest if available) | Consume 1 unit from carried vessel |
+| Ground water vessel | tiles to vessel position | Move to vessel, consume 1 unit in place |
+| Water terrain | tiles to nearest cardinal-adjacent spot | Move adjacent, drink from terrain (existing) |
+
+Character picks the closest source. In the future when other beverages exist, preference scoring will enter into beverage selection (paralleling hunger's preference + distance scoring).
+
+**Intent tracking:** Intent carries source info to distinguish vessel vs terrain drinking:
+- `TargetItemID` set → drinking from vessel (carried or ground). Character looks up vessel by ID at execution time.
+- `TargetWaterPos` set, no `TargetItemID` → drinking from water terrain (existing path).
+
+**Drink continuation:**
+- **From terrain**: existing continuation logic — keep drinking until thirst = 0 (infinite source, already there).
+- **From vessel**: drink once (consume 1 unit), then clear intent to force re-evaluation. If still thirsty above threshold, next `CalculateIntent` naturally picks the closest source again (might be same vessel if still has water, might be terrain if vessel emptied).
+
+**Ground vessel drinking:** character moves to the vessel and drinks from it in place — doesn't pick it up. Like a small communal water source. Multiple characters can drink from the same dropped vessel.
+
+**`canFulfillThirst()` update:** Check all three source types (carried water vessel, ground water vessel, water terrain). If any source exists, thirst is fulfillable. This ensures the urgency/fallback system doesn't skip thirst when a water vessel is available.
+
+---
+
+#### Implementation Steps
+
+Each step follows the TDD cycle: write tests → add minimal stubs to compile → verify red → implement → verify green → human testing checkpoint.
+
+##### Step 1: Liquid Type + Water Variety + Vessel Helpers
+
+**Tests** (in `internal/entity/variety_test.go` or `internal/game/variety_generation_test.go`):
+- Water variety registered with ItemType `"liquid"`, Kind `"water"`
+- `GetStackSize("liquid")` returns 4
+
+**Tests** (in `internal/system/picking_test.go`):
+- `AddLiquidToVessel` fills empty vessel with liquid Stack (correct variety, count)
+- `AddLiquidToVessel` returns false when vessel has non-liquid contents (variety mismatch)
+- `AddLiquidToVessel` returns false when vessel already full of liquid
+- `AddLiquidToVessel` tops up partially-filled liquid vessel
+- `DrinkFromVessel` decrements liquid stack count by 1
+- `DrinkFromVessel` removes stack when count reaches 0 (vessel empty)
+- `DrinkFromVessel` returns false when vessel has no liquid contents
+- `DrinkFromVessel` returns false when vessel is empty
+
+**Config:** `"liquid": 4` in `StackSize`
+
+**Implementation:**
+- Register water `ItemVariety` in variety generation: ItemType `"liquid"`, Kind `"water"`, Sym `0` (never rendered as ground item), no Edible/Plantable
+- Follows variety registration pattern in `game/variety_generation.go`
+- `AddLiquidToVessel(vessel *Item, variety *ItemVariety, amount int) bool` in picking.go
+- `DrinkFromVessel(vessel *Item) bool` in picking.go
+- Add `ActionFillVessel` to ActionType enum in entity/character.go (needed by Step 2)
+
+**Serialization:** Liquid stacks serialize as vessel contents (existing `StackSave` with variety ID + count). Verify existing save/load handles liquid variety — likely works with no changes since variety is registered. Add round-trip test.
+
+**Tests** (in `internal/ui/serialize_test.go`):
+- Water vessel round-trips through save/load: vessel with liquid Stack preserved, variety and count correct
+
+**Architecture patterns:** Extends vessel Stack system. `AddLiquidToVessel` is a sibling of `AddToVessel`; `DrinkFromVessel` is a sibling of `ConsumeAccessibleItem`. Both follow Layer 1 (Physical Actions) in picking.go.
+
+##### Step 2: ActionFillVessel + Fetch Water Idle Activity
+
+**Tests** (in `internal/system/idle_test.go` or new `internal/system/fetch_water_test.go`):
+- `findFetchWaterIntent` returns ActionPickup intent for empty ground vessel when character has no vessel
+- `findFetchWaterIntent` returns ActionMove toward water when character has empty vessel but not adjacent
+- `findFetchWaterIntent` returns ActionFillVessel when character has empty vessel and is adjacent to water
+- `findFetchWaterIntent` returns nil when no empty vessel available (character carries full vessel)
+- `findFetchWaterIntent` returns nil when character has empty vessel but no water on map
+- `findFetchWaterIntent` skips vessels that have contents (non-destructive)
+
+**Tests** (in `internal/ui/update_test.go`):
+- ActionFillVessel completes after ActionDurationShort: vessel now contains water Stack (4 units)
+- ActionFillVessel does not overfill partially-filled vessel
+
+**Implementation:**
+- `findFetchWaterIntent()` in new file `internal/system/fetch_water.go` (follows pattern of foraging.go as separate idle activity file)
+- Wire into `selectIdleActivity()`: expand random roll from 0-3 to 0-4, add case 3 for fetch water (shift existing idle/nil to case 4)
+- ActionFillVessel handler in update.go: progress-based (ActionDurationShort), on completion call `AddLiquidToVessel` with water variety, log "Filled [vessel name] with water"
+- Update `isIdleActivity()` to include fetch water activity names
+
+**Architecture patterns:** Follows foraging idle activity pattern (separate file, `findXIntent()` function, wired into `selectIdleActivity`). ActionFillVessel follows existing progress-based action pattern in update.go.
+
+**[TEST] Checkpoint — Fetch Water idle activity:**
+- `go test ./...` passes
+- Build and run:
+  - Characters occasionally choose fetch water as idle activity
+  - Character with empty vessel walks to nearest water, fills it
+  - Character without vessel picks up empty vessel from ground, then fills it
+  - Vessel shows water contents in inventory panel
+  - Character with full vessel (food or water) does not attempt fetch water
+  - Save/load preserves water vessel contents
+  - Note: drinking from water vessel does NOT work yet (Step 3)
 
 **[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture.
 
 **[RETRO]** Run /retro.
 
-**Feature questions:**
+##### Step 3: Unified Drink Source Search + Vessel Drinking
 
-- Fetch Water as its own idle activity slot (1/5 chance: look/talk/forage/fetch/idle)? Or conditional on having/finding an empty vessel?
-- Earlier thirst trigger for carried vessel? (e.g., drink from vessel at Mild thirst, walk to source at Moderate?)
-- Water vessel description: does vessel display name change when full? "Water-filled hollow gourd"? Or just show contents?
-- Can a vessel with water be dropped to make room, then re-picked-up?
-- Preference formation for water vessels (triggered enhancement — likely defer until beverage variety exists)
+**Tests** (in `internal/system/movement_test.go` or intent test file):
+- `findDrinkIntent` returns carried water vessel as drink source (distance 0)
+- `findDrinkIntent` returns closest ground water vessel when closer than water terrain
+- `findDrinkIntent` returns water terrain when closer than ground water vessel
+- `findDrinkIntent` returns water terrain when no water vessels exist (existing behavior)
+- `findDrinkIntent` ignores empty vessels (no liquid contents)
+- `findDrinkIntent` returns ActionMove toward ground water vessel when not adjacent
+
+**Tests** (in `internal/system/movement_test.go`):
+- `canFulfillThirst` returns true when character carries water vessel
+- `canFulfillThirst` returns true when ground water vessel exists
+- `canFulfillThirst` returns true when water terrain exists (existing)
+- `canFulfillThirst` returns false when no water sources of any kind
+
+**Tests** (in `internal/ui/update_test.go`):
+- ActionDrink from carried vessel: consumes 1 water unit, reduces thirst
+- ActionDrink from carried vessel: intent cleared after drink (forces re-eval)
+- ActionDrink from ground vessel: consumes 1 water unit from ground vessel
+- ActionDrink from terrain: existing behavior unchanged (continues until sated)
+- ActionDrink from vessel that empties: intent cleared, character re-evaluates
+
+**Implementation:**
+- Refactor `findDrinkIntent()` in movement.go:
+  - Search carried vessel for liquid contents (distance 0)
+  - Search ground items for vessels with liquid contents (distance to vessel)
+  - Search water terrain via `FindNearestWater()` (distance to adjacent tile)
+  - Pick closest source. Set `TargetItemID` for vessel sources, `TargetWaterPos` for terrain.
+- Refactor `canFulfillThirst()`: check all three source types
+- Update ActionDrink handler in update.go:
+  - If `TargetItemID` set: find vessel (carried or ground by ID), call `DrinkFromVessel()`, call `Drink()` for thirst reduction, clear intent
+  - If terrain (no TargetItemID): existing behavior (continue until sated)
+- Drinking continuation logic in movement.go: vessel drinks always re-evaluate; terrain drinks use existing continuation
+
+**Architecture patterns:** Follows unified distance-based search pattern (mirrors hunger/foraging). Extends existing `findDrinkIntent` rather than creating parallel path.
+
+**[TEST] Checkpoint — Vessel drinking:**
+- `go test ./...` passes
+- Build and run:
+  - Thirsty character with water vessel drinks from it immediately (no walking to water)
+  - Each drink reduces vessel water by 1 unit
+  - After vessel empties, character seeks nearest water source (terrain or another vessel)
+  - Drop a water vessel → another character drinks from it in place
+  - Character with both water vessel and nearby pond: drinks from vessel (distance 0)
+  - Existing spring/pond drinking unchanged
+  - Full food loop: character forages → fills vessel with water → drinks from vessel when thirsty
+  - Save/load during drinking works correctly
+
+**[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture.
+
+**[RETRO]** Run /retro.
+
+##### Step 4: UI Display Polish
+
+**Implementation** (no tests per CLAUDE.md for UI rendering):
+- Inventory panel: vessel with liquid shows contents (e.g., "Water 3/4")
+- Details panel: ground water vessel shows liquid contents
+- Details panel: cursor on water vessel item shows "Water (3/4 units)" or similar
+- Verify all vessel display paths handle liquid contents gracefully
+
+**[TEST] Checkpoint — UI polish:**
+- `go test ./...` passes (no regressions)
+- Build and run:
+  - Inventory panel clearly shows water vessel contents
+  - Details panel shows water contents for ground and carried vessels
+  - All display looks clean, no rendering artifacts
+
+**[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture.
+
+**[RETRO]** Run /retro.
+
+**Reqs reconciliation:** Lines 101-108. _"fill an empty vessel with water as an idle activity option"_ ✓ (Step 2), _"same vessel logic as foraging"_ ✓ (vessel-seeking reused), _"drink from the carried vessel instead of having to move to a water source"_ ✓ (Step 3, distance=0 prioritization), _"a dropped water vessel can be targeted for drinking"_ ✓ (Step 3, ground vessel search), _"a full vessel has 4 'drinks'/units of water in it"_ ✓ (Step 1, StackSize 4). Line 106 _"consider that drinking from carried vessel can be triggered earlier"_ — deferred to Slice 9 tuning.
 
 ---
 
@@ -1608,6 +1806,7 @@ Start a new world and play through the full garden lifecycle:
 
 **Reqs covered:**
 - Food Turning: Satiation tiers (lines 133-137)
+- Food Turning: Growth speed tiers (lines 138-141)
 
 #### Design: Food Satiation Tiers
 
@@ -1619,13 +1818,41 @@ Replace the flat `FoodHungerReduction` constant with per-item-type values:
 | Meal | 25 | Mushroom |
 | Snack | 10 | Berry, Nut |
 
+#### Design: Growth Speed Tiers
+
+Replace flat `SproutDuration` with per-item-type values. Affects both sprouting time and reproduction intervals:
+
+| Tier | Items | Direction |
+|------|-------|-----------|
+| Fast | Berry, Mushroom | Shorter sprouting and reproduction times |
+| Medium | Flower | ~6 min sprout, existing reproduction |
+| Slow | Gourd | Longer sprouting and reproduction times |
+
+Also tune growth multiplier values:
+- `TilledGrowthMultiplier` (currently 1.25 — placeholder)
+- `WetGrowthMultiplier` (currently 1.25 — placeholder)
+
+**Deferred from Slice 6:** Flat 30s sprout duration used for testing. This slice differentiates by tier and tunes multiplier values.
+
+#### Design: Vessel Drinking Thirst Trigger
+
+Evaluate whether carrying a water vessel should allow drinking at a lower thirst threshold than walking to a water source. Currently both trigger at Moderate tier (51+). Carried vessel at distance 0 is already prioritized by proximity.
+
+**Deferred from Slice 7:** Keep same threshold for initial implementation. Tune here if vessel drinking feels like it should trigger earlier.
+
 **Outcomes:**
 
-6. Per-item-type satiation amounts replace flat hunger reduction
+1. Per-item-type satiation amounts replace flat hunger reduction
+2. Per-item-type growth speed tiers replace flat SproutDuration
+3. Tuned growth multiplier values for tilled/wet bonuses
+4. Evaluate vessel drinking thirst threshold
 
-**[TEST] Checkpoint — Seeds and satiation:**
+**[TEST] Checkpoint — Satiation and growth tuning:**
 - Eat a gourd → larger hunger reduction than eating a mushroom → larger hunger reduction than eating a berry/nut
-
+- Berry/mushroom sprouts mature noticeably faster than gourd sprouts
+- Flower sprouts take ~6 minutes
+- Growth hierarchy feels right: tilled+wet > tilled or wet alone > wild
+- Vessel drinking trigger feels natural (adjust threshold if needed)
 
 **[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture as needed.
 
@@ -1638,6 +1865,7 @@ Replace the flat `FoodHungerReduction` constant with per-item-type values:
 - Flower foraging cadence: can the same flower be foraged repeatedly? Timer per flower? Consider matching flower reproduction cadence.
 - Does flower seed go through standard pickup logic at character position, or special handling?
 - Nut satiation: grouped with berry at Snack (10). Confirm this feels right during testing.
+- Exact growth speed tier values: need playtesting to find good feel. Start with 2x/3x ratios between tiers?
 
 ## Triggered Enhancements to Monitor
 

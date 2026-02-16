@@ -26,6 +26,9 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **applyIntent duplication (simulation.go)** | INTENTIONALLY SEPARATE - simulation.go is lighter test harness; only unify if maintaining both becomes burdensome |
 | **Temporarily-blocked order cooldown** | Assign/abandon churn noticeable for temporarily-blocked (but feasible) orders; Character visibly thrashes between taking and abandoning the same order |
 | **Interactive inventory details panel** | Items gain enough attributes that parenthetical summary in inventory list isn't sufficient; Want to inspect individual inventory items with full details view |
+| **Drinkable bool on ItemVariety**      | Non-drinkable liquid introduced (lamp oil, dye); Need to distinguish consumable vs non-consumable liquids |
+| **Watertight bool on ContainerData**   | Non-watertight container introduced (basket, sack); Need to prevent liquid storage in permeable containers |
+| **Idle activity registry refactor**    | Idle activity needs discovery/know-how gating; Idle activities need data-driven selection (weighted probabilities, personality); Adding 7th+ hardcoded idle option feels unwieldy |
 
 ### Future Enhancement Details
 
