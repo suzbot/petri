@@ -1737,7 +1737,7 @@ func TestFindDrinkIntent_DrinksWhenCardinallyAdjacent(t *testing.T) {
 	gameMap := game.NewMap(20, 20)
 	gameMap.AddWater(types.Position{X: 5, Y: 5}, game.WaterSpring)
 
-	intent := findDrinkIntent(char, types.Position{X: 5, Y: 4}, gameMap, entity.TierModerate, nil)
+	intent := findDrinkIntent(char, types.Position{X: 5, Y: 4}, gameMap, entity.TierModerate, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected drink intent when cardinally adjacent to water")
@@ -1761,7 +1761,7 @@ func TestFindDrinkIntent_DoesNotDrinkWhenDiagonallyAdjacent(t *testing.T) {
 	gameMap := game.NewMap(20, 20)
 	gameMap.AddWater(types.Position{X: 5, Y: 5}, game.WaterSpring)
 
-	intent := findDrinkIntent(char, types.Position{X: 4, Y: 4}, gameMap, entity.TierModerate, nil)
+	intent := findDrinkIntent(char, types.Position{X: 4, Y: 4}, gameMap, entity.TierModerate, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected move intent when diagonally adjacent")
@@ -1785,7 +1785,7 @@ func TestFindDrinkIntent_MovesToAdjacentTile(t *testing.T) {
 	gameMap := game.NewMap(20, 20)
 	gameMap.AddWater(types.Position{X: 5, Y: 5}, game.WaterSpring)
 
-	intent := findDrinkIntent(char, types.Position{X: 0, Y: 5}, gameMap, entity.TierModerate, nil)
+	intent := findDrinkIntent(char, types.Position{X: 0, Y: 5}, gameMap, entity.TierModerate, nil, nil)
 
 	if intent == nil {
 		t.Fatal("Expected move intent")
@@ -1828,6 +1828,282 @@ func TestContinueIntent_DrinkFromAdjacentTile(t *testing.T) {
 	// Should stay at current position
 	if intent.Target.X != 6 || intent.Target.Y != 5 {
 		t.Errorf("Target: got (%d,%d), want (6,5) - should stay in place to drink", intent.Target.X, intent.Target.Y)
+	}
+}
+
+// =============================================================================
+// Vessel Drinking — findDrinkIntent with unified source search
+// =============================================================================
+
+func createWaterVessel(x, y int, units int) *entity.Item {
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	vessel.X = x
+	vessel.Y = y
+	if units > 0 {
+		waterVariety := &entity.ItemVariety{
+			ID:       "liquid-water",
+			ItemType: "liquid",
+			Kind:     "water",
+		}
+		AddLiquidToVessel(vessel, waterVariety, units)
+	}
+	return vessel
+}
+
+func TestFindDrinkIntent_CarriedWaterVessel(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Thirst = 75
+	char.SetPos(types.Position{X: 5, Y: 5})
+
+	waterVessel := createWaterVessel(0, 0, 4)
+	char.AddToInventory(waterVessel)
+
+	gameMap := game.NewMap(20, 20)
+	// No water terrain — vessel is the only source
+
+	intent := findDrinkIntent(char, types.Position{X: 5, Y: 5}, gameMap, entity.TierModerate, nil, nil)
+
+	if intent == nil {
+		t.Fatal("Expected drink intent for carried water vessel")
+	}
+	if intent.Action != entity.ActionDrink {
+		t.Errorf("Action: got %d, want ActionDrink", intent.Action)
+	}
+	if intent.TargetItem != waterVessel {
+		t.Error("TargetItem should be the carried water vessel")
+	}
+	// Should stay in place (distance 0)
+	if intent.Target.X != 5 || intent.Target.Y != 5 {
+		t.Errorf("Target: got (%d,%d), want (5,5) - should stay in place", intent.Target.X, intent.Target.Y)
+	}
+	if intent.Dest.X != 5 || intent.Dest.Y != 5 {
+		t.Errorf("Dest: got (%d,%d), want (5,5)", intent.Dest.X, intent.Dest.Y)
+	}
+}
+
+func TestFindDrinkIntent_GroundVesselCloserThanTerrain(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Thirst = 75
+	char.SetPos(types.Position{X: 5, Y: 5})
+
+	gameMap := game.NewMap(20, 20)
+	// Water terrain far away
+	gameMap.AddWater(types.Position{X: 15, Y: 5}, game.WaterPond)
+	// Ground water vessel close
+	groundVessel := createWaterVessel(7, 5, 4)
+	gameMap.AddItem(groundVessel)
+	items := gameMap.Items()
+
+	intent := findDrinkIntent(char, types.Position{X: 5, Y: 5}, gameMap, entity.TierModerate, nil, items)
+
+	if intent == nil {
+		t.Fatal("Expected intent for ground water vessel")
+	}
+	if intent.Action != entity.ActionMove {
+		t.Errorf("Action: got %d, want ActionMove (need to walk to vessel)", intent.Action)
+	}
+	if intent.TargetItem != groundVessel {
+		t.Error("TargetItem should be the ground water vessel")
+	}
+	if intent.TargetWaterPos != nil {
+		t.Error("TargetWaterPos should be nil when targeting vessel")
+	}
+}
+
+func TestFindDrinkIntent_GroundVesselAlreadyAtPosition(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Thirst = 75
+	char.SetPos(types.Position{X: 5, Y: 5})
+
+	gameMap := game.NewMap(20, 20)
+	// Ground water vessel at character position
+	groundVessel := createWaterVessel(5, 5, 4)
+	gameMap.AddItem(groundVessel)
+	items := gameMap.Items()
+
+	intent := findDrinkIntent(char, types.Position{X: 5, Y: 5}, gameMap, entity.TierModerate, nil, items)
+
+	if intent == nil {
+		t.Fatal("Expected drink intent at ground vessel")
+	}
+	if intent.Action != entity.ActionDrink {
+		t.Errorf("Action: got %d, want ActionDrink (already at vessel)", intent.Action)
+	}
+	if intent.TargetItem != groundVessel {
+		t.Error("TargetItem should be the ground water vessel")
+	}
+}
+
+func TestFindDrinkIntent_TerrainCloserThanGroundVessel(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Thirst = 75
+	char.SetPos(types.Position{X: 5, Y: 5})
+
+	gameMap := game.NewMap(20, 20)
+	// Water terrain close (adjacent)
+	gameMap.AddWater(types.Position{X: 5, Y: 6}, game.WaterSpring)
+	// Ground water vessel far
+	groundVessel := createWaterVessel(15, 5, 4)
+	gameMap.AddItem(groundVessel)
+	items := gameMap.Items()
+
+	intent := findDrinkIntent(char, types.Position{X: 5, Y: 5}, gameMap, entity.TierModerate, nil, items)
+
+	if intent == nil {
+		t.Fatal("Expected intent for terrain water")
+	}
+	// Should target terrain, not vessel
+	if intent.TargetWaterPos == nil {
+		t.Fatal("TargetWaterPos should be set for terrain drinking")
+	}
+	if intent.TargetItem != nil {
+		t.Error("TargetItem should be nil for terrain drinking")
+	}
+}
+
+func TestFindDrinkIntent_NoVessels_FallsBackToTerrain(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Thirst = 75
+	char.SetPos(types.Position{X: 5, Y: 5})
+
+	gameMap := game.NewMap(20, 20)
+	gameMap.AddWater(types.Position{X: 5, Y: 6}, game.WaterSpring)
+
+	intent := findDrinkIntent(char, types.Position{X: 5, Y: 5}, gameMap, entity.TierModerate, nil, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent for terrain water")
+	}
+	if intent.TargetWaterPos == nil {
+		t.Error("Should fall back to terrain when no vessels exist")
+	}
+}
+
+func TestFindDrinkIntent_IgnoresEmptyVessel(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Thirst = 75
+	char.SetPos(types.Position{X: 5, Y: 5})
+
+	// Empty vessel in inventory
+	emptyVessel := createWaterVessel(0, 0, 0)
+	char.AddToInventory(emptyVessel)
+
+	gameMap := game.NewMap(20, 20)
+	// No water terrain either
+
+	intent := findDrinkIntent(char, types.Position{X: 5, Y: 5}, gameMap, entity.TierModerate, nil, nil)
+
+	// No water source at all
+	if intent != nil {
+		t.Error("Should return nil when only empty vessels exist and no terrain water")
+	}
+}
+
+func TestFindDrinkIntent_IgnoresVesselWithFoodContents(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Thirst = 75
+	char.SetPos(types.Position{X: 5, Y: 5})
+
+	// Vessel with berries, not water
+	foodVessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{{
+				Variety: &entity.ItemVariety{
+					ID:       "berry-red",
+					ItemType: "berry",
+					Color:    types.ColorRed,
+				},
+				Count: 3,
+			}},
+		},
+	}
+	char.AddToInventory(foodVessel)
+
+	gameMap := game.NewMap(20, 20)
+
+	intent := findDrinkIntent(char, types.Position{X: 5, Y: 5}, gameMap, entity.TierModerate, nil, nil)
+
+	if intent != nil {
+		t.Error("Should return nil when vessel contains food, not water")
+	}
+}
+
+// =============================================================================
+// canFulfillThirst — unified source check
+// =============================================================================
+
+func TestCanFulfillThirst_CarriedWaterVessel(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	waterVessel := createWaterVessel(0, 0, 4)
+	char.AddToInventory(waterVessel)
+
+	gameMap := game.NewMap(20, 20) // No water terrain
+
+	if !canFulfillThirst(char, gameMap, types.Position{X: 5, Y: 5}, nil) {
+		t.Error("Should be fulfillable with carried water vessel")
+	}
+}
+
+func TestCanFulfillThirst_GroundWaterVessel(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	gameMap := game.NewMap(20, 20) // No water terrain
+	groundVessel := createWaterVessel(10, 10, 4)
+	gameMap.AddItem(groundVessel)
+	items := gameMap.Items()
+
+	if !canFulfillThirst(char, gameMap, types.Position{X: 5, Y: 5}, items) {
+		t.Error("Should be fulfillable with ground water vessel")
+	}
+}
+
+func TestCanFulfillThirst_WaterTerrain(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	gameMap := game.NewMap(20, 20)
+	gameMap.AddWater(types.Position{X: 10, Y: 10}, game.WaterSpring)
+
+	if !canFulfillThirst(char, gameMap, types.Position{X: 5, Y: 5}, nil) {
+		t.Error("Should be fulfillable with water terrain")
+	}
+}
+
+func TestCanFulfillThirst_NoWaterSources(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	gameMap := game.NewMap(20, 20)
+
+	if canFulfillThirst(char, gameMap, types.Position{X: 5, Y: 5}, nil) {
+		t.Error("Should not be fulfillable with no water sources")
 	}
 }
 
@@ -2107,5 +2383,81 @@ func TestContinueIntent_DoesNotAbandonWhenFarFromOccupiedItem(t *testing.T) {
 
 	if result == nil {
 		t.Error("continueIntent should NOT abandon when far from occupied target — occupant may move")
+	}
+}
+
+// =============================================================================
+// Vessel Drinking — continueIntent for carried and ground vessels
+// =============================================================================
+
+func TestContinueIntent_DrinkFromCarriedVessel_EarlyReturn(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPos(types.Position{X: 5, Y: 5})
+
+	vessel := createWaterVessel(0, 0, 3) // Position doesn't matter — it's in inventory
+	char.AddToInventory(vessel)
+
+	gameMap := game.NewMap(20, 20)
+
+	// Intent: drinking from carried vessel (distance 0, already ActionDrink)
+	char.Intent = &entity.Intent{
+		Target:      types.Position{X: 5, Y: 5},
+		Dest:        types.Position{X: 5, Y: 5},
+		Action:      entity.ActionDrink,
+		TargetItem:  vessel,
+		DrivingStat: types.StatThirst,
+		DrivingTier: entity.TierModerate,
+	}
+
+	intent := continueIntent(char, 5, 5, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent to continue for carried vessel drinking")
+	}
+	if intent.Action != entity.ActionDrink {
+		t.Errorf("Action: got %d, want ActionDrink", intent.Action)
+	}
+	if intent.TargetItem != vessel {
+		t.Error("Expected TargetItem to remain the carried vessel")
+	}
+}
+
+func TestContinueIntent_GroundVesselArrival_ConvertsToDrink(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPos(types.Position{X: 5, Y: 5})
+
+	gameMap := game.NewMap(20, 20)
+
+	vessel := createWaterVessel(5, 5, 3)
+	gameMap.AddItem(vessel)
+
+	// Intent: was moving toward ground vessel, now arrived at same position
+	char.Intent = &entity.Intent{
+		Target:      types.Position{X: 5, Y: 5},
+		Dest:        types.Position{X: 5, Y: 5},
+		Action:      entity.ActionMove,
+		TargetItem:  vessel,
+		DrivingStat: types.StatThirst,
+		DrivingTier: entity.TierModerate,
+	}
+
+	intent := continueIntent(char, 5, 5, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent when arrived at ground vessel")
+	}
+	if intent.Action != entity.ActionDrink {
+		t.Errorf("Action: got %d, want ActionDrink on arrival at ground vessel", intent.Action)
+	}
+	if intent.TargetItem != vessel {
+		t.Error("Expected TargetItem to be the ground vessel")
+	}
+	// Should stay in place
+	if intent.Target.X != 5 || intent.Target.Y != 5 {
+		t.Errorf("Target: got (%d,%d), want (5,5) - should stay in place to drink", intent.Target.X, intent.Target.Y)
 	}
 }

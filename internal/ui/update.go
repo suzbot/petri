@@ -816,7 +816,29 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		char.ActionProgress += delta
 		if char.ActionProgress >= config.ActionDurationShort {
 			char.ActionProgress = 0
-			system.Drink(char, m.actionLog)
+
+			if char.Intent.TargetItem != nil {
+				// Vessel drinking: find vessel in inventory or on ground
+				vessel := char.FindInInventory(func(item *entity.Item) bool {
+					return item == char.Intent.TargetItem
+				})
+				if vessel == nil {
+					// Check ground
+					vessel = m.gameMap.ItemAt(char.Pos())
+					if vessel != char.Intent.TargetItem {
+						vessel = nil
+					}
+				}
+				if vessel != nil {
+					system.DrinkFromVessel(vessel)
+				}
+				system.Drink(char, m.actionLog)
+				// Clear intent to force re-evaluation for next drink source
+				char.Intent = nil
+			} else {
+				// Terrain drinking: existing behavior, intent persists
+				system.Drink(char, m.actionLog)
+			}
 		}
 
 	case entity.ActionSleep:

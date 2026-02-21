@@ -113,7 +113,7 @@ internal/
 
 **Up Next:**
 
-- Gardening in progress (Slices 1-6 complete). Next: Slice 7 — Fetch Water and Water Vessel Drinking. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
+- Gardening in progress (Slices 1-7 Steps 0-3 complete). Next: Slice 7 Step 4 — UI Display Polish. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
 
 ## Reference and Planning Documents
 

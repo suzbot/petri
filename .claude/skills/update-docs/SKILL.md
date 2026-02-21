@@ -27,6 +27,8 @@ Read each of these files, then apply only the changes warranted by the summary:
 | `docs/game-mechanics.md` | **Detailed reference** | Add new mechanics, update existing sections. Never duplicate config values — reference config source instead (e.g., "See `config.GroundSpawnInterval`"). This includes approximate values like "~5 days" — if the number comes from config, reference the config. |
 | `docs/architecture.md` | **Developer reference** | Update design patterns, data flow, code organization. Implementation details welcome here. |
 | `docs/*-phase-plan.md` | **Planning artifact** | Mark completed steps with ✅. Add notes about bugs found/fixed during testing. Do not modify future steps. |
+| `docs/randomideas.md`| **Small Feature Planning**` | Remove items that have been moved into plans or that have been completed.|
+| `docs/triggered-enhancements.md` | **Deferred Feature Planning** | Remove items that have been completed. Update items where intended approaches have changed.|
 
 ### Principles
 
@@ -38,7 +40,7 @@ Read each of these files, then apply only the changes warranted by the summary:
 
 ### Process
 
-1. Read all five files
+1. Read all files
 2. For each file, determine what (if anything) needs updating based on the summary
 3. Make edits
 4. **IMPORTANT**: Your final message MUST include a summary of what was changed in each file (or "no changes needed"). This summary is the only output the caller sees — without it, they have no visibility into what you did. 

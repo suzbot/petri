@@ -1654,51 +1654,86 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 
 ##### Step 3: Unified Drink Source Search + Vessel Drinking
 
-**Tests** (in `internal/system/movement_test.go` or intent test file):
-- `findDrinkIntent` returns carried water vessel as drink source (distance 0)
-- `findDrinkIntent` returns closest ground water vessel when closer than water terrain
-- `findDrinkIntent` returns water terrain when closer than ground water vessel
-- `findDrinkIntent` returns water terrain when no water vessels exist (existing behavior)
-- `findDrinkIntent` ignores empty vessels (no liquid contents)
-- `findDrinkIntent` returns ActionMove toward ground water vessel when not adjacent
+**Design: Three drink sources scored by distance**
 
-**Tests** (in `internal/system/movement_test.go`):
-- `canFulfillThirst` returns true when character carries water vessel
-- `canFulfillThirst` returns true when ground water vessel exists
-- `canFulfillThirst` returns true when water terrain exists (existing)
-- `canFulfillThirst` returns false when no water sources of any kind
+Refactor `findDrinkIntent()` to search all water sources by distance (mirrors `findFoodIntent`'s unified scoring approach):
 
-**Tests** (in `internal/ui/update_test.go`):
-- ActionDrink from carried vessel: consumes 1 water unit, reduces thirst
-- ActionDrink from carried vessel: intent cleared after drink (forces re-eval)
-- ActionDrink from ground vessel: consumes 1 water unit from ground vessel
-- ActionDrink from terrain: existing behavior unchanged (continues until sated)
-- ActionDrink from vessel that empties: intent cleared, character re-evaluates
+| Source | Distance | Intent shape | How to drink |
+|--------|----------|-------------|-------------|
+| Carried water vessel | 0 (always closest if available) | `ActionDrink`, `Target=Dest=charPos`, `TargetItem=vessel` | Consume 1 unit from carried vessel |
+| Ground water vessel | Manhattan distance to vessel position | `ActionMove` toward vessel, then `ActionDrink` at vessel tile, `TargetItem=vessel` | Move to vessel, consume 1 unit in place (don't pick up) |
+| Water terrain | Manhattan distance to nearest cardinal-adjacent tile | `ActionMove` toward adjacent tile, then `ActionDrink`, `TargetWaterPos=waterTile` | Move adjacent, drink from terrain (existing) |
 
-**Implementation:**
-- Refactor `findDrinkIntent()` in movement.go:
-  - Search carried vessel for liquid contents (distance 0)
-  - Search ground items for vessels with liquid contents (distance to vessel)
-  - Search water terrain via `FindNearestWater()` (distance to adjacent tile)
-  - Pick closest source. Set `TargetItemID` for vessel sources, `TargetWaterPos` for terrain.
-- Refactor `canFulfillThirst()`: check all three source types
-- Update ActionDrink handler in update.go:
-  - If `TargetItemID` set: find vessel (carried or ground by ID), call `DrinkFromVessel()`, call `Drink()` for thirst reduction, clear intent
-  - If terrain (no TargetItemID): existing behavior (continue until sated)
-- Drinking continuation logic in movement.go: vessel drinks always re-evaluate; terrain drinks use existing continuation
+Character picks the closest source. Tie-breaking: carried vessel > ground vessel > terrain (by construction — carried is distance 0).
 
-**Architecture patterns:** Follows unified distance-based search pattern (mirrors hunger/foraging). Extends existing `findDrinkIntent` rather than creating parallel path.
+**Intent field usage:** `TargetItem` set → vessel drinking. `TargetWaterPos` set, `TargetItem` nil → terrain drinking. No new fields needed — follows existing pointer-based pattern.
+
+**Design: continueIntent — follows ActionConsume pattern for carried vessels**
+
+Carried vessel drinking mirrors the eating-from-inventory pattern (`ActionConsume`):
+- `findDrinkIntent` returns `ActionDrink` with `Target=Dest=charPos` when vessel is in inventory
+- `continueIntent` early-returns for `ActionDrink` when `TargetItem` is in character inventory (same as `ActionConsume` at line 288), skipping the map-existence check
+- Ground vessel drinking uses the existing `TargetItem`-on-map continuation path (character walks to vessel, arrives, drinks) — no special handling needed
+
+**Design: Drink continuation**
+
+- **Terrain**: existing behavior — intent persists, character keeps drinking until `CalculateIntent` says thirst is satisfied (infinite source)
+- **Vessel**: after each drink, clear intent (`char.Intent = nil`) to force re-evaluation. If still thirsty, next `CalculateIntent` naturally picks closest source (same vessel if still has water, or terrain if vessel emptied). This matches the plan's "re-evaluate after each drink" design from the Decisions Log.
+
+**Design: Source-specific log messages**
+
+Upgrade existing generic "Drinking from water" to source-specific text using `gameMap.WaterAt()` for terrain:
+
+| Source | Log message |
+|--------|-------------|
+| Spring terrain | "Drinking from spring" |
+| Pond terrain | "Drinking from pond" |
+| Carried vessel | "Drinking from vessel" |
+| Ground vessel | "Drinking from vessel" |
+
+**Design: Adjacent-item-look bypass**
+
+`ActionDrink` bypasses the adjacent-item-look conversion in `movement.go` (same as `ActionForage`). A thirsty character walks directly onto a ground vessel's tile to drink, rather than stopping adjacent to look at it.
+
+---
+
+**Phase 1: Unified findDrinkIntent + canFulfillThirst** ✅
+
+_Implementation notes (for Phase 2 context):_
+- `findDrinkIntent` signature is now `(char, pos, gameMap, tier, log, items []*entity.Item)` — last param added
+- `canFulfillThirst` signature is now `(char, gameMap, pos, items)` — all 4 callers in re-eval block updated
+- New helpers in `movement.go`: `vesselHasLiquid(item)` checks if vessel contains liquid; `waterSourceName(gameMap, waterPos)` returns "spring"/"pond"/"water"
+- `continueIntent` arrival path (water target) also updated with source-specific log messages via `waterSourceName`
+- Adjacent-item-look bypass for `ActionDrink` is NOT needed — the bypass condition already checks `DrivingStat == ""` which is false for thirst-driven intents. No code change required.
+
+**Phase 2: ActionDrink handler branching + continueIntent** ✅
+
+_Tests_ (in `internal/ui/update_test.go`):
+- `ActionDrink` from carried vessel: calls `DrinkFromVessel`, reduces thirst, clears intent
+- `ActionDrink` from carried vessel: intent cleared after drink (forces re-eval)
+- `ActionDrink` from ground vessel: calls `DrinkFromVessel` on ground vessel item, reduces thirst, clears intent
+- `ActionDrink` from vessel that empties (last unit): intent cleared, vessel stack removed
+- `ActionDrink` from terrain: existing behavior unchanged (continues until sated, intent NOT cleared)
+
+_Implementation:_
+- `ActionDrink` handler in `update.go` (currently at ~line 814): branch on `char.Intent.TargetItem != nil`:
+  - **Vessel path**: duration-based (ActionDurationShort). On completion: find vessel (check inventory first via `char.FindInInventory`, then `m.gameMap.ItemAt` for ground vessel). Call `system.DrinkFromVessel(vessel)`. Call `system.Drink(char, m.actionLog)` for thirst reduction. Clear intent (`char.Intent = nil`).
+  - **Terrain path**: existing behavior — duration-based, calls `Drink()`, does NOT clear intent.
+- `continueIntent` in `movement.go` (~line 288): add early return for `ActionDrink` when `TargetItem` is in character inventory (mirrors `ActionConsume` pattern). Ground vessel drinking uses existing `TargetItem`-on-map continuation path unchanged.
+- Ground vessel arrival: existing `continueIntent` handles `TargetItem` on map — character walks to vessel position. Need to add arrival detection: when character is at `TargetItem` position and action is thirst-driven, convert to `ActionDrink` (similar to water terrain arrival at ~line 407).
+
+Architecture patterns: ActionConsume pattern for carried-vessel intent continuation. Self-managing continuation for ground vessel via existing `TargetItem` map-check path.
 
 **[TEST] Checkpoint — Vessel drinking:**
 - `go test ./...` passes
 - Build and run:
-  - Thirsty character with water vessel drinks from it immediately (no walking to water)
+  - Thirsty character with carried water vessel drinks from it immediately (no walking to water)
   - Each drink reduces vessel water by 1 unit
   - After vessel empties, character seeks nearest water source (terrain or another vessel)
   - Drop a water vessel → another character drinks from it in place
   - Character with both water vessel and nearby pond: drinks from vessel (distance 0)
-  - Existing spring/pond drinking unchanged
-  - Full food loop: character forages → fills vessel with water → drinks from vessel when thirsty
+  - Existing spring/pond drinking unchanged — log now says "Drinking from spring" or "Drinking from pond"
+  - Full loop: character fetches water → drinks from vessel when thirsty → refills when empty
   - Save/load during drinking works correctly
 
 **[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture.

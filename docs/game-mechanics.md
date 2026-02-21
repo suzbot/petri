@@ -114,7 +114,9 @@ Drinking, eating, and falling asleep have a duration before completing. Collapse
 
 ## Continuous Drinking
 
-At water sources (springs and ponds), characters drink until thirst == 0 (not just until tier boundary).
+**From terrain**: At water sources (springs and ponds), characters drink until thirst == 0 (not just until tier boundary). Intent persists across drinks.
+
+**From vessels**: Each drink from a water vessel (carried or on the ground) consumes one unit and clears intent, forcing re-evaluation. Characters re-select the nearest water source (same vessel if it still has water, or terrain/other vessel if emptied).
 
 ## Mood System
 
@@ -750,6 +752,22 @@ Characters fill empty vessels with water from nearby water sources:
 - Characters skip fetch water if already carrying water in a vessel
 - Characters with non-water vessel contents (e.g., berries) will seek a different empty vessel on the ground
 - Logs "Filling vessel with water" when starting
+
+### Drinking Water
+
+Characters prioritize water sources by distance when thirsty:
+
+| Source | Distance | Behavior |
+|--------|----------|----------|
+| Carried water vessel | 0 (always closest) | Drinks immediately without moving |
+| Ground water vessel | Manhattan distance | Walks to vessel, drinks in place |
+| Terrain (spring/pond) | Manhattan distance to nearest adjacent tile | Walks adjacent, drinks from terrain |
+
+**Vessel drinking**: Each drink consumes 1 water unit and clears intent. Character re-evaluates and may drink again from the same vessel (if still thirsty and vessel has water) or seek another source (if vessel empties).
+
+**Terrain drinking**: Character drinks continuously until thirst reaches 0. Intent persists across drinks.
+
+Log messages indicate source: "Drinking from vessel", "Drinking from spring", "Drinking from pond".
 
 Idle activities are interruptible by any Moderate or higher tier need that can be fulfilled.
 

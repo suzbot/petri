@@ -121,7 +121,7 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 		if !shouldReEval {
 			switch char.Intent.DrivingStat {
 			case types.StatHunger:
-				if thirstTier > currentDrivingTier && canFulfillThirst(gameMap, cpos) {
+				if thirstTier > currentDrivingTier && canFulfillThirst(char, gameMap, cpos, items) {
 					shouldReEval = true
 				} else if energyTier > currentDrivingTier && canFulfillEnergy(char, gameMap, cpos) {
 					shouldReEval = true
@@ -139,13 +139,13 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 			case types.StatEnergy:
 				if hungerTier > currentDrivingTier && canFulfillHunger(char, items) {
 					shouldReEval = true
-				} else if thirstTier > currentDrivingTier && canFulfillThirst(gameMap, cpos) {
+				} else if thirstTier > currentDrivingTier && canFulfillThirst(char, gameMap, cpos, items) {
 					shouldReEval = true
 				} else if healthTier > currentDrivingTier && canFulfillHealth(char, items) {
 					shouldReEval = true
 				}
 			case types.StatHealth:
-				if thirstTier > currentDrivingTier && canFulfillThirst(gameMap, cpos) {
+				if thirstTier > currentDrivingTier && canFulfillThirst(char, gameMap, cpos, items) {
 					shouldReEval = true
 				} else if hungerTier > currentDrivingTier && canFulfillHunger(char, items) {
 					shouldReEval = true
@@ -228,7 +228,7 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 		var intent *entity.Intent
 		switch p.stat {
 		case types.StatThirst:
-			intent = findDrinkIntent(char, cpos, gameMap, p.tier, log)
+			intent = findDrinkIntent(char, cpos, gameMap, p.tier, log, items)
 		case types.StatHunger:
 			intent = findFoodIntent(char, cpos, items, p.tier, log, gameMap)
 		case types.StatHealth:
@@ -287,6 +287,13 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	// For ActionConsume (eating from inventory), just continue - item is in inventory, not on map
 	if intent.Action == entity.ActionConsume {
 		return intent
+	}
+
+	// For ActionDrink with TargetItem in character inventory (carried vessel), just continue
+	if intent.Action == entity.ActionDrink && intent.TargetItem != nil {
+		if char.FindInInventory(func(item *entity.Item) bool { return item == intent.TargetItem }) != nil {
+			return intent
+		}
 	}
 
 	// ActionForage has two phases:
@@ -403,6 +410,25 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		tx, ty = intent.Target.X, intent.Target.Y
 	}
 
+	// Check if we've arrived at a ground vessel for drinking - switch to drink action
+	if intent.TargetItem != nil && intent.DrivingStat == types.StatThirst && cx == tx && cy == ty {
+		newActivity := "Drinking"
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+			if log != nil {
+				log.Add(char.ID, char.Name, "thirst", "Drinking from vessel")
+			}
+		}
+		return &entity.Intent{
+			Target:      types.Position{X: cx, Y: cy},
+			Dest:        types.Position{X: cx, Y: cy},
+			Action:      entity.ActionDrink,
+			TargetItem:  intent.TargetItem,
+			DrivingStat: intent.DrivingStat,
+			DrivingTier: intent.DrivingTier,
+		}
+	}
+
 	// Check if we've arrived at a water target - switch to drink action
 	if intent.TargetWaterPos != nil {
 		if isCardinallyAdjacent(cx, cy, tx, ty) {
@@ -410,7 +436,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 			if char.CurrentActivity != newActivity {
 				char.CurrentActivity = newActivity
 				if log != nil {
-					log.Add(char.ID, char.Name, "thirst", "Drinking from water")
+					log.Add(char.ID, char.Name, "thirst",
+						fmt.Sprintf("Drinking from %s", waterSourceName(gameMap, *intent.TargetWaterPos)))
 				}
 			}
 			return &entity.Intent{
@@ -491,11 +518,81 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	}
 }
 
-// findDrinkIntent finds water to drink from
-// Water tiles are impassable - characters drink from cardinally adjacent tiles
-func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.Map, tier int, log *ActionLog) *entity.Intent {
+// vesselHasLiquid returns true if the item is a vessel containing liquid
+func vesselHasLiquid(item *entity.Item) bool {
+	return item != nil && item.Container != nil &&
+		len(item.Container.Contents) > 0 &&
+		item.Container.Contents[0].Variety != nil &&
+		item.Container.Contents[0].Variety.ItemType == "liquid"
+}
+
+// waterSourceName returns a human-readable name for a water terrain type
+func waterSourceName(gameMap *game.Map, waterPos types.Position) string {
+	switch gameMap.WaterAt(waterPos) {
+	case game.WaterSpring:
+		return "spring"
+	case game.WaterPond:
+		return "pond"
+	default:
+		return "water"
+	}
+}
+
+// findDrinkIntent finds the closest water source to drink from.
+// Searches three source types by distance: carried water vessel (distance 0),
+// ground water vessel (distance to vessel), water terrain (distance to cardinal-adjacent tile).
+func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.Map, tier int, log *ActionLog, items []*entity.Item) *entity.Intent {
+	// Track best source across all types
+	type drinkSource struct {
+		distance int
+		kind     string // "carried", "ground", "terrain"
+		vessel   *entity.Item
+		waterPos types.Position
+		adjX     int // cardinal-adjacent tile for terrain
+		adjY     int
+	}
+	var best *drinkSource
+
+	// 1. Check carried water vessel (distance 0)
+	for _, item := range char.Inventory {
+		if vesselHasLiquid(item) {
+			best = &drinkSource{distance: 0, kind: "carried", vessel: item}
+			break // Can't beat distance 0
+		}
+	}
+
+	// 2. Check ground water vessels (only if carried vessel not found)
+	if best == nil {
+		for _, item := range items {
+			if !vesselHasLiquid(item) {
+				continue
+			}
+			// Skip vessels in character inventories (only ground vessels)
+			if gameMap.ItemAt(item.Pos()) != item {
+				continue
+			}
+			dist := pos.DistanceTo(item.Pos())
+			if best == nil || dist < best.distance {
+				best = &drinkSource{distance: dist, kind: "ground", vessel: item}
+			}
+		}
+	}
+
+	// 3. Check water terrain
 	waterPos, found := gameMap.FindNearestWater(pos)
-	if !found {
+	if found {
+		// Distance to terrain = distance to the cardinal-adjacent tile the character would stand on
+		adjX, adjY := FindClosestCardinalTile(pos.X, pos.Y, waterPos.X, waterPos.Y, gameMap)
+		if adjX != -1 {
+			terrainDist := pos.DistanceTo(types.Position{X: adjX, Y: adjY})
+			if best == nil || terrainDist < best.distance {
+				best = &drinkSource{distance: terrainDist, kind: "terrain", waterPos: waterPos, adjX: adjX, adjY: adjY}
+			}
+		}
+	}
+
+	// No water source found
+	if best == nil {
 		if char.CurrentActivity != "Idle" {
 			char.CurrentActivity = "Idle"
 			if log != nil {
@@ -505,58 +602,105 @@ func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.M
 		return nil
 	}
 
-	tx, ty := waterPos.X, waterPos.Y
-
-	// Already cardinally adjacent to water - drink from current position
-	if isCardinallyAdjacent(pos.X, pos.Y, tx, ty) {
+	// Build intent based on source type
+	switch best.kind {
+	case "carried":
+		// Distance 0 — drink immediately from carried vessel
 		newActivity := "Drinking"
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
 			if log != nil {
-				log.Add(char.ID, char.Name, "thirst", "Drinking from water")
+				log.Add(char.ID, char.Name, "thirst", "Drinking from vessel")
 			}
 		}
 		return &entity.Intent{
-			Target:         pos, // Stay in place
-			Dest:           pos, // Already at destination
-			Action:         entity.ActionDrink,
-			TargetWaterPos: &waterPos,
+			Target:      pos,
+			Dest:        pos,
+			Action:      entity.ActionDrink,
+			TargetItem:  best.vessel,
+			DrivingStat: types.StatThirst,
+			DrivingTier: tier,
+		}
+
+	case "ground":
+		vpos := best.vessel.Pos()
+		if pos.X == vpos.X && pos.Y == vpos.Y {
+			// Already at ground vessel — drink in place
+			newActivity := "Drinking"
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+				if log != nil {
+					log.Add(char.ID, char.Name, "thirst", "Drinking from vessel")
+				}
+			}
+			return &entity.Intent{
+				Target:      pos,
+				Dest:        pos,
+				Action:      entity.ActionDrink,
+				TargetItem:  best.vessel,
+				DrivingStat: types.StatThirst,
+				DrivingTier: tier,
+			}
+		}
+		// Move toward ground vessel
+		nx, ny := NextStepBFS(pos.X, pos.Y, vpos.X, vpos.Y, gameMap)
+		newActivity := "Moving to water"
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+			if log != nil {
+				log.Add(char.ID, char.Name, "movement", "Heading to water")
+			}
+		}
+		return &entity.Intent{
+			Target:      types.Position{X: nx, Y: ny},
+			Dest:        vpos,
+			Action:      entity.ActionMove,
+			TargetItem:  best.vessel,
+			DrivingStat: types.StatThirst,
+			DrivingTier: tier,
+		}
+
+	case "terrain":
+		wp := best.waterPos
+		if isCardinallyAdjacent(pos.X, pos.Y, wp.X, wp.Y) {
+			// Already cardinally adjacent — drink from terrain
+			newActivity := "Drinking"
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+				if log != nil {
+					log.Add(char.ID, char.Name, "thirst",
+						fmt.Sprintf("Drinking from %s", waterSourceName(gameMap, wp)))
+				}
+			}
+			return &entity.Intent{
+				Target:         pos,
+				Dest:           pos,
+				Action:         entity.ActionDrink,
+				TargetWaterPos: &wp,
+				DrivingStat:    types.StatThirst,
+				DrivingTier:    tier,
+			}
+		}
+		// Move toward cardinal-adjacent tile
+		nx, ny := NextStepBFS(pos.X, pos.Y, best.adjX, best.adjY, gameMap)
+		newActivity := "Moving to water"
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+			if log != nil {
+				log.Add(char.ID, char.Name, "movement", "Heading to water")
+			}
+		}
+		return &entity.Intent{
+			Target:         types.Position{X: nx, Y: ny},
+			Dest:           types.Position{X: best.adjX, Y: best.adjY},
+			Action:         entity.ActionMove,
+			TargetWaterPos: &wp,
 			DrivingStat:    types.StatThirst,
 			DrivingTier:    tier,
 		}
 	}
 
-	// Find closest cardinal tile adjacent to water and move toward it
-	adjX, adjY := FindClosestCardinalTile(pos.X, pos.Y, tx, ty, gameMap)
-	if adjX == -1 {
-		// No available adjacent tile - water is blocked
-		if char.CurrentActivity != "Idle" {
-			char.CurrentActivity = "Idle"
-			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Idle (water blocked)")
-			}
-		}
-		return nil
-	}
-
-	// Move toward adjacent tile (not the water itself)
-	nx, ny := NextStepBFS(pos.X, pos.Y, adjX, adjY, gameMap)
-	newActivity := "Moving to water"
-	if char.CurrentActivity != newActivity {
-		char.CurrentActivity = newActivity
-		if log != nil {
-			log.Add(char.ID, char.Name, "movement", "Heading to water")
-		}
-	}
-
-	return &entity.Intent{
-		Target:         types.Position{X: nx, Y: ny},
-		Dest:           types.Position{X: adjX, Y: adjY}, // Destination is the cardinal tile, not the water
-		Action:         entity.ActionMove,
-		TargetWaterPos: &waterPos,
-		DrivingStat:    types.StatThirst,
-		DrivingTier:    tier,
-	}
+	return nil
 }
 
 // findFoodIntent finds food based on hunger priority
@@ -998,8 +1142,22 @@ func NextStep(fromX, fromY, toX, toY int) (int, int) {
 	return fromX, fromY + types.Sign(dy)
 }
 
-// canFulfillThirst checks if thirst can be addressed (water source exists)
-func canFulfillThirst(gameMap *game.Map, pos types.Position) bool {
+// canFulfillThirst checks if thirst can be addressed (water source exists).
+// Checks carried water vessel, ground water vessels, and water terrain.
+func canFulfillThirst(char *entity.Character, gameMap *game.Map, pos types.Position, items []*entity.Item) bool {
+	// Carried water vessel
+	for _, item := range char.Inventory {
+		if vesselHasLiquid(item) {
+			return true
+		}
+	}
+	// Ground water vessels
+	for _, item := range items {
+		if vesselHasLiquid(item) && gameMap.ItemAt(item.Pos()) == item {
+			return true
+		}
+	}
+	// Water terrain
 	_, found := gameMap.FindNearestWater(pos)
 	return found
 }

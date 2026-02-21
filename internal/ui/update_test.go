@@ -2367,3 +2367,225 @@ func TestApplyIntent_FillVessel_GroundVesselPickupTransitionsToPhase2(t *testing
 		t.Errorf("Expected ActionFillVessel intent, got %d", char.Intent.Action)
 	}
 }
+
+// =============================================================================
+// ActionDrink — Vessel Drinking (Phase 2)
+// =============================================================================
+
+func createTestWaterVessel(x, y int, units int) *entity.Item {
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	vessel.X = x
+	vessel.Y = y
+	if units > 0 {
+		waterVariety := &entity.ItemVariety{
+			ID:       "liquid-water",
+			ItemType: "liquid",
+			Kind:     "water",
+		}
+		system.AddLiquidToVessel(vessel, waterVariety, units)
+	}
+	return vessel
+}
+
+func TestApplyIntent_DrinkFromCarriedVessel_ReducesThirstAndClearsIntent(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	registry := game.GenerateVarieties()
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.Thirst = 40 // Moderately thirsty
+	gameMap.AddCharacter(char)
+
+	vessel := createTestWaterVessel(0, 0, 3)
+	char.AddToInventory(vessel)
+
+	char.Intent = &entity.Intent{
+		Target:      char.Pos(),
+		Dest:        char.Pos(),
+		Action:      entity.ActionDrink,
+		TargetItem:  vessel,
+		DrivingStat: types.StatThirst,
+		DrivingTier: entity.TierModerate,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+	}
+
+	// Apply enough ticks to complete ActionDurationShort (0.83s)
+	for i := 0; i < 10; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Thirst should be reduced
+	if char.Thirst >= 40 {
+		t.Errorf("Thirst should be reduced after drinking, got %f", char.Thirst)
+	}
+
+	// Vessel should have lost one unit
+	if len(vessel.Container.Contents) == 0 {
+		t.Fatal("Vessel should still have contents after one drink")
+	}
+	if vessel.Container.Contents[0].Count != 2 {
+		t.Errorf("Vessel should have 2 units remaining, got %d", vessel.Container.Contents[0].Count)
+	}
+
+	// Intent should be cleared (forces re-eval for next drink source)
+	if char.Intent != nil {
+		t.Error("Expected intent to be cleared after vessel drink")
+	}
+}
+
+func TestApplyIntent_DrinkFromGroundVessel_ReducesThirstAndClearsIntent(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	registry := game.GenerateVarieties()
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.Thirst = 40
+	gameMap.AddCharacter(char)
+
+	// Ground vessel at same position as character
+	vessel := createTestWaterVessel(5, 5, 3)
+	gameMap.AddItem(vessel)
+
+	char.Intent = &entity.Intent{
+		Target:      char.Pos(),
+		Dest:        char.Pos(),
+		Action:      entity.ActionDrink,
+		TargetItem:  vessel,
+		DrivingStat: types.StatThirst,
+		DrivingTier: entity.TierModerate,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+	}
+
+	for i := 0; i < 10; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Thirst should be reduced
+	if char.Thirst >= 40 {
+		t.Errorf("Thirst should be reduced after drinking from ground vessel, got %f", char.Thirst)
+	}
+
+	// Vessel should have lost one unit
+	if len(vessel.Container.Contents) == 0 {
+		t.Fatal("Vessel should still have contents")
+	}
+	if vessel.Container.Contents[0].Count != 2 {
+		t.Errorf("Vessel should have 2 units remaining, got %d", vessel.Container.Contents[0].Count)
+	}
+
+	// Intent cleared
+	if char.Intent != nil {
+		t.Error("Expected intent to be cleared after ground vessel drink")
+	}
+}
+
+func TestApplyIntent_DrinkFromVessel_LastUnit_EmptiesVessel(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	registry := game.GenerateVarieties()
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.Thirst = 40
+	gameMap.AddCharacter(char)
+
+	// Vessel with only 1 unit
+	vessel := createTestWaterVessel(0, 0, 1)
+	char.AddToInventory(vessel)
+
+	char.Intent = &entity.Intent{
+		Target:      char.Pos(),
+		Dest:        char.Pos(),
+		Action:      entity.ActionDrink,
+		TargetItem:  vessel,
+		DrivingStat: types.StatThirst,
+		DrivingTier: entity.TierModerate,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+	}
+
+	for i := 0; i < 10; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Vessel should be empty (stack removed)
+	if len(vessel.Container.Contents) != 0 {
+		t.Errorf("Vessel should be empty after last unit consumed, got %d stacks", len(vessel.Container.Contents))
+	}
+
+	// Intent cleared
+	if char.Intent != nil {
+		t.Error("Expected intent to be cleared after emptying vessel")
+	}
+}
+
+func TestApplyIntent_DrinkFromTerrain_DoesNotClearIntent(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	registry := game.GenerateVarieties()
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.Thirst = 40
+	gameMap.AddCharacter(char)
+
+	// Water adjacent to character
+	waterPos := types.Position{X: 5, Y: 6}
+	gameMap.AddWater(waterPos, game.WaterSpring)
+
+	char.Intent = &entity.Intent{
+		Target:         char.Pos(),
+		Dest:           char.Pos(),
+		Action:         entity.ActionDrink,
+		TargetWaterPos: &waterPos,
+		DrivingStat:    types.StatThirst,
+		DrivingTier:    entity.TierModerate,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+	}
+
+	for i := 0; i < 10; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Thirst should be reduced
+	if char.Thirst >= 40 {
+		t.Errorf("Thirst should be reduced after terrain drinking, got %f", char.Thirst)
+	}
+
+	// Intent should NOT be cleared for terrain drinking (continues until sated)
+	if char.Intent == nil {
+		t.Error("Expected intent to persist for terrain drinking")
+	}
+}

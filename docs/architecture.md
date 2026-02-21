@@ -384,6 +384,21 @@ Water tiles are impassable. Characters drink from cardinal-adjacent tiles, allow
 
 `FindNearestWater()` returns the closest water tile that has at least one available cardinal-adjacent tile. Returns `(Position, bool)` rather than a feature pointer.
 
+### Drinking from Water Vessels
+
+Characters can drink from water vessels (carried or on the ground) in addition to terrain water sources. The `findDrinkIntent` function scores all three sources by distance and returns an intent targeting the closest one.
+
+**continueIntent patterns**:
+- **Carried vessel**: Early return when `ActionDrink` + `TargetItem` in inventory (mirrors `ActionConsume` pattern). No map-based checks needed.
+- **Ground vessel**: Arrival detection converts `ActionMove` → `ActionDrink` when character reaches vessel position with thirst-driven intent (parallels water terrain arrival).
+- **Terrain water**: Existing arrival path detects cardinal adjacency and converts to `ActionDrink`.
+
+**ActionDrink handler branching** (update.go):
+- **Vessel path** (`TargetItem != nil`): Finds vessel in inventory or on ground, calls `DrinkFromVessel` (consumes 1 unit), calls `Drink` (reduces thirst), clears intent to force re-evaluation.
+- **Terrain path** (`TargetWaterPos != nil`): Existing behavior — calls `Drink`, intent persists (drinks continuously until sated).
+
+Intent clearing for vessel drinking ensures characters re-select the nearest source after each drink, naturally handling vessel depletion and prioritizing carried water over distant terrain.
+
 ### Pond Generation
 
 `SpawnPonds()` generates 1-5 ponds of 4-16 contiguous water tiles each via blob growth (random cardinal expansion from a center tile). After placing all ponds, `isMapConnected()` verifies all non-water tiles are reachable via BFS. If the map is partitioned, all pond tiles are cleared and regenerated (max 10 retries). Ponds generate before features and items in the world generation order.
