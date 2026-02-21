@@ -338,6 +338,44 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		return intent
 	}
 
+	// ActionWaterGarden has three phases:
+	// Phase 1: TargetItem is on the map (ground vessel) — move toward it for pickup
+	// Phase 2: TargetItem is in inventory (empty vessel) — move toward water Dest for filling
+	// Phase 3: TargetItem is in inventory (vessel with water) — move toward dry tile Dest for watering
+	if intent.Action == entity.ActionWaterGarden {
+		if intent.TargetItem != nil {
+			ipos := intent.TargetItem.Pos()
+			if gameMap.ItemAt(ipos) == intent.TargetItem {
+				// Phase 1: vessel is on the ground — recalculate toward it
+				if cx == ipos.X && cy == ipos.Y {
+					return intent // At vessel, ready for pickup
+				}
+				nx, ny := NextStepBFS(cx, cy, ipos.X, ipos.Y, gameMap)
+				intent.Target = types.Position{X: nx, Y: ny}
+				return intent
+			}
+			// Check if vessel is in character's inventory (phase 2 or 3)
+			inInventory := false
+			for _, item := range char.Inventory {
+				if item == intent.TargetItem {
+					inInventory = true
+					break
+				}
+			}
+			if !inInventory {
+				return nil // Vessel was taken by someone else
+			}
+		}
+		// Phase 2/3: vessel in inventory — recalculate toward Dest
+		dest := intent.Dest
+		if cx == dest.X && cy == dest.Y {
+			return intent // At destination, ready for fill or water
+		}
+		nx, ny := NextStepBFS(cx, cy, dest.X, dest.Y, gameMap)
+		intent.Target = types.Position{X: nx, Y: ny}
+		return intent
+	}
+
 	// Check if target item still exists at expected position (O(1) instead of O(n))
 	if intent.TargetItem != nil {
 		ipos := intent.TargetItem.Pos()
@@ -479,8 +517,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	}
 
 	// Check if we've arrived adjacent to an item for looking (no DrivingStat means looking intent)
-	// Skip if ActionPickup/ActionForage - those need to move onto the item, not stay adjacent
-	if intent.TargetItem != nil && intent.DrivingStat == "" && intent.Action != entity.ActionPickup && intent.Action != entity.ActionForage && isAdjacent(cx, cy, tx, ty) {
+	// Skip if ActionPickup/ActionForage/ActionWaterGarden - those need to move onto the item, not stay adjacent
+	if intent.TargetItem != nil && intent.DrivingStat == "" && intent.Action != entity.ActionPickup && intent.Action != entity.ActionForage && intent.Action != entity.ActionWaterGarden && isAdjacent(cx, cy, tx, ty) {
 		newActivity := "Looking at " + intent.TargetItem.Description()
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity

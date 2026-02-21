@@ -49,3 +49,9 @@ Example: Fetch Water only triggers when a character has or can find an empty ves
 When claiming a new feature follows an existing pattern, cite the specific evidence — from architecture.md or from the code itself. "This follows the ordered action pattern" is an assertion; "This follows the ordered action pattern (architecture.md 'Action Categories' section) — handler clears intent after each work unit, resumption via AssignedOrderID bypass in selectIdleActivity" is a demonstration. If the architecture doc doesn't cover the relevant distinction, that's a signal to update it (via `/refine-feature`, `/new-phase`, or a general agent — not during implementation).
 
 Example: ActionWaterGarden was initially proposed as self-managing, then as ordered, with assertions of consistency both times. The actual code trace through CalculateIntent → selectIdleActivity → AssignedOrderID revealed which pattern was correct and why.
+
+## Evidence Before Reasoning
+
+When something fails unexpectedly, gather evidence first — run a diagnostic, add logging, check with `-v` — then reason about causes. Reasoning without evidence leads to circular re-derivation of the same candidate explanations. The cost of one diagnostic run is always lower than the cost of three rounds of speculative reasoning.
+
+Example: WaterGarden integration tests failed for unclear reasons. Three rounds of reasoning about positioning and pathfinding produced wrong fixes. One diagnostic pass with `t.Logf` immediately revealed that `findWaterGardenIntent` was returning nil because `IsWet` treated tiles adjacent to water as already wet.

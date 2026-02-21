@@ -2045,59 +2045,6 @@ func TestApplyIntent_FillVessel_FillsAfterDuration(t *testing.T) {
 	}
 }
 
-func TestApplyIntent_FillVessel_DoesNotOverfillPartialVessel(t *testing.T) {
-	t.Parallel()
-
-	gameMap := game.NewMap(20, 20)
-	registry := game.GenerateVarieties()
-	gameMap.SetVarieties(registry)
-
-	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
-	gameMap.AddCharacter(char)
-
-	// Give character a vessel with 2 water units already
-	waterVariety := registry.VarietiesOfType("liquid")[0]
-	vessel := &entity.Item{
-		ItemType: "vessel",
-		Name:     "Test Vessel",
-		Container: &entity.ContainerData{
-			Capacity: 1,
-			Contents: []entity.Stack{
-				{Variety: waterVariety, Count: 2},
-			},
-		},
-	}
-	char.AddToInventory(vessel)
-
-	// Water adjacent to character
-	waterPos := types.Position{X: 5, Y: 6}
-	gameMap.AddWater(waterPos, game.WaterPond)
-
-	// Set up fill vessel intent
-	char.Intent = &entity.Intent{
-		Action:     entity.ActionFillVessel,
-		Target:     char.Pos(),
-		Dest:       char.Pos(),
-		TargetItem: vessel,
-	}
-
-	actionLog := system.NewActionLog(100)
-	m := Model{
-		gameMap:   gameMap,
-		actionLog: actionLog,
-	}
-
-	// Apply with enough time to complete
-	for i := 0; i < 10; i++ {
-		m.applyIntent(char, 0.1)
-	}
-
-	// Vessel should be capped at 4 (stack size), not 6
-	if vessel.Container.Contents[0].Count != 4 {
-		t.Errorf("Expected 4 water units (capped), got %d", vessel.Container.Contents[0].Count)
-	}
-}
-
 // =============================================================================
 // ActionForage Tests
 // =============================================================================
@@ -2772,5 +2719,197 @@ func TestApplyIntent_WaterGarden_DoesNotCompleteWhenDryTilesRemain(t *testing.T)
 	// Intent should be cleared (ordered pattern — re-evaluated next tick)
 	if char.Intent != nil {
 		t.Error("Expected intent to be nil after watering one tile")
+	}
+}
+
+// Anchor test: character has no vessel, ground vessel available, water source, dry tile.
+// Full lifecycle: procure vessel → fill at water → water tile → order complete.
+// Dry tile placed far from water (IsWet checks 8-directional adjacency to water).
+// Target recalculated each tick via NextStepBFS, mirroring continueIntent in real game.
+func TestApplyIntent_WaterGarden_FullCycleProcureFillWater(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	registry := game.GenerateVarieties()
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"waterGarden"}
+	gameMap.AddCharacter(char)
+
+	// Ground vessel at character's position — Phase 1 pickup is immediate
+	groundVessel := &entity.Item{
+		ItemType:   "vessel",
+		Kind:       "hollow gourd",
+		Name:       "Ground Vessel",
+		BaseEntity: entity.BaseEntity{X: 5, Y: 5, Sym: 'U', EType: entity.TypeItem},
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	gameMap.AddItem(groundVessel)
+
+	// Water source far from dry tile (IsWet returns true within 1 tile of water)
+	waterPos := types.Position{X: 5, Y: 10}
+	gameMap.AddWater(waterPos, game.WaterPond)
+
+	// Single dry tilled planted tile at character's position (far from water)
+	tile := types.Position{X: 5, Y: 5}
+	gameMap.SetTilled(tile)
+	sprout := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: tile.X, Y: tile.Y, Sym: 'v', EType: entity.TypeItem},
+		ItemType:   "berry",
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true},
+	}
+	gameMap.AddItem(sprout)
+
+	// Create and assign order
+	order := entity.NewOrder(1, "waterGarden", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	// Phase 1 intent: targets ground vessel for procurement
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionWaterGarden,
+		Target:     char.Pos(),
+		Dest:       groundVessel.Pos(),
+		TargetItem: groundVessel,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	for i := 0; i < 300; i++ {
+		m.applyIntent(char, 0.1)
+		// Recalculate Target toward Dest each tick (mirrors continueIntent in real game)
+		if char.Intent != nil {
+			cpos := char.Pos()
+			nx, ny := system.NextStepBFS(cpos.X, cpos.Y, char.Intent.Dest.X, char.Intent.Dest.Y, gameMap)
+			char.Intent.Target = types.Position{X: nx, Y: ny}
+		}
+		// After intent clears (ordered pattern), rebuild from findWaterGardenIntent
+		if char.Intent == nil && char.AssignedOrderID != 0 {
+			items := gameMap.Items()
+			intent := system.FindWaterGardenIntentForTest(char, char.Pos(), items, order, actionLog, gameMap)
+			if intent != nil {
+				char.Intent = intent
+			}
+		}
+	}
+
+	// Tile should be watered
+	if !gameMap.IsManuallyWatered(tile) {
+		t.Errorf("Expected tile %v to be watered", tile)
+	}
+
+	// Vessel should be in inventory
+	if char.GetCarriedVessel() == nil {
+		t.Error("Expected vessel in inventory")
+	}
+
+	// Order should be completed
+	if order.Status != entity.OrderCompleted {
+		t.Errorf("Order status: got %s, want %s", order.Status, entity.OrderCompleted)
+	}
+}
+
+// Anchor test: character has vessel with 1 water unit, 2 dry tiles.
+// Waters 1 tile, vessel empty, refills at water, waters remaining tile, order complete.
+// Dry tiles placed far from water (IsWet checks 8-directional adjacency to water).
+// Target recalculated each tick via NextStepBFS, mirroring continueIntent in real game.
+func TestApplyIntent_WaterGarden_RefillCycle(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	registry := game.GenerateVarieties()
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"waterGarden"}
+	gameMap.AddCharacter(char)
+
+	// Vessel with 1 unit of water — enough for 1 tile, then refill needed
+	waterVariety := registry.VarietiesOfType("liquid")[0]
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{{Variety: waterVariety, Count: 1}},
+		},
+	}
+	char.AddToInventory(vessel)
+
+	// Water source far from dry tiles (IsWet returns true within 1 tile of water)
+	waterPos := types.Position{X: 5, Y: 10}
+	gameMap.AddWater(waterPos, game.WaterPond)
+
+	// 2 dry tilled planted tiles: at char position and adjacent (far from water)
+	tiles := []types.Position{{X: 5, Y: 5}, {X: 4, Y: 5}}
+	for _, tilePos := range tiles {
+		gameMap.SetTilled(tilePos)
+		sprout := &entity.Item{
+			BaseEntity: entity.BaseEntity{X: tilePos.X, Y: tilePos.Y, Sym: 'v', EType: entity.TypeItem},
+			ItemType:   "berry",
+			Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true},
+		}
+		gameMap.AddItem(sprout)
+	}
+
+	// Create and assign order
+	order := entity.NewOrder(1, "waterGarden", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	// Start with Phase 3 intent (has water, target tile at char position)
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionWaterGarden,
+		Target:     tiles[0],
+		Dest:       tiles[0],
+		TargetItem: vessel,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	for i := 0; i < 500; i++ {
+		m.applyIntent(char, 0.1)
+		// Recalculate Target toward Dest each tick (mirrors continueIntent in real game)
+		if char.Intent != nil {
+			cpos := char.Pos()
+			nx, ny := system.NextStepBFS(cpos.X, cpos.Y, char.Intent.Dest.X, char.Intent.Dest.Y, gameMap)
+			char.Intent.Target = types.Position{X: nx, Y: ny}
+		}
+		// After intent clears (ordered pattern), rebuild from findWaterGardenIntent
+		if char.Intent == nil && char.AssignedOrderID != 0 {
+			items := gameMap.Items()
+			intent := system.FindWaterGardenIntentForTest(char, char.Pos(), items, order, actionLog, gameMap)
+			if intent != nil {
+				char.Intent = intent
+			}
+		}
+	}
+
+	// Both tiles should be watered
+	for _, tilePos := range tiles {
+		if !gameMap.IsManuallyWatered(tilePos) {
+			t.Errorf("Expected tile %v to be watered", tilePos)
+		}
+	}
+
+	// Order should be completed
+	if order.Status != entity.OrderCompleted {
+		t.Errorf("Order status: got %s, want %s", order.Status, entity.OrderCompleted)
 	}
 }

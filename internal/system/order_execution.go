@@ -646,44 +646,84 @@ func waterGardenFeasible(chars []*entity.Character, items []*entity.Item, gameMa
 }
 
 // findWaterGardenIntent creates an intent for watering garden tiles.
-// Phase 3 only (Step 4): assumes character has a vessel with water in inventory.
-// Returns nil if no vessel with water or no dry tilled planted tiles.
-// Step 5 adds procurement (Phase 1) and refill (Phase 2).
+// Full phase detection: Phase 1 (procure vessel), Phase 2 (fill at water), Phase 3 (water tiles).
+// Returns nil if no vessel available anywhere or no dry tilled planted tiles.
 func findWaterGardenIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
-	// Find vessel with water in inventory
-	vessel := findCarriedVesselWithWater(char)
-	if vessel == nil {
-		return nil // No water available — Step 5 adds procurement + refill
-	}
-
-	// Find nearest dry tilled planted tile
+	// Check for dry tilled planted tiles first — if none, order is complete
 	target := FindNearestDryTilledPlanted(pos, items, gameMap)
 	if target == nil {
 		return nil // No dry tiles — order complete
 	}
 
-	// At target — start watering
-	if pos.X == target.X && pos.Y == target.Y {
-		char.CurrentActivity = "Watering garden"
+	// Phase 3: vessel with water in inventory → water tiles
+	vessel := findCarriedVesselWithWater(char)
+	if vessel != nil {
+		if pos.X == target.X && pos.Y == target.Y {
+			char.CurrentActivity = "Watering garden"
+			return &entity.Intent{
+				Target:     *target,
+				Dest:       *target,
+				Action:     entity.ActionWaterGarden,
+				TargetItem: vessel,
+			}
+		}
+		nx, ny := NextStepBFS(pos.X, pos.Y, target.X, target.Y, gameMap)
+		newActivity := "Moving to water garden"
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+		}
 		return &entity.Intent{
-			Target:     *target,
+			Target:     types.Position{X: nx, Y: ny},
 			Dest:       *target,
 			Action:     entity.ActionWaterGarden,
 			TargetItem: vessel,
 		}
 	}
 
-	// Move toward target
-	nx, ny := NextStepBFS(pos.X, pos.Y, target.X, target.Y, gameMap)
-	newActivity := "Moving to water garden"
+	// Phase 2: empty vessel in inventory → fill at water source
+	carriedVessel := char.GetCarriedVessel()
+	if carriedVessel != nil {
+		waterPos, found := gameMap.FindNearestWater(pos)
+		if !found {
+			return nil // No water reachable — abandon
+		}
+		adjX, adjY := FindClosestCardinalTile(pos.X, pos.Y, waterPos.X, waterPos.Y, gameMap)
+		if adjX == -1 {
+			return nil // Water blocked — abandon
+		}
+		dest := types.Position{X: adjX, Y: adjY}
+		nx, ny := NextStepBFS(pos.X, pos.Y, adjX, adjY, gameMap)
+		newActivity := "Fetching water for garden"
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+		}
+		return &entity.Intent{
+			Target:     types.Position{X: nx, Y: ny},
+			Dest:       dest,
+			Action:     entity.ActionWaterGarden,
+			TargetItem: carriedVessel,
+		}
+	}
+
+	// Phase 1: no vessel → procure ground vessel
+	groundVessel := findEmptyGroundVessel(pos, items)
+	if groundVessel == nil {
+		return nil // No vessel available anywhere — abandon
+	}
+	if !char.HasInventorySpace() {
+		return nil // No space to pick up vessel — abandon
+	}
+	vpos := groundVessel.Pos()
+	nx, ny := NextStepBFS(pos.X, pos.Y, vpos.X, vpos.Y, gameMap)
+	newActivity := "Getting vessel for garden"
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
 	}
 	return &entity.Intent{
 		Target:     types.Position{X: nx, Y: ny},
-		Dest:       *target,
+		Dest:       vpos,
 		Action:     entity.ActionWaterGarden,
-		TargetItem: vessel,
+		TargetItem: groundVessel,
 	}
 }
 
@@ -701,6 +741,11 @@ func findCarriedVesselWithWater(char *entity.Character) *entity.Item {
 		}
 	}
 	return nil
+}
+
+// FindWaterGardenIntentForTest is an exported wrapper for integration tests in other packages.
+func FindWaterGardenIntentForTest(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	return findWaterGardenIntent(char, pos, items, order, log, gameMap)
 }
 
 // FindNearestDryTilledPlanted finds the nearest tilled tile with a growing plant that is not wet.

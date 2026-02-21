@@ -56,7 +56,7 @@ Get user feedback on the outline before proceeding. Adjust if needed.
 
 #### Step 3b: Write Detailed Plan
 
-Once the outline is aligned, write the detailed implementation steps into the existing planning document in `docs/`. **The plan doc is the handoff artifact** — after `/clear`, `/implement-feature` will rely on it cold as the source of truth.
+Once the outline is aligned, write the detailed implementation steps into the existing planning document in `docs/`. **The plan doc is the handoff artifact** — context will likely be cleared between refinement and implementation. `/implement-feature` will rely on the plan doc cold as its sole source of truth, with no access to the discussion that produced it. Design decisions, rationale, pattern choices, and anti-patterns must all be captured in the plan — anything left in conversation context is effectively lost.
 
 **Refinement checklist (verify for each step before writing):**
 - [ ] **Human testing checkpoint:** Is there a user-verifiable behavior at this step? If yes, add [TEST] checkpoint. If no, state why (e.g., "pure logic, no UI").
@@ -68,9 +68,10 @@ Once the outline is aligned, write the detailed implementation steps into the ex
 - [ ] Deferred scope (what was descoped and where is it tracked?)
 
 A plan is implementation-ready when it has:
+- **Anchor story per step** — each step should open with a 1-2 sentence narrative of what the user/character experiences. This grounds the implementation details in the "why" and makes the step readable as a story, not just a task list. Example: "Character gets a Water Garden order but has no vessel. They procure one, fill it at the pond, and start watering."
 - **Granular implementation steps** with iterative testable checkpoints: [TEST], [DOCS], and [RETRO]
   - Each functional accomplishment reconciled with references to original requirements doc
-  - **Architecture pattern references** — name which patterns each step extends (e.g., "follows Component Procurement pattern", "uses EnsureHasVesselFor") so `/implement-feature` can validate without re-deriving
+  - **Architecture pattern references** — name which patterns each step extends (e.g., "follows Component Procurement pattern", "uses EnsureHasVesselFor") so `/implement-feature` can validate without re-deriving. Include anti-patterns when ambiguity is likely (e.g., "follows ordered action pattern, NOT self-managing like ActionFillVessel"). Also name prior-step artifacts this step depends on (e.g., "calls RunWaterFill extracted in Step 5a").
   - **New entity fields require same-step serialization** — if a step adds fields to an entity struct, the corresponding Save struct and serialize/deserialize code must be updated in that same step
 - **Tests first:** planned before/at the beginning of each step (TDD)
 - **Human testing checkpoints** after each testable milestone, not just at the end

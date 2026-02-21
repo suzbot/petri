@@ -2122,28 +2122,85 @@ Code changes:
 - Order abandons appropriately when vessel lacks water ✅
 - Polish items deferred to cleanup: log wording "Watered garden tile", wet soil color scheme
 
-##### Step 5: Vessel Fill Phase + Procurement (full self-managing flow)
+##### Step 5a: Extract `RunWaterFill` shared helper from ActionFillVessel
 
-_Detailed breakdown TBD — high-level scope:_
-- Extract shared "fill vessel at water" helper from ActionFillVessel Phase 2 (RunWaterFill or similar)
-- ActionWaterGarden handler Phases 1 + 2: RunVesselProcurement for empty vessel, shared fill helper for empty vessel at water
-- Full loop: water tiles → vessel empty → refill → continue watering
-- Human testing: full end-to-end Water Garden flow
+Pure refactor — no behavior change. Extract the "move to water + fill vessel" logic from ActionFillVessel's Phase 2 (update.go) into a shared helper in picking.go, sibling of `RunVesselProcurement`. ActionFillVessel calls the new helper instead of inline code.
 
-**[TEST] Checkpoint — Full Water Garden flow:**
-- `go test ./...` passes
+**Tests (TDD):**
+
+Existing fetch water tests serve as regression coverage — no new tests needed since behavior is identical. Run `go test ./...` to confirm green after refactor.
+
+**Implementation:**
+
+- Extract `RunWaterFill(char, vessel, actionType, gameMap, log, registry, delta) WaterFillStatus` into picking.go
+  - Returns status enum: `FillReady` (vessel full, proceed), `FillApproaching` (moving to water), `FillInProgress` (filling this tick), `FillFailed` (no water reachable)
+  - **Fills to full regardless of starting state** — the helper always fills. It's the caller's responsibility to decide when filling is needed. `findFetchWaterIntent` only triggers when the vessel is empty; `findWaterGardenIntent` routes to fill phase only when the vessel has no water.
+  - Logic extracted from ActionFillVessel Phase 2: find nearest water → find cardinal-adjacent tile → move to it → accumulate progress → fill vessel → trigger discovery
+  - Caller (ActionFillVessel handler) handles movement via `moveWithCollision` when `FillApproaching` returned
+  - `actionType` parameter: the helper rebuilds `char.Intent` after procurement clears it; the caller passes its own action type (e.g., `ActionFillVessel`, `ActionWaterGarden`) so the intent stays consistent
+  - Note: discovery trigger (`TryDiscoverKnowHow` for ActionFillVessel) stays in the helper — it fires on fill completion regardless of calling context. Water Garden characters can also discover Water Garden know-how from filling, which is narratively correct.
+- Remove `TestApplyIntent_FillVessel_DoesNotOverfillPartialVessel` — tests a state (partial vessel triggering fill) that doesn't occur in actual code. Re-add if partial-fill triggers are introduced.
+- Refactor ActionFillVessel handler (update.go): replace inline Phase 2 code with `RunWaterFill` call. Phase 1 (`RunVesselProcurement`) unchanged.
+- **Architecture pattern:** Follows `RunVesselProcurement` shape exactly — tick helper with status enum, caller owns movement, stateless phase detection.
+
+**No [TEST] checkpoint** — pure refactor, no user-visible change. Existing tests confirm behavior preserved.
+
+##### Step 5b: Wire procurement + fill into Water Garden flow ✅
+
+The full Water Garden lifecycle: character gets order → procures vessel (if needed) → fills at water → waters tiles → vessel empties → refills → continues → no dry tiles → complete. Initial procurement and mid-order refill are the same cycle — the character always needs water, and the phases detect what's missing.
+
+**Design decision (refined during implementation):** ActionWaterGarden is an ordered action — intent clears at every phase boundary and between every tile. `findWaterGardenIntent` detects the phase each resumption tick and sets up the intent for that phase. The handler checks world state to know which phase it's in and calls the appropriate shared helper (`RunVesselProcurement` or `RunWaterFill`) or does the watering work. This follows the ordered action pattern: `findXxxIntent()` handles target selection on each resumption tick (architecture.md "Adding a new ordered action"), and the handler completes one work unit and clears intent. The shared tick helpers handle multi-tick operations within a phase (pickup takes ticks, filling takes ticks) without clearing intent — intent only clears when the phase completes.
+
+This means the ordered action's pause/resume mechanism works at every phase boundary — if needs become pressing during procurement, filling, or between tiles, the order pauses naturally via `CalculateIntent`.
+
+**Tests (TDD):**
+
+- **Full cycle test** (update_test.go): Character with no vessel, ground vessel available, water source, 3 dry tilled planted tiles → character procures vessel → fills at water → waters all 3 tiles → order completes
+- **Refill test** (update_test.go): Character with vessel containing 1 water unit, 3 dry tilled planted tiles → waters 1 tile → vessel empty → refills at water → waters remaining 2 → order completes
+- **No vessel abandonment test** (order_execution_test.go): `findWaterGardenIntent` with no vessel anywhere → returns nil
+- `findWaterGardenIntent` **phase detection tests** (order_execution_test.go):
+  - Has vessel with water → returns ActionWaterGarden targeting dry tile (existing test, keep)
+  - Has empty vessel → returns ActionWaterGarden targeting water-adjacent position
+  - No vessel, ground vessel exists → returns ActionWaterGarden targeting ground vessel
+  - No vessel, no ground vessel → returns nil (existing test updated)
+
+**Implementation:**
+
+1. **`findWaterGardenIntent`** — expand from Phase 3 only to full phase detection:
+   - Check for dry tilled planted tiles first — if none, return nil (order complete)
+   - Has vessel with water in inventory? → Phase 3: target nearest dry tilled planted tile (existing code)
+   - Has empty vessel in inventory? → Phase 2: find nearest water source, target cardinal-adjacent tile. Set `TargetItem` to the vessel.
+   - No vessel in inventory? → Phase 1: find ground vessel via `findEmptyGroundVessel`. Target ground vessel position. Set `TargetItem` to ground vessel.
+   - Nothing available (no vessel anywhere) → return nil (abandon)
+   - Always returns `ActionWaterGarden` — the handler detects the phase via stateless world-state checks.
+
+2. **ActionWaterGarden handler** (update.go) — stateless phase detection, shared helpers:
+   - Phase 1: vessel is `TargetItem` and is on the ground (`gameMap.ItemAt(vessel.Pos()) == vessel`) → call `RunVesselProcurement`. On `ProcureReady`, clear intent (ordered pattern — next tick `findWaterGardenIntent` routes to Phase 2 or 3). On `ProcureApproaching`, `moveWithCollision`. On `ProcureFailed`, clear intent.
+   - Phase 2: vessel is `TargetItem`, in inventory, empty (`len(vessel.Container.Contents) == 0`) → call `RunWaterFill`. On `FillReady`, clear intent (next tick routes to Phase 3). On `FillApproaching`, `moveWithCollision`. On `FillFailed`, clear intent.
+   - Phase 3: vessel has water → existing watering code (move to tile → water → clear intent → check completion).
+   - **Phase detection uses same raw state checks as the helpers themselves** — `RunVesselProcurement` uses `gameMap.ItemAt()` internally (picking.go:837), `RunWaterFill` checks vessel contents. No new abstractions needed.
+
+3. **Architecture pattern:** Ordered action pattern (architecture.md "Action Categories" + "Adding a new ordered action") — `findWaterGardenIntent` handles target selection on each resumption tick, handler completes one work unit and clears intent. Shared tick helpers (`RunVesselProcurement`, `RunWaterFill`) handle multi-tick operations within a phase without clearing intent. Intent clears at phase completion, giving `CalculateIntent` a re-evaluation point for needs interruption and order pause/resume.
+
+**Bugs fixed during implementation:**
+- **continueIntent look-hijack**: `continueIntent` was converting `ActionWaterGarden` intents to `ActionLook` when the character arrived adjacent to the target vessel (due to the `TargetItem != nil && DrivingStat == ""` broad heuristic). Workaround: added `ActionWaterGarden` to the look-transition exclusion list in `movement.go`. Tracked as Post-Slice 8 cleanup.
+- **continueIntent multi-phase path recalculation**: Added an `ActionWaterGarden` early-return block in `continueIntent` so multi-phase path recalculation works correctly (vessel on ground in Phase 1, vessel in inventory in Phase 2/3). Without this, the generic path's `ItemAt` check would nil the intent when the vessel moved to inventory.
+
+**[TEST] Checkpoint — Full Water Garden flow:** ✅
+- `go test ./...` passes ✅
 - Build and run:
-  - Character discovers Water Garden from filling a vessel
-  - Order Water Garden. Character fills vessel (if needed), waters planted tiles.
-  - Watered tiles turn green `═══`. Dry tilled tiles remain olive `═══`.
-  - Character continues watering until all planted tiles wet or vessel empty
-  - If vessel empty and more tiles need watering, character refills at nearest water source
-  - Plants on watered tiles grow faster than dry tilled plants
-  - Watering effect wears off after ~3 world days (use time skip to verify)
-  - Tiles adjacent to ponds are always wet (no watering needed, already green)
-  - Wet tilled-but-unplanted tiles also display green
-  - Multi-assignment: two Water Garden orders, two characters watering
-  - Save and load preserves watered tile timers
+  - Order Water Garden when character has no vessel. Character procures vessel, fills at water, waters planted tiles. ✅
+  - Order Water Garden when character has empty vessel. Character fills at water, then waters. ✅
+  - Order Water Garden when character has water. Character waters immediately. ✅
+  - Watered tiles turn green `═══`. Dry tilled tiles remain olive `═══`. ✅
+  - Character continues watering until all planted tiles wet or vessel empty ✅
+  - If vessel empty and more tiles need watering, character refills at nearest water source and continues ✅
+  - Plants on watered tiles grow faster than dry tilled plants ✅
+  - Watering effect wears off after ~3 world days (use time skip to verify) ✅
+  - Tiles adjacent to ponds are always wet (no watering needed, already green) ✅
+  - Wet tilled-but-unplanted tiles also display green ✅
+  - Multi-assignment: two Water Garden orders, two characters watering ✅
+  - Save and load preserves watered tile timers ✅
 
 **[TEST] Final Checkpoint — Full Part II Integration:**
 
@@ -2166,6 +2223,29 @@ Start a new world and play through the full garden lifecycle:
 
 - **Log wording**: "Watered garden tile" → more natural phrasing like "Watered garden plot" or "Watered garden plant"
 - **Wet tilled soil colors**: Current green/olive don't look natural and aren't easily differentiable. Watered soil doesn't turn green in real life — needs a color rethink (e.g., darker brown for wet vs lighter for dry, or subtle blue tint)
+
+---
+#### Post-Slice 8: `continueIntent` Look-Transition Cleanup
+
+**Status:** Workaround in place (exclusion list). Needs `/refine-feature` to evaluate the right long-term fix.
+
+**Problem:** `continueIntent` (movement.go ~line 483) converts any intent with `TargetItem != nil && DrivingStat == ""` to `ActionLook` when the character arrives adjacent to the target. This is the arrival handler for `findLookIntent`'s walk-to-item flow (which uses `Action: ActionMove`). But the condition is too broad — it catches any action with a TargetItem and no DrivingStat. Current workaround: exclusion list (`ActionPickup`, `ActionForage`, `ActionWaterGarden`).
+
+**Root issue:** `findLookIntent` sets `Action: ActionMove` for the walking phase, then relies on `continueIntent` to convert to `ActionLook` on arrival. This conflates two concerns — `continueIntent` should recalculate paths, not change action types. The decision to look should live entirely in `findLookIntent`.
+
+**Proposed fix (needs evaluation):** `findLookIntent` should set `Action: entity.ActionLook` for the walking phase (not `ActionMove`), and `continueIntent`'s arrival transition should check `intent.Action == entity.ActionLook` instead of the broad heuristic. Then only intents deliberately created as looks get the arrival behavior.
+
+**`RunVesselProcurement` interaction — may also need reevaluation:**
+
+Three actions use `RunVesselProcurement` for vessel pickup phases, but each interacts with `continueIntent` differently:
+- `ActionForage` — excluded from look-hijack by name
+- `ActionFillVessel` — has its own early-return block in `continueIntent` that bypasses the look-hijack entirely
+- `ActionWaterGarden` — needed both an exclusion AND its own early-return block (added during Step 5b)
+
+This asymmetry means the exclusion list and/or the number of action-specific early-return blocks will grow as new actions use `RunVesselProcurement`. The `ActionLook`-based fix would eliminate the exclusion list, but the early-return block pattern would persist for any action where `TargetItem` can be in inventory (not on the map). Evaluate during this cleanup whether:
+1. The `ActionLook` proposal is sufficient (eliminates exclusion list, early-return blocks remain)
+2. `continueIntent` needs a more general pattern for multi-phase actions (reduces per-action blocks)
+3. Ordered actions should use `ActionPickup` for vessel procurement (aligns with TillSoil/Plant, but requires solving the "liquid isn't an existing item" gap for the fill phase)
 
 ---
 ### Slice 9: Tuning and Enhancements

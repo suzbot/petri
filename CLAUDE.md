@@ -113,7 +113,7 @@ internal/
 
 **Up Next:**
 
-- Gardening in progress (Slice 8 Step 4 complete). Next: Slice 8 Step 5 — Vessel Fill Phase + Procurement. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
+- Gardening in progress (Slice 8 Step 5b complete — full Water Garden lifecycle). Next: Slice 8 Polish + Slice 9 Tuning. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
 
 ## Reference and Planning Documents
 

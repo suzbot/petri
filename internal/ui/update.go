@@ -1275,7 +1275,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 	case entity.ActionFillVessel:
 		// Fetch water action — two phases:
 		// Phase 1 (via RunVesselProcurement): pick up ground vessel if needed
-		// Phase 2: Move to water and fill the vessel
+		// Phase 2 (via RunWaterFill): move to water and fill the vessel
 		cpos := char.Pos()
 		vessel := char.Intent.TargetItem
 
@@ -1290,79 +1290,78 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		case system.ProcureFailed:
 			return
 		case system.ProcureReady:
-			// Vessel in hand — if Pickup just happened (intent was cleared),
-			// build the phase 2 intent to head to water
-			if char.Intent == nil {
-				waterPos, found := m.gameMap.FindNearestWater(cpos)
-				if !found {
-					char.CurrentActivity = "Idle"
-					return
-				}
-				adjX, adjY := system.FindClosestCardinalTile(cpos.X, cpos.Y, waterPos.X, waterPos.Y, m.gameMap)
-				if adjX == -1 {
-					char.CurrentActivity = "Idle"
-					return
-				}
-				waterDest := types.Position{X: adjX, Y: adjY}
-				nx, ny := system.NextStepBFS(cpos.X, cpos.Y, adjX, adjY, m.gameMap)
-				char.Intent = &entity.Intent{
-					Action:     entity.ActionFillVessel,
-					Dest:       waterDest,
-					Target:     types.Position{X: nx, Y: ny},
-					TargetItem: vessel,
-				}
-				if m.actionLog != nil {
-					m.actionLog.Add(char.ID, char.Name, "activity", "Heading to water to fill vessel")
-				}
-				return
-			}
+			// Vessel in hand — fall through to Phase 2
 		}
 
-		// Phase 2: vessel is in inventory — move to water and fill
-		dest := char.Intent.Dest
-		if cpos.X != dest.X || cpos.Y != dest.Y {
-			// Not at water destination — move toward it (with collision handling)
+		// Phase 2: fill vessel at water (shared helper)
+		fillStatus := system.RunWaterFill(char, vessel, entity.ActionFillVessel, m.gameMap, m.actionLog, m.gameMap.Varieties(), delta)
+		switch fillStatus {
+		case system.FillApproaching:
 			m.moveWithCollision(char, cpos, delta)
 			return
-		}
-
-		// At water destination — accumulate filling progress
-		if char.CurrentActivity != "Filling vessel with water" {
-			char.CurrentActivity = "Filling vessel with water"
-		}
-		char.ActionProgress += delta
-		if char.ActionProgress >= config.ActionDurationShort {
-			char.ActionProgress = 0
-
-			if vessel != nil && vessel.Container != nil {
-				// Find water variety from registry
-				waterVarieties := m.gameMap.Varieties().VarietiesOfType("liquid")
-				if len(waterVarieties) > 0 {
-					system.AddLiquidToVessel(vessel, waterVarieties[0], config.GetStackSize("liquid"))
-					if m.actionLog != nil {
-						m.actionLog.Add(char.ID, char.Name, "activity", fmt.Sprintf("Filled %s with water", vessel.Description()))
-					}
-				}
-			}
-
-			// Discovery from filling a vessel (triggers Water Garden know-how)
-			system.TryDiscoverKnowHow(char, entity.ActionFillVessel, vessel, m.actionLog, system.GetDiscoveryChance(char))
-
+		case system.FillInProgress:
+			return
+		case system.FillFailed:
+			return
+		case system.FillReady:
 			char.CurrentActivity = "Idle"
 			char.Intent = nil
 		}
 
 	case entity.ActionWaterGarden:
 		// Water Garden — ordered action pattern (like TillSoil, Plant).
-		// Waters one tile, clears intent. Next tick CalculateIntent re-evaluates:
-		// needs pressing → PauseOrder; needs clear → selectIdleActivity resumes order
-		// via AssignedOrderID → findWaterGardenIntent finds next dry tile.
-		// Step 5 adds procurement (Phase 1) and refill (Phase 2) phases.
+		// Three phases, detected statelessly each tick:
+		// Phase 1: vessel not in inventory → RunVesselProcurement (pick up ground vessel)
+		// Phase 2: vessel in inventory, no water → RunWaterFill (fill at water source)
+		// Phase 3: vessel has water → move to dry tile, water it, clear intent
 		cpos := char.Pos()
-		dest := char.Intent.Dest
+		vessel := char.Intent.TargetItem
 
+		// Phase 1: vessel procurement (if vessel is on the ground)
+		vesselOnGround := vessel != nil && m.gameMap.ItemAt(vessel.Pos()) == vessel
+		if vesselOnGround {
+			status := system.RunVesselProcurement(char, vessel, m.gameMap, m.actionLog, m.gameMap.Varieties(), delta)
+			switch status {
+			case system.ProcureApproaching:
+				m.moveWithCollision(char, cpos, delta)
+				return
+			case system.ProcureInProgress:
+				return
+			case system.ProcureFailed:
+				return
+			case system.ProcureReady:
+				// Vessel in hand — clear intent so findWaterGardenIntent
+				// re-evaluates for Phase 2 (fill) or Phase 3 (water)
+				char.CurrentActivity = "Idle"
+				char.Intent = nil
+				return
+			}
+		}
+
+		// Phase 2: fill vessel at water source (vessel in inventory, empty)
+		vesselEmpty := vessel != nil && vessel.Container != nil && len(vessel.Container.Contents) == 0
+		if vesselEmpty {
+			fillStatus := system.RunWaterFill(char, vessel, entity.ActionWaterGarden, m.gameMap, m.actionLog, m.gameMap.Varieties(), delta)
+			switch fillStatus {
+			case system.FillApproaching:
+				m.moveWithCollision(char, cpos, delta)
+				return
+			case system.FillInProgress:
+				return
+			case system.FillFailed:
+				return
+			case system.FillReady:
+				// Vessel filled — clear intent so findWaterGardenIntent
+				// re-evaluates for Phase 3 (water tiles)
+				char.CurrentActivity = "Idle"
+				char.Intent = nil
+				return
+			}
+		}
+
+		// Phase 3: water tiles (vessel has water)
+		dest := char.Intent.Dest
 		if cpos.X != dest.X || cpos.Y != dest.Y {
-			// Not at destination — move toward it
 			m.moveWithCollision(char, cpos, delta)
 			return
 		}
@@ -1379,7 +1378,6 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			m.gameMap.SetManuallyWatered(dest)
 
 			// Consume 1 unit of water from vessel
-			vessel := char.Intent.TargetItem
 			if vessel != nil {
 				system.DrinkFromVessel(vessel)
 			}

@@ -169,3 +169,4 @@ However, water vessels may not warrant full preference formation since:
 - The vessel itself already has preference-forming attributes
 
 Evaluate whether characters should form preferences about "drinking from vessel" vs "drinking from spring" or defer until actual beverage variety exists (juice, tea, etc.).
+

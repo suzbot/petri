@@ -271,6 +271,10 @@ Action handler pseudocode:
     // Main phase: do the real work
 ```
 
+**Shared water fill helper** (`picking.go`): `RunWaterFill` is the sibling of `RunVesselProcurement` — same tick-helper shape with a `WaterFillStatus` enum (`FillReady`, `FillApproaching`, `FillInProgress`, `FillFailed`). Handles finding nearest water, navigating to a water-adjacent tile, accumulating fill progress, and filling the vessel. Caller owns movement (handles `FillApproaching` via `moveWithCollision`).
+
+**Key contract:** `RunWaterFill` always fills to full regardless of the vessel's starting state. It is the **caller's responsibility** to decide when filling is needed. `findFetchWaterIntent` only triggers when the vessel is empty; `findWaterGardenIntent` routes to the fill phase only when the vessel has no water. When `char.Intent` is nil (e.g., after procurement clears it), the helper finds water and rebuilds the intent using the caller-provided `actionType`.
+
 **Why not centralize in ActionPickup?** An earlier design (Option B) considered making `Pickup()` a pure helper and routing all post-pickup decisions through the `ActionPickup` handler. This was rejected because it creates a central dispatcher that must understand every context that triggers a pickup — the opposite of self-managing. It scales poorly as new multi-phase activities are added (Water Garden, future Construction activities). Self-managing actions distribute that knowledge to the actions that need it.
 
 **Phase detection:** Handlers detect their current phase by checking world state (e.g., "is my target vessel on the ground or in inventory?") rather than storing explicit phase numbers. This is stateless and survives save/load without additional serialization.
@@ -450,7 +454,21 @@ Two pathfinding strategies:
 
 ### Movement Special Cases
 
-**Adjacent-item-look conversion**: In `movement.go`, when a character moves adjacent to their target item, the intent is normally converted to `ActionLook` (characters stop to look at items before picking them up). This conversion is bypassed for `ActionForage` - foraging characters walk directly onto food items instead of stopping. This is controlled by an action type check in the movement logic.
+**Adjacent-item-look conversion**: In `movement.go`, `continueIntent` converts intents to `ActionLook` when a character arrives adjacent to a target item with no `DrivingStat`. This is the arrival handler for `findLookIntent`'s walk-to-item flow. Actions that need to reach the item (not stop adjacent) are excluded: `ActionPickup`, `ActionForage`, `ActionWaterGarden`. See `triggered-enhancements.md` for the planned cleanup (replacing the exclusion list with `ActionLook`-based detection).
+
+### `continueIntent` Structure (movement.go)
+
+`continueIntent` runs every tick for characters with existing intents. It recalculates paths and handles arrival transitions. It has two layers:
+
+**Action-specific early returns** — some actions handle their own path recalculation and return before reaching the generic logic. These are actions where the target item can be in different locations across phases (ground vs inventory):
+- `ActionConsume` — item in inventory, no map checks needed
+- `ActionDrink` — item may be in inventory (carried vessel)
+- `ActionFillVessel` — Phase 1: vessel on ground (move to it); Phase 2: vessel in inventory (move to water Dest)
+- `ActionWaterGarden` — Phase 1: vessel on ground; Phase 2/3: vessel in inventory (move to water or dry tile Dest)
+
+**Generic fallthrough** — all other actions use the shared path: verify target item still exists on map (nil if gone), recalculate path toward target, apply arrival transitions (drink, sleep, look).
+
+**When adding a new action:** If the action's `TargetItem` can be in the character's inventory (not on the map) during any phase, it needs its own early-return block. Otherwise the generic path's `gameMap.ItemAt(ipos) != intent.TargetItem` check will nil the intent.
 
 ## Position Handling
 

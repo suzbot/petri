@@ -866,6 +866,103 @@ func RunVesselProcurement(char *entity.Character, vessel *entity.Item, gameMap *
 }
 
 // =============================================================================
+// Water Fill (shared by self-managing actions)
+// =============================================================================
+
+// WaterFillStatus indicates the state of water filling for self-managing actions.
+type WaterFillStatus int
+
+const (
+	// FillReady - vessel is full, proceed to next phase
+	FillReady WaterFillStatus = iota
+	// FillApproaching - moving toward water source (caller should move)
+	FillApproaching
+	// FillInProgress - at water source, filling this tick
+	FillInProgress
+	// FillFailed - no water reachable (sets char.Intent = nil)
+	FillFailed
+)
+
+// RunWaterFill handles one tick of water filling for self-managing actions.
+// Called each tick when the action needs to fill a vessel with water.
+// The caller must have set char.Intent with Dest pointing to a water-adjacent tile.
+//
+// Returns FillReady if vessel is full (proceed to next phase).
+// Returns FillApproaching if character needs to move toward water (caller handles movement).
+// Returns FillInProgress if character is at water and filling is accumulating.
+// Returns FillFailed if vessel is nil/invalid.
+//
+// When the caller has just completed procurement (char.Intent == nil), the helper
+// finds the nearest water source and rebuilds the intent with the water destination.
+// The action type on the rebuilt intent uses the provided actionType parameter.
+//
+// On fill completion, triggers discovery (TryDiscoverKnowHow for ActionFillVessel).
+func RunWaterFill(char *entity.Character, vessel *entity.Item, actionType entity.ActionType, gameMap *game.Map, log *ActionLog, registry *game.VarietyRegistry, delta float64) WaterFillStatus {
+	if vessel == nil || vessel.Container == nil {
+		char.Intent = nil
+		char.CurrentActivity = "Idle"
+		return FillFailed
+	}
+
+	cpos := char.Pos()
+
+	// If intent is nil (e.g., just finished procurement), find water and build intent
+	if char.Intent == nil {
+		waterPos, found := gameMap.FindNearestWater(cpos)
+		if !found {
+			char.CurrentActivity = "Idle"
+			return FillFailed
+		}
+		adjX, adjY := FindClosestCardinalTile(cpos.X, cpos.Y, waterPos.X, waterPos.Y, gameMap)
+		if adjX == -1 {
+			char.CurrentActivity = "Idle"
+			return FillFailed
+		}
+		waterDest := types.Position{X: adjX, Y: adjY}
+		nx, ny := NextStepBFS(cpos.X, cpos.Y, adjX, adjY, gameMap)
+		char.Intent = &entity.Intent{
+			Action:     actionType,
+			Dest:       waterDest,
+			Target:     types.Position{X: nx, Y: ny},
+			TargetItem: vessel,
+		}
+		if log != nil {
+			log.Add(char.ID, char.Name, "activity", "Heading to water to fill vessel")
+		}
+		return FillApproaching
+	}
+
+	dest := char.Intent.Dest
+	if cpos.X != dest.X || cpos.Y != dest.Y {
+		return FillApproaching
+	}
+
+	// At water destination — accumulate filling progress
+	if char.CurrentActivity != "Filling vessel with water" {
+		char.CurrentActivity = "Filling vessel with water"
+	}
+	char.ActionProgress += delta
+	if char.ActionProgress < config.ActionDurationShort {
+		return FillInProgress
+	}
+
+	// Fill complete
+	char.ActionProgress = 0
+	waterVarieties := registry.VarietiesOfType("liquid")
+	if len(waterVarieties) > 0 {
+		AddLiquidToVessel(vessel, waterVarieties[0], config.GetStackSize("liquid"))
+		if log != nil {
+			log.Add(char.ID, char.Name, "activity", fmt.Sprintf("Filled %s with water", vessel.Description()))
+		}
+	}
+
+	// Discovery from filling a vessel (triggers Water Garden know-how)
+	TryDiscoverKnowHow(char, entity.ActionFillVessel, vessel, log, GetDiscoveryChance(char))
+
+	return FillReady
+}
+
+// =============================================================================
 // Pickup Actions
 // =============================================================================
 

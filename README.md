@@ -14,11 +14,10 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 
 ## Latest Updates
 
-- **Water Garden Orders**: Players can order characters to water planted tiles using carried water vessels. Characters move through the garden, watering each dry tilled planted tile and consuming one unit of water per tile.
+- **Water Garden Orders**: Players can order characters to water planted tiles.
 - **Drinking from Vessels**: Characters can drink from water vessels they carry or find on the ground.
 - **Fetch Water**: Idle charachters can now fill a vessel with water to keep with them
 - **Plant Orders**: Players can order characters to plant on tilled soil.
-- **Water Appearance + Wet Tiles**: Ponds now render as filled blocks (`▓`) instead of waves. Tiles adjacent to water (including diagonally) show "Wet" in the details panel.
 - **Gourd Seeds**: Eating a gourd now drops a seed on the ground. Seeds are plantable and stack in vessels.
 - **Till Soil**: Players can mark rectangular areas for tilling using an area selection tool. Characters with till know-how procure a hoe and till the marked tiles.
 

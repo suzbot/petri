@@ -27,7 +27,7 @@ model: sonnet
 - [ ] [RETRO] checkpoint (context is easily lost — retros should be frequent)
 - [ ] No unresolved design questions flagged in the plan
 
-**If any box is unchecked: stop and invoke `/refine-feature` to complete the plan before proceeding.** Do not attempt to fill in gaps yourself — this model is not set up for design work. **After returning from `/refine-feature`, re-invoke `/implement-feature` from the top** — re-read the plan and re-run this checklist. Do not resume mid-skill.
+**If any box is unchecked: stop and invoke `/refine-feature` to complete the plan before proceeding.** Do not attempt to fill in gaps yourself — this model is not set up for design work. **After returning from `/refine-feature`, re-invoke `/implement-feature` from the top** — re-read the plan and re-run this checklist. Do not resume mid-skill. This is a hard rule, not a guideline — skipping the restart causes context drift and circular reasoning.
 
 **Pattern alignment — verify against code and docs:**
 - Confirm the architecture patterns referenced in the plan exist in `docs/architecture.md` and match current usage — show evidence of this check (cite section, state how it applies)
@@ -47,6 +47,8 @@ Once approach is confirmed:
 - Run tests to verify
 - **Pause at each [TEST] checkpoint** for user to rebuild and manually test
 - **Design discussion trigger:** If you find yourself proposing and evaluating design alternatives (not just implementation details like variable names or helper placement), stop and invoke `/refine-feature`. Don't assess whether it's "needed enough" — the cost of a brief refine is always lower than the cost of an incorrect design baked into code.
+- **Circles trigger:** If you find yourself re-deriving or re-evaluating an approach you've already considered, stop. First: re-read architecture.md for the relevant pattern — the answer is likely already documented. Second: if the architecture doc doesn't resolve it, invoke `/refine-feature`. Third: if you're circling on a test failure rather than a design question, run a targeted diagnostic (add logging, run with `-v`) instead of reasoning further. Evidence first, then reasoning.
+- **Ordered-action integration tests:** When writing tests for ordered actions (ActionWaterGarden, ActionTillSoil, etc.) that span multiple ticks with movement, the test loop must mirror `continueIntent`: (1) recalculate `char.Intent.Target` each tick via `system.NextStepBFS(charPos, dest)`, and (2) rebuild intent via `findXxxIntentForTest` when intent is nil. Also note that `IsWet()` uses 8-directional adjacency — dry tiles in tests must be placed >1 tile from any water source.
 - After each [TEST] checkpoint passes, follow the [DOCS] and [RETRO] checkpoints in the plan doc
 
 ### Step 4: Human Testing ([TEST])
