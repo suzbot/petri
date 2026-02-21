@@ -167,6 +167,7 @@ var StackSize = map[string]int{
 	"gourd":    1,
 	"nut":      10,
 	"seed":     20,
+	"liquid":   4,
 }
 
 // GetStackSize returns the stack size for an item type, defaulting to 1 if not defined

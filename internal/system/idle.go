@@ -36,8 +36,8 @@ func selectIdleActivity(char *entity.Character, pos types.Position, items []*ent
 		return intent
 	}
 
-	// Roll 0-3 for activity selection (equal 1/4 probability each)
-	roll := rand.Intn(4)
+	// Roll 0-4 for activity selection (equal 1/5 probability each)
+	roll := rand.Intn(5)
 
 	switch roll {
 	case 0:
@@ -83,6 +83,15 @@ func selectIdleActivity(char *entity.Character, pos types.Position, items []*ent
 			return intent
 		}
 	case 3:
+		// Try fetch water
+		if intent := findFetchWaterIntent(char, pos, items, gameMap, log); intent != nil {
+			return intent
+		}
+		// Fall through to try other activities
+		if intent := findLookIntent(char, pos, items, gameMap, log); intent != nil {
+			return intent
+		}
+	case 4:
 		// Stay idle - return nil
 		return nil
 	}
@@ -107,6 +116,12 @@ func isIdleActivity(activity string) bool {
 		return true
 	}
 	if strings.HasPrefix(activity, "Moving to forage") {
+		return true
+	}
+	if strings.HasPrefix(activity, "Fetching") {
+		return true
+	}
+	if strings.HasPrefix(activity, "Filling vessel") {
 		return true
 	}
 	return false

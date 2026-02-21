@@ -63,7 +63,7 @@ type EdibleProperties struct {
 - `IsSprout bool` — item is in the sprout phase. Lifecycle skips reproduction for sprouts. Maturation logic converts sprout to full-grown item when `SproutTimer` expires.
 - `SproutTimer float64` — countdown to maturation (see `config.SproutDuration`).
 
-**ContainerData** enables storage - vessels have `Capacity: 1` (one stack). Contents tracked as `[]Stack` where each Stack has a Variety pointer and count.
+**ContainerData** enables storage - vessels have `Capacity: 1` (one stack). Contents tracked as `[]Stack` where each Stack has a Variety pointer and count. Liquids are stored as stacks with ItemType "liquid" and Kind (e.g., "water"), reusing all existing vessel infrastructure.
 
 **EdibleProperties** marks items as edible with optional effects. Items with `Edible != nil` can be eaten; Poisonous/Healing determine effects.
 
@@ -237,11 +237,16 @@ case PickupToInventory:
 }
 ```
 
+### Self-Managing Actions
+
+Some actions manage their full lifecycle across multiple phases without returning to idle activity selection. Example: `ActionFillVessel` handles vessel procurement (Phase 1: if no empty vessel in inventory, move to ground vessel and pick it up) and water filling (Phase 2: move to water and fill). This is a single continuous action, not two separate idle rolls. The action uses internal state (`ActionPhase`) and `moveWithCollision()` helper to manage multi-step flow.
+
 ### Benefits
 
 - No duplicate switch cases in `applyIntent` for same physical action
 - No need to update exclusion lists when adding new triggering contexts
 - Clean separation enables future multi-step orders (e.g., Craft: ActionPickup → ActionMove → ActionCraft)
+- Self-managing actions enable complex autonomous behaviors without polluting intent system
 
 ### Code Structure
 

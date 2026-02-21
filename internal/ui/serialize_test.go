@@ -808,3 +808,76 @@ func TestVarietySerialization_PreservesPlantableAndKind(t *testing.T) {
 		t.Errorf("Expected Sym '.', got %c", restored.Sym)
 	}
 }
+
+func TestWaterVesselSerialization_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	m := createTestModel()
+
+	// Find the water variety from the registry
+	registry := m.gameMap.Varieties()
+	waterVariety := registry.VarietiesOfType("liquid")
+	if len(waterVariety) == 0 {
+		t.Fatal("Expected water variety in registry")
+	}
+
+	// Create a vessel with water contents
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Kind:     "hollow gourd",
+		Name:     "Hollow Gourd",
+		Color:    types.ColorOrange,
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{
+				{Variety: waterVariety[0], Count: 3},
+			},
+		},
+	}
+	vessel.X = 20
+	vessel.Y = 20
+	vessel.EType = entity.TypeItem
+	vessel.Sym = 'U'
+	m.gameMap.AddItemDirect(vessel)
+
+	// Save
+	state := m.ToSaveState()
+
+	// Load into a new model
+	m2 := FromSaveState(state, "test", TestConfig{})
+
+	// Find the vessel
+	var restoredVessel *entity.Item
+	for _, item := range m2.gameMap.Items() {
+		if item.X == 20 && item.Y == 20 && item.ItemType == "vessel" {
+			restoredVessel = item
+			break
+		}
+	}
+	if restoredVessel == nil {
+		t.Fatal("Expected to find vessel at (20,20)")
+	}
+
+	// Verify container exists with contents
+	if restoredVessel.Container == nil {
+		t.Fatal("Expected vessel to have Container")
+	}
+	if len(restoredVessel.Container.Contents) != 1 {
+		t.Fatalf("Expected 1 stack in contents, got %d", len(restoredVessel.Container.Contents))
+	}
+
+	// Verify liquid stack
+	stack := restoredVessel.Container.Contents[0]
+	if stack.Count != 3 {
+		t.Errorf("Expected count 3, got %d", stack.Count)
+	}
+	if stack.Variety == nil {
+		t.Fatal("Expected variety on stack")
+	}
+	if stack.Variety.ItemType != "liquid" {
+		t.Errorf("Expected ItemType 'liquid', got %q", stack.Variety.ItemType)
+	}
+	if stack.Variety.Kind != "water" {
+		t.Errorf("Expected Kind 'water', got %q", stack.Variety.Kind)
+	}
+}

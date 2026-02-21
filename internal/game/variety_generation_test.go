@@ -173,6 +173,39 @@ func TestGenerateVarieties_SeedVarietiesForGourds(t *testing.T) {
 	}
 }
 
+func TestGenerateVarieties_WaterVariety(t *testing.T) {
+	registry := GenerateVarieties()
+
+	liquids := registry.VarietiesOfType("liquid")
+	if len(liquids) != 1 {
+		t.Fatalf("Expected exactly 1 liquid variety, got %d", len(liquids))
+	}
+
+	water := liquids[0]
+	if water.Kind != "water" {
+		t.Errorf("Water variety Kind: got %q, want %q", water.Kind, "water")
+	}
+	if water.ItemType != "liquid" {
+		t.Errorf("Water variety ItemType: got %q, want %q", water.ItemType, "liquid")
+	}
+	if water.Sym != 0 {
+		t.Errorf("Water variety Sym: got %c, want 0 (never rendered as ground item)", water.Sym)
+	}
+	if water.IsEdible() {
+		t.Error("Water variety should not be edible")
+	}
+	if water.Plantable {
+		t.Error("Water variety should not be plantable")
+	}
+}
+
+func TestGenerateVarieties_LiquidStackSize(t *testing.T) {
+	size := config.GetStackSize("liquid")
+	if size != 4 {
+		t.Errorf("GetStackSize(\"liquid\"): got %d, want 4", size)
+	}
+}
+
 func TestGenerateVarieties_CorrectSymbols(t *testing.T) {
 	registry := GenerateVarieties()
 

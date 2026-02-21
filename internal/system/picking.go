@@ -580,6 +580,69 @@ func AddToVessel(vessel, item *entity.Item, registry *game.VarietyRegistry) bool
 	return true
 }
 
+// AddLiquidToVessel fills a vessel with liquid from terrain (no source item).
+// Creates a new liquid stack or tops up an existing one, capped at stack size.
+// Returns false if vessel has non-liquid contents or is already full.
+func AddLiquidToVessel(vessel *entity.Item, variety *entity.ItemVariety, amount int) bool {
+	if vessel == nil || vessel.Container == nil || variety == nil {
+		return false
+	}
+
+	stackSize := config.GetStackSize(variety.ItemType)
+
+	// Empty vessel — create new liquid stack
+	if len(vessel.Container.Contents) == 0 {
+		count := amount
+		if count > stackSize {
+			count = stackSize
+		}
+		vessel.Container.Contents = []entity.Stack{{
+			Variety: variety,
+			Count:   count,
+		}}
+		return true
+	}
+
+	// Has contents — must be same variety with room
+	stack := &vessel.Container.Contents[0]
+	if stack.Variety == nil || stack.Variety.ID != variety.ID {
+		return false
+	}
+	if stack.Count >= stackSize {
+		return false
+	}
+
+	// Top up, capped at stack size
+	stack.Count += amount
+	if stack.Count > stackSize {
+		stack.Count = stackSize
+	}
+	return true
+}
+
+// DrinkFromVessel consumes one unit of liquid from a vessel.
+// Removes the stack when count reaches 0 (vessel becomes empty).
+// Returns false if the vessel has no liquid contents or is empty.
+func DrinkFromVessel(vessel *entity.Item) bool {
+	if vessel == nil || vessel.Container == nil {
+		return false
+	}
+	if len(vessel.Container.Contents) == 0 {
+		return false
+	}
+
+	stack := &vessel.Container.Contents[0]
+	if stack.Variety == nil || stack.Variety.ItemType != "liquid" {
+		return false
+	}
+
+	stack.Count--
+	if stack.Count <= 0 {
+		vessel.Container.Contents = vessel.Container.Contents[:0]
+	}
+	return true
+}
+
 // CanVesselAccept returns true if a vessel can accept a specific item.
 // True if: vessel is empty, OR vessel has same variety and space remaining.
 func CanVesselAccept(vessel, item *entity.Item, registry *game.VarietyRegistry) bool {

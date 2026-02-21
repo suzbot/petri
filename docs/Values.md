@@ -26,6 +26,18 @@ When introducing a new type or category, ask: "What else will eventually live al
 
 Example: Water as ItemType "liquid", Kind "water" (not ItemType "water"). Future beverages (mead, beer, wine) become Kind variants under the same ItemType, with no structural changes needed.
 
+## Requirements as Ground Truth
+
+Implementation and tests should trace back to the stated requirement. When a test validates code structure ("returns ActionPickup") rather than user intent ("vessel gets filled with water"), it's testing the wrong thing. The requirement is the ground truth — code and tests are accountable to it, not the other way around.
+
+Example: Fetch Water tests initially validated that ground-vessel pickup returned ActionPickup. But the requirement was "get the vessel and fill it as one continuous activity." The structural test passed while the intent was broken.
+
+## Step Back on Cascading Bugs
+
+Multiple bugs in the same workflow signal a design problem, not an implementation problem. Fix the design, don't keep patching symptoms. The cost of one step-back conversation is always lower than the cost of another round of testing, bug-finding, and context consumption.
+
+Example: Fetch Water went through four rounds of testing with new bugs each time. Each fix was correct in isolation, but the underlying two-roll design was wrong. A step back after the second bug would have saved two rounds.
+
 ## Idle Activities Should Be Non-Destructive
 
 Idle activities — the things characters choose to do on their own when no needs or orders are pressing — should never destroy player-relevant state. Need-driven behavior (eating, drinking, sleeping) may consume or displace things to ensure survival, and that's appropriate for a simulation. But idle choices should be safe by default.

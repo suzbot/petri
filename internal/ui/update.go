@@ -1184,6 +1184,120 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			char.CurrentActivity = "Idle"
 			char.Intent = nil
 		}
+
+	case entity.ActionFillVessel:
+		// Unified fetch water action — two phases:
+		// Phase 1: If TargetItem is on the ground, move to it and pick it up
+		// Phase 2: Move to water and fill the vessel
+		cpos := char.Pos()
+		vessel := char.Intent.TargetItem
+
+		// Phase detection: is the vessel on the ground?
+		if vessel != nil {
+			ipos := vessel.Pos()
+			if m.gameMap.ItemAt(ipos) == vessel {
+				// Phase 1: vessel is on the ground — move to it and pick up
+				if cpos.X == ipos.X && cpos.Y == ipos.Y {
+					// At vessel — pick it up
+					char.ActionProgress += delta
+					if char.ActionProgress >= config.ActionDurationShort {
+						char.ActionProgress = 0
+						system.Pickup(char, vessel, m.gameMap, m.actionLog, m.gameMap.Varieties())
+
+						// Transition to phase 2: find water and update intent
+						waterPos, found := m.gameMap.FindNearestWater(cpos)
+						if !found {
+							char.CurrentActivity = "Idle"
+							char.Intent = nil
+							return
+						}
+						adjX, adjY := system.FindClosestCardinalTile(cpos.X, cpos.Y, waterPos.X, waterPos.Y, m.gameMap)
+						if adjX == -1 {
+							char.CurrentActivity = "Idle"
+							char.Intent = nil
+							return
+						}
+						waterDest := types.Position{X: adjX, Y: adjY}
+						nx, ny := system.NextStepBFS(cpos.X, cpos.Y, adjX, adjY, m.gameMap)
+						char.Intent.Dest = waterDest
+						char.Intent.Target = types.Position{X: nx, Y: ny}
+						if m.actionLog != nil {
+							m.actionLog.Add(char.ID, char.Name, "activity", "Heading to water to fill vessel")
+						}
+					}
+					return
+				}
+
+				// Not at vessel yet — move toward it (with collision handling)
+				m.moveWithCollision(char, cpos, delta)
+				return
+			}
+		}
+
+		// Phase 2: vessel is in inventory — move to water and fill
+		dest := char.Intent.Dest
+		if cpos.X != dest.X || cpos.Y != dest.Y {
+			// Not at water destination — move toward it (with collision handling)
+			m.moveWithCollision(char, cpos, delta)
+			return
+		}
+
+		// At water destination — accumulate filling progress
+		if char.CurrentActivity != "Filling vessel with water" {
+			char.CurrentActivity = "Filling vessel with water"
+		}
+		char.ActionProgress += delta
+		if char.ActionProgress >= config.ActionDurationShort {
+			char.ActionProgress = 0
+
+			if vessel != nil && vessel.Container != nil {
+				// Find water variety from registry
+				waterVarieties := m.gameMap.Varieties().VarietiesOfType("liquid")
+				if len(waterVarieties) > 0 {
+					system.AddLiquidToVessel(vessel, waterVarieties[0], config.GetStackSize("liquid"))
+					if m.actionLog != nil {
+						m.actionLog.Add(char.ID, char.Name, "activity", fmt.Sprintf("Filled %s with water", vessel.Description()))
+					}
+				}
+			}
+
+			char.CurrentActivity = "Idle"
+			char.Intent = nil
+		}
+	}
+}
+
+// moveWithCollision handles speed accumulation and collision-aware movement for self-managing actions.
+// Used by ActionFillVessel and ActionTillSoil-style actions that handle their own movement.
+func (m *Model) moveWithCollision(char *entity.Character, cpos types.Position, delta float64) {
+	tx, ty := char.Intent.Target.X, char.Intent.Target.Y
+	speed := char.EffectiveSpeed()
+	char.SpeedAccumulator += float64(speed) * delta
+	const movementThreshold = 7.5
+	if char.SpeedAccumulator < movementThreshold {
+		return
+	}
+	char.SpeedAccumulator -= movementThreshold
+
+	moved := false
+	triedPositions := make(map[[2]int]bool)
+	triedPositions[[2]int{tx, ty}] = true
+
+	for attempts := 0; attempts < 5 && !moved; attempts++ {
+		if m.gameMap.MoveCharacter(char, types.Position{X: tx, Y: ty}) {
+			moved = true
+			break
+		}
+		altStep := m.findAlternateStep(char, cpos.X, cpos.Y, triedPositions)
+		if altStep == nil {
+			break
+		}
+		tx, ty = altStep[0], altStep[1]
+		triedPositions[[2]int{tx, ty}] = true
+	}
+
+	if !moved {
+		char.SpeedAccumulator += movementThreshold * 0.5
 	}
 }
 

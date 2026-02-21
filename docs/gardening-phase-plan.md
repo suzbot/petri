@@ -1635,16 +1635,17 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 
 **Architecture patterns:** Follows foraging idle activity pattern (separate file, `findXIntent()` function, wired into `selectIdleActivity`). ActionFillVessel follows existing progress-based action pattern in update.go.
 
-**[TEST] Checkpoint — Fetch Water idle activity:**
-- `go test ./...` passes
+**[TEST] Checkpoint — Fetch Water idle activity:** ✅
+- `go test ./...` passes ✅
 - Build and run:
-  - Characters occasionally choose fetch water as idle activity
-  - Character with empty vessel walks to nearest water, fills it
-  - Character without vessel picks up empty vessel from ground, then fills it
-  - Vessel shows water contents in inventory panel
-  - Character with full vessel (food or water) does not attempt fetch water
-  - Save/load preserves water vessel contents
+  - Characters occasionally choose fetch water as idle activity ✅
+  - Character with empty vessel walks to nearest water, fills it ✅
+  - Character without vessel picks up empty vessel from ground, then fills it — not yet observed (foraging rolled first in test world). **Retest after resolving foraging-for-vessel issue (randomideas.md 1a).**
+  - Vessel shows water contents in inventory panel ✅
+  - Character with full vessel (food or water) does not attempt fetch water ✅
+  - Save/load preserves water vessel contents ✅
   - Note: drinking from water vessel does NOT work yet (Step 3)
+- Bugs fixed during testing: liquid content check (was checking vessel fullness, now checks for liquid ItemType), collision handling added to ActionFillVessel movement, unified two-phase ActionFillVessel flow (eliminated two-roll problem).
 
 **[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture.
 
@@ -1723,6 +1724,8 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 **[RETRO]** Run /retro.
 
 **Reqs reconciliation:** Lines 101-108. _"fill an empty vessel with water as an idle activity option"_ ✓ (Step 2), _"same vessel logic as foraging"_ ✓ (vessel-seeking reused), _"drink from the carried vessel instead of having to move to a water source"_ ✓ (Step 3, distance=0 prioritization), _"a dropped water vessel can be targeted for drinking"_ ✓ (Step 3, ground vessel search), _"a full vessel has 4 'drinks'/units of water in it"_ ✓ (Step 1, StackSize 4). Line 106 _"consider that drinking from carried vessel can be triggered earlier"_ — deferred to Slice 9 tuning.
+
+**Known issue (discovered during Slice 7 testing):** Gourds grown from seed sprouts do not inherit `Edible` from their variety. When a sprout matures, `MatureSymbol()` restores the symbol from the variety, but `Edible` properties are not restored. Fix: at maturation time in `lifecycle.go`, also restore `Edible` (and any future functional attributes) from the variety registry. This should be addressed before Slice 9 tuning since it affects food availability balance. The fix point is wherever `MatureSymbol()` is called — extend it to also restore `Edible` from the item's variety.
 
 ---
 

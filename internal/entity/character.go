@@ -93,8 +93,9 @@ const (
 	ActionTalk
 	ActionPickup   // Picking up an item (used by both foraging and harvest orders)
 	ActionCraft    // Crafting an item (uses ActionProgress with Recipe.Duration)
-	ActionTillSoil // Tilling a marked tile (uses ActionProgress with ActionDurationMedium)
-	ActionPlant    // Planting a plantable item on tilled soil (uses ActionProgress with ActionDurationMedium)
+	ActionTillSoil   // Tilling a marked tile (uses ActionProgress with ActionDurationMedium)
+	ActionPlant      // Planting a plantable item on tilled soil (uses ActionProgress with ActionDurationMedium)
+	ActionFillVessel // Filling a vessel with water at water terrain (uses ActionProgress with ActionDurationShort)
 )
 
 // NewCharacter creates a new character with the given preferences

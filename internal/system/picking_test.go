@@ -1070,4 +1070,141 @@ func TestPlantableItemExists_FindsItemsInGroundVessel(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// AddLiquidToVessel Tests
+// =============================================================================
 
+func createWaterVariety() *entity.ItemVariety {
+	return &entity.ItemVariety{
+		ID:       "liquid-water",
+		ItemType: "liquid",
+		Kind:     "water",
+	}
+}
+
+func TestAddLiquidToVessel_FillsEmptyVessel(t *testing.T) {
+	vessel := createTestVessel()
+	water := createWaterVariety()
+
+	ok := AddLiquidToVessel(vessel, water, 4)
+	if !ok {
+		t.Fatal("AddLiquidToVessel should return true for empty vessel")
+	}
+
+	if len(vessel.Container.Contents) != 1 {
+		t.Fatalf("Expected 1 stack, got %d", len(vessel.Container.Contents))
+	}
+	stack := vessel.Container.Contents[0]
+	if stack.Variety != water {
+		t.Error("Stack variety should be the water variety")
+	}
+	if stack.Count != 4 {
+		t.Errorf("Stack count: got %d, want 4", stack.Count)
+	}
+}
+
+func TestAddLiquidToVessel_ReturnsFalseWhenVesselHasNonLiquidContents(t *testing.T) {
+	registry := createTestRegistry()
+	vessel := createTestVessel()
+
+	// Fill vessel with a berry first
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	AddToVessel(vessel, berry, registry)
+
+	water := createWaterVariety()
+	ok := AddLiquidToVessel(vessel, water, 4)
+	if ok {
+		t.Error("AddLiquidToVessel should return false when vessel has non-liquid contents")
+	}
+}
+
+func TestAddLiquidToVessel_ReturnsFalseWhenVesselAlreadyFull(t *testing.T) {
+	vessel := createTestVessel()
+	water := createWaterVariety()
+
+	// Fill to capacity
+	AddLiquidToVessel(vessel, water, 4)
+
+	// Try to add more
+	ok := AddLiquidToVessel(vessel, water, 1)
+	if ok {
+		t.Error("AddLiquidToVessel should return false when vessel already full")
+	}
+}
+
+func TestAddLiquidToVessel_TopsUpPartiallyFilledVessel(t *testing.T) {
+	vessel := createTestVessel()
+	water := createWaterVariety()
+
+	// Partially fill
+	AddLiquidToVessel(vessel, water, 2)
+	if vessel.Container.Contents[0].Count != 2 {
+		t.Fatalf("Expected count 2 after first fill, got %d", vessel.Container.Contents[0].Count)
+	}
+
+	// Top up
+	ok := AddLiquidToVessel(vessel, water, 4)
+	if !ok {
+		t.Fatal("AddLiquidToVessel should return true when topping up")
+	}
+
+	// Should be capped at stack size (4)
+	if vessel.Container.Contents[0].Count != 4 {
+		t.Errorf("Stack count after top-up: got %d, want 4", vessel.Container.Contents[0].Count)
+	}
+}
+
+// =============================================================================
+// DrinkFromVessel Tests
+// =============================================================================
+
+func TestDrinkFromVessel_DecrementsCount(t *testing.T) {
+	vessel := createTestVessel()
+	water := createWaterVariety()
+	AddLiquidToVessel(vessel, water, 4)
+
+	ok := DrinkFromVessel(vessel)
+	if !ok {
+		t.Fatal("DrinkFromVessel should return true")
+	}
+	if vessel.Container.Contents[0].Count != 3 {
+		t.Errorf("Stack count after drink: got %d, want 3", vessel.Container.Contents[0].Count)
+	}
+}
+
+func TestDrinkFromVessel_RemovesStackWhenEmpty(t *testing.T) {
+	vessel := createTestVessel()
+	water := createWaterVariety()
+	AddLiquidToVessel(vessel, water, 1)
+
+	ok := DrinkFromVessel(vessel)
+	if !ok {
+		t.Fatal("DrinkFromVessel should return true")
+	}
+	if len(vessel.Container.Contents) != 0 {
+		t.Errorf("Expected empty contents after drinking last unit, got %d stacks", len(vessel.Container.Contents))
+	}
+}
+
+func TestDrinkFromVessel_ReturnsFalseWhenNoLiquidContents(t *testing.T) {
+	registry := createTestRegistry()
+	vessel := createTestVessel()
+
+	// Fill with berries (not liquid)
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	AddToVessel(vessel, berry, registry)
+
+	ok := DrinkFromVessel(vessel)
+	if ok {
+		t.Error("DrinkFromVessel should return false when vessel has non-liquid contents")
+	}
+}
+
+func TestDrinkFromVessel_ReturnsFalseWhenVesselEmpty(t *testing.T) {
+	vessel := createTestVessel()
+
+	ok := DrinkFromVessel(vessel)
+	if ok {
+		t.Error("DrinkFromVessel should return false when vessel is empty")
+	}
+}

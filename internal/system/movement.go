@@ -289,6 +289,43 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		return intent
 	}
 
+	// ActionFillVessel has two phases:
+	// Phase 1: TargetItem is on the map (ground vessel) — move toward it for pickup
+	// Phase 2: TargetItem is in inventory — move toward water Dest for filling
+	if intent.Action == entity.ActionFillVessel {
+		if intent.TargetItem != nil {
+			ipos := intent.TargetItem.Pos()
+			if gameMap.ItemAt(ipos) == intent.TargetItem {
+				// Phase 1: vessel is on the ground — recalculate toward it
+				if cx == ipos.X && cy == ipos.Y {
+					return intent // At vessel, ready for pickup
+				}
+				nx, ny := NextStepBFS(cx, cy, ipos.X, ipos.Y, gameMap)
+				intent.Target = types.Position{X: nx, Y: ny}
+				return intent
+			}
+			// Check if vessel is in character's inventory (phase 2)
+			inInventory := false
+			for _, item := range char.Inventory {
+				if item == intent.TargetItem {
+					inInventory = true
+					break
+				}
+			}
+			if !inInventory {
+				return nil // Vessel was taken by someone else
+			}
+		}
+		// Phase 2: vessel in inventory — recalculate toward water Dest
+		dest := intent.Dest
+		if cx == dest.X && cy == dest.Y {
+			return intent // At water destination, ready to fill
+		}
+		nx, ny := NextStepBFS(cx, cy, dest.X, dest.Y, gameMap)
+		intent.Target = types.Position{X: nx, Y: ny}
+		return intent
+	}
+
 	// Check if target item still exists at expected position (O(1) instead of O(n))
 	if intent.TargetItem != nil {
 		ipos := intent.TargetItem.Pos()
@@ -381,7 +418,7 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 			}
 		}
 		// Not adjacent yet - check if any cardinal tile is still available
-		adjX, adjY := findClosestCardinalTile(cx, cy, tx, ty, gameMap)
+		adjX, adjY := FindClosestCardinalTile(cx, cy, tx, ty, gameMap)
 		if adjX == -1 {
 			return nil // All cardinal tiles blocked, find new water
 		}
@@ -485,7 +522,7 @@ func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.M
 	}
 
 	// Find closest cardinal tile adjacent to water and move toward it
-	adjX, adjY := findClosestCardinalTile(pos.X, pos.Y, tx, ty, gameMap)
+	adjX, adjY := FindClosestCardinalTile(pos.X, pos.Y, tx, ty, gameMap)
 	if adjX == -1 {
 		// No available adjacent tile - water is blocked
 		if char.CurrentActivity != "Idle" {
@@ -1080,8 +1117,8 @@ func isCardinallyAdjacent(x1, y1, x2, y2 int) bool {
 	return types.Position{X: x1, Y: y1}.IsCardinallyAdjacentTo(types.Position{X: x2, Y: y2})
 }
 
-// findClosestCardinalTile finds closest unblocked cardinally adjacent tile to target
-func findClosestCardinalTile(cx, cy, tx, ty int, gameMap *game.Map) (int, int) {
+// FindClosestCardinalTile finds closest unblocked cardinally adjacent tile to target
+func FindClosestCardinalTile(cx, cy, tx, ty int, gameMap *game.Map) (int, int) {
 	pos := types.Position{X: cx, Y: cy}
 	directions := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
 	bestX, bestY := -1, -1

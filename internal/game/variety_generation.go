@@ -154,6 +154,14 @@ func GenerateVarieties() *VarietyRegistry {
 		})
 	}
 
+	// Register water variety (liquid type for vessel storage)
+	registry.Register(&entity.ItemVariety{
+		ID:       "liquid-water",
+		ItemType: "liquid",
+		Kind:     "water",
+		Sym:      0, // never rendered as ground item
+	})
+
 	// Assign poison and healing to edible varieties
 	assignPoisonAndHealing(registry)
 
