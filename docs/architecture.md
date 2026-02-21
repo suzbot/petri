@@ -239,7 +239,43 @@ case PickupToInventory:
 
 ### Self-Managing Actions
 
-Some actions manage their full lifecycle across multiple phases without returning to idle activity selection. Example: `ActionFillVessel` handles vessel procurement (Phase 1: if no empty vessel in inventory, move to ground vessel and pick it up) and water filling (Phase 2: move to water and fill). This is a single continuous action, not two separate idle rolls. The action uses internal state (`ActionPhase`) and `moveWithCollision()` helper to manage multi-step flow.
+Some actions manage their full lifecycle across multiple phases without returning to idle activity selection. Each self-managing action owns its complete flow — procurement, movement, and execution — as a single continuous intent. The character never goes idle between phases and never needs to win another idle roll to continue.
+
+**Key principle:** Vessel procurement within a multi-phase action should not be a separate intent routed through `ActionPickup`. It should be a *phase within the action's own handler*. The action type stays the same throughout (e.g., `ActionForage` or `ActionFillVessel`); the handler detects which phase it's in and acts accordingly.
+
+**Current self-managing actions:**
+- `ActionFillVessel` — Phase 1: procure empty vessel (if on ground). Phase 2: move to water and fill.
+- `ActionForage` — Phase 1: procure vessel (optional, based on scoring). Phase 2: move to food and pick up.
+
+**Shared procurement helper** (`picking.go`): Self-managing actions share a `RunVesselProcurement` tick helper rather than duplicating vessel procurement logic. Each tick, the action handler calls the helper; it returns `true` when the vessel is in hand (proceed to main phase), `false` if still working on procurement (moved or picked up this tick), or signals failure by nilling the intent. This keeps procurement logic in one place while each action owns its lifecycle.
+
+```
+Action handler pseudocode:
+    if needsVessel && !hasVessel {
+        ready := RunVesselProcurement(char, items, gameMap, log)
+        if !ready { return }  // still procuring, or failed (intent nil)
+    }
+    // Main phase: do the real work
+```
+
+**Why not centralize in ActionPickup?** An earlier design (Option B) considered making `Pickup()` a pure helper and routing all post-pickup decisions through the `ActionPickup` handler. This was rejected because it creates a central dispatcher that must understand every context that triggers a pickup — the opposite of self-managing. It scales poorly as new multi-phase activities are added (Water Garden, future Construction activities). Self-managing actions distribute that knowledge to the actions that need it.
+
+**Phase detection:** Handlers detect their current phase by checking world state (e.g., "is my target vessel on the ground or in inventory?") rather than storing explicit phase numbers. This is stateless and survives save/load without additional serialization.
+
+### When to Use Self-Managing Actions vs ActionPickup
+
+| Scenario | Action Type | Why |
+|----------|-------------|-----|
+| Multi-phase idle activity (forage with vessel, fetch water) | Self-managing (`ActionForage`, `ActionFillVessel`) | Needs continuous flow across phases without returning to idle selection |
+| Simple one-off pickup (order prerequisite, single item) | `ActionPickup` | No continuation needed; re-selection on next tick handles follow-up |
+| Order-driven harvest (fill vessel with food) | `ActionPickup` with order context | Continuation logic is in the ActionPickup handler, driven by `AssignedOrderID` |
+
+**Adding a new self-managing action:**
+1. Define the ActionType constant in `character.go`
+2. Add the `applyIntent` handler in `update.go`
+3. Use `RunVesselProcurement` (or future shared helpers) for procurement phases
+4. Intent-finding function returns the new ActionType; handler owns all phases from there
+5. Messaging is naturally contextual — the handler knows its own purpose
 
 ### Benefits
 
@@ -247,6 +283,7 @@ Some actions manage their full lifecycle across multiple phases without returnin
 - No need to update exclusion lists when adding new triggering contexts
 - Clean separation enables future multi-step orders (e.g., Craft: ActionPickup → ActionMove → ActionCraft)
 - Self-managing actions enable complex autonomous behaviors without polluting intent system
+- Shared procurement helpers prevent duplication across self-managing actions
 
 ### Code Structure
 
@@ -259,14 +296,15 @@ Some actions manage their full lifecycle across multiple phases without returnin
 
 ## Pickup Activity Code Organization
 
-Picking up items is shared across multiple activities (foraging, harvesting) with different target selection and completion criteria. All use `ActionPickup` but have different triggering contexts.
+Picking up items is shared across multiple activities with different target selection, continuation, and completion criteria.
 
 | File | Contents | Responsibility |
 |------|----------|----------------|
-| `picking.go` | `Pickup()`, `Drop()`, `DropItem()`, vessel helpers, `EnsureHasVesselFor()`, `EnsureHasRecipeInputs()`, `findNearestItemByType()`, `ConsumePlantable()` | Physical pickup/drop, vessel operations, prerequisite helpers, map search utilities |
-| `foraging.go` | `findForageIntent()`, scoring functions | Foraging targeting and unified scoring |
+| `picking.go` | `Pickup()`, `Drop()`, `DropItem()`, vessel helpers, `EnsureHasVesselFor()`, `EnsureHasRecipeInputs()`, `RunVesselProcurement()`, `findNearestItemByType()`, `ConsumePlantable()` | Physical pickup/drop, vessel operations, prerequisite helpers, procurement tick helpers, map search utilities |
+| `foraging.go` | `findForageIntent()`, scoring functions | Foraging targeting and unified scoring. Returns `ActionForage` intent. |
+| `fetch_water.go` | `findFetchWaterIntent()` | Fetch water targeting. Returns `ActionFillVessel` intent. |
 | `order_execution.go` | `findHarvestIntent()`, `findCraftIntent()`, `findPlantIntent()` | Order-specific intent finding |
-| `idle.go` | `selectIdleActivity()` | Calls foraging as one idle option |
+| `idle.go` | `selectIdleActivity()` | Calls foraging/fetch water as idle options |
 | `update.go` | `applyIntent()` ActionPickup/ActionCraft cases | Executes actions, handles continuation |
 
 ### Pickup Result Pattern
