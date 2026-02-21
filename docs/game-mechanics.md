@@ -494,7 +494,7 @@ Tilled soil is a terrain state that modifies the ground without blocking movemen
 
 ### Visual
 
-Empty tilled tiles render as `═══` (box-drawing lines) in olive. When a character or item occupies a tilled tile, the entity renders normally with `═X═` fill padding. The tilled state is shown in the details panel.
+Empty tilled tiles render as `═══` (box-drawing lines) in dusky earth. When a character or item occupies a tilled tile, the entity renders normally with `═X═` fill padding. The tilled state is shown in the details panel.
 
 ### Marked-for-Tilling Pool
 
@@ -522,9 +522,9 @@ When a character executes a Plant order, the planted item is consumed and replac
 ### Sprout Appearance
 
 Sprouts render as `𖧧` (bold). Color depends on conditions:
-- **Wet tile** (adjacent to water): green
+- **Wet tile**: dark teal
 - **Mushroom variety**: variety's own color
-- **Otherwise**: olive
+- **Otherwise**: muted green
 
 When a sprout is on tilled soil, the tile renders as `═𖧧═` (same fill pattern as other entities on tilled soil).
 
@@ -560,7 +560,7 @@ Tiles can be wet from two sources, both checked via `IsWet(pos)`:
 - **Water-adjacent**: Tiles 8-directionally adjacent to any water tile (pond or spring) are always wet. Computed on the fly — no persistent state.
 - **Manually watered**: Tiles watered by a character executing a Water Garden order. Wetness decays after approximately 3 world days (see `config.WateredTileDuration`). Stored as a timer map on the game map and persisted in save files.
 
-**Visual**: Wet tilled tiles render green `═══` instead of olive. Applies to empty wet tilled tiles and the fill padding around entities on wet tilled soil.
+**Visual**: Wet tilled tiles render dark brown `═══` instead of dusky earth. Applies to empty wet tilled tiles and the fill padding around entities on wet tilled soil.
 
 **Growth effect**: Wet tiles accelerate sprout maturation and plant reproduction. See `config.WetGrowthMultiplier`. Growth code calls only `IsWet()` — both wetness sources get the bonus automatically.
 

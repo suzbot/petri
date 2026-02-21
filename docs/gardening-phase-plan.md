@@ -2221,8 +2221,40 @@ Start a new world and play through the full garden lifecycle:
 ---
 #### Slice 8 Polish (from human testing feedback)
 
-- **Log wording**: "Watered garden tile" → more natural phrasing like "Watered garden plot" or "Watered garden plant"
-- **Wet tilled soil colors**: Current green/olive don't look natural and aren't easily differentiable. Watered soil doesn't turn green in real life — needs a color rethink (e.g., darker brown for wet vs lighter for dry, or subtle blue tint)
+##### Step: Color and log polish ✅
+
+**Anchor story:** The garden looks more natural — dry tilled soil is a warm earthy tone, wet soil darkens like real wet dirt, and sprouts shift from muted green to a cool teal when watered. The action log reads naturally: "Watered the garden."
+
+**Design decisions:**
+- Deviate from original req ("green for wet") based on human testing feedback — green soil looked unnatural and was hard to differentiate from olive
+- Dry tilled soil: dusky earth (color 138) — replaces olive (142/`growingStyle`)
+- Wet tilled soil: dark brown (color 94) — replaces green (34/`greenStyle`)
+- Dry sprouts: muted green (color 107) — replaces sage (108/`sproutStyle`)
+- Wet sprouts: dark teal (color 29) — replaces green (34/`greenStyle`)
+- Mushroom sprouts: unchanged — still render in parent variety color regardless of wet/dry
+- Mature plants: unchanged — still render in variety color regardless of wet/dry soil
+- Log wording: "Watered the garden" — replaces "Watered garden tile"
+
+No tests needed (CLAUDE.md: no tests for UI rendering, display names, configuration constants).
+
+**Code changes:**
+- `styles.go`: Update `growingStyle` to color 138, `sproutStyle` to color 107. Add `wetTilledStyle` (color 94) and `wetSproutStyle` (color 29). Wet soil and wet sprouts get dedicated styles rather than reusing `greenStyle`.
+- `view.go`: Wet tilled soil rendering (~lines 554-555) uses `wetTilledStyle` instead of `greenStyle`. Wet tilled fill (~lines 569-570) same. Wet sprout rendering (~line 682) uses `wetSproutStyle` instead of `greenStyle`.
+- `update.go`: Change log message (~line 1386) from "Watered garden tile" to "Watered the garden".
+
+**[TEST] Checkpoint — Color and log polish:**
+- Dry tilled soil renders as dusky earth (warm tan, distinct from old olive)
+- Wet tilled soil renders as dark brown (darker than dry, naturalistic)
+- Dry sprouts are muted green on dusky earth soil
+- Wet sprouts are dark teal on dark brown soil
+- Dry→wet transition is visually clear side by side
+- Mushroom sprouts still show variety color on both dry and wet soil
+- Mature plants show variety color on both dry and wet soil
+- Action log says "Watered the garden" when character waters a tile
+
+**[DOCS]** Update docs via `/update-docs`.
+
+**[RETRO]** Run `/retro`.
 
 ---
 #### Post-Slice 8: `continueIntent` Look-Transition Cleanup

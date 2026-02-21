@@ -549,12 +549,12 @@ func (m Model) renderCell(x, y int) string {
 			fill = waterFill
 		}
 	} else if m.gameMap.IsTilled(pos) {
-		// Empty tilled tile — full terrain fill (green if wet, olive if dry)
-		tilledStyle := growingStyle
+		// Empty tilled tile — full terrain fill (dark brown if wet, dusky earth if dry)
+		tStyle := tilledStyle
 		if m.gameMap.IsWet(pos) {
-			tilledStyle = greenStyle
+			tStyle = wetTilledStyle
 		}
-		tilledFill := tilledStyle.Render(string(config.CharTilledSoil))
+		tilledFill := tStyle.Render(string(config.CharTilledSoil))
 		sym = tilledFill
 		fill = tilledFill
 	} else if feature := m.gameMap.FeatureAt(pos); feature != nil {
@@ -563,13 +563,13 @@ func (m Model) renderCell(x, y int) string {
 		sym = " "
 	}
 
-	// Entities on tilled soil get terrain fill padding (green if wet, olive if dry)
+	// Entities on tilled soil get terrain fill padding (dark brown if wet, dusky earth if dry)
 	if fill == "" && m.gameMap.IsTilled(pos) {
-		tilledStyle := growingStyle
+		tStyle := tilledStyle
 		if m.gameMap.IsWet(pos) {
-			tilledStyle = greenStyle
+			tStyle = wetTilledStyle
 		}
-		fill = tilledStyle.Render(string(config.CharTilledSoil))
+		fill = tStyle.Render(string(config.CharTilledSoil))
 	}
 
 	// Area selection highlighting (only visible during tillSoil step 2)
@@ -679,7 +679,7 @@ func (m Model) styledSymbol(e entity.Entity) string {
 		// Sprout rendering: sage for most, green on wet ground, variety color for mushrooms
 		if v.Plant != nil && v.Plant.IsSprout && v.ItemType != "mushroom" {
 			if m.gameMap.IsWet(v.Pos()) {
-				return greenStyle.Render(sym)
+				return wetSproutStyle.Render(sym)
 			}
 			return sproutStyle.Render(sym)
 		}

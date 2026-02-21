@@ -1383,7 +1383,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			}
 
 			if m.actionLog != nil {
-				m.actionLog.Add(char.ID, char.Name, "activity", "Watered garden tile")
+				m.actionLog.Add(char.ID, char.Name, "activity", "Watered the garden")
 			}
 
 			char.CurrentActivity = "Idle"
