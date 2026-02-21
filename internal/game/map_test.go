@@ -791,3 +791,121 @@ func TestIsWet_WaterTileItself(t *testing.T) {
 		t.Error("IsWet() should return false for water tiles themselves")
 	}
 }
+
+// =============================================================================
+// Manually Watered Tile Tests
+// =============================================================================
+
+func TestSetManuallyWatered_BasicSetGet(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+
+	if m.IsManuallyWatered(pos) {
+		t.Error("should not be watered before setting")
+	}
+
+	m.SetManuallyWatered(pos)
+
+	if !m.IsManuallyWatered(pos) {
+		t.Error("should be watered after setting")
+	}
+}
+
+func TestIsManuallyWatered_FalseForNonWatered(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	m.SetManuallyWatered(types.Position{X: 5, Y: 5})
+
+	if m.IsManuallyWatered(types.Position{X: 10, Y: 10}) {
+		t.Error("should not be watered at unrelated position")
+	}
+}
+
+func TestIsWet_ManuallyWateredTile(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 10, Y: 10}
+
+	// Not near any water source
+	if m.IsWet(pos) {
+		t.Error("should not be wet before watering")
+	}
+
+	m.SetManuallyWatered(pos)
+
+	if !m.IsWet(pos) {
+		t.Error("manually watered tile should be wet")
+	}
+}
+
+func TestIsWet_WaterAdjacentStillWorks(t *testing.T) {
+	t.Parallel()
+
+	// Regression: water-adjacent wetness should still work after adding manual watering
+	m := NewMap(20, 20)
+	m.AddWater(types.Position{X: 10, Y: 10}, WaterPond)
+
+	if !m.IsWet(types.Position{X: 11, Y: 10}) {
+		t.Error("water-adjacent tile should still be wet")
+	}
+}
+
+func TestUpdateWateredTimers_Decrement(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+	m.SetManuallyWatered(pos)
+
+	// After partial decay, tile should still be watered
+	m.UpdateWateredTimers(100.0)
+
+	if !m.IsManuallyWatered(pos) {
+		t.Error("tile should still be watered after partial decay")
+	}
+}
+
+func TestUpdateWateredTimers_RemovesExpired(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+	m.SetManuallyWatered(pos)
+
+	// Decay past full duration — tile should no longer be watered
+	m.UpdateWateredTimers(400.0)
+
+	if m.IsManuallyWatered(pos) {
+		t.Error("tile should no longer be watered after timer expires")
+	}
+	if m.IsWet(pos) {
+		t.Error("tile should no longer be wet after timer expires")
+	}
+}
+
+func TestWateredPositions_ReturnsAll(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos1 := types.Position{X: 5, Y: 5}
+	pos2 := types.Position{X: 10, Y: 10}
+	m.SetManuallyWatered(pos1)
+	m.SetManuallyWatered(pos2)
+
+	positions := m.WateredPositions()
+	if len(positions) != 2 {
+		t.Fatalf("expected 2 watered positions, got %d", len(positions))
+	}
+
+	found := make(map[types.Position]bool)
+	for _, p := range positions {
+		found[p] = true
+	}
+	if !found[pos1] || !found[pos2] {
+		t.Error("returned positions should include both watered tiles")
+	}
+}

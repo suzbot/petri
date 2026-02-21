@@ -549,8 +549,12 @@ func (m Model) renderCell(x, y int) string {
 			fill = waterFill
 		}
 	} else if m.gameMap.IsTilled(pos) {
-		// Empty tilled tile — full terrain fill
-		tilledFill := growingStyle.Render(string(config.CharTilledSoil))
+		// Empty tilled tile — full terrain fill (green if wet, olive if dry)
+		tilledStyle := growingStyle
+		if m.gameMap.IsWet(pos) {
+			tilledStyle = greenStyle
+		}
+		tilledFill := tilledStyle.Render(string(config.CharTilledSoil))
 		sym = tilledFill
 		fill = tilledFill
 	} else if feature := m.gameMap.FeatureAt(pos); feature != nil {
@@ -559,9 +563,13 @@ func (m Model) renderCell(x, y int) string {
 		sym = " "
 	}
 
-	// Entities on tilled soil get terrain fill padding
+	// Entities on tilled soil get terrain fill padding (green if wet, olive if dry)
 	if fill == "" && m.gameMap.IsTilled(pos) {
-		fill = growingStyle.Render(string(config.CharTilledSoil))
+		tilledStyle := growingStyle
+		if m.gameMap.IsWet(pos) {
+			tilledStyle = greenStyle
+		}
+		fill = tilledStyle.Render(string(config.CharTilledSoil))
 	}
 
 	// Area selection highlighting (only visible during tillSoil step 2)
@@ -740,7 +748,13 @@ func (m Model) renderDetails() string {
 		} else {
 			lines = append(lines, " Type: Empty")
 		}
-		if m.gameMap.IsWet(cursorPos) {
+		if m.gameMap.IsManuallyWatered(cursorPos) {
+			label := "Watered"
+			if m.testCfg.Debug {
+				label = fmt.Sprintf("Watered (%.0fs)", m.gameMap.WateredTimer(cursorPos))
+			}
+			lines = append(lines, " "+waterStyle.Render(label))
+		} else if m.gameMap.IsWet(cursorPos) {
 			lines = append(lines, " "+waterStyle.Render("Wet"))
 		}
 		if m.testCfg.Debug {
@@ -924,7 +938,13 @@ func (m Model) renderDetails() string {
 		} else if m.gameMap.IsMarkedForTilling(cursorPos) {
 			lines = append(lines, " "+growingStyle.Render("Marked for tilling"))
 		}
-		if m.gameMap.IsWet(cursorPos) {
+		if m.gameMap.IsManuallyWatered(cursorPos) {
+			label := "Watered"
+			if m.testCfg.Debug {
+				label = fmt.Sprintf("Watered (%.0fs)", m.gameMap.WateredTimer(cursorPos))
+			}
+			lines = append(lines, " "+waterStyle.Render(label))
+		} else if m.gameMap.IsWet(cursorPos) {
 			lines = append(lines, " "+waterStyle.Render("Wet"))
 		}
 	} else if waterType != game.WaterNone {

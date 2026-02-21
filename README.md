@@ -14,6 +14,7 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 
 ## Latest Updates
 
+- **Water Garden Orders**: Players can order characters to water planted tiles using carried water vessels. Characters move through the garden, watering each dry tilled planted tile and consuming one unit of water per tile.
 - **Drinking from Vessels**: Characters can drink from water vessels they carry or find on the ground.
 - **Fetch Water**: Idle charachters can now fill a vessel with water to keep with them
 - **Plant Orders**: Players can order characters to plant on tilled soil.

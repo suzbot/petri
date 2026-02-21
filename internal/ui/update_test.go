@@ -2589,3 +2589,188 @@ func TestApplyIntent_DrinkFromTerrain_DoesNotClearIntent(t *testing.T) {
 		t.Error("Expected intent to persist for terrain drinking")
 	}
 }
+
+// =============================================================================
+// ActionWaterGarden Tests
+// =============================================================================
+
+// Anchor test: Character at a dry tilled planted tile waters it — tile becomes wet,
+// 1 water unit consumed, order completes when it was the last dry tile.
+// Validates the user story: "water the closest dry tilled planted tile, watering uses
+// 1 unit of water, once there are no remaining dry tilled planted tiles, order is complete."
+func TestApplyIntent_WaterGarden_WatersTileConsumesWaterCompletesOrder(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"waterGarden"}
+	gameMap.AddCharacter(char)
+
+	// Vessel with 3 units of water in inventory
+	waterVariety := &entity.ItemVariety{
+		ID:       "liquid-water",
+		ItemType: "liquid",
+	}
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{{Variety: waterVariety, Count: 3}},
+		},
+	}
+	char.AddToInventory(vessel)
+
+	// Single dry tilled planted tile (at character's position)
+	tile := types.Position{X: 5, Y: 5}
+	gameMap.SetTilled(tile)
+	sprout := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 5, Y: 5, Sym: 'v', EType: entity.TypeItem},
+		ItemType:   "berry",
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true},
+	}
+	gameMap.AddItem(sprout)
+
+	// Create and assign order
+	order := entity.NewOrder(1, "waterGarden", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionWaterGarden,
+		Target:     tile,
+		Dest:       tile,
+		TargetItem: vessel,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	// Run enough ticks to complete watering (ActionDurationShort = 0.83s)
+	for i := 0; i < 20; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Tile should be wet
+	if !gameMap.IsManuallyWatered(tile) {
+		t.Error("Expected tile to be manually watered")
+	}
+
+	// 1 water unit consumed (3 → 2)
+	if len(vessel.Container.Contents) == 0 {
+		t.Fatal("Expected vessel to still have water remaining")
+	}
+	if vessel.Container.Contents[0].Count != 2 {
+		t.Errorf("Expected 2 water units remaining, got %d", vessel.Container.Contents[0].Count)
+	}
+
+	// Order should be completed (only tile is now wet)
+	if order.Status != entity.OrderCompleted {
+		t.Errorf("Order status: got %s, want %s", order.Status, entity.OrderCompleted)
+	}
+
+	// Character should be unassigned
+	if char.AssignedOrderID != 0 {
+		t.Error("Expected char.AssignedOrderID to be cleared after completion")
+	}
+
+	// Intent should be cleared
+	if char.Intent != nil {
+		t.Error("Expected intent to be nil after watering completes")
+	}
+}
+
+// When dry tiles remain after watering one, the order stays assigned (not completed).
+// Next tick, CalculateIntent will re-enter findWaterGardenIntent to find the next tile.
+func TestApplyIntent_WaterGarden_DoesNotCompleteWhenDryTilesRemain(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"waterGarden"}
+	gameMap.AddCharacter(char)
+
+	waterVariety := &entity.ItemVariety{
+		ID:       "liquid-water",
+		ItemType: "liquid",
+	}
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{{Variety: waterVariety, Count: 3}},
+		},
+	}
+	char.AddToInventory(vessel)
+
+	// Two dry tilled planted tiles — character will water tile1, tile2 remains dry
+	tile1 := types.Position{X: 5, Y: 5}
+	tile2 := types.Position{X: 8, Y: 8}
+	gameMap.SetTilled(tile1)
+	gameMap.SetTilled(tile2)
+
+	sprout1 := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 5, Y: 5, Sym: 'v', EType: entity.TypeItem},
+		ItemType:   "berry",
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true},
+	}
+	sprout2 := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 8, Y: 8, Sym: 'v', EType: entity.TypeItem},
+		ItemType:   "berry",
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true},
+	}
+	gameMap.AddItem(sprout1)
+	gameMap.AddItem(sprout2)
+
+	order := entity.NewOrder(1, "waterGarden", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionWaterGarden,
+		Target:     tile1,
+		Dest:       tile1,
+		TargetItem: vessel,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	for i := 0; i < 20; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Tile1 watered, tile2 still dry
+	if !gameMap.IsManuallyWatered(tile1) {
+		t.Error("Expected tile1 to be manually watered")
+	}
+	if gameMap.IsManuallyWatered(tile2) {
+		t.Error("Expected tile2 to still be dry")
+	}
+
+	// Order should NOT be completed — dry tiles remain
+	if order.Status == entity.OrderCompleted {
+		t.Error("Order should not be completed when dry tilled planted tiles remain")
+	}
+
+	// Character should still be assigned to the order
+	if char.AssignedOrderID != order.ID {
+		t.Error("Expected char to still be assigned to the order")
+	}
+
+	// Intent should be cleared (ordered pattern — re-evaluated next tick)
+	if char.Intent != nil {
+		t.Error("Expected intent to be nil after watering one tile")
+	}
+}

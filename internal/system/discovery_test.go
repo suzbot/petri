@@ -523,3 +523,42 @@ func TestTryDiscoverKnowHow_ActivityAlreadyKnownButNotRecipe(t *testing.T) {
 		t.Error("Expected character to know hollow-gourd recipe")
 	}
 }
+
+func TestTryDiscoverKnowHow_DiscoverWaterGardenOnFillVessel(t *testing.T) {
+	t.Parallel()
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	vessel := &entity.Item{ItemType: "vessel"}
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionFillVessel, vessel, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected discovery from filling a vessel")
+	}
+	if !char.KnowsActivity("waterGarden") {
+		t.Error("Expected character to know waterGarden")
+	}
+}
+
+func TestTryDiscoverKnowHow_DiscoverWaterGardenOnLookAtSprout(t *testing.T) {
+	t.Parallel()
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	sprout := &entity.Item{ItemType: "berry", Plantable: true}
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionLook, sprout, nil, 1.0)
+
+	// May discover other things first (plant, harvest) — check waterGarden eventually
+	// Run discovery multiple times to handle single-discovery-per-call
+	for i := 0; i < 10; i++ {
+		if char.KnowsActivity("waterGarden") {
+			break
+		}
+		TryDiscoverKnowHow(char, entity.ActionLook, sprout, nil, 1.0)
+	}
+
+	if !char.KnowsActivity("waterGarden") {
+		t.Error("Expected character to eventually discover waterGarden from looking at plantable item")
+	}
+	_ = discovered // first call may discover plant or harvest instead
+}

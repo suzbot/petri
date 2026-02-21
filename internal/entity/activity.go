@@ -119,6 +119,17 @@ var ActivityRegistry = map[string]Activity{
 			{Action: ActionPickup, RequiresPlantable: true},
 		},
 	},
+	"waterGarden": {
+		ID:              "waterGarden",
+		Name:            "Water garden",
+		Category:        "garden",
+		IntentFormation: IntentOrderable,
+		Availability:    AvailabilityKnowHow,
+		DiscoveryTriggers: []DiscoveryTrigger{
+			{Action: ActionFillVessel, ItemType: "vessel"},
+			{Action: ActionLook, RequiresPlantable: true},
+		},
+	},
 }
 
 // GetDiscoverableActivities returns all activities that require know-how

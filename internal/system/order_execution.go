@@ -127,6 +127,8 @@ func findOrderIntent(char *entity.Character, pos types.Position, items []*entity
 		return findTillSoilIntent(char, pos, items, order, log, gameMap)
 	case "plant":
 		return findPlantIntent(char, pos, items, order, log, gameMap)
+	case "waterGarden":
+		return findWaterGardenIntent(char, pos, items, order, log, gameMap)
 	default:
 		// Unknown activity type - cannot create intent
 		return nil
@@ -315,6 +317,9 @@ func isMultiStepOrderComplete(order *entity.Order, gameMap *game.Map) bool {
 		// Plant order is complete when LockedVariety is set (character planted at least once)
 		// and findPlantIntent returned nil (no more empty tiles or no more items).
 		return order.LockedVariety != ""
+	case "waterGarden":
+		// Complete when no dry tilled planted tiles remain
+		return !DryTilledPlantedTileExists(gameMap.Items(), gameMap)
 	default:
 		return false
 	}
@@ -504,6 +509,8 @@ func IsOrderFeasible(order *entity.Order, items []*entity.Item, gameMap *game.Ma
 		return itemExistsInWorld("hoe", chars, items) && HasUnfilledTillingPositions(gameMap), false
 	case "plant":
 		return PlantableItemExists(items, chars, order.TargetType), false
+	case "waterGarden":
+		return waterGardenFeasible(chars, items, gameMap), false
 	default:
 		return true, false // Unknown activity type, assume feasible
 	}
@@ -620,6 +627,113 @@ func HasUnfilledTillingPositions(gameMap *game.Map) bool {
 func HasEmptyTilledTile(gameMap *game.Map) bool {
 	for _, tpos := range gameMap.TilledPositions() {
 		if gameMap.ItemAt(tpos) == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// waterGardenFeasible checks if Water Garden can be fulfilled:
+// (1) vessel exists in world, (2) water exists on map, (3) at least one dry tilled planted tile.
+func waterGardenFeasible(chars []*entity.Character, items []*entity.Item, gameMap *game.Map) bool {
+	if !itemExistsInWorld("vessel", chars, items) {
+		return false
+	}
+	if len(gameMap.WaterPositions()) == 0 {
+		return false
+	}
+	return DryTilledPlantedTileExists(items, gameMap)
+}
+
+// findWaterGardenIntent creates an intent for watering garden tiles.
+// Phase 3 only (Step 4): assumes character has a vessel with water in inventory.
+// Returns nil if no vessel with water or no dry tilled planted tiles.
+// Step 5 adds procurement (Phase 1) and refill (Phase 2).
+func findWaterGardenIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	// Find vessel with water in inventory
+	vessel := findCarriedVesselWithWater(char)
+	if vessel == nil {
+		return nil // No water available — Step 5 adds procurement + refill
+	}
+
+	// Find nearest dry tilled planted tile
+	target := FindNearestDryTilledPlanted(pos, items, gameMap)
+	if target == nil {
+		return nil // No dry tiles — order complete
+	}
+
+	// At target — start watering
+	if pos.X == target.X && pos.Y == target.Y {
+		char.CurrentActivity = "Watering garden"
+		return &entity.Intent{
+			Target:     *target,
+			Dest:       *target,
+			Action:     entity.ActionWaterGarden,
+			TargetItem: vessel,
+		}
+	}
+
+	// Move toward target
+	nx, ny := NextStepBFS(pos.X, pos.Y, target.X, target.Y, gameMap)
+	newActivity := "Moving to water garden"
+	if char.CurrentActivity != newActivity {
+		char.CurrentActivity = newActivity
+	}
+	return &entity.Intent{
+		Target:     types.Position{X: nx, Y: ny},
+		Dest:       *target,
+		Action:     entity.ActionWaterGarden,
+		TargetItem: vessel,
+	}
+}
+
+// findCarriedVesselWithWater returns the first vessel in the character's inventory
+// that contains liquid (water). Returns nil if no such vessel exists.
+func findCarriedVesselWithWater(char *entity.Character) *entity.Item {
+	for _, item := range char.Inventory {
+		if item == nil || item.Container == nil {
+			continue
+		}
+		for _, stack := range item.Container.Contents {
+			if stack.Variety != nil && stack.Variety.ItemType == "liquid" && stack.Count > 0 {
+				return item
+			}
+		}
+	}
+	return nil
+}
+
+// FindNearestDryTilledPlanted finds the nearest tilled tile with a growing plant that is not wet.
+func FindNearestDryTilledPlanted(pos types.Position, items []*entity.Item, gameMap *game.Map) *types.Position {
+	var nearest *types.Position
+	nearestDist := int(^uint(0) >> 1)
+
+	for _, item := range items {
+		if item.Plant == nil || !item.Plant.IsGrowing {
+			continue
+		}
+		ipos := item.Pos()
+		if !gameMap.IsTilled(ipos) || gameMap.IsWet(ipos) {
+			continue
+		}
+		dist := pos.DistanceTo(ipos)
+		if dist < nearestDist {
+			nearestDist = dist
+			p := ipos
+			nearest = &p
+		}
+	}
+	return nearest
+}
+
+// DryTilledPlantedTileExists returns true if any tilled tile has a growing plant and is not wet.
+func DryTilledPlantedTileExists(items []*entity.Item, gameMap *game.Map) bool {
+	for _, item := range items {
+		if item.Plant == nil || !item.Plant.IsGrowing {
+			continue
+		}
+		pos := item.Pos()
+		if gameMap.IsTilled(pos) && !gameMap.IsWet(pos) {
 			return true
 		}
 	}

@@ -2204,3 +2204,251 @@ func TestFindAvailableOrder_ReturnsNilWhenAllUnfeasible(t *testing.T) {
 		t.Error("Should return nil when all orders are unfeasible")
 	}
 }
+
+// Water Garden feasibility tests
+
+func TestIsOrderFeasible_WaterGardenFeasible(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"waterGarden"}
+	gameMap.AddCharacter(char)
+
+	// Vessel on ground
+	vessel := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 7, Y: 5, Sym: 'U', EType: entity.TypeItem},
+		ItemType:   "vessel",
+	}
+	gameMap.AddItem(vessel)
+
+	// Water source
+	gameMap.AddWater(types.Position{X: 15, Y: 15}, game.WaterPond)
+
+	// Tilled + planted tile that is NOT wet
+	pos := types.Position{X: 3, Y: 3}
+	gameMap.SetTilled(pos)
+	sprout := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 3, Y: 3, Sym: 'v', EType: entity.TypeItem},
+		ItemType:   "berry",
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true},
+	}
+	gameMap.AddItem(sprout)
+
+	order := entity.NewOrder(1, "waterGarden", "")
+	items := gameMap.Items()
+
+	feasible, _ := IsOrderFeasible(order, items, gameMap)
+
+	if !feasible {
+		t.Error("Water garden should be feasible when vessel, water, and dry planted tilled tile exist")
+	}
+}
+
+func TestIsOrderFeasible_WaterGardenUnfeasible_NoDryPlantedTiles(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"waterGarden"}
+	gameMap.AddCharacter(char)
+
+	// Vessel on ground
+	vessel := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 7, Y: 5, Sym: 'U', EType: entity.TypeItem},
+		ItemType:   "vessel",
+	}
+	gameMap.AddItem(vessel)
+
+	// Water source
+	gameMap.AddWater(types.Position{X: 15, Y: 15}, game.WaterPond)
+
+	// Tilled tile with plant, but it's already wet (adjacent to water)
+	pos := types.Position{X: 14, Y: 15} // adjacent to pond
+	gameMap.SetTilled(pos)
+	sprout := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 14, Y: 15, Sym: 'v', EType: entity.TypeItem},
+		ItemType:   "berry",
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true},
+	}
+	gameMap.AddItem(sprout)
+
+	order := entity.NewOrder(1, "waterGarden", "")
+	items := gameMap.Items()
+
+	feasible, _ := IsOrderFeasible(order, items, gameMap)
+
+	if feasible {
+		t.Error("Water garden should be unfeasible when all planted tiles are already wet")
+	}
+}
+
+func TestIsOrderFeasible_WaterGardenUnfeasible_NoVessel(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"waterGarden"}
+	gameMap.AddCharacter(char)
+
+	// Water source but no vessel
+	gameMap.AddWater(types.Position{X: 15, Y: 15}, game.WaterPond)
+
+	// Dry tilled planted tile
+	pos := types.Position{X: 3, Y: 3}
+	gameMap.SetTilled(pos)
+	sprout := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 3, Y: 3, Sym: 'v', EType: entity.TypeItem},
+		ItemType:   "berry",
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true},
+	}
+	gameMap.AddItem(sprout)
+
+	order := entity.NewOrder(1, "waterGarden", "")
+	items := gameMap.Items()
+
+	feasible, _ := IsOrderFeasible(order, items, gameMap)
+
+	if feasible {
+		t.Error("Water garden should be unfeasible when no vessel exists")
+	}
+}
+
+// =============================================================================
+// findWaterGardenIntent
+// =============================================================================
+
+func TestFindWaterGardenIntent_ReturnsActionWaterGarden(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"waterGarden"}
+	gameMap.AddCharacter(char)
+
+	// Character carries vessel with water
+	waterVariety := &entity.ItemVariety{
+		ID:       "liquid-water",
+		ItemType: "liquid",
+	}
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{{Variety: waterVariety, Count: 3}},
+		},
+	}
+	char.AddToInventory(vessel)
+
+	// Dry tilled planted tile
+	pos := types.Position{X: 7, Y: 5}
+	gameMap.SetTilled(pos)
+	sprout := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 7, Y: 5, Sym: 'v', EType: entity.TypeItem},
+		ItemType:   "berry",
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true},
+	}
+	gameMap.AddItem(sprout)
+
+	order := entity.NewOrder(1, "waterGarden", "")
+	items := gameMap.Items()
+
+	intent := findWaterGardenIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected intent, got nil")
+	}
+	if intent.Action != entity.ActionWaterGarden {
+		t.Errorf("Expected ActionWaterGarden, got %v", intent.Action)
+	}
+	if intent.Dest != pos {
+		t.Errorf("Expected dest %v, got %v", pos, intent.Dest)
+	}
+	if intent.TargetItem != vessel {
+		t.Error("Expected TargetItem to be the water vessel")
+	}
+}
+
+func TestFindWaterGardenIntent_ReturnsNilWhenNoVesselWithWater(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"waterGarden"}
+	gameMap.AddCharacter(char)
+
+	// Character carries empty vessel
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	char.AddToInventory(vessel)
+
+	// Dry tilled planted tile
+	pos := types.Position{X: 7, Y: 5}
+	gameMap.SetTilled(pos)
+	sprout := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 7, Y: 5, Sym: 'v', EType: entity.TypeItem},
+		ItemType:   "berry",
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true},
+	}
+	gameMap.AddItem(sprout)
+
+	order := entity.NewOrder(1, "waterGarden", "")
+	items := gameMap.Items()
+
+	intent := findWaterGardenIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent != nil {
+		t.Error("Expected nil intent when vessel has no water")
+	}
+}
+
+func TestFindWaterGardenIntent_ReturnsNilWhenNoDryTiles(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"waterGarden"}
+	gameMap.AddCharacter(char)
+
+	// Character carries vessel with water
+	waterVariety := &entity.ItemVariety{
+		ID:       "liquid-water",
+		ItemType: "liquid",
+	}
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{{Variety: waterVariety, Count: 3}},
+		},
+	}
+	char.AddToInventory(vessel)
+
+	// Tilled planted tile that is already wet (manually watered)
+	pos := types.Position{X: 7, Y: 5}
+	gameMap.SetTilled(pos)
+	gameMap.SetManuallyWatered(pos)
+	sprout := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 7, Y: 5, Sym: 'v', EType: entity.TypeItem},
+		ItemType:   "berry",
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true},
+	}
+	gameMap.AddItem(sprout)
+
+	order := entity.NewOrder(1, "waterGarden", "")
+	items := gameMap.Items()
+
+	intent := findWaterGardenIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent != nil {
+		t.Error("Expected nil intent when all tilled planted tiles are already wet")
+	}
+}

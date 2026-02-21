@@ -25,6 +25,7 @@ type SaveState struct {
 	WaterTiles      []WaterTileSave          `json:"water_tiles,omitempty"`
 	TilledPositions          []types.Position `json:"tilled_positions,omitempty"`
 	MarkedForTillingPositions []types.Position `json:"marked_for_tilling,omitempty"`
+	WateredTiles             []WateredTileSave `json:"watered_tiles_manual,omitempty"`
 	ActionLogs  map[int][]EventSave      `json:"action_logs"` // Per-character event logs, keyed by char ID
 	Orders      []OrderSave              `json:"orders,omitempty"`
 	NextOrderID int                      `json:"next_order_id,omitempty"`
@@ -176,6 +177,12 @@ type ItemSave struct {
 type WaterTileSave struct {
 	types.Position
 	WaterType int `json:"water_type"` // WaterType enum value (1=spring, 2=pond)
+}
+
+// WateredTileSave represents a manually watered tile with remaining timer
+type WateredTileSave struct {
+	types.Position
+	Remaining float64 `json:"remaining"` // seconds of wetness remaining
 }
 
 // FeatureSave represents a feature for serialization

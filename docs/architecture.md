@@ -275,13 +275,25 @@ Action handler pseudocode:
 
 **Phase detection:** Handlers detect their current phase by checking world state (e.g., "is my target vessel on the ground or in inventory?") rather than storing explicit phase numbers. This is stateless and survives save/load without additional serialization.
 
-### When to Use Self-Managing Actions vs ActionPickup
+### Action Categories: Need-Fulfilling, Idle, and Ordered
 
-| Scenario | Action Type | Why |
-|----------|-------------|-----|
-| Multi-phase idle activity (forage with vessel, fetch water) | Self-managing (`ActionForage`, `ActionFillVessel`) | Needs continuous flow across phases without returning to idle selection |
+Actions fall into three categories with different continuation and interruption semantics:
+
+**Need-fulfilling actions** (`ActionConsume`, `ActionDrink`, `ActionSleep`): Driven by stat urgency tiers. Direct single-phase actions — eat food, drink water, go to sleep. These are what the intent system prioritizes when stats are elevated.
+
+**Idle activities** (`ActionForage`, `ActionFillVessel`, `ActionLook`, `ActionTalk`): Chosen autonomously when no needs are pressing (`maxTier == TierNone`). Some are self-managing (Forage, FillVessel) with multi-phase flows that don't clear intent between phases, so the character doesn't have to win another idle roll to continue. **Idle activities are interruptible** — `CalculateIntent` checks `maxTier < TierModerate` before continuing an idle intent. If needs become Moderate+, the idle activity is dropped and the character pursues the need.
+
+**Ordered actions** (`ActionTillSoil`, `ActionPlant`, `ActionWaterGarden`, `ActionPickup` with order context, `ActionCraft`): Player-directed via orders. Handler completes one unit of work, then **clears intent**. Next tick, `CalculateIntent` re-evaluates: if needs are pressing, the order is paused (`PauseOrder`); if needs are clear, `selectIdleActivity` resumes the order via `AssignedOrderID` (bypasses idle cooldown). This one-tick idle window between work units is the mechanism that allows needs interruption and the order pause/resume system to function.
+
+**Key distinction:** Self-managing idle actions and ordered actions are both interruptible by needs, but through different mechanisms. Self-managing actions yield when `CalculateIntent` detects elevated tiers. Ordered actions yield because intent is cleared between work units, giving `CalculateIntent` a natural re-evaluation point.
+
+### When to Use Self-Managing Actions vs Ordered Actions
+
+| Scenario | Pattern | Why |
+|----------|---------|-----|
+| Multi-phase idle activity (forage with vessel, fetch water) | Self-managing (`ActionForage`, `ActionFillVessel`) | Continuous flow across phases without returning to idle selection |
+| Player-directed multi-step work (till soil, plant, water garden) | Ordered (clear intent between units) | Needs interruption + pause/resume via `AssignedOrderID` |
 | Simple one-off pickup (order prerequisite, single item) | `ActionPickup` | No continuation needed; re-selection on next tick handles follow-up |
-| Order-driven harvest (fill vessel with food) | `ActionPickup` with order context | Continuation logic is in the ActionPickup handler, driven by `AssignedOrderID` |
 
 **Adding a new self-managing action:**
 1. Define the ActionType constant in `character.go`
@@ -289,6 +301,12 @@ Action handler pseudocode:
 3. Use `RunVesselProcurement` (or future shared helpers) for procurement phases
 4. Intent-finding function returns the new ActionType; handler owns all phases from there
 5. Messaging is naturally contextual — the handler knows its own purpose
+
+**Adding a new ordered action:**
+1. Define the ActionType constant in `character.go`
+2. Add the `applyIntent` handler in `update.go` — complete one work unit, clear intent, check order completion inline
+3. Add `findXxxIntent()` in `order_execution.go` — handles target selection on each resumption tick
+4. Wire into `findOrderIntent` switch, `isMultiStepOrderComplete`, `IsOrderFeasible`
 
 ### Benefits
 
@@ -316,7 +334,7 @@ Picking up items is shared across multiple activities with different target sele
 | `picking.go` | `Pickup()`, `Drop()`, `DropItem()`, vessel helpers, `EnsureHasVesselFor()`, `EnsureHasRecipeInputs()`, `RunVesselProcurement()`, `findNearestItemByType()`, `ConsumePlantable()` | Physical pickup/drop, vessel operations, prerequisite helpers, procurement tick helpers, map search utilities |
 | `foraging.go` | `findForageIntent()`, scoring functions | Foraging targeting and unified scoring. Returns `ActionForage` intent. |
 | `fetch_water.go` | `findFetchWaterIntent()` | Fetch water targeting. Returns `ActionFillVessel` intent. |
-| `order_execution.go` | `findHarvestIntent()`, `findCraftIntent()`, `findPlantIntent()` | Order-specific intent finding |
+| `order_execution.go` | `findHarvestIntent()`, `findCraftIntent()`, `findTillSoilIntent()`, `findPlantIntent()`, `findWaterGardenIntent()` | Order-specific intent finding |
 | `idle.go` | `selectIdleActivity()` | Calls foraging/fetch water as idle options |
 | `update.go` | `applyIntent()` ActionPickup/ActionCraft cases | Executes actions, handles continuation |
 

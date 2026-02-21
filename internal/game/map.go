@@ -1,6 +1,7 @@
 package game
 
 import (
+	"petri/internal/config"
 	"petri/internal/entity"
 	"petri/internal/types"
 )
@@ -34,6 +35,9 @@ type Map struct {
 	// Marked-for-tilling pool (user's tilling plan, independent of orders)
 	markedForTilling map[types.Position]bool
 
+	// Manually watered tiles with decay timers (seconds remaining)
+	wateredTimers map[types.Position]float64
+
 	// ID counters for save/load
 	nextItemID    int
 	nextFeatureID int
@@ -55,6 +59,7 @@ func NewMap(width, height int) *Map {
 		water:            make(map[types.Position]WaterType),
 		tilled:           make(map[types.Position]bool),
 		markedForTilling: make(map[types.Position]bool),
+		wateredTimers:    make(map[types.Position]float64),
 	}
 }
 
@@ -389,12 +394,15 @@ func (m *Map) FindNearestWater(pos types.Position) (types.Position, bool) {
 	return nearestPos, found
 }
 
-// IsWet returns true if the position is adjacent (8-directional) to a water tile.
+// IsWet returns true if the position is wet from any source:
+// water-adjacent (8-directional) or manually watered by a character.
 // Water tiles themselves are not "wet" — they ARE water (impassable).
-// Computed on the fly, no persistent state.
 func (m *Map) IsWet(pos types.Position) bool {
 	if m.IsWater(pos) {
 		return false
+	}
+	if m.wateredTimers[pos] > 0 {
+		return true
 	}
 	dirs := [][2]int{
 		{-1, -1}, {0, -1}, {1, -1},
@@ -456,4 +464,47 @@ func (m *Map) MarkedForTillingPositions() []types.Position {
 		positions = append(positions, pos)
 	}
 	return positions
+}
+
+// SetManuallyWatered marks a position as manually watered with the full duration timer.
+func (m *Map) SetManuallyWatered(pos types.Position) {
+	m.wateredTimers[pos] = config.WateredTileDuration
+}
+
+// IsManuallyWatered returns true if the position has been manually watered and the timer hasn't expired.
+func (m *Map) IsManuallyWatered(pos types.Position) bool {
+	return m.wateredTimers[pos] > 0
+}
+
+// WateredPositions returns all positions that are currently manually watered.
+func (m *Map) WateredPositions() []types.Position {
+	positions := make([]types.Position, 0, len(m.wateredTimers))
+	for pos := range m.wateredTimers {
+		positions = append(positions, pos)
+	}
+	return positions
+}
+
+// SetWateredTimer sets a specific timer value for a position (used by save/load).
+func (m *Map) SetWateredTimer(pos types.Position, remaining float64) {
+	if remaining > 0 {
+		m.wateredTimers[pos] = remaining
+	}
+}
+
+// WateredTimer returns the remaining watered timer for a position (0 if not watered).
+func (m *Map) WateredTimer(pos types.Position) float64 {
+	return m.wateredTimers[pos]
+}
+
+// UpdateWateredTimers decrements all watered tile timers and removes expired ones.
+func (m *Map) UpdateWateredTimers(delta float64) {
+	for pos, remaining := range m.wateredTimers {
+		remaining -= delta
+		if remaining <= 0 {
+			delete(m.wateredTimers, pos)
+		} else {
+			m.wateredTimers[pos] = remaining
+		}
+	}
 }

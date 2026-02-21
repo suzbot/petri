@@ -55,12 +55,25 @@ Write a complete save state following the schema from Step 1. Key considerations
 - Use `version: 1` and set `map_width: 60`, `map_height: 60`
 - Position characters near relevant items/features
 - Set stat levels to trigger specific behaviors (e.g., low hunger to trigger eating)
+- **Saturate needs aggressively** (hunger=0, thirst=0, energy=98) to prevent characters from pursuing needs instead of the target behavior
 - Pre-populate knowledge/known_activities if testing knowledge-dependent behavior
 - Include water_tiles for drinking, features (leaf piles, feature_type: 2) for sleeping
 - Include varieties for all item types present
 - Set `next_item_id` higher than the highest item ID used
 - Set `talking_with_id: -1` for characters not in conversation
 - All items need complete fields: id, position, item_type, color, pattern, texture, edible, poisonous, healing, death_timer
+- **Vessel availability:** If testing a behavior that uses vessels, provide enough vessels to fill both inventory slots per character. Characters may autonomously pick up vessels for other idle activities (forage, fetch water) before the target behavior triggers — extra vessels prevent this from blocking the test.
+
+### Step 5.5: Verify Written Files (REQUIRED)
+
+After writing state.json, read it back and confirm key counts match intent:
+- Character count
+- Item count
+- Tilled positions count (if applicable)
+- `elapsed_game_time` is 0 (fresh world)
+- Characters have expected inventory contents
+
+Do NOT report to user until verification passes.
 
 ### Step 6: Report to User
 

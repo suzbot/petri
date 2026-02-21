@@ -666,6 +666,9 @@ func (m Model) updateGame(now time.Time) (Model, tea.Cmd) {
 	// Update item death timers (flowers die regardless of no-food mode)
 	system.UpdateDeathTimers(m.gameMap, delta)
 
+	// Update manually watered tile timers
+	m.gameMap.UpdateWateredTimers(delta)
+
 	// Update ground spawning (sticks, nuts, shells)
 	system.UpdateGroundSpawning(m.gameMap, delta, &m.groundSpawnTimers)
 
@@ -1342,8 +1345,60 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 				}
 			}
 
+			// Discovery from filling a vessel (triggers Water Garden know-how)
+			system.TryDiscoverKnowHow(char, entity.ActionFillVessel, vessel, m.actionLog, system.GetDiscoveryChance(char))
+
 			char.CurrentActivity = "Idle"
 			char.Intent = nil
+		}
+
+	case entity.ActionWaterGarden:
+		// Water Garden — ordered action pattern (like TillSoil, Plant).
+		// Waters one tile, clears intent. Next tick CalculateIntent re-evaluates:
+		// needs pressing → PauseOrder; needs clear → selectIdleActivity resumes order
+		// via AssignedOrderID → findWaterGardenIntent finds next dry tile.
+		// Step 5 adds procurement (Phase 1) and refill (Phase 2) phases.
+		cpos := char.Pos()
+		dest := char.Intent.Dest
+
+		if cpos.X != dest.X || cpos.Y != dest.Y {
+			// Not at destination — move toward it
+			m.moveWithCollision(char, cpos, delta)
+			return
+		}
+
+		// At destination — accumulate watering progress
+		if char.CurrentActivity != "Watering garden" {
+			char.CurrentActivity = "Watering garden"
+		}
+		char.ActionProgress += delta
+		if char.ActionProgress >= config.ActionDurationShort {
+			char.ActionProgress = 0
+
+			// Water the tile
+			m.gameMap.SetManuallyWatered(dest)
+
+			// Consume 1 unit of water from vessel
+			vessel := char.Intent.TargetItem
+			if vessel != nil {
+				system.DrinkFromVessel(vessel)
+			}
+
+			if m.actionLog != nil {
+				m.actionLog.Add(char.ID, char.Name, "activity", "Watered garden tile")
+			}
+
+			char.CurrentActivity = "Idle"
+			char.Intent = nil
+
+			// Check order completion — no dry tilled planted tiles remain
+			if char.AssignedOrderID != 0 {
+				if order := m.findOrderByID(char.AssignedOrderID); order != nil && order.ActivityID == "waterGarden" {
+					if !system.DryTilledPlantedTileExists(m.gameMap.Items(), m.gameMap) {
+						system.CompleteOrder(char, order, m.actionLog)
+					}
+				}
+			}
 		}
 	}
 }
@@ -1567,6 +1622,9 @@ func (m *Model) stepForward() {
 
 	// Update item death timers (flowers die regardless of no-food mode)
 	system.UpdateDeathTimers(m.gameMap, delta)
+
+	// Update manually watered tile timers
+	m.gameMap.UpdateWateredTimers(delta)
 
 	// Update ground spawning (sticks, nuts, shells)
 	system.UpdateGroundSpawning(m.gameMap, delta, &m.groundSpawnTimers)

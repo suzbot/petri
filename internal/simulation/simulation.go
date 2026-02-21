@@ -108,6 +108,7 @@ func RunTick(world *TestWorld, delta float64) {
 	system.UpdateSpawnTimers(world.GameMap, initialItemCount, delta)
 	system.UpdateSproutTimers(world.GameMap, initialItemCount, delta)
 	system.UpdateDeathTimers(world.GameMap, delta)
+	world.GameMap.UpdateWateredTimers(delta)
 
 	// Phase 5: Update ground spawning (sticks, nuts, shells)
 	system.UpdateGroundSpawning(world.GameMap, delta, &world.GroundSpawnTimers)

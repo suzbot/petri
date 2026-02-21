@@ -484,6 +484,8 @@ Some activities use area selection to define rectangular work zones:
 6. Press `Tab` to toggle between mark and unmark mode
 7. Press `Enter` when done → returns to activity selection
 
+**Water Garden**: Select Garden > Water Garden from orders panel → creates order immediately. Character must discover Water Garden know-how first (by filling a vessel with water). Character finds a vessel with water (or procures one), then walks to each dry tilled planted tile and waters it (consuming 1 water unit per tile). Order completes when no dry tilled planted tiles remain.
+
 **Marked-for-Tilling Pool**: Area selection adds tiles to a shared pool. Till Soil orders assign workers to that pool. Multiple orders = multiple workers on the same plan. Cancelling an order removes the worker but keeps marked tiles. Unmarking tiles (Tab to unmark mode) removes them from the pool without affecting orders.
 
 ## Tilled Soil
@@ -550,6 +552,17 @@ Sprouts cannot be picked up, foraged, or targeted by harvest orders. All `IsGrow
 ### ConsumePlantable Helper
 
 `ConsumePlantable` extracts a plantable item from a character's inventory or vessel contents for use in planting. It handles both loose inventory items and vessel stack items, restoring the item's `Kind`, `Plantable`, `Sym`, and `Edible` fields from the variety on extraction.
+
+## Watered Tiles
+
+Tiles can be wet from two sources, both checked via `IsWet(pos)`:
+
+- **Water-adjacent**: Tiles 8-directionally adjacent to any water tile (pond or spring) are always wet. Computed on the fly — no persistent state.
+- **Manually watered**: Tiles watered by a character executing a Water Garden order. Wetness decays after approximately 3 world days (see `config.WateredTileDuration`). Stored as a timer map on the game map and persisted in save files.
+
+**Visual**: Wet tilled tiles render green `═══` instead of olive. Applies to empty wet tilled tiles and the fill padding around entities on wet tilled soil.
+
+**Growth effect**: Wet tiles accelerate sprout maturation and plant reproduction. See `config.WetGrowthMultiplier`. Growth code calls only `IsWet()` — both wetness sources get the bonus automatically.
 
 ## Inventory
 

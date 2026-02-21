@@ -2091,14 +2091,36 @@ _Detailed breakdown TBD — high-level scope:_
 - `IsOrderFeasible` for waterGarden: vessel exists + water exists + dry tilled planted tile exists
 - Serialization: no new order fields needed (no TargetType, no LockedVariety)
 
-##### Step 4: findWaterGardenIntent + ActionWaterGarden (basic watering)
+##### Step 4: findWaterGardenIntent + ActionWaterGarden (basic watering) ✅
 
-_Detailed breakdown TBD — high-level scope:_
-- `ActionWaterGarden` action type constant
-- `findWaterGardenIntent()` in order_execution.go: checks for feasibility, returns ActionWaterGarden
-- ActionWaterGarden handler Phase 3 only (assume character has vessel with water): find nearest dry tilled planted tile, move to it, water it (SetManuallyWatered + consume 1 unit from vessel), auto-continue to next tile, complete when no dry tiles remain
-- Test with `/test-world` providing pre-filled water vessel
-- `isMultiStepOrderComplete` case for waterGarden
+**Design decision:** ActionWaterGarden follows the **ordered action pattern** (same as TillSoil, Plant), not the self-managing pattern. The handler completes one watering, clears intent, and lets `CalculateIntent` re-evaluate next tick. This provides needs interruption and order pause/resume. See architecture.md "Action Categories" section. Step 5's procurement/fill phases will use shared helpers (`RunVesselProcurement`) within the same handler, but Phase 3 (tile watering) clears intent between tiles.
+
+**Implementation:**
+
+Tests (TDD):
+- **Anchor test** (update_test.go): Character with water-filled vessel, assigned waterGarden order, at dry tilled planted tiles → waters all dry tiles, each consumes 1 water unit, order completes when no dry tiles remain
+- **Vessel empty test** (update_test.go): Character with 1 water unit, 2 dry tiles → waters 1 tile, vessel empties, intent clears (Step 5 adds refill)
+- `findWaterGardenIntent` returns ActionWaterGarden targeting nearest dry tilled planted tile (order_execution_test.go)
+- `findWaterGardenIntent` returns nil when no vessel with water in inventory (order_execution_test.go)
+- `findWaterGardenIntent` returns nil when all tilled planted tiles are already wet (order_execution_test.go)
+
+Code changes:
+- `ActionWaterGarden` action type constant in character.go
+- `findWaterGardenIntent()` in order_execution.go (replaces stub): find vessel with water in inventory → find nearest dry tilled planted tile → return ActionWaterGarden intent with vessel as TargetItem
+- Helper: `findCarriedVesselWithWater(char)` — returns first inventory vessel containing liquid
+- Helper: `FindNearestDryTilledPlanted(pos, items, gameMap)` — exported, returns nearest tilled+growing+not-wet position
+- ActionWaterGarden handler in update.go applyIntent: move to dest → accumulate progress (ActionDurationShort) → SetManuallyWatered + DrinkFromVessel → clear intent → check order completion inline (no dry tiles → CompleteOrder)
+- **Architecture pattern:** Ordered action pattern — handler clears intent after each tile, `findWaterGardenIntent` handles re-entry target selection
+
+**[TEST] Checkpoint — Basic watering:** ✅
+- `go test ./...` passes ✅
+- Build and run with `/test-world` providing character with water-filled vessel + dry tilled planted tiles ✅
+- Character moves to nearest dry tile, waters it (tile turns green), continues to next ✅
+- Water unit consumed per tile via DrinkFromVessel ✅
+- If vessel empties, character stops (Step 5 adds refill) ✅
+- Order completes when all planted tiles are wet ✅
+- Order abandons appropriately when vessel lacks water ✅
+- Polish items deferred to cleanup: log wording "Watered garden tile", wet soil color scheme
 
 ##### Step 5: Vessel Fill Phase + Procurement (full self-managing flow)
 
@@ -2138,6 +2160,12 @@ Start a new world and play through the full garden lifecycle:
 **[RETRO]** Run /retro.
 
 **Reqs reconciliation:** Lines 110-123. _"Discoverable by looking at sprout or water source or hollow gourd"_ — sprout via ActionLook trigger, water source via ActionFillVessel trigger (descoped lookable terrain, captured in triggered-enhancements.md), hollow gourd deferred (minor). _"Orderable"_ ✓. _"No Recipe Needed"_ ✓. _"Pre-requisite: at least one vessel full with water"_ ✓ (self-managing procurement + fill). _"water the closest dry tilled planted tile"_ ✓. _"Watering uses 1 unit of water"_ ✓. _"watered tile changes in appearance to green"_ ✓. _"tilled but not planted... green instead of olive"_ ✓. _"If have water left... look for closest dry tilled planted tile"_ ✓. _"vessel is empty, then refill vessel and continue"_ ✓. _"once there are no remaining dry tilled planted tiles, order is complete"_ ✓. _"more than one character can be watering at once"_ ✓.
+
+---
+#### Slice 8 Polish (from human testing feedback)
+
+- **Log wording**: "Watered garden tile" → more natural phrasing like "Watered garden plot" or "Watered garden plant"
+- **Wet tilled soil colors**: Current green/olive don't look natural and aren't easily differentiable. Watered soil doesn't turn green in real life — needs a color rethink (e.g., darker brown for wet vs lighter for dry, or subtle blue tint)
 
 ---
 ### Slice 9: Tuning and Enhancements

@@ -885,3 +885,45 @@ func TestWaterVesselSerialization_RoundTrip(t *testing.T) {
 		t.Errorf("Expected Kind 'water', got %q", stack.Variety.Kind)
 	}
 }
+
+func TestWateredTileSerialization_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	m := createTestModel()
+
+	// Manually water two tiles
+	pos1 := types.Position{X: 3, Y: 3}
+	pos2 := types.Position{X: 7, Y: 7}
+	m.gameMap.SetManuallyWatered(pos1)
+	m.gameMap.SetManuallyWatered(pos2)
+
+	// Partially decay one tile so timers differ
+	m.gameMap.UpdateWateredTimers(100.0)
+
+	// Save
+	state := m.ToSaveState()
+
+	// Load into a new model
+	m2 := FromSaveState(state, "test", TestConfig{})
+
+	// Both tiles should still be watered
+	if !m2.gameMap.IsManuallyWatered(pos1) {
+		t.Error("pos1 should be watered after round-trip")
+	}
+	if !m2.gameMap.IsManuallyWatered(pos2) {
+		t.Error("pos2 should be watered after round-trip")
+	}
+
+	// Both should show as wet
+	if !m2.gameMap.IsWet(pos1) {
+		t.Error("pos1 should be wet after round-trip")
+	}
+	if !m2.gameMap.IsWet(pos2) {
+		t.Error("pos2 should be wet after round-trip")
+	}
+
+	// Unwatered tile should not be wet (no water terrain nearby)
+	if m2.gameMap.IsWet(types.Position{X: 15, Y: 15}) {
+		t.Error("unwatered tile should not be wet")
+	}
+}

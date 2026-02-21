@@ -90,6 +90,7 @@ const (
 	SproutDuration         = 30.0 // seconds until sprout matures into a full plant
 	TilledGrowthMultiplier = 1.25 // 25% faster growth on tilled soil (tunable in Slice 9)
 	WetGrowthMultiplier    = 1.25 // 25% faster growth on wet tiles (tunable in Slice 9)
+	WateredTileDuration    = 360.0 // 3 world days (360 game seconds) until manual watering wears off
 
 	// Healing
 	HealAmount = 20.0 // health restored by healing items (instant)

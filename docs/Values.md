@@ -43,3 +43,9 @@ Example: Fetch Water went through four rounds of testing with new bugs each time
 Idle activities — the things characters choose to do on their own when no needs or orders are pressing — should never destroy player-relevant state. Need-driven behavior (eating, drinking, sleeping) may consume or displace things to ensure survival, and that's appropriate for a simulation. But idle choices should be safe by default.
 
 Example: Fetch Water only triggers when a character has or can find an empty vessel. It never dumps existing vessel contents to make room for water.
+
+## Demonstrate Alignment, Don't Assert It
+
+When claiming a new feature follows an existing pattern, cite the specific evidence — from architecture.md or from the code itself. "This follows the ordered action pattern" is an assertion; "This follows the ordered action pattern (architecture.md 'Action Categories' section) — handler clears intent after each work unit, resumption via AssignedOrderID bypass in selectIdleActivity" is a demonstration. If the architecture doc doesn't cover the relevant distinction, that's a signal to update it (via `/refine-feature`, `/new-phase`, or a general agent — not during implementation).
+
+Example: ActionWaterGarden was initially proposed as self-managing, then as ordered, with assertions of consistency both times. The actual code trace through CalculateIntent → selectIdleActivity → AssignedOrderID revealed which pattern was correct and why.

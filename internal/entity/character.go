@@ -96,7 +96,8 @@ const (
 	ActionTillSoil   // Tilling a marked tile (uses ActionProgress with ActionDurationMedium)
 	ActionPlant      // Planting a plantable item on tilled soil (uses ActionProgress with ActionDurationMedium)
 	ActionFillVessel // Filling a vessel with water at water terrain (self-managing, uses RunVesselProcurement)
-	ActionForage     // Foraging food items, optionally picking up vessel first (self-managing, uses RunVesselProcurement)
+	ActionForage       // Foraging food items, optionally picking up vessel first (self-managing, uses RunVesselProcurement)
+	ActionWaterGarden  // Watering dry tilled planted tiles (self-managing, consumes vessel water)
 )
 
 // NewCharacter creates a new character with the given preferences

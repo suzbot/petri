@@ -26,6 +26,7 @@ func (m Model) ToSaveState() *save.SaveState {
 		WaterTiles:      waterTilesToSave(m.gameMap),
 		TilledPositions:           m.gameMap.TilledPositions(),
 		MarkedForTillingPositions: m.gameMap.MarkedForTillingPositions(),
+		WateredTiles:             wateredTilesToSaveManual(m.gameMap),
 		ActionLogs:      actionLogsToSave(m.actionLog),
 		Orders:          ordersToSave(m.orders),
 		NextOrderID:     m.nextOrderID,
@@ -284,6 +285,18 @@ func waterTilesToSave(gameMap *game.Map) []save.WaterTileSave {
 	return result
 }
 
+func wateredTilesToSaveManual(gameMap *game.Map) []save.WateredTileSave {
+	positions := gameMap.WateredPositions()
+	result := make([]save.WateredTileSave, len(positions))
+	for i, pos := range positions {
+		result[i] = save.WateredTileSave{
+			Position:  pos,
+			Remaining: gameMap.WateredTimer(pos),
+		}
+	}
+	return result
+}
+
 // FromSaveState creates a Model from a SaveState
 func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Model {
 	// Create base model
@@ -353,6 +366,11 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 	// Restore marked-for-tilling positions
 	for _, pos := range state.MarkedForTillingPositions {
 		m.gameMap.MarkForTilling(pos)
+	}
+
+	// Restore manually watered tiles
+	for _, wt := range state.WateredTiles {
+		m.gameMap.SetWateredTimer(wt.Position, wt.Remaining)
 	}
 
 	// Restore features (without auto-assigning IDs)
