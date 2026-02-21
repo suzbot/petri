@@ -907,8 +907,13 @@ func (m Model) renderDetails() string {
 				for _, stack := range item.Container.Contents {
 					if stack.Variety != nil {
 						stackSize := config.GetStackSize(stack.Variety.ItemType)
-						lines = append(lines, fmt.Sprintf("   %s: %d/%d",
-							stack.Variety.Description(), stack.Count, stackSize))
+						contentLine := fmt.Sprintf("   %s: %d/%d",
+							stack.Variety.Description(), stack.Count, stackSize)
+						if stack.Variety.ItemType == "liquid" {
+							contentLine = "   " + waterStyle.Render(fmt.Sprintf("%s: %d/%d",
+								stack.Variety.Description(), stack.Count, stackSize))
+						}
+						lines = append(lines, contentLine)
 					}
 				}
 			}
@@ -1270,8 +1275,13 @@ func (m Model) renderInventoryPanel() string {
 							for _, stack := range item.Container.Contents {
 								if stack.Variety != nil {
 									stackSize := config.GetStackSize(stack.Variety.ItemType)
-									lines = append(lines, fmt.Sprintf("      %s: %d/%d",
-										stack.Variety.Description(), stack.Count, stackSize))
+									contentLine := fmt.Sprintf("      %s: %d/%d",
+										stack.Variety.Description(), stack.Count, stackSize)
+									if stack.Variety.ItemType == "liquid" {
+										contentLine = "      " + waterStyle.Render(fmt.Sprintf("%s: %d/%d",
+											stack.Variety.Description(), stack.Count, stackSize))
+									}
+									lines = append(lines, contentLine)
 								}
 							}
 						}
