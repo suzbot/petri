@@ -1204,7 +1204,8 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 						char.ActionProgress = 0
 						system.Pickup(char, vessel, m.gameMap, m.actionLog, m.gameMap.Varieties())
 
-						// Transition to phase 2: find water and update intent
+						// Transition to phase 2: find water and create new intent
+						// (Pickup clears char.Intent, so we must build a fresh one)
 						waterPos, found := m.gameMap.FindNearestWater(cpos)
 						if !found {
 							char.CurrentActivity = "Idle"
@@ -1219,8 +1220,12 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 						}
 						waterDest := types.Position{X: adjX, Y: adjY}
 						nx, ny := system.NextStepBFS(cpos.X, cpos.Y, adjX, adjY, m.gameMap)
-						char.Intent.Dest = waterDest
-						char.Intent.Target = types.Position{X: nx, Y: ny}
+						char.Intent = &entity.Intent{
+							Action:     entity.ActionFillVessel,
+							Dest:       waterDest,
+							Target:     types.Position{X: nx, Y: ny},
+							TargetItem: vessel,
+						}
 						if m.actionLog != nil {
 							m.actionLog.Add(char.ID, char.Name, "activity", "Heading to water to fill vessel")
 						}

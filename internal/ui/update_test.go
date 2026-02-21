@@ -2097,3 +2097,66 @@ func TestApplyIntent_FillVessel_DoesNotOverfillPartialVessel(t *testing.T) {
 		t.Errorf("Expected 4 water units (capped), got %d", vessel.Container.Contents[0].Count)
 	}
 }
+
+func TestApplyIntent_FillVessel_GroundVesselPickupTransitionsToPhase2(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	registry := game.GenerateVarieties()
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Place empty vessel on the ground at same position as character
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Kind:     "hollow gourd",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	vessel.X = 5
+	vessel.Y = 5
+	vessel.EType = entity.TypeItem
+	gameMap.AddItem(vessel)
+
+	// Water nearby
+	waterPos := types.Position{X: 5, Y: 8}
+	gameMap.AddWater(waterPos, game.WaterPond)
+
+	// Intent targets ground vessel (phase 1)
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionFillVessel,
+		Target:     char.Pos(),
+		Dest:       char.Pos(),
+		TargetItem: vessel,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+	}
+
+	// Apply enough ticks to pick up vessel (phase 1) and transition to phase 2
+	// This previously panicked with nil pointer dereference on char.Intent
+	for i := 0; i < 20; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Vessel should be in inventory
+	if char.GetCarriedVessel() == nil {
+		t.Fatal("Expected vessel in inventory after phase 1 pickup")
+	}
+
+	// Intent should still exist (transitioning to phase 2, moving to water)
+	if char.Intent == nil {
+		t.Fatal("Expected intent to exist for phase 2 water-seeking")
+	}
+	if char.Intent.Action != entity.ActionFillVessel {
+		t.Errorf("Expected ActionFillVessel intent, got %d", char.Intent.Action)
+	}
+}

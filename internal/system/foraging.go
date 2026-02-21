@@ -170,13 +170,24 @@ func createPickupIntent(char *entity.Character, pos types.Position, target *enti
 	tpos := target.Pos()
 	tx, ty := tpos.X, tpos.Y
 
+	// Vessels use "Picking up" text; food items use "Foraging"
+	isVessel := target.Container != nil
+	atVerb := "Foraging "
+	movingVerb := "Moving to forage "
+	logVerb := "Foraging for "
+	if isVessel {
+		atVerb = "Picking up "
+		movingVerb = "Moving to pick up "
+		logVerb = "Picking up "
+	}
+
 	if pos.X == tx && pos.Y == ty {
 		// Already at target
-		newActivity := "Foraging " + target.Description()
+		newActivity := atVerb + target.Description()
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
 			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Foraging for "+itemType)
+				log.Add(char.ID, char.Name, "activity", logVerb+itemType)
 			}
 		}
 		return &entity.Intent{
@@ -189,11 +200,11 @@ func createPickupIntent(char *entity.Character, pos types.Position, target *enti
 
 	// Move toward target
 	nx, ny := NextStepBFS(pos.X, pos.Y, tx, ty, gameMap)
-	newActivity := "Moving to forage " + target.Description()
+	newActivity := movingVerb + target.Description()
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
 		if log != nil {
-			log.Add(char.ID, char.Name, "activity", "Foraging for "+itemType)
+			log.Add(char.ID, char.Name, "activity", logVerb+itemType)
 		}
 	}
 
