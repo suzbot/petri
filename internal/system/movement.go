@@ -289,6 +289,11 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		return intent
 	}
 
+	// ActionForage has two phases:
+	// Phase 1 (optional): TargetItem is a vessel on the ground — move toward it for pickup
+	// Phase 2: TargetItem is food on the ground — move toward it for pickup
+	// Both phases use the generic TargetItem-on-map check below, so no special handling needed.
+
 	// ActionFillVessel has two phases:
 	// Phase 1: TargetItem is on the map (ground vessel) — move toward it for pickup
 	// Phase 2: TargetItem is in inventory — move toward water Dest for filling
@@ -447,8 +452,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	}
 
 	// Check if we've arrived adjacent to an item for looking (no DrivingStat means looking intent)
-	// Skip if ActionPickup (foraging) - those need to move onto the item, not stay adjacent
-	if intent.TargetItem != nil && intent.DrivingStat == "" && intent.Action != entity.ActionPickup && isAdjacent(cx, cy, tx, ty) {
+	// Skip if ActionPickup/ActionForage - those need to move onto the item, not stay adjacent
+	if intent.TargetItem != nil && intent.DrivingStat == "" && intent.Action != entity.ActionPickup && intent.Action != entity.ActionForage && isAdjacent(cx, cy, tx, ty) {
 		newActivity := "Looking at " + intent.TargetItem.Description()
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity

@@ -247,13 +247,26 @@ Some actions manage their full lifecycle across multiple phases without returnin
 - `ActionFillVessel` — Phase 1: procure empty vessel (if on ground). Phase 2: move to water and fill.
 - `ActionForage` — Phase 1: procure vessel (optional, based on scoring). Phase 2: move to food and pick up.
 
-**Shared procurement helper** (`picking.go`): Self-managing actions share a `RunVesselProcurement` tick helper rather than duplicating vessel procurement logic. Each tick, the action handler calls the helper; it returns `true` when the vessel is in hand (proceed to main phase), `false` if still working on procurement (moved or picked up this tick), or signals failure by nilling the intent. This keeps procurement logic in one place while each action owns its lifecycle.
+**Shared procurement helper** (`picking.go`): Self-managing actions share a `RunVesselProcurement` tick helper rather than duplicating vessel procurement logic. Each tick, the action handler calls the helper; it returns a `ProcurementStatus` enum indicating the current state:
+- `ProcureReady` - Vessel is in hand, proceed to main phase
+- `ProcureApproaching` - Moving toward vessel
+- `ProcureInProgress` - Picking up vessel this tick
+- `ProcureFailed` - No vessel available (handler should nil intent or fall back)
+
+This keeps procurement logic in one place while each action owns its lifecycle.
 
 ```
 Action handler pseudocode:
     if needsVessel && !hasVessel {
-        ready := RunVesselProcurement(char, items, gameMap, log)
-        if !ready { return }  // still procuring, or failed (intent nil)
+        status := RunVesselProcurement(char, items, gameMap, log)
+        switch status {
+        case ProcureReady:
+            // proceed to main phase
+        case ProcureApproaching, ProcureInProgress:
+            return  // still procuring
+        case ProcureFailed:
+            // handle failure (nil intent or fall back)
+        }
     }
     // Main phase: do the real work
 ```
@@ -401,6 +414,10 @@ Two pathfinding strategies:
 - **`NextStep(fromX, fromY, toX, toY)`**: Greedy single-step movement toward target along the larger axis delta. No obstacle awareness. Used as fallback and by callers without gameMap access.
 
 - **`findAlternateStep()`**: Per-tick reactive routing around blocked tiles (characters and features). Used by `MoveCharacter` when the next step is occupied.
+
+### Movement Special Cases
+
+**Adjacent-item-look conversion**: In `movement.go`, when a character moves adjacent to their target item, the intent is normally converted to `ActionLook` (characters stop to look at items before picking them up). This conversion is bypassed for `ActionForage` - foraging characters walk directly onto food items instead of stopping. This is controlled by an action type check in the movement logic.
 
 ## Position Handling
 

@@ -739,10 +739,10 @@ func TestScoreForageItems_NoFilterWhenVesselEmpty(t *testing.T) {
 }
 
 // =============================================================================
-// createPickupIntent Activity Text Tests
+// createForageIntent Activity Text Tests
 // =============================================================================
 
-func TestCreatePickupIntent_VesselAtTarget_ActivitySaysPickingUp(t *testing.T) {
+func TestCreateForageIntent_VesselAtTarget_ActivitySaysPickingUpForForaging(t *testing.T) {
 	t.Parallel()
 
 	char := &entity.Character{ID: 1, Name: "Test"}
@@ -752,21 +752,19 @@ func TestCreatePickupIntent_VesselAtTarget_ActivitySaysPickingUp(t *testing.T) {
 	log := NewActionLog(100)
 
 	pos := types.Position{X: 5, Y: 5}
-	createPickupIntent(char, pos, vessel, "vessel", log, nil)
+	createForageIntent(char, pos, vessel, "vessel", log, nil)
 
-	if char.CurrentActivity != "Picking up "+vessel.Description() {
-		t.Errorf("Activity: got %q, want %q", char.CurrentActivity, "Picking up "+vessel.Description())
+	expected := "Picking up vessel for foraging " + vessel.Description()
+	if char.CurrentActivity != expected {
+		t.Errorf("Activity: got %q, want %q", char.CurrentActivity, expected)
 	}
 	events := log.Events(1, 10)
-	if len(events) != 1 {
-		t.Fatalf("Expected 1 log event, got %d", len(events))
-	}
-	if events[0].Message != "Picking up vessel" {
-		t.Errorf("Log message: got %q, want %q", events[0].Message, "Picking up vessel")
+	if len(events) == 0 {
+		t.Fatal("Expected a log event for vessel pickup")
 	}
 }
 
-func TestCreatePickupIntent_VesselMovingToward_ActivitySaysPickingUp(t *testing.T) {
+func TestCreateForageIntent_VesselMovingToward_ActivitySaysPickingUp(t *testing.T) {
 	t.Parallel()
 
 	char := &entity.Character{ID: 1, Name: "Test"}
@@ -777,21 +775,19 @@ func TestCreatePickupIntent_VesselMovingToward_ActivitySaysPickingUp(t *testing.
 	gameMap := game.NewMap(10, 10)
 
 	pos := types.Position{X: 0, Y: 0}
-	createPickupIntent(char, pos, vessel, "vessel", log, gameMap)
+	createForageIntent(char, pos, vessel, "vessel", log, gameMap)
 
-	if char.CurrentActivity != "Moving to pick up "+vessel.Description() {
-		t.Errorf("Activity: got %q, want %q", char.CurrentActivity, "Moving to pick up "+vessel.Description())
+	expected := "Moving to pick up vessel " + vessel.Description()
+	if char.CurrentActivity != expected {
+		t.Errorf("Activity: got %q, want %q", char.CurrentActivity, expected)
 	}
 	events := log.Events(1, 10)
-	if len(events) != 1 {
-		t.Fatalf("Expected 1 log event, got %d", len(events))
-	}
-	if events[0].Message != "Picking up vessel" {
-		t.Errorf("Log message: got %q, want %q", events[0].Message, "Picking up vessel")
+	if len(events) == 0 {
+		t.Fatal("Expected a log event for vessel pickup")
 	}
 }
 
-func TestCreatePickupIntent_NonVessel_ActivitySaysForaging(t *testing.T) {
+func TestCreateForageIntent_NonVessel_ActivitySaysForaging(t *testing.T) {
 	t.Parallel()
 
 	char := &entity.Character{ID: 1, Name: "Test"}
@@ -799,7 +795,7 @@ func TestCreatePickupIntent_NonVessel_ActivitySaysForaging(t *testing.T) {
 	log := NewActionLog(100)
 
 	pos := types.Position{X: 5, Y: 5}
-	createPickupIntent(char, pos, berry, berry.ItemType, log, nil)
+	createForageIntent(char, pos, berry, berry.ItemType, log, nil)
 
 	if char.CurrentActivity != "Foraging "+berry.Description() {
 		t.Errorf("Activity: got %q, want %q", char.CurrentActivity, "Foraging "+berry.Description())

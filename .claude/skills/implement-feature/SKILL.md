@@ -27,6 +27,7 @@ argument-hint: Feature or step to implement (e.g., "Slice 6 Step 3" or "sprout m
 Once approach is confirmed:
 - Write tests first
   - **Anchor tests to requirements, not implementation.** Before writing tests, restate the user story in one sentence. Write at least one test that validates the end-to-end intent of that story. Implementation-path tests are fine as supplements, but the anchor test should be: "does the user's described outcome happen?" A test like "returns ActionPickup" validates code structure; a test like "ground vessel ends up filled with water after action completes" validates intent.
+  - **Don't assert on exact log/activity wording** (per CLAUDE.md brittle string matching guideline). If you encounter existing tests that assert on exact message text, remove the brittle assertions — don't update them to match new wording.
 - Implement minimum code to pass tests
 - Run tests to verify
 - **Pause at each [TEST] checkpoint** for user to rebuild and manually test
