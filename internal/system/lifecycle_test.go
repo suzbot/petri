@@ -529,6 +529,59 @@ func TestUpdateSproutTimers_TilledAndWetStack(t *testing.T) {
 	}
 }
 
+func TestUpdateSproutTimers_RestoresEdibleFromVarietyRegistry(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+
+	// Register a poisonous gourd variety in the registry
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("gourd", types.ColorGreen, types.PatternSpotted, types.TextureWarty),
+		ItemType: "gourd",
+		Color:    types.ColorGreen,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureWarty,
+		Edible:   &entity.EdibleProperties{Poisonous: true, Healing: false},
+	})
+	gameMap.SetVarieties(registry)
+
+	// Create a gourd sprout with nil Edible (simulating seed-planted path)
+	sprout := &entity.Item{
+		BaseEntity: entity.BaseEntity{
+			X:     5,
+			Y:     5,
+			Sym:   config.CharSprout,
+			EType: entity.TypeItem,
+		},
+		ItemType: "gourd",
+		Color:    types.ColorGreen,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureWarty,
+		Plant: &entity.PlantProperties{
+			IsGrowing:   true,
+			IsSprout:    true,
+			SproutTimer: 1.0,
+		},
+		Edible: nil, // Bug: seed had no Edible, so sprout inherited nil
+	}
+	gameMap.AddItem(sprout)
+
+	// Mature the sprout
+	UpdateSproutTimers(gameMap, 40, 2.0)
+
+	// Edible should be restored from variety registry
+	if sprout.Edible == nil {
+		t.Fatal("Expected Edible to be restored from variety registry after maturation")
+	}
+	if !sprout.Edible.Poisonous {
+		t.Error("Expected Poisonous=true from variety registry")
+	}
+	if sprout.Edible.Healing {
+		t.Error("Expected Healing=false from variety registry")
+	}
+}
+
 func TestUpdateSproutTimers_SkipsNonSprouts(t *testing.T) {
 	t.Parallel()
 

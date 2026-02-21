@@ -55,6 +55,17 @@ func UpdateSproutTimers(gameMap *game.Map, initialItemCount int, delta float64) 
 			item.Sym = MatureSymbol(item.ItemType)
 			item.Plant.SpawnTimer = CalculateSpawnInterval(item.ItemType, initialItemCount)
 			item.DeathTimer = CalculateDeathInterval(item.ItemType, initialItemCount)
+
+			// Restore variety attributes from registry (sprouts from seeds may have nil Edible)
+			if registry := gameMap.Varieties(); registry != nil {
+				variety := registry.GetByAttributes(item.ItemType, item.Color, item.Pattern, item.Texture)
+				if variety != nil && variety.Edible != nil {
+					item.Edible = &entity.EdibleProperties{
+						Poisonous: variety.Edible.Poisonous,
+						Healing:   variety.Edible.Healing,
+					}
+				}
+			}
 		}
 	}
 }
