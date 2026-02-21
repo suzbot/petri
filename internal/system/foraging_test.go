@@ -737,3 +737,78 @@ func TestScoreForageItems_NoFilterWhenVesselEmpty(t *testing.T) {
 		t.Error("Empty vessel should not filter - should find closest edible item")
 	}
 }
+
+// =============================================================================
+// createPickupIntent Activity Text Tests
+// =============================================================================
+
+func TestCreatePickupIntent_VesselAtTarget_ActivitySaysPickingUp(t *testing.T) {
+	t.Parallel()
+
+	char := &entity.Character{ID: 1, Name: "Test"}
+	vessel := createTestVessel()
+	vessel.X = 5
+	vessel.Y = 5
+	log := NewActionLog(100)
+
+	pos := types.Position{X: 5, Y: 5}
+	createPickupIntent(char, pos, vessel, "vessel", log, nil)
+
+	if char.CurrentActivity != "Picking up "+vessel.Description() {
+		t.Errorf("Activity: got %q, want %q", char.CurrentActivity, "Picking up "+vessel.Description())
+	}
+	events := log.Events(1, 10)
+	if len(events) != 1 {
+		t.Fatalf("Expected 1 log event, got %d", len(events))
+	}
+	if events[0].Message != "Picking up vessel" {
+		t.Errorf("Log message: got %q, want %q", events[0].Message, "Picking up vessel")
+	}
+}
+
+func TestCreatePickupIntent_VesselMovingToward_ActivitySaysPickingUp(t *testing.T) {
+	t.Parallel()
+
+	char := &entity.Character{ID: 1, Name: "Test"}
+	vessel := createTestVessel()
+	vessel.X = 5
+	vessel.Y = 5
+	log := NewActionLog(100)
+	gameMap := game.NewMap(10, 10)
+
+	pos := types.Position{X: 0, Y: 0}
+	createPickupIntent(char, pos, vessel, "vessel", log, gameMap)
+
+	if char.CurrentActivity != "Moving to pick up "+vessel.Description() {
+		t.Errorf("Activity: got %q, want %q", char.CurrentActivity, "Moving to pick up "+vessel.Description())
+	}
+	events := log.Events(1, 10)
+	if len(events) != 1 {
+		t.Fatalf("Expected 1 log event, got %d", len(events))
+	}
+	if events[0].Message != "Picking up vessel" {
+		t.Errorf("Log message: got %q, want %q", events[0].Message, "Picking up vessel")
+	}
+}
+
+func TestCreatePickupIntent_NonVessel_ActivitySaysForaging(t *testing.T) {
+	t.Parallel()
+
+	char := &entity.Character{ID: 1, Name: "Test"}
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	log := NewActionLog(100)
+
+	pos := types.Position{X: 5, Y: 5}
+	createPickupIntent(char, pos, berry, berry.ItemType, log, nil)
+
+	if char.CurrentActivity != "Foraging "+berry.Description() {
+		t.Errorf("Activity: got %q, want %q", char.CurrentActivity, "Foraging "+berry.Description())
+	}
+	events := log.Events(1, 10)
+	if len(events) != 1 {
+		t.Fatalf("Expected 1 log event, got %d", len(events))
+	}
+	if events[0].Message != "Foraging for berry" {
+		t.Errorf("Log message: got %q, want %q", events[0].Message, "Foraging for berry")
+	}
+}

@@ -1725,7 +1725,24 @@ Each step follows the TDD cycle: write tests → add minimal stubs to compile �
 
 **Reqs reconciliation:** Lines 101-108. _"fill an empty vessel with water as an idle activity option"_ ✓ (Step 2), _"same vessel logic as foraging"_ ✓ (vessel-seeking reused), _"drink from the carried vessel instead of having to move to a water source"_ ✓ (Step 3, distance=0 prioritization), _"a dropped water vessel can be targeted for drinking"_ ✓ (Step 3, ground vessel search), _"a full vessel has 4 'drinks'/units of water in it"_ ✓ (Step 1, StackSize 4). Line 106 _"consider that drinking from carried vessel can be triggered earlier"_ — deferred to Slice 9 tuning.
 
-**Known issue (discovered during Slice 7 testing):** Gourds grown from seed sprouts do not inherit `Edible` from their variety. When a sprout matures, `MatureSymbol()` restores the symbol from the variety, but `Edible` properties are not restored. Fix: at maturation time in `lifecycle.go`, also restore `Edible` (and any future functional attributes) from the variety registry. This should be addressed before Slice 9 tuning since it affects food availability balance. The fix point is wherever `MatureSymbol()` is called — extend it to also restore `Edible` from the item's variety.
+#### Post-Slice 7 Bug Fixes (from randomideas.md issues 1a, 1c)
+
+Three fixes, tested and committed independently:
+
+**Fix 1A: "Foraging for vessel" text (text-only).** In `createPickupIntent` (foraging.go), when `itemType == "vessel"`, use different wording: "Picking up vessel" instead of "Foraging for vessel." Activity text and action log both affected. Surgical change to the text branch, no scoring logic changes.
+
+**Fix 1B: Empty vessel scoring tightened.** In `scoreForageVessels` (foraging.go), only score empty vessels when matching growing items exist — same requirement already applied to partial vessels. Removes "planning ahead" pickup of empty containers when no food is visible. Characters still pick up empty vessels when edible growing items exist nearby.
+
+**Fix 2: Edibility bug — sprout maturation restores variety attributes.** Root cause: gourd seeds have `Edible: nil` (seeds aren't food). `CreateSprout` receives `plantedItem.Edible` which is nil for seeds. When sprout matures in `UpdateSproutTimers`, `MatureSymbol()` restores the symbol but nothing restores `Edible`. Fix: at maturation time in `lifecycle.go`, look up the item's variety in the registry and restore `Edible` from it. Requires threading `VarietyRegistry` into `UpdateSproutTimers`. Forward-compatible for any future variety attributes.
+
+**Panic fix (discovered during Fix 1A testing):** `ActionFillVessel` phase 1→2 transition crashed with nil pointer dereference. `Pickup` clears `char.Intent`; the transition code then tried to mutate the nil intent. Fix: create a fresh `Intent` struct for phase 2. Regression test added: `TestApplyIntent_FillVessel_GroundVesselPickupTransitionsToPhase2`. ✅
+
+**Circle-back notes from Fix 1A testing:**
+
+1. **Vessel pickup messaging lacks intent context.** "Picking up vessel" is accurate but doesn't communicate *why* — for foraging vs for water. Needs design discussion about how to derive and display the driving intent.
+2. **Idle cooldown gap between vessel pickup and foraging.** After picking up a vessel, `Pickup` sets `IdleCooldown = 5s`. Character waits for next idle roll before foraging resumes. Consider whether foraging-motivated vessel pickup should bypass cooldown and immediately continue.
+3. **Fetch water ground vessel pickup confirmed working** after panic fix. ✅
+4. **Repeated "Heading to water to fill vessel" during movement.** Log shows the message re-firing every ~5s (idle cooldown interval), suggesting character re-acquires the fill intent each idle cycle rather than maintaining continuous movement. Expected flow: one "Heading to water" then "Filling vessel" actions. Investigate whether fetch water intent should persist through movement like drinking does.
 
 ---
 
