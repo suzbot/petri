@@ -41,11 +41,11 @@ func findForageIntent(char *entity.Character, pos types.Position, items []*entit
 
 	// Pick the better option (vessel wins ties - investment pays off)
 	if bestVessel != nil && bestVesselScore >= bestItemScore {
-		return createPickupIntent(char, pos, bestVessel, "vessel", log, gameMap)
+		return createForageIntent(char, pos, bestVessel, "vessel", log, gameMap)
 	}
 
 	if bestItem != nil {
-		return createPickupIntent(char, pos, bestItem, bestItem.ItemType, log, gameMap)
+		return createForageIntent(char, pos, bestItem, bestItem.ItemType, log, gameMap)
 	}
 
 	return nil
@@ -162,11 +162,12 @@ func findForageItemIntent(char *entity.Character, pos types.Position, items []*e
 	if target == nil {
 		return nil
 	}
-	return createPickupIntent(char, pos, target, target.ItemType, log, gameMap)
+	return createForageIntent(char, pos, target, target.ItemType, log, gameMap)
 }
 
-// createPickupIntent creates an intent to move to and pick up an item.
-func createPickupIntent(char *entity.Character, pos types.Position, target *entity.Item, itemType string, log *ActionLog, gameMap *game.Map) *entity.Intent {
+// createForageIntent creates an intent to move to and pick up an item as part of foraging.
+// All foraging intents use ActionForage (self-managing action).
+func createForageIntent(char *entity.Character, pos types.Position, target *entity.Item, itemType string, log *ActionLog, gameMap *game.Map) *entity.Intent {
 	tpos := target.Pos()
 	tx, ty := tpos.X, tpos.Y
 
@@ -174,11 +175,11 @@ func createPickupIntent(char *entity.Character, pos types.Position, target *enti
 	isVessel := target.Container != nil
 	atVerb := "Foraging "
 	movingVerb := "Moving to forage "
-	logVerb := "Foraging for "
+	logMsg := "Foraging for " + itemType
 	if isVessel {
-		atVerb = "Picking up "
-		movingVerb = "Moving to pick up "
-		logVerb = "Picking up "
+		atVerb = "Picking up vessel for foraging "
+		movingVerb = "Moving to pick up vessel "
+		logMsg = "Picking up vessel for foraging"
 	}
 
 	if pos.X == tx && pos.Y == ty {
@@ -187,13 +188,13 @@ func createPickupIntent(char *entity.Character, pos types.Position, target *enti
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
 			if log != nil {
-				log.Add(char.ID, char.Name, "activity", logVerb+itemType)
+				log.Add(char.ID, char.Name, "activity", logMsg)
 			}
 		}
 		return &entity.Intent{
 			Target:     pos,
 			Dest:       pos,
-			Action:     entity.ActionPickup,
+			Action:     entity.ActionForage,
 			TargetItem: target,
 		}
 	}
@@ -204,16 +205,27 @@ func createPickupIntent(char *entity.Character, pos types.Position, target *enti
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
 		if log != nil {
-			log.Add(char.ID, char.Name, "activity", logVerb+itemType)
+			log.Add(char.ID, char.Name, "activity", logMsg)
 		}
 	}
 
 	return &entity.Intent{
 		Target:     types.Position{X: nx, Y: ny},
 		Dest:       types.Position{X: tx, Y: ty},
-		Action:     entity.ActionPickup,
+		Action:     entity.ActionForage,
 		TargetItem: target,
 	}
+}
+
+// FindForageFoodIntent finds the best food target for a character who already has a vessel
+// (or doesn't need one). Exported for use by the ActionForage handler after vessel procurement.
+func FindForageFoodIntent(char *entity.Character, pos types.Position, items []*entity.Item, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	vessel := char.GetCarriedVessel()
+	target, _ := scoreForageItems(char, pos, items, vessel)
+	if target == nil {
+		return nil
+	}
+	return createForageIntent(char, pos, target, target.ItemType, log, gameMap)
 }
 
 // FindNextVesselTarget finds the next item to pick up when filling a vessel.

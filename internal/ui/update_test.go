@@ -2098,6 +2098,213 @@ func TestApplyIntent_FillVessel_DoesNotOverfillPartialVessel(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// ActionForage Tests
+// =============================================================================
+
+func TestApplyIntent_Forage_DirectFoodPickup_GoesIdle(t *testing.T) {
+	// Anchor: character forages food directly (no vessel). After pickup, goes idle.
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	registry := game.GenerateVarieties()
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Growing berry at character's position
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	berry.ID = 10
+	gameMap.AddItem(berry)
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionForage,
+		Target:     char.Pos(),
+		Dest:       char.Pos(),
+		TargetItem: berry,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+	}
+
+	// Apply enough ticks to complete pickup
+	for i := 0; i < 20; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Berry should be in inventory
+	hasBerry := false
+	for _, item := range char.Inventory {
+		if item != nil && item.ItemType == "berry" {
+			hasBerry = true
+			break
+		}
+	}
+	if !hasBerry {
+		t.Error("Expected berry in inventory after forage pickup")
+	}
+
+	// Character should be idle
+	if char.Intent != nil {
+		t.Error("Expected intent to be nil after forage completes")
+	}
+	if char.CurrentActivity != "Idle" {
+		t.Errorf("Expected activity 'Idle', got %q", char.CurrentActivity)
+	}
+}
+
+func TestApplyIntent_Forage_VesselThenFood_ContinuousAction(t *testing.T) {
+	// Anchor: character picks up vessel (phase 1), then continues to food (phase 2)
+	// as one continuous action — no idle gap in between.
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	// Registry must include a red berry variety so AddToVessel can look it up
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   &entity.EdibleProperties{},
+	})
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Empty vessel at character's position
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	vessel.ID = 20
+	vessel.X = 5
+	vessel.Y = 5
+	vessel.EType = entity.TypeItem
+	gameMap.AddItem(vessel)
+
+	// Growing berry nearby
+	berry := entity.NewBerry(5, 6, types.ColorRed, false, false)
+	berry.ID = 21
+	gameMap.AddItem(berry)
+
+	// Intent targets vessel (phase 1)
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionForage,
+		Target:     char.Pos(),
+		Dest:       char.Pos(),
+		TargetItem: vessel,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+	}
+
+	// Run ticks one at a time until vessel is picked up
+	vesselPickedUp := false
+	for i := 0; i < 30; i++ {
+		m.applyIntent(char, 0.1)
+		if char.GetCarriedVessel() != nil && !vesselPickedUp {
+			vesselPickedUp = true
+
+			// KEY ASSERTION: after vessel pickup, intent should target food — NOT idle.
+			// This is the core of the fix: no idle gap between vessel and food.
+			if char.Intent == nil {
+				t.Fatal("Expected intent to exist after vessel pickup (should continue to food)")
+			}
+			if char.Intent.Action != entity.ActionForage {
+				t.Errorf("Expected ActionForage intent for food phase, got %d", char.Intent.Action)
+			}
+			if char.Intent.TargetItem == vessel {
+				t.Error("Intent should target food item, not vessel")
+			}
+		}
+	}
+
+	if !vesselPickedUp {
+		t.Fatal("Vessel was never picked up")
+	}
+
+	// After all ticks, foraging should have completed: berry in vessel, character idle
+	hasFood := false
+	for _, item := range char.Inventory {
+		if item != nil && item.Container != nil && len(item.Container.Contents) > 0 {
+			if item.Container.Contents[0].Variety != nil && item.Container.Contents[0].Variety.ItemType == "berry" {
+				hasFood = true
+			}
+		}
+	}
+	if !hasFood {
+		t.Error("Expected berry in vessel after food pickup")
+	}
+
+	if char.CurrentActivity != "Idle" {
+		t.Errorf("Expected activity 'Idle' after completing forage, got %q", char.CurrentActivity)
+	}
+}
+
+func TestApplyIntent_Forage_VesselGone_GoesIdle(t *testing.T) {
+	// When vessel target disappears during procurement, character goes idle.
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	registry := game.GenerateVarieties()
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Vessel exists as struct but NOT on the map (simulates being taken)
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	vessel.ID = 30
+	vessel.X = 5
+	vessel.Y = 5
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionForage,
+		Target:     char.Pos(),
+		Dest:       char.Pos(),
+		TargetItem: vessel,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+	}
+
+	m.applyIntent(char, 0.1)
+
+	// Should fail and go idle
+	if char.Intent != nil {
+		t.Error("Expected intent to be nil after procurement failure")
+	}
+	if char.CurrentActivity != "Idle" {
+		t.Errorf("Expected 'Idle', got %q", char.CurrentActivity)
+	}
+}
+
+// =============================================================================
+// ActionFillVessel Tests
+// =============================================================================
+
 func TestApplyIntent_FillVessel_GroundVesselPickupTransitionsToPhase2(t *testing.T) {
 	t.Parallel()
 

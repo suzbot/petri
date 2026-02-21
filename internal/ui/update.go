@@ -867,7 +867,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		}
 
 	case entity.ActionPickup:
-		// Picking up an item (used by both foraging and harvest orders)
+		// Picking up an item (used by harvest orders and order prerequisites)
 		cpos := char.Pos()
 		cx, cy := cpos.X, cpos.Y
 
@@ -900,7 +900,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 
 					// Handle vessel filling continuation
 					if result == system.PickupToVessel {
-						// Only continue filling for orders, not autonomous foraging
+						// Continue filling for orders (autonomous foraging uses ActionForage)
 						if char.AssignedOrderID != 0 {
 							// On harvest order - continue until vessel full
 							if nextIntent := system.FindNextVesselTarget(char, cx, cy, m.gameMap.Items(), m.gameMap.Varieties(), m.gameMap); nextIntent != nil {
@@ -914,7 +914,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 								}
 							}
 						}
-						// Autonomous foraging or order complete - stop after one item
+						// Order complete or no continuation target - go idle
 						char.Intent = nil
 						char.IdleCooldown = config.IdleCooldown
 						char.CurrentActivity = "Idle"
@@ -1184,6 +1184,68 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			char.CurrentActivity = "Idle"
 			char.Intent = nil
 		}
+
+	case entity.ActionForage:
+		// Self-managing foraging action — two phases:
+		// Phase 1 (optional): If TargetItem is a vessel on the ground, pick it up via RunVesselProcurement
+		// Phase 2: Move to food target, pick it up, go idle
+		cpos := char.Pos()
+		target := char.Intent.TargetItem
+
+		// Phase 1: vessel procurement (if target is a vessel on the ground)
+		if target != nil && target.Container != nil {
+			status := system.RunVesselProcurement(char, target, m.gameMap, m.actionLog, m.gameMap.Varieties(), delta)
+			switch status {
+			case system.ProcureApproaching:
+				m.moveWithCollision(char, cpos, delta)
+				return
+			case system.ProcureInProgress:
+				return
+			case system.ProcureFailed:
+				return
+			case system.ProcureReady:
+				// Vessel in hand — find food target and continue
+				foodIntent := system.FindForageFoodIntent(char, cpos, m.gameMap.Items(), m.actionLog, m.gameMap)
+				if foodIntent == nil {
+					// No food available — go idle
+					char.CurrentActivity = "Idle"
+					char.Intent = nil
+					char.IdleCooldown = config.IdleCooldown
+					return
+				}
+				char.Intent = foodIntent
+				return
+			}
+		}
+
+		// Phase 2: food pickup
+		if target == nil {
+			char.CurrentActivity = "Idle"
+			char.Intent = nil
+			return
+		}
+
+		ipos := target.Pos()
+		if cpos.X == ipos.X && cpos.Y == ipos.Y {
+			// At food — accumulate pickup progress
+			char.ActionProgress += delta
+			if char.ActionProgress >= config.ActionDurationShort {
+				char.ActionProgress = 0
+				if item := m.gameMap.ItemAt(ipos); item == target {
+					system.Pickup(char, item, m.gameMap, m.actionLog, m.gameMap.Varieties())
+				}
+				// Foraging completes after one food item — go idle
+				// (Pickup already clears intent and sets idle cooldown for PickupToInventory)
+				// For PickupToVessel, Pickup does NOT clear intent, so we do it explicitly
+				char.Intent = nil
+				char.IdleCooldown = config.IdleCooldown
+				char.CurrentActivity = "Idle"
+			}
+			return
+		}
+
+		// Not at food yet — move toward it
+		m.moveWithCollision(char, cpos, delta)
 
 	case entity.ActionFillVessel:
 		// Fetch water action — two phases:

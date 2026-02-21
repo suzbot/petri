@@ -1797,7 +1797,7 @@ Called each tick by self-managing action handlers. Returns `true` when vessel is
 
 #### Implementation Steps
 
-**Step 1: RunVesselProcurement helper + ActionFillVessel refactor**
+**Step 1: RunVesselProcurement helper + ActionFillVessel refactor** ✅
 
 Extract vessel procurement from ActionFillVessel's inline phase-1 code into `RunVesselProcurement` in picking.go. Refactor ActionFillVessel handler to call it. Behavior should be identical — this is a pure extraction refactor.
 
@@ -1813,7 +1813,7 @@ Tests:
 - No repeated "Heading to water" spam. ✅
 - Contextual messaging: "Picking up vessel for water". ✅
 
-**Step 2: ActionForage — replace ActionPickup for foraging**
+**Step 2: ActionForage — replace ActionPickup for foraging** ✅
 
 Add `ActionForage` constant. `findForageIntent` returns `ActionForage` instead of `ActionPickup`. New `ActionForage` handler in update.go:
 - Phase 1 (optional): if intent targets a ground vessel, call `RunVesselProcurement`. On ready, transition to food-seeking phase (find best food target using existing scoring, update intent).
@@ -1830,14 +1830,19 @@ Tests:
 - Existing harvest order tests must pass unchanged (still use ActionPickup)
 - Existing craft/till/plant order prerequisite tests must pass unchanged
 
-**[TEST] Checkpoint — Foraging refactor:**
+**[TEST] Checkpoint — Foraging refactor:** ✅
 - Start a world. Watch foraging behavior: characters pick up food directly, or pick up vessel then food.
 - Verify log messages: "Foraging" activity, "Picking up vessel for foraging" when applicable — not "Foraging for vessel."
 - Verify harvest orders still work correctly (fill vessel via ActionPickup, not ActionForage).
 - Verify fetch water still works correctly (ActionFillVessel with shared procurement).
 - Verify no double-idle-roll: character picks up vessel and immediately continues to food without going idle in between.
 
-**[DOCS]**
+**Implementation notes:**
+- `ActionForage` bypasses the adjacent-item-look conversion in `movement.go` (characters walk onto food instead of stopping to look).
+- `RunVesselProcurement` returns `ProcurementStatus` enum (ProcureReady/ProcureApproaching/ProcureInProgress/ProcureFailed).
+- `ActionPickup` handler cleaned up — now only used by harvest orders and order prerequisites.
+
+**[DOCS]** ✅
 
 **[RETRO]**
 
