@@ -3,6 +3,7 @@ package ui
 import (
 	"testing"
 
+	"petri/internal/config"
 	"petri/internal/entity"
 	"petri/internal/game"
 	"petri/internal/system"
@@ -767,6 +768,9 @@ func TestSproutSerialization_RoundTrip(t *testing.T) {
 	}
 	if restoredSprout.ItemType != "berry" {
 		t.Errorf("Expected ItemType 'berry', got %q", restoredSprout.ItemType)
+	}
+	if restoredSprout.Sym != config.CharSprout {
+		t.Errorf("Expected sprout symbol %c, got %c", config.CharSprout, restoredSprout.Sym)
 	}
 }
 

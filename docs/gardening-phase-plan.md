@@ -1731,18 +1731,68 @@ Three fixes, tested and committed independently:
 
 **Fix 1A: "Foraging for vessel" text (text-only).** In `createPickupIntent` (foraging.go), when `itemType == "vessel"`, use different wording: "Picking up vessel" instead of "Foraging for vessel." Activity text and action log both affected. Surgical change to the text branch, no scoring logic changes.
 
-**Fix 1B: Empty vessel scoring tightened.** In `scoreForageVessels` (foraging.go), only score empty vessels when matching growing items exist — same requirement already applied to partial vessels. Removes "planning ahead" pickup of empty containers when no food is visible. Characters still pick up empty vessels when edible growing items exist nearby.
+**Fix 1B: Foraging vessel pickup should continue to food (not go idle).** Original framing was "tighten empty vessel scoring," but investigation revealed the real problem is deeper — see design discussion below.
 
-**Fix 2: Edibility bug — sprout maturation restores variety attributes.** Root cause: gourd seeds have `Edible: nil` (seeds aren't food). `CreateSprout` receives `plantedItem.Edible` which is nil for seeds. When sprout matures in `UpdateSproutTimers`, `MatureSymbol()` restores the symbol but nothing restores `Edible`. Fix: at maturation time in `lifecycle.go`, look up the item's variety in the registry and restore `Edible` from it. Requires threading `VarietyRegistry` into `UpdateSproutTimers`. Forward-compatible for any future variety attributes.
+**Fix 2: Edibility bug — sprout maturation restores variety attributes.**
+
+Root cause: gourd seeds have `Edible: nil` (seeds aren't food). `CreateSprout` receives `plantedItem.Edible` which is nil for seeds. When sprout matures in `UpdateSproutTimers`, `MatureSymbol()` restores the symbol but nothing restores `Edible`. Matured gourds from seeds are inedible.
+
+Fix site: `UpdateSproutTimers` in `lifecycle.go`, at the maturation block (line ~51). No signature change needed — `gameMap.Varieties()` already provides the registry. At maturation, look up the variety via `GetByAttributes(item.ItemType, item.Color, item.Pattern, item.Texture)` and restore `Edible` from it. Copy the struct (don't share pointer). Forward-compatible for any future variety attributes.
+
+Architecture pattern: Registry as source of truth (variety_registry.go `GetByAttributes`).
+
+Implementation steps:
+
+1. **Test** (`lifecycle_test.go`): Create a sprout with `Edible: nil` and matching variety in registry with `Edible` set. Run `UpdateSproutTimers` past maturation. Assert `item.Edible` is non-nil with correct Poisonous/Healing values.
+2. **Fix** (`lifecycle.go`): In the `SproutTimer <= 0` block, after restoring symbol, look up variety and restore `Edible`.
+3. **[TEST] Human testing**: Use `/test-world` to create a world with a gourd seed planted as a sprout (Edible: nil). Fast-forward past maturation. Select the matured gourd and verify edible properties display. Also verify a character will eat it.
+4. **[RETRO]**
 
 **Panic fix (discovered during Fix 1A testing):** `ActionFillVessel` phase 1→2 transition crashed with nil pointer dereference. `Pickup` clears `char.Intent`; the transition code then tried to mutate the nil intent. Fix: create a fresh `Intent` struct for phase 2. Regression test added: `TestApplyIntent_FillVessel_GroundVesselPickupTransitionsToPhase2`. ✅
 
 **Circle-back notes from Fix 1A testing:**
 
 1. **Vessel pickup messaging lacks intent context.** "Picking up vessel" is accurate but doesn't communicate *why* — for foraging vs for water. Needs design discussion about how to derive and display the driving intent.
-2. **Idle cooldown gap between vessel pickup and foraging.** After picking up a vessel, `Pickup` sets `IdleCooldown = 5s`. Character waits for next idle roll before foraging resumes. Consider whether foraging-motivated vessel pickup should bypass cooldown and immediately continue.
-3. **Fetch water ground vessel pickup confirmed working** after panic fix. ✅
-4. **Repeated "Heading to water to fill vessel" during movement.** Log shows the message re-firing every ~5s (idle cooldown interval), suggesting character re-acquires the fill intent each idle cycle rather than maintaining continuous movement. Expected flow: one "Heading to water" then "Filling vessel" actions. Investigate whether fetch water intent should persist through movement like drinking does.
+2. **Fetch water ground vessel pickup confirmed working** after panic fix. ✅
+3. **Repeated "Heading to water to fill vessel" during movement.** Log shows the message re-firing every ~5s (idle cooldown interval), suggesting character re-acquires the fill intent each idle cycle rather than maintaining continuous movement. Expected flow: one "Heading to water" then "Filling vessel" actions. Investigate whether fetch water intent should persist through movement like drinking does.
+
+##### Fix 1B Design Discussion: Vessel Pickup Breaks Foraging Chain
+
+**The real problem:** The original inventory expansion plan (archive: plan-inventory-expansion.md, lines 349-351) says: "Fetching a vessel doesn't complete foraging (it's setup). Picking up one growing item (loose or into vessel) completes foraging." But in practice, foraging uses generic `ActionPickup` for the vessel, and `Pickup()` always clears `char.Intent` + sets `IdleCooldown` for `PickupToInventory`. This breaks the chain — the character goes idle after picking up the vessel and must win another idle roll to actually forage food. Two idle rolls for what should be one continuous intent.
+
+**The same problem exists in ActionFillVessel.** Its phase 1 (pick up ground vessel) calls `Pickup()` directly inside its `applyIntent` handler to avoid this exact issue — the intent-clearing panic we fixed above was caused by this workaround. Circle-back note #3 (repeated "Heading to water" messages) is also likely a symptom of the same class of problem.
+
+**Root cause:** `Pickup()` helper clears intent and sets idle cooldown unconditionally for `PickupToInventory`. This conflates "the physical act of picking something up" with "the intent that motivated the pickup is complete." For food, those are the same. For vessel-as-setup, they're not.
+
+**ActionPickup caller audit** (all flows through the `case ActionPickup` handler in `applyIntent`):
+
+| Caller | Context | Post-pickup behavior needed |
+|--------|---------|----------------------------|
+| Foraging → food | Autonomous | Go idle (correct today) |
+| Foraging → vessel | Autonomous | **Continue to food** (broken today) |
+| Harvest order → food | Order-driven | Continue or complete order (correct today) |
+| Order prerequisite (vessel/hoe/plantable/input) | Order-driven | Clear intent; `selectOrderActivity` re-evaluates next tick (works today via re-selection) |
+
+Note: `ActionFillVessel` phase 1 does NOT use ActionPickup — it calls `Pickup()` directly inside its own handler, bypassing the ActionPickup flow entirely.
+
+**Design options under consideration:**
+
+**Option A: Self-managing ActionForage** (like ActionFillVessel). Foraging becomes its own action type with phases: phase 1 = vessel procurement (optional), phase 2 = food pickup. Calls `Pickup()` directly in its handler. Vessel pickup messaging (#1) becomes easy — the action knows its own context.
+- Pro: Proven pattern (ActionFillVessel works this way). Each multi-phase action owns its lifecycle.
+- Pro: Messaging is naturally contextual ("Picking up vessel for foraging").
+- Con: Duplicates vessel procurement logic between ActionForage and ActionFillVessel.
+- Con: Future actions needing vessel procurement would duplicate again.
+
+**Option B: Pickup stops clearing intent.** `Pickup()` becomes a pure helper (remove from map, add to inventory, log, discover). All lifecycle decisions (intent clearing, idle cooldown, continuation) move to the `ActionPickup` handler in `applyIntent`. Handler checks context after pickup and decides: continue foraging? complete order? go idle?
+- Pro: Centralizes post-pickup decisions. Fixes the root cause.
+- Con: Needs a way to know *why* the pickup happened. Currently no metadata on Intent to distinguish "vessel for foraging" from "vessel for water."
+- Sub-option: Add `Intent.ContinuationAction` field — explicit tag for what should happen after this pickup completes.
+
+**Option C: Hybrid — self-managing actions + shared vessel procurement helper.** Actions like ActionForage and ActionFillVessel are self-managing (own their lifecycle), but share a helper for the common "do I need a vessel? go get one" sub-flow. The helper returns the vessel or an intent to go get one; the calling action handles the continuation. Architecture.md already mentions shared helpers for common sub-workflows.
+- Pro: No duplication. Each action still owns its lifecycle.
+- Con: Need to design the helper interface carefully (does it return an intent? does it call Pickup directly?).
+
+**Not yet decided.** Revisit after context clear. Fix 1A (text) and panic fix are committed. Fix 2 (edibility bug) is independent and can proceed first.
 
 ---
 
