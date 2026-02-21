@@ -798,6 +798,74 @@ func DropItem(char *entity.Character, item *entity.Item, gameMap *game.Map, log 
 }
 
 // =============================================================================
+// Vessel Procurement (shared by self-managing actions)
+// =============================================================================
+
+// ProcurementStatus indicates the state of vessel procurement for self-managing actions.
+type ProcurementStatus int
+
+const (
+	// ProcureReady - vessel is in inventory, proceed to main phase
+	ProcureReady ProcurementStatus = iota
+	// ProcureApproaching - vessel is on ground, character not at it yet (caller should move)
+	ProcureApproaching
+	// ProcureInProgress - character is at vessel, pickup action accumulating (caller should return)
+	ProcureInProgress
+	// ProcureFailed - vessel gone or nil, intent cleared (caller should return)
+	ProcureFailed
+)
+
+// RunVesselProcurement handles one tick of vessel procurement for self-managing actions.
+// Called each tick when the action needs a vessel that may be on the ground.
+//
+// Returns ProcureReady if vessel is in inventory (proceed to main phase).
+// Returns ProcureApproaching if vessel is on ground and character is not at it (caller handles movement).
+// Returns ProcureInProgress if character is at vessel and pickup is accumulating (caller should return).
+// Returns ProcureFailed if vessel is gone or nil (sets char.Intent = nil).
+//
+// When pickup completes (action progress reaches ActionDurationShort), calls Pickup() directly.
+// After Pickup clears char.Intent, the caller is responsible for building the next-phase intent.
+func RunVesselProcurement(char *entity.Character, vessel *entity.Item, gameMap *game.Map, log *ActionLog, registry *game.VarietyRegistry, delta float64) ProcurementStatus {
+	if vessel == nil {
+		char.Intent = nil
+		char.CurrentActivity = "Idle"
+		return ProcureFailed
+	}
+
+	// Check if vessel is on the ground
+	ipos := vessel.Pos()
+	if gameMap.ItemAt(ipos) != vessel {
+		// Vessel is not on the map — either in inventory (ready) or gone (failed)
+		for _, item := range char.Inventory {
+			if item == vessel {
+				return ProcureReady
+			}
+		}
+		// Vessel is gone (taken by another character, etc.)
+		char.Intent = nil
+		char.CurrentActivity = "Idle"
+		return ProcureFailed
+	}
+
+	// Vessel is on the ground — are we at it?
+	cpos := char.Pos()
+	if cpos.X != ipos.X || cpos.Y != ipos.Y {
+		return ProcureApproaching
+	}
+
+	// At vessel — accumulate pickup progress
+	char.ActionProgress += delta
+	if char.ActionProgress < config.ActionDurationShort {
+		return ProcureInProgress
+	}
+
+	// Pickup complete
+	char.ActionProgress = 0
+	Pickup(char, vessel, gameMap, log, registry)
+	return ProcureReady
+}
+
+// =============================================================================
 // Pickup Actions
 // =============================================================================
 

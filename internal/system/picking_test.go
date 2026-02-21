@@ -1208,3 +1208,202 @@ func TestDrinkFromVessel_ReturnsFalseWhenVesselEmpty(t *testing.T) {
 		t.Error("DrinkFromVessel should return false when vessel is empty")
 	}
 }
+
+// =============================================================================
+// RunVesselProcurement Tests
+// =============================================================================
+
+func TestRunVesselProcurement_VesselInInventory_ReturnsReady(t *testing.T) {
+	// When the vessel is already in the character's inventory (not on the ground),
+	// procurement is complete — return ProcureReady immediately.
+	gameMap := game.NewMap(10, 10)
+	registry := createTestRegistry()
+	gameMap.SetVarieties(registry)
+
+	vessel := createTestVessel()
+	vessel.ID = 1
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{vessel},
+	}
+	char.X = 5
+	char.Y = 5
+	gameMap.AddCharacter(char)
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionFillVessel,
+		TargetItem: vessel,
+	}
+
+	status := RunVesselProcurement(char, vessel, gameMap, nil, registry, 0.1)
+	if status != ProcureReady {
+		t.Errorf("Expected ProcureReady when vessel in inventory, got %d", status)
+	}
+	// Intent should not be cleared
+	if char.Intent == nil {
+		t.Error("Intent should not be cleared when vessel is already in inventory")
+	}
+}
+
+func TestRunVesselProcurement_VesselOnGround_NotAtVessel_ReturnsApproaching(t *testing.T) {
+	// When vessel is on the ground and character is not at the vessel,
+	// return ProcureApproaching so the caller can handle movement.
+	gameMap := game.NewMap(10, 10)
+	registry := createTestRegistry()
+	gameMap.SetVarieties(registry)
+
+	vessel := createTestVessel()
+	vessel.ID = 1
+	vessel.X = 8
+	vessel.Y = 5
+	gameMap.AddItemDirect(vessel)
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
+	}
+	char.X = 2
+	char.Y = 5
+	gameMap.AddCharacter(char)
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionFillVessel,
+		TargetItem: vessel,
+		Dest:       vessel.Pos(),
+	}
+
+	status := RunVesselProcurement(char, vessel, gameMap, nil, registry, 0.1)
+	if status != ProcureApproaching {
+		t.Errorf("Expected ProcureApproaching when not at vessel, got %d", status)
+	}
+}
+
+func TestRunVesselProcurement_AtVessel_PicksUpAfterDuration(t *testing.T) {
+	// Anchor test: when character is at a ground vessel, accumulates action progress
+	// and picks up the vessel once duration completes. After pickup, vessel is in
+	// inventory and the function returns ProcureReady.
+	gameMap := game.NewMap(10, 10)
+	registry := createTestRegistry()
+	gameMap.SetVarieties(registry)
+
+	vessel := createTestVessel()
+	vessel.ID = 1
+	vessel.X = 5
+	vessel.Y = 5
+	gameMap.AddItemDirect(vessel)
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
+	}
+	char.X = 5
+	char.Y = 5
+	gameMap.AddCharacter(char)
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionFillVessel,
+		TargetItem: vessel,
+		Dest:       vessel.Pos(),
+	}
+
+	// First call: accumulate progress but not enough to complete
+	status := RunVesselProcurement(char, vessel, gameMap, nil, registry, 0.1)
+	if status != ProcureInProgress {
+		t.Errorf("Expected ProcureInProgress while accumulating, got %d", status)
+	}
+	if len(char.Inventory) != 0 {
+		t.Error("Vessel should not be in inventory yet")
+	}
+
+	// Subsequent calls: accumulate enough to complete pickup
+	var finalStatus ProcurementStatus
+	for i := 0; i < 20; i++ {
+		finalStatus = RunVesselProcurement(char, vessel, gameMap, nil, registry, 0.1)
+		if finalStatus == ProcureReady {
+			break
+		}
+	}
+	if finalStatus != ProcureReady {
+		t.Errorf("Expected ProcureReady after enough ticks, got %d", finalStatus)
+	}
+	// Vessel should now be in character's inventory
+	hasVessel := false
+	for _, item := range char.Inventory {
+		if item == vessel {
+			hasVessel = true
+			break
+		}
+	}
+	if !hasVessel {
+		t.Error("Vessel should be in character's inventory after procurement")
+	}
+	// Vessel should no longer be on the map
+	if gameMap.ItemAt(types.Position{X: 5, Y: 5}) == vessel {
+		t.Error("Vessel should be removed from map after pickup")
+	}
+}
+
+func TestRunVesselProcurement_VesselGone_ReturnsFailed(t *testing.T) {
+	// When the target vessel is not on the ground and not in inventory,
+	// procurement has failed — return ProcureFailed and nil the intent.
+	gameMap := game.NewMap(10, 10)
+	registry := createTestRegistry()
+	gameMap.SetVarieties(registry)
+
+	// Vessel exists as a struct but is NOT on the map and NOT in inventory
+	vessel := createTestVessel()
+	vessel.ID = 1
+	vessel.X = 5
+	vessel.Y = 5
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
+	}
+	char.X = 5
+	char.Y = 5
+	gameMap.AddCharacter(char)
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionFillVessel,
+		TargetItem: vessel,
+		Dest:       vessel.Pos(),
+	}
+
+	status := RunVesselProcurement(char, vessel, gameMap, nil, registry, 0.1)
+	if status != ProcureFailed {
+		t.Errorf("Expected ProcureFailed when vessel is gone, got %d", status)
+	}
+	if char.Intent != nil {
+		t.Error("Intent should be nil after procurement failure")
+	}
+}
+
+func TestRunVesselProcurement_NilVessel_ReturnsFailed(t *testing.T) {
+	// Edge case: nil vessel reference should fail gracefully.
+	gameMap := game.NewMap(10, 10)
+	registry := createTestRegistry()
+	gameMap.SetVarieties(registry)
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
+	}
+	char.X = 5
+	char.Y = 5
+	gameMap.AddCharacter(char)
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionFillVessel,
+	}
+
+	status := RunVesselProcurement(char, nil, gameMap, nil, registry, 0.1)
+	if status != ProcureFailed {
+		t.Errorf("Expected ProcureFailed for nil vessel, got %d", status)
+	}
+}

@@ -1186,55 +1186,47 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		}
 
 	case entity.ActionFillVessel:
-		// Unified fetch water action — two phases:
-		// Phase 1: If TargetItem is on the ground, move to it and pick it up
+		// Fetch water action — two phases:
+		// Phase 1 (via RunVesselProcurement): pick up ground vessel if needed
 		// Phase 2: Move to water and fill the vessel
 		cpos := char.Pos()
 		vessel := char.Intent.TargetItem
 
-		// Phase detection: is the vessel on the ground?
-		if vessel != nil {
-			ipos := vessel.Pos()
-			if m.gameMap.ItemAt(ipos) == vessel {
-				// Phase 1: vessel is on the ground — move to it and pick up
-				if cpos.X == ipos.X && cpos.Y == ipos.Y {
-					// At vessel — pick it up
-					char.ActionProgress += delta
-					if char.ActionProgress >= config.ActionDurationShort {
-						char.ActionProgress = 0
-						system.Pickup(char, vessel, m.gameMap, m.actionLog, m.gameMap.Varieties())
-
-						// Transition to phase 2: find water and create new intent
-						// (Pickup clears char.Intent, so we must build a fresh one)
-						waterPos, found := m.gameMap.FindNearestWater(cpos)
-						if !found {
-							char.CurrentActivity = "Idle"
-							char.Intent = nil
-							return
-						}
-						adjX, adjY := system.FindClosestCardinalTile(cpos.X, cpos.Y, waterPos.X, waterPos.Y, m.gameMap)
-						if adjX == -1 {
-							char.CurrentActivity = "Idle"
-							char.Intent = nil
-							return
-						}
-						waterDest := types.Position{X: adjX, Y: adjY}
-						nx, ny := system.NextStepBFS(cpos.X, cpos.Y, adjX, adjY, m.gameMap)
-						char.Intent = &entity.Intent{
-							Action:     entity.ActionFillVessel,
-							Dest:       waterDest,
-							Target:     types.Position{X: nx, Y: ny},
-							TargetItem: vessel,
-						}
-						if m.actionLog != nil {
-							m.actionLog.Add(char.ID, char.Name, "activity", "Heading to water to fill vessel")
-						}
-					}
+		// Phase 1: vessel procurement (shared helper)
+		status := system.RunVesselProcurement(char, vessel, m.gameMap, m.actionLog, m.gameMap.Varieties(), delta)
+		switch status {
+		case system.ProcureApproaching:
+			m.moveWithCollision(char, cpos, delta)
+			return
+		case system.ProcureInProgress:
+			return
+		case system.ProcureFailed:
+			return
+		case system.ProcureReady:
+			// Vessel in hand — if Pickup just happened (intent was cleared),
+			// build the phase 2 intent to head to water
+			if char.Intent == nil {
+				waterPos, found := m.gameMap.FindNearestWater(cpos)
+				if !found {
+					char.CurrentActivity = "Idle"
 					return
 				}
-
-				// Not at vessel yet — move toward it (with collision handling)
-				m.moveWithCollision(char, cpos, delta)
+				adjX, adjY := system.FindClosestCardinalTile(cpos.X, cpos.Y, waterPos.X, waterPos.Y, m.gameMap)
+				if adjX == -1 {
+					char.CurrentActivity = "Idle"
+					return
+				}
+				waterDest := types.Position{X: adjX, Y: adjY}
+				nx, ny := system.NextStepBFS(cpos.X, cpos.Y, adjX, adjY, m.gameMap)
+				char.Intent = &entity.Intent{
+					Action:     entity.ActionFillVessel,
+					Dest:       waterDest,
+					Target:     types.Position{X: nx, Y: ny},
+					TargetItem: vessel,
+				}
+				if m.actionLog != nil {
+					m.actionLog.Add(char.ID, char.Name, "activity", "Heading to water to fill vessel")
+				}
 				return
 			}
 		}
