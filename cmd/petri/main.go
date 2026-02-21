@@ -10,7 +10,7 @@ import (
 	"petri/internal/ui"
 )
 
-const Version = "0.0.1"
+const Version = "0.0.2"
 
 func main() {
 	// Test mode flags
