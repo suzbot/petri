@@ -428,6 +428,81 @@ func TestTryDiscoverKnowHow_NoRecipeDiscoverWhenAlreadyKnown(t *testing.T) {
 	}
 }
 
+// Bundled activity discovery tests
+
+func TestTryDiscoverKnowHow_ShellHoeRecipeGrantsTillSoil(t *testing.T) {
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{},
+		KnownRecipes:    []string{},
+	}
+	item := &entity.Item{
+		ItemType: "shell",
+	}
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected discovery with 100% chance")
+	}
+	if !char.KnowsRecipe("shell-hoe") {
+		t.Error("Expected character to know shell-hoe recipe")
+	}
+	if !char.KnowsActivity("craftHoe") {
+		t.Error("Expected character to know craftHoe activity")
+	}
+	if !char.KnowsActivity("tillSoil") {
+		t.Error("Expected character to know tillSoil from bundled activity")
+	}
+}
+
+func TestTryDiscoverKnowHow_BundledActivityAlreadyKnown(t *testing.T) {
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{"tillSoil"}, // already knows tilling
+		KnownRecipes:    []string{},
+	}
+	item := &entity.Item{
+		ItemType: "stick",
+	}
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionPickup, item, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected discovery of recipe even when bundled activity already known")
+	}
+	if !char.KnowsRecipe("shell-hoe") {
+		t.Error("Expected character to know shell-hoe recipe")
+	}
+}
+
+func TestTryDiscoverKnowHow_BundledActivityLogged(t *testing.T) {
+	char := &entity.Character{
+		ID:              1,
+		Name:            "Alice",
+		KnownActivities: []string{},
+		KnownRecipes:    []string{},
+	}
+	item := &entity.Item{
+		ItemType: "shell",
+	}
+	log := NewActionLog(100)
+
+	TryDiscoverKnowHow(char, entity.ActionLook, item, log, 1.0)
+
+	entries := log.Events(1, 0)
+	// Should have entries for: craftHoe activity, tillSoil bundled activity, shell-hoe recipe
+	discoveryCount := 0
+	for _, e := range entries {
+		if e.Type == "discovery" {
+			discoveryCount++
+		}
+	}
+	if discoveryCount < 3 {
+		t.Errorf("Expected at least 3 discovery log entries (craftHoe, tillSoil, recipe), got %d", discoveryCount)
+	}
+}
+
 func TestTryDiscoverKnowHow_ActivityAlreadyKnownButNotRecipe(t *testing.T) {
 	char := &entity.Character{
 		Name:            "Test",

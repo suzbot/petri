@@ -18,6 +18,7 @@ argument-hint: Feature or step to implement (e.g., "Slice 6 Step 3" or "sprout m
 ### Step 2: Quick Validation (REQUIRED)
 **Do NOT write code yet.** This is a sanity check, not a re-discussion of design.
 - Verify the plan's pattern references match what's actually in the code (patterns may have evolved since planning)
+- Confirm the patterns mentioned in the plan exist in `docs/architecture.md` and match current usage — show evidence of this check in your validation summary
 - Verify no code changes since planning invalidate the approach
 - **If the plan is detailed, follows intended patterns, and has no conflicts: say so and move on.** No need to generate discussion where none is needed.
 - If genuine issues are found: present them and re-invoke `/refine-feature` to update the plan before proceeding

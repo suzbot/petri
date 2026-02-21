@@ -106,6 +106,18 @@ func tryDiscoverRecipe(char *entity.Character, action entity.ActionType, item *e
 					log.Add(char.ID, char.Name, "discovery",
 						fmt.Sprintf("Learned %s recipe!", recipe.Name))
 				}
+
+				// Grant bundled activities
+				for _, bundledID := range recipe.BundledActivities {
+					if char.LearnActivity(bundledID) {
+						if log != nil {
+							bundledActivity := entity.ActivityRegistry[bundledID]
+							log.Add(char.ID, char.Name, "discovery",
+								fmt.Sprintf("Discovered how to %s!", bundledActivity.Name))
+						}
+					}
+				}
+
 				return true
 			}
 		}

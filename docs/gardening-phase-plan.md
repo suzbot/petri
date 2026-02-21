@@ -1740,20 +1740,21 @@ Architecture patterns: ActionConsume pattern for carried-vessel intent continuat
 
 **[RETRO]** Run /retro.
 
-##### Step 4: UI Display Polish
+##### Step 4: UI Display Polish ✅
+
+**Scope:** Existing vessel content display already works for liquids (`water: 3/4` format, same as berries/mushrooms). The only polish needed is rendering liquid stack lines in `waterStyle` (bright blue bold) — consistent with how water terrain and "Wet" annotations already render.
 
 **Implementation** (no tests per CLAUDE.md for UI rendering):
-- Inventory panel: vessel with liquid shows contents (e.g., "Water 3/4")
-- Details panel: ground water vessel shows liquid contents
-- Details panel: cursor on water vessel item shows "Water (3/4 units)" or similar
-- Verify all vessel display paths handle liquid contents gracefully
+- Details panel (view.go ~line 910): when stack's variety has ItemType `"liquid"`, render the content line with `waterStyle`
+- Inventory panel (view.go ~line 1273): same treatment — liquid stack lines in `waterStyle`
+- Two rendering paths, same change: detect liquid ItemType on the stack variety, apply waterStyle to the formatted string
 
 **[TEST] Checkpoint — UI polish:**
 - `go test ./...` passes (no regressions)
 - Build and run:
-  - Inventory panel clearly shows water vessel contents
-  - Details panel shows water contents for ground and carried vessels
-  - All display looks clean, no rendering artifacts
+  - Water vessel contents display in blue bold text in both details panel and inventory panel
+  - Non-liquid vessel contents (berries, mushrooms) render unchanged
+  - Empty vessels still show "(empty)" in default style
 
 **[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture.
 
@@ -1880,6 +1881,37 @@ Tests:
 **[DOCS]** ✅
 
 **[RETRO]**
+
+#### Post-Slice 7 Fix: Discoverability Friction (from randomideas.md issue 1d)
+
+**Problem:** Planting is discovered quickly (plantable items are abundant), but tilling requires seeing a hoe, which requires crafting, which requires rare shells. Characters learn to plant before anyone knows how to till — feels backwards.
+
+**Fix: Recipe-bundled activity discovery.** When a character discovers the shell-hoe recipe, also grant tillSoil know-how. The insight is: inventing a digging tool and knowing you can dig are one idea, not two. Implemented as a `BundledActivities` field on Recipe — data-driven, extensible to future recipes that imply activity knowledge.
+
+**Design:** Add `BundledActivities []string` to `Recipe` struct. In `tryDiscoverRecipe()`, after granting the recipe and its parent activity, also grant each bundled activity. Shell-hoe recipe gets `BundledActivities: []string{"tillSoil"}`.
+
+**Architecture patterns:** Extends recipe discovery system in `discovery.go`. Follows existing pattern where recipe discovery grants parent activity — bundled activities are additional grants in the same roll.
+
+**Implementation:**
+
+**Tests** (in `internal/system/discovery_test.go`):
+- Discovering shell-hoe recipe also grants tillSoil activity
+- Character who already knows tillSoil still discovers recipe without error
+- Bundled activity appears in action log
+
+**Implementation:**
+- Add `BundledActivities []string` to `Recipe` struct in `entity/recipe.go`
+- Add `BundledActivities: []string{"tillSoil"}` to shell-hoe recipe
+- In `tryDiscoverRecipe()` in `discovery.go`: after granting recipe, loop through `BundledActivities` and call `char.LearnActivity()` for each. Log discovery for each newly learned activity.
+- No serialization changes needed — `BundledActivities` is static registry data, not saved state
+
+**[TEST] Checkpoint — Discoverability fix:**
+- `go test ./...` passes
+- Build and run with `/test-world`: character discovers shell-hoe recipe → also learns tillSoil. Verify in action log: both "Learned Shell Hoe recipe!" and "Discovered how to Till Soil!" appear. Verify character can now be assigned till orders.
+
+**[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture.
+
+**[RETRO]** Run /retro.
 
 ---
 

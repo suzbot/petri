@@ -17,13 +17,14 @@ type RecipeOutput struct {
 
 // Recipe defines how to craft an item
 type Recipe struct {
-	ID                string             // e.g., "hollow-gourd"
-	ActivityID        string             // e.g., "craftVessel" - links recipe to activity
-	Name              string             // e.g., "Hollow Gourd"
-	Inputs            []RecipeInput
-	Output            RecipeOutput
-	Duration          float64            // Craft time in game seconds
-	DiscoveryTriggers []DiscoveryTrigger // Triggers for discovering this recipe
+	ID                 string             // e.g., "hollow-gourd"
+	ActivityID         string             // e.g., "craftVessel" - links recipe to activity
+	Name               string             // e.g., "Hollow Gourd"
+	Inputs             []RecipeInput
+	Output             RecipeOutput
+	Duration           float64            // Craft time in game seconds
+	DiscoveryTriggers  []DiscoveryTrigger // Triggers for discovering this recipe
+	BundledActivities  []string           // Additional activities granted on recipe discovery
 }
 
 // RecipeRegistry contains all defined recipes
@@ -58,6 +59,7 @@ var RecipeRegistry = map[string]*Recipe{
 			{Action: ActionLook, ItemType: "shell"},   // looking at shell
 			{Action: ActionPickup, ItemType: "shell"}, // picking up shell
 		},
+		BundledActivities: []string{"tillSoil"}, // inventing a hoe implies knowing how to till
 	},
 }
 

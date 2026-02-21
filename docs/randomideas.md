@@ -12,31 +12,6 @@ then they can be removed from this list.
 ## Issues To resolve
 
 1. **Gardening Phase testing feedback**
-   a. **"Foraging for vessel" text is unintuitive.** When foraging rolls and scores an empty vessel (as a container to carry future food), the activity reads "Foraging for vessel." Characters aren't foraging *for* vessels — they're picking one up to aid foraging. Root cause: `scoreForageVessels` gives empty vessels a positive score (`vesselBonus - distance`) even when no growing items exist to put in them. Consider: (1) only score empty vessels when matching growing items exist (like partial vessels already do), and/or (2) change activity text to "Picking up vessel" when the target is a container.
-
-   c. **Edibility Bug:** Gourds grown from seed to not inherit edible property so characters do not eat them. It is expected that an item grown from seed would inherit all the properties of its parent item, in this case gourds grown from seed should be edible, and targetable by hungry characters.
-      - looking at the code, there's a spot where it pulls down the G symbol upon maturing from sprout. Could it also pull down the edible (and in the future any other attributes) from the registry at that point?
-
-   d. **Discoverability Friction:** 
-      - **Original Thinking:** The current pattern I've been trying to establish is that actions/recipes are discoverable by picking up or looking at the components that would be used in that action/recipe. My thought here was that this would be programatic enough to make it easy to add more discoverable actions/recipes over time. 
-      - **Problem:** this actually feels off during play in the balance between tilling and planting
-         - Tilling is only discoverable by looking at a hoe (no trigger to pick up a hoe before tilling). Very few hoes can exist at first, as shells are relatively rare. Therefore, Tilling can take a while to discover.
-         - Planting is discoverable by looking at any plantable item, of which there is an abundance. It is disocovered quickly.
-         - It feels strange that everyone knows how to plant, but no one can because know one knows how do to the prerequisite activity.
-      - **Possible Solutions:**
-         - Make Tilling pre-requisite knowledge to Planting
-            Pro: helps enforce an intuitive 'tecnology tree'
-            Con: Loses some emergence of different skill/knowledge sets for specialization
-            Con: Achieves balance by making planting harder to discover instead of tilling easier to discover (maybe this is ok?)
-         - Give Tilling more discoverability triggers (looking at seed)
-            Pro: easier to discover
-            Con: Gets in the way of my hope for consistent discoverability pattern / implementation
-         - Bundle tilling discovery together with Craft Hoe Discovery -- when you look at a hoe component you have a chance to discover both tilling and hoe crafting together
-            Pro: A little more intuitive -- why would you think to invent a hoe if you didn't also have tilling in mind?
-            Pro: Could still have emergence of specialization through future non-bundled know-how transfer (teaching, observation)
-            Con: Still kind of unintuitive -- why would you think of planting if you don't know about digging? why would you discover how to build a hoe if you weren't thinking about eventually planting?
-            Con: Bulky messaging (could figure out how to streamline this -- maybe just one discovery message of "Had an idea!")
-
 
    e. **Pathing Thrashing:** we're seeing characters thrash more often when pathing now that we've 'upgraded' our pathing logic. The most direct route to an item is blocked by a character. Characrers aren't in the patching calculation because they can move, but often they are engaged in an activity that keeps them stationary for up to 20 seconds. I see characters take one step to try and path around them, but it appears that the new path is the same as the old path, they take one step back and they are blocked again. They spend a lot of energy moving back and forth until the other character moves, and its unpleasant to observe, and doesn't feel like natural behavior. What are some different approaches to improving this?
       i. idea one - force the character to take a few random steps away before re-calculating path, in hopes that new path doesn't have the exact same blockage as the old path
