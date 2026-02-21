@@ -686,9 +686,13 @@ This means:
 
 **Stack decrement**: Each time a character eats from a vessel, the stack count decreases by 1. When empty, the vessel can accept any variety again.
 
+### Liquid Contents
+
+Vessels can hold liquids (currently water) as Stack contents with ItemType "liquid" and Kind (e.g., "water"). Liquids stack to 4 units per vessel. Vessel contents display shows liquid name and count.
+
 ### Viewing Vessel Contents
 
-- When carrying a vessel: Inventory panel shows contents with count and max stack size
+- When carrying a vessel: Inventory panel shows contents with count and max stack size (including liquids)
 - When selecting a dropped vessel: Details panel shows contents
 
 ## Idle Activities
@@ -698,12 +702,13 @@ When characters have no urgent needs (all stats below Moderate tier), they selec
 ### Activity Selection
 
 Every 10 seconds (IdleCooldown), characters roll for an idle activity:
-- **1/4 chance**: Look at nearest item
-- **1/4 chance**: Talk with nearby idle character
-- **1/4 chance**: Forage for edible item (if inventory not full)
-- **1/4 chance**: Stay idle
+- **1/5 chance**: Look at nearest item
+- **1/5 chance**: Talk with nearby idle character
+- **1/5 chance**: Forage for edible item (if inventory not full)
+- **1/5 chance**: Fetch water (fill empty vessel from water source)
+- **1/5 chance**: Stay idle
 
-If the selected activity isn't possible (no items to look at, no idle characters nearby, inventory full), the system falls back to the next option.
+If the selected activity isn't possible (no items to look at, no idle characters nearby, inventory full, no empty vessels for fetch water), the system falls back to the next option.
 
 ### Looking
 
@@ -735,6 +740,16 @@ Characters pick up edible items to carry in inventory:
 - Picked up item is removed from map and placed in inventory or vessel
 - **Foraging completes after one growing item** (casual activity, doesn't strip resources)
 - Logs "Foraging for [item type]" when starting, "Picked up [item]" on completion
+
+### Fetch Water
+
+Characters fill empty vessels with water from nearby water sources:
+- Only available when character has access to an empty vessel (carried or on ground)
+- Character seeks empty vessel (if not already carrying one), then moves to nearest water source
+- Fills vessel with 4 units of water (liquid stack stored in vessel contents)
+- Characters skip fetch water if already carrying water in a vessel
+- Characters with non-water vessel contents (e.g., berries) will seek a different empty vessel on the ground
+- Logs "Filling vessel with water" when starting
 
 Idle activities are interruptible by any Moderate or higher tier need that can be fulfilled.
 

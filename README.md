@@ -14,10 +14,10 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 
 ## Latest Updates
 
+- **Fetch Water**: Idle charachters can now fill a vessel with water to keep with them
 - **Plant Orders**: Players can order characters to plant on tilled soil.
 - **Water Appearance + Wet Tiles**: Ponds now render as filled blocks (`▓`) instead of waves. Tiles adjacent to water (including diagonally) show "Wet" in the details panel.
 - **Gourd Seeds**: Eating a gourd now drops a seed on the ground. Seeds are plantable and stack in vessels.
-- **Unfulfillable Orders**: Orders that can't be completed (no required items in the world, or no character has the needed know-how) are shown as dimmed and skipped by characters
 - **Till Soil**: Players can mark rectangular areas for tilling using an area selection tool. Characters with till know-how procure a hoe and till the marked tiles.
 
 ## How It Works
@@ -27,7 +27,7 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 3. Characters manage needs (hunger, thirst, energy, health) prioritized by urgency
 4. Mood reflects emotional state, affected by need urgency and preferences
 5. Characters form preferences based on their mood when interacting with items
-6. When idle, characters may look at items, talk with each other, or forage.
+6. When idle, characters may look at items, talk with each other, forage, or fill vessels with water.
 7. Characters learn from experience, gaining knowledge that affects future behavior
 8. Characters gain 'know-how' by making discoveries during item interactions
 9. Player can issue orders (harvest, craft, garden) that characters with relevant know-how will complete

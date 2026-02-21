@@ -1676,10 +1676,10 @@ func TestFindClosestCardinalTile_FindsClosest(t *testing.T) {
 	// Character at (3, 5), target spring at (5, 5)
 	// Cardinal tiles around spring: (5,4), (6,5), (5,6), (4,5)
 	// Closest to (3,5) is (4,5) with distance 1
-	x, y := findClosestCardinalTile(3, 5, 5, 5, gameMap)
+	x, y := FindClosestCardinalTile(3, 5, 5, 5, gameMap)
 
 	if x != 4 || y != 5 {
-		t.Errorf("findClosestCardinalTile: got (%d,%d), want (4,5)", x, y)
+		t.Errorf("FindClosestCardinalTile: got (%d,%d), want (4,5)", x, y)
 	}
 }
 
@@ -1693,15 +1693,15 @@ func TestFindClosestCardinalTile_SkipsBlocked(t *testing.T) {
 
 	// Character at (3, 5), target spring at (5, 5)
 	// (4,5) is blocked, next closest should be (5,4) or (5,6) with distance 3
-	x, y := findClosestCardinalTile(3, 5, 5, 5, gameMap)
+	x, y := FindClosestCardinalTile(3, 5, 5, 5, gameMap)
 
 	// Should not return the blocked tile
 	if x == 4 && y == 5 {
-		t.Error("findClosestCardinalTile should skip blocked tiles")
+		t.Error("FindClosestCardinalTile should skip blocked tiles")
 	}
 	// Should return a valid tile
 	if x == -1 {
-		t.Error("findClosestCardinalTile should find an unblocked tile")
+		t.Error("FindClosestCardinalTile should find an unblocked tile")
 	}
 }
 
@@ -1716,10 +1716,10 @@ func TestFindClosestCardinalTile_AllBlocked(t *testing.T) {
 	gameMap.AddCharacter(entity.NewCharacter(3, 5, 6, "S", "berry", types.ColorRed))
 	gameMap.AddCharacter(entity.NewCharacter(4, 4, 5, "W", "berry", types.ColorRed))
 
-	x, y := findClosestCardinalTile(3, 5, 5, 5, gameMap)
+	x, y := FindClosestCardinalTile(3, 5, 5, 5, gameMap)
 
 	if x != -1 || y != -1 {
-		t.Errorf("findClosestCardinalTile: got (%d,%d), want (-1,-1) when all blocked", x, y)
+		t.Errorf("FindClosestCardinalTile: got (%d,%d), want (-1,-1) when all blocked", x, y)
 	}
 }
 

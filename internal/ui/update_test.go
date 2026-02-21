@@ -1983,3 +1983,117 @@ func TestApplyIntent_Plant_CompletesOrderWhenNoMoreTilledTiles(t *testing.T) {
 		t.Errorf("Order status: got %s, want %s", order.Status, entity.OrderCompleted)
 	}
 }
+
+func TestApplyIntent_FillVessel_FillsAfterDuration(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	registry := game.GenerateVarieties()
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Give character an empty vessel
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	char.AddToInventory(vessel)
+
+	// Water adjacent to character
+	waterPos := types.Position{X: 5, Y: 6}
+	gameMap.AddWater(waterPos, game.WaterPond)
+
+	// Set up fill vessel intent
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionFillVessel,
+		Target:     char.Pos(),
+		Dest:       char.Pos(),
+		TargetItem: vessel,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+	}
+
+	// Apply with enough time to complete (ActionDurationShort = 0.83s)
+	for i := 0; i < 10; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Vessel should now contain water
+	if len(vessel.Container.Contents) != 1 {
+		t.Fatalf("Expected 1 stack in vessel, got %d", len(vessel.Container.Contents))
+	}
+	stack := vessel.Container.Contents[0]
+	if stack.Variety == nil || stack.Variety.ItemType != "liquid" {
+		t.Error("Expected liquid variety in vessel")
+	}
+	if stack.Count != 4 {
+		t.Errorf("Expected 4 water units, got %d", stack.Count)
+	}
+	// Intent should be cleared
+	if char.Intent != nil {
+		t.Error("Expected intent to be cleared after filling")
+	}
+}
+
+func TestApplyIntent_FillVessel_DoesNotOverfillPartialVessel(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	registry := game.GenerateVarieties()
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Give character a vessel with 2 water units already
+	waterVariety := registry.VarietiesOfType("liquid")[0]
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{
+				{Variety: waterVariety, Count: 2},
+			},
+		},
+	}
+	char.AddToInventory(vessel)
+
+	// Water adjacent to character
+	waterPos := types.Position{X: 5, Y: 6}
+	gameMap.AddWater(waterPos, game.WaterPond)
+
+	// Set up fill vessel intent
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionFillVessel,
+		Target:     char.Pos(),
+		Dest:       char.Pos(),
+		TargetItem: vessel,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+	}
+
+	// Apply with enough time to complete
+	for i := 0; i < 10; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Vessel should be capped at 4 (stack size), not 6
+	if vessel.Container.Contents[0].Count != 4 {
+		t.Errorf("Expected 4 water units (capped), got %d", vessel.Container.Contents[0].Count)
+	}
+}
