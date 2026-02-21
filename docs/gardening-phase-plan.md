@@ -1882,7 +1882,7 @@ Tests:
 
 **[RETRO]**
 
-#### Post-Slice 7 Fix: Discoverability Friction (from randomideas.md issue 1d)
+#### Post-Slice 7 Fix: Discoverability Friction (from randomideas.md issue 1d) ✅
 
 **Problem:** Planting is discovered quickly (plantable items are abundant), but tilling requires seeing a hoe, which requires crafting, which requires rare shells. Characters learn to plant before anyone knows how to till — feels backwards.
 
@@ -1922,42 +1922,43 @@ Tests:
 - New Activity: Water Garden (lines 110-123)
 - Wet tile mechanics (line 131, plus manual watering decay)
 
-#### Design: Lookable Water Terrain
+#### Design: Lookable Water Terrain — DESCOPED
 
-Extend the Look idle activity to target water-adjacent positions. Looking at water triggers know-how discovery checks (Water Garden) but not preference formation (water has no item attributes). Characters "contemplate" a pond or spring.
-
-Water sources (ponds and springs) need to be lookable — this requires the look-targeting logic to include water terrain positions alongside items.
+Deferred to triggered-enhancements.md ("Terrain-aware Look + discovery"). Narratively, characters should be able to observe terrain, not just items. But Water Garden discovery is adequately served by item-based and action-completion triggers (see below). Lookable terrain is flavor, not blocking.
 
 #### Design: Water Garden Activity
 
-Orderable, discoverable (looking at sprout, water source, or hollow gourd). No recipe needed. Prerequisite: vessel with water, procured via standard logic (check inventory for water vessel → seek water vessel on ground → fill empty vessel at source → abandon if impossible).
+Orderable, discoverable. No recipe needed. Prerequisite: vessel with water, procured via self-managing action pattern (vessel procurement → fill at water source → water tiles).
+
+**Discovery (Approach B — action-completion triggers):** Fire `CheckDiscovery` from `ActionFillVessel` completion handler with the vessel as the item. Water Garden triggers: `{ActionFillVessel, ItemType: "vessel"}` + `{ActionLook, RequiresPlantable: true}` (looking at sprouts). The insight: "I filled a vessel and see these sprouts — I could water them." This extends the existing trigger system minimally — just add a `CheckDiscovery` call at action completion. Extensible to any future activity discovered from action completion (e.g., brewing, construction).
 
 **Watering action**: Character waters the closest dry tilled planted tile. Uses 1 unit of water per tile. If water remains, continues to next dry tilled planted tile. If vessel empty but more dry tiles exist, character refills at nearest water source and continues. Completion: no remaining dry tilled planted tiles. Multi-assignment supported.
 
-**Logging note (from Till Soil retro):** For bulk repeated actions, only log on completion — not on start. Per-tile "Watering..." messages will create spam. Log "Watered [tile]" on completion only.
+**Refill/resume after interruption:** Stateless re-evaluation. `findWaterGardenIntent` re-derives the correct action each call: "do I have water? → water nearest dry tile. No water? → seek water source. No dry tiles? → complete." If the character gets hungry mid-watering, survives, comes back to the order, the intent function just re-derives. No explicit "was refilling" state needed. Same pattern as tilling.
+
+**Logging note (from Till Soil retro):** For bulk repeated actions, only log on completion — not on start. Log "Watered [variety]" per tile completion.
 
 #### Design: Wet Tile System
 
 Two sources of wetness:
 
-1. **Water-adjacent (8-directional)**: Always wet. Computed on the fly — no state to track or save.
+1. **Water-adjacent (8-directional)**: Always wet. Computed on the fly via existing `IsWet(pos)` — no state to track or save.
 2. **Character-watered**: Tracked per-tile with a decay timer. Wears off after 3 world days (360 game seconds). Stored as `map[Position]float64` for remaining wet time. Included in save/load.
 
-Visual: wet tilled tiles display green instead of olive. Wet tilled-but-unplanted tiles also display green.
+**Visual:** Wet tilled tiles render `═══` fill in green instead of olive (same `═` character, different style). Applies to both empty wet tilled tiles and `═X═` fill around entities on wet tilled soil. Consistent with existing sprout color logic (olive dry, green wet).
 
 **Outcomes:**
 
-1. Characters can look at water terrain (discovery trigger for Water Garden)
-2. Water Garden: orderable, discoverable from sprouts/water/vessels
-3. Watering uses water vessel, 1 unit per tile, auto-continues to next dry tile
-4. Character refills vessel and continues if more tiles need watering
-5. Completion when no dry tilled planted tiles remain
-6. Multi-assignment: multiple characters can water simultaneously
-7. Wet tiles: water-adjacent always wet + manual watering with 3-world-day decay
-8. Visual: wet tilled tiles green, dry tilled tiles olive
+1. Water Garden: orderable, discoverable from filling vessels + looking at sprouts
+2. Watering uses water vessel, 1 unit per tile, auto-continues to next dry tile
+3. Character refills vessel and continues if more tiles need watering
+4. Completion when no dry tilled planted tiles remain
+5. Multi-assignment: multiple characters can water simultaneously
+6. Wet tiles: water-adjacent always wet + manual watering with 3-world-day decay
+7. Visual: wet tilled tiles green, dry tilled tiles olive
 
 **[TEST] Checkpoint — Water Garden:**
-- Character discovers Water Garden from looking at a sprout/pond/vessel
+- Character discovers Water Garden from filling a vessel or looking at sprouts
 - Order Water Garden. Character fills vessel (if needed), waters planted tiles.
 - Watered tiles turn green. Dry tilled tiles remain olive.
 - Character continues watering until all planted tiles wet or vessel empty
@@ -1983,12 +1984,160 @@ Start a new world and play through the full garden lifecycle:
 
 **[RETRO]** Run /retro.
 
-**Feature questions:**
+**Feature questions (resolved):**
 
-- How does "refill and continue" interact with order pause/resume? If character gets hungry mid-watering, pauses, resumes — do they remember they were refilling?
-- Does looking at water require standing adjacent (like drinking) or at a distance (like looking at items)?
-- Water Garden discovery: activity discovery only (no recipe). Confirm discovery trigger items/actions during implementation.
-- Visual interaction between wet and tilled: green background vs green symbol vs other approach?
+- ~~How does "refill and continue" interact with order pause/resume?~~ Stateless re-evaluation, no explicit state needed.
+- ~~Does looking at water require standing adjacent or at distance?~~ Moot — lookable water terrain descoped from Slice 8.
+- ~~Water Garden discovery triggers?~~ Approach B: ActionFillVessel completion + ActionLook on sprouts. Extends existing system minimally.
+- ~~Visual interaction between wet and tilled?~~ Green `═══` instead of olive for wet tilled tiles.
+
+#### Design Alignment
+
+**Values cross-check:**
+- *Consistency*: watered tile state follows tilled soil map pattern; self-managing action follows ActionFillVessel/ActionForage; shared fill helper follows RunVesselProcurement shape
+- *Source of Truth*: `IsWet()` is the single query for "is this tile wet from any source." Growth code calls only `IsWet()`, never individual sources.
+- *Reuse*: RunVesselProcurement for vessel acquisition, extracted fill helper from existing ActionFillVessel Phase 2
+- *Future Siblings*: `wateredTimers map[Position]float64` is the first timed tile effect. If a second appears (fertilizer, contamination), generalize into a `TileEffect` system. For now, named map + named methods is clear enough.
+- *Requirements as Ground Truth*: "dry tilled planted tile" = tilled AND has growing plant AND `!IsWet(pos)`. Tests should validate this semantic condition for completion, not structural checks.
+
+**Architecture cross-check:**
+- Self-managing action pattern (architecture.md "Self-Managing Actions"): handler owns full lifecycle, stateless phase detection, shared procurement helpers
+- Component procurement pattern: vessel + water procurement via existing helpers
+- Unified order completion pattern: OrderCompleted status, swept by game loop
+
+#### Design: Self-Managing ActionWaterGarden
+
+Water Garden is a self-managing action (like ActionFillVessel, ActionForage). The handler owns its full lifecycle across phases. Phase detection is stateless — check world state each tick to determine current phase. Survives save/load without additional serialization.
+
+**Phases:**
+1. **Vessel procurement** (if no vessel in inventory): `RunVesselProcurement` shared helper. Same pattern as ActionFillVessel Phase 1.
+2. **Fill vessel** (if vessel empty): Move to nearest water source, fill vessel. Same logic as ActionFillVessel Phase 2 — extract shared helper to avoid duplication.
+3. **Water tile** (if vessel has water): Find nearest dry tilled planted tile, move to it, water it (consume 1 unit). Loop: if more water and more dry tiles → next tile. If no water → Phase 2. If no dry tiles → complete.
+
+**Phase detection (stateless):**
+- No vessel in inventory? → Phase 1
+- Vessel in inventory, no water? → Phase 2
+- Vessel in inventory, has water? → Phase 3
+
+**findWaterGardenIntent:** Returns `ActionWaterGarden` always. The handler detects and manages all phases internally. This keeps the intent function simple (just "do water garden work") and the handler self-contained.
+
+**Prerequisite per reqs line 115:** "at least one vessel full with water." On first assignment, `findWaterGardenIntent` checks if a vessel with water exists (carried, ground, or fillable). If no vessel exists at all → return nil (abandon, unfeasible). Otherwise return ActionWaterGarden intent and let the handler figure out procurement/fill/water phases.
+
+**Shared fill helper:** ActionFillVessel Phase 2 (move to water + fill) should be extracted into a shared helper (like `RunVesselProcurement` for pickup). Both ActionFillVessel and ActionWaterGarden call it. Returns status enum (Approaching/InProgress/Ready/Failed). Avoids duplicating the "move to water and fill vessel" logic.
+
+**Order completion (reqs line 122):** "once there are no remaining dry tilled planted tiles, order is complete." A tile is "dry tilled planted" when it is tilled AND has a growing plant AND `!IsWet(pos)` (not wet from any source — water adjacency or manual watering). When no such tiles exist, `CompleteOrder`. Follows unified order completion pattern (OrderCompleted status, swept by game loop). Two characters may target the same tile on the same tick — harmless, one waters it, the other re-evaluates next tick and picks the next dry tile.
+
+**Feasibility:** `IsOrderFeasible` for waterGarden checks: (1) vessel exists in world (ground or inventory), (2) water exists on map, (3) at least one dry tilled planted tile exists (tilled + has growing plant + `!IsWet`). All three must be true. If all planted tiles are already wet from water adjacency, the order is unfulfillable — there's nothing to water.
+
+---
+
+#### Implementation Steps
+
+Each step follows the TDD cycle: write tests → add minimal stubs to compile → verify red → implement → verify green → human testing checkpoint.
+
+##### Step 1: Watered Tile State + Decay + Serialization
+
+**Tests** (in `internal/game/map_test.go`):
+- `SetManuallyWatered(pos)` / `IsManuallyWatered(pos)` basic set/get
+- `IsManuallyWatered()` returns false for non-watered positions
+- `IsWet(pos)` returns true for manually watered tiles (integration with existing wet check)
+- `IsWet(pos)` still returns true for water-adjacent tiles (regression)
+- `UpdateWateredTimers(delta)` decrements timer
+- `UpdateWateredTimers` removes tile when timer reaches 0
+- `WateredPositions()` returns all manually watered positions
+
+**Serialization test** (in `internal/ui/serialize_test.go`):
+- Watered tile timers round-trip through save/load
+
+**Config:** `WateredTileDuration = 360.0` (3 world days = 360 game seconds)
+
+**Implementation** (follows tilled soil pattern):
+- Add `wateredTimers map[types.Position]float64` to Map struct, initialize in `NewMap()`
+- `SetManuallyWatered(pos)` — sets `m.wateredTimers[pos] = config.WateredTileDuration`
+- `IsManuallyWatered(pos) bool` — returns `m.wateredTimers[pos] > 0`
+- `WateredPositions() []types.Position` — iterates map, returns slice
+- `UpdateWateredTimers(delta float64)` — decrement all timers, delete entries when ≤ 0
+- Update `IsWet(pos)` to also return true when `m.wateredTimers[pos] > 0` (existing water-adjacent check remains)
+- `SaveState`: add `WateredTiles []WateredTileSave` with position + remaining time, `json:"watered_tiles,omitempty"`
+- `ToSaveState` / `FromSaveState`: serialize/restore watered timers
+- Wire `UpdateWateredTimers(delta)` into `updateGame()` alongside `UpdateDeathTimers`
+
+**Architecture patterns:** Follows water terrain pattern (map state, O(1) lookups). `IsWet()` becomes the unified "is this tile wet from any source" check — growth multiplier code in lifecycle.go uses `IsWet()` already, so manually watered tiles automatically get the growth bonus with zero changes to lifecycle.go.
+
+**[TEST] Checkpoint — Watered tile state:**
+- `go test ./...` passes
+- Build and run: use `/test-world` to create a world with manually watered tiles. Cursor over watered tile shows "Wet" in details panel (existing `IsWet()` drives the annotation). Verify wet status decays — after fast-forwarding, the "Wet" annotation disappears.
+- Note: green tilled rendering not visible yet (Step 2). Only the details panel annotation is testable here.
+
+##### Step 2: Wet Tilled Rendering + Details
+
+**Tests:** None (UI rendering per CLAUDE.md)
+
+**Implementation** (`internal/ui/view.go`, `internal/ui/styles.go`):
+- In `renderCell()`: when rendering tilled soil fill (`═══` or `═X═`), check `gameMap.IsWet(pos)`. If wet, use green style instead of `growingStyle` (olive). Applies to both empty tilled tiles and entity fill padding.
+- Details panel: when cursor is on a manually watered tile, show "Watered" annotation (in addition to existing "Wet" for water-adjacent and "Tilled soil" for tilled)
+
+**[TEST] Checkpoint — Wet tilled rendering:**
+- `go test ./...` passes
+- Build and run: use `/test-world` to create tilled soil near water. Tiles adjacent to water render green `═══`. Tilled tiles far from water render olive `═══`. Cursor over wet tilled tile shows "Tilled soil" + "Wet". Cursor over watered tile (once watering exists) shows "Tilled soil" + "Watered".
+
+##### Step 3: Discovery from ActionFillVessel + Activity Registration + Order UI
+
+_Detailed breakdown TBD — high-level scope:_
+- Add `CheckDiscovery` call in ActionFillVessel completion handler (update.go), passing the vessel as item
+- Register `waterGarden` activity in ActivityRegistry: Category "garden", IntentOrderable, AvailabilityKnowHow, triggers: `{ActionFillVessel, ItemType: "vessel"}`
+- Order UI: selecting "Water Garden" in garden step 1 creates order immediately (no area selection, no sub-menu)
+- `DisplayName()`: "Water garden"
+- `IsOrderFeasible` for waterGarden: vessel exists + water exists + dry tilled planted tile exists
+- Serialization: no new order fields needed (no TargetType, no LockedVariety)
+
+##### Step 4: findWaterGardenIntent + ActionWaterGarden (basic watering)
+
+_Detailed breakdown TBD — high-level scope:_
+- `ActionWaterGarden` action type constant
+- `findWaterGardenIntent()` in order_execution.go: checks for feasibility, returns ActionWaterGarden
+- ActionWaterGarden handler Phase 3 only (assume character has vessel with water): find nearest dry tilled planted tile, move to it, water it (SetManuallyWatered + consume 1 unit from vessel), auto-continue to next tile, complete when no dry tiles remain
+- Test with `/test-world` providing pre-filled water vessel
+- `isMultiStepOrderComplete` case for waterGarden
+
+##### Step 5: Vessel Fill Phase + Procurement (full self-managing flow)
+
+_Detailed breakdown TBD — high-level scope:_
+- Extract shared "fill vessel at water" helper from ActionFillVessel Phase 2 (RunWaterFill or similar)
+- ActionWaterGarden handler Phases 1 + 2: RunVesselProcurement for empty vessel, shared fill helper for empty vessel at water
+- Full loop: water tiles → vessel empty → refill → continue watering
+- Human testing: full end-to-end Water Garden flow
+
+**[TEST] Checkpoint — Full Water Garden flow:**
+- `go test ./...` passes
+- Build and run:
+  - Character discovers Water Garden from filling a vessel
+  - Order Water Garden. Character fills vessel (if needed), waters planted tiles.
+  - Watered tiles turn green `═══`. Dry tilled tiles remain olive `═══`.
+  - Character continues watering until all planted tiles wet or vessel empty
+  - If vessel empty and more tiles need watering, character refills at nearest water source
+  - Plants on watered tiles grow faster than dry tilled plants
+  - Watering effect wears off after ~3 world days (use time skip to verify)
+  - Tiles adjacent to ponds are always wet (no watering needed, already green)
+  - Wet tilled-but-unplanted tiles also display green
+  - Multi-assignment: two Water Garden orders, two characters watering
+  - Save and load preserves watered tile timers
+
+**[TEST] Final Checkpoint — Full Part II Integration:**
+
+Start a new world and play through the full garden lifecycle:
+- Till soil → plant seeds → water garden → sprouts grow → full plants → natural reproduction (also through sprout phase)
+- Growth hierarchy visible: watered tilled > dry tilled > water-adjacent wild > plain wild
+- Food chain: gourds eaten → seeds → planted → grow → more gourds (sustainable food loop)
+- Flower cycle: forage flower → seed → plant → grow → more flowers → more seeds
+- Satiation differences noticeable: gourd satisfies much more than berry
+- Water management: characters fetch water, drink from vessels, water gardens
+
+**[DOCS]** Final doc pass for Part II.
+
+**[RETRO]** Run /retro.
+
+**Reqs reconciliation:** Lines 110-123. _"Discoverable by looking at sprout or water source or hollow gourd"_ — sprout via ActionLook trigger, water source via ActionFillVessel trigger (descoped lookable terrain, captured in triggered-enhancements.md), hollow gourd deferred (minor). _"Orderable"_ ✓. _"No Recipe Needed"_ ✓. _"Pre-requisite: at least one vessel full with water"_ ✓ (self-managing procurement + fill). _"water the closest dry tilled planted tile"_ ✓. _"Watering uses 1 unit of water"_ ✓. _"watered tile changes in appearance to green"_ ✓. _"tilled but not planted... green instead of olive"_ ✓. _"If have water left... look for closest dry tilled planted tile"_ ✓. _"vessel is empty, then refill vessel and continue"_ ✓. _"once there are no remaining dry tilled planted tiles, order is complete"_ ✓. _"more than one character can be watering at once"_ ✓.
 
 ---
 ### Slice 9: Tuning and Enhancements

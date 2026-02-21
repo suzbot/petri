@@ -3,6 +3,7 @@ name: implement-feature
 description: "Implement an already-planned feature, step, or task. Validates the plan against architecture patterns, then executes with TDD and human testing checkpoints. Trigger phrases: 'implement the next step', 'build the next feature', 'start development' or similar."
 user-invocable: true
 argument-hint: Feature or step to implement (e.g., "Slice 6 Step 3" or "sprout maturation")
+model: sonnet
 ---
 
 ## Implementing a Planned Feature

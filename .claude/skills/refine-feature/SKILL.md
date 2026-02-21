@@ -25,8 +25,47 @@ Read these before discussing approach:
 - Critically evaluate assumptions in existing plans
 - Get user confirmation on approach
 
+**When presenting options:**
+- State what you're deciding between explicitly (don't assume it's obvious)
+- For design questions, name the trade-off axis (e.g., "cardinal vs 8-directional adjacency")
+- If you realize mid-explanation that you haven't actually surfaced a question, pause and reframe
+
+**Anti-pattern:** Stating an interpretation as if it's an open question without naming the alternatives.
+
+### Step 2.5: Document Decisions Before Deep Exploration (REQUIRED)
+
+Before invoking expensive exploration (Explore agents, broad code reads for implementation details), update the planning document with:
+- Resolved design questions and their rationale
+- Scope changes (descoped features, deferred items)
+- Key design decisions from discussion
+
+**Why:** Decisions are fresh in context. If exploration gets interrupted or expensive, the resolved thinking is already captured. The plan doc is the handoff artifact — it should reflect discussion outcomes immediately.
+
+**When to skip:** If no decisions were made yet (still in Q&A phase), continue discussion before documenting.
+
 ### Step 3: Update Plan (REQUIRED)
-Update the existing planning document in `docs/` with design decisions and implementation steps. **The plan doc is the handoff artifact** — after `/clear`, `/implement-feature` will rely on it cold as the source of truth.
+
+#### Step 3a: Present Outline Conversationally
+
+Before writing detailed steps into the plan doc, present the step breakdown to the user as conversation at a high-to-medium level of detail:
+- "Here are the N steps I see this breaking into: ..."
+- Include enough detail to evaluate sequencing, scope per step, and dependencies
+- Do NOT write into the plan doc yet — this is a digestibility and alignment check
+
+Get user feedback on the outline before proceeding. Adjust if needed.
+
+#### Step 3b: Write Detailed Plan
+
+Once the outline is aligned, write the detailed implementation steps into the existing planning document in `docs/`. **The plan doc is the handoff artifact** — after `/clear`, `/implement-feature` will rely on it cold as the source of truth.
+
+**Refinement checklist (verify for each step before writing):**
+- [ ] **Human testing checkpoint:** Is there a user-verifiable behavior at this step? If yes, add [TEST] checkpoint. If no, state why (e.g., "pure logic, no UI").
+- [ ] **Reqs reconciliation:** Does this step trace to a specific requirement line? If the step enables human testing, reconcile observable behavior against the reqs.
+- [ ] **Architecture alignment:** Does the step follow an established pattern (name it) or introduce new infrastructure (justify it)?
+
+**If the feature resolved open design questions during Step 2, explicitly document:**
+- [ ] Values alignment (which values from Values.md does this design honor?)
+- [ ] Deferred scope (what was descoped and where is it tracked?)
 
 A plan is implementation-ready when it has:
 - **Granular implementation steps** with iterative testable checkpoints: [TEST], [DOCS], and [RETRO]

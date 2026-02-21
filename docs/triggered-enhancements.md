@@ -29,6 +29,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Drinkable bool on ItemVariety**      | Non-drinkable liquid introduced (lamp oil, dye); Need to distinguish consumable vs non-consumable liquids |
 | **Watertight bool on ContainerData**   | Non-watertight container introduced (basket, sack); Need to prevent liquid storage in permeable containers |
 | **Idle activity registry refactor**    | Idle activity needs discovery/know-how gating; Idle activities need data-driven selection (weighted probabilities, personality); Adding 7th+ hardcoded idle option feels unwieldy |
+| **Terrain-aware Look + discovery**     | Adding activity discovered from terrain interaction; Characters feel artificially limited to item-only observation; Want richer idle contemplation behaviors |
 
 ### Future Enhancement Details
 
@@ -142,6 +143,20 @@ Currently, `LockedVariety` is a field on the Order struct — the order itself r
 2. **Emergent from pickup limitations**: The order just says "plant gourds." The variety lock emerges naturally because the character picks up whatever gourd seeds are nearest/preferred, and once they have a vessel full of one variety, they keep planting that variety until it runs out. No explicit lock needed — the lock is a side effect of inventory state. This is more realistic and removes a special-case field from Order.
 
 Deferred because: Current implementation works. Revisit when orders gain more character-agency features or when the knowledge system supports working memory.
+
+---
+
+**Terrain-aware Look + discovery:**
+
+Characters can look at items but not terrain — narratively artificial. Water, tilled soil, and future terrain types (cliff faces, mineral deposits) should be observable. Two extensions:
+
+1. **Lookable terrain**: Extend the Look idle activity to target terrain positions (water-adjacent, etc.). Characters "contemplate" a pond or spring. No preference formation (terrain has no item attributes), but fires discovery checks. Requires: look-targeting logic to include terrain positions alongside items, ActionLook handler to accept terrain targets.
+
+2. **Terrain discovery triggers**: Add `TerrainType string` to `DiscoveryTrigger`. New `CheckTerrainDiscovery(char, action, terrainType)` called when characters interact with terrain. Enables "character looks at water → discovers Water Garden" or "character looks at cliff → discovers Mining."
+
+These are complementary — lookable terrain provides the idle behavior, terrain triggers provide the discovery mechanism. Together they create a richer observation loop where characters learn from their environment, not just from items.
+
+Deferred because: Water Garden discovery is adequately served by item-based triggers (sprouts) + action-completion triggers (ActionFillVessel). Lookable terrain is flavor, not blocking. Revisit when a future activity's discovery genuinely requires terrain observation, or when idle behaviors need more variety.
 
 ---
 
