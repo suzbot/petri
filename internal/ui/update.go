@@ -764,23 +764,36 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		// Consume accumulated points
 		char.SpeedAccumulator -= movementThreshold
 
-		// Try to move, with collision handling (max 1 character per position)
+		// Try to move with displacement-aware collision handling
 		moved := false
-		triedPositions := make(map[[2]int]bool)
-		triedPositions[[2]int{tx, ty}] = true
-
-		for attempts := 0; attempts < 5 && !moved; attempts++ {
+		if char.DisplacementStepsLeft > 0 {
+			// Continue displacement: move perpendicular instead of following path
+			moved = m.takeDisplacementStep(char, cx, cy)
+		} else {
+			// Normal movement with character-collision displacement
+			triedPositions := map[[2]int]bool{{tx, ty}: true}
 			if m.gameMap.MoveCharacter(char, types.Position{X: tx, Y: ty}) {
 				moved = true
-				break
+			} else {
+				// Character collision → initiate perpendicular displacement
+				if m.gameMap.CharacterAt(types.Position{X: tx, Y: ty}) != nil {
+					moved = m.initiateDisplacement(char, cx, cy, tx, ty)
+				}
+				if !moved {
+					// Non-character obstacle or displacement unavailable → findAlternateStep
+					for attempts := 0; attempts < 5 && !moved; attempts++ {
+						altStep := m.findAlternateStep(char, cx, cy, triedPositions)
+						if altStep == nil {
+							break
+						}
+						tx, ty = altStep[0], altStep[1]
+						triedPositions[[2]int{tx, ty}] = true
+						if m.gameMap.MoveCharacter(char, types.Position{X: tx, Y: ty}) {
+							moved = true
+						}
+					}
+				}
 			}
-			// Position blocked, try alternate
-			altStep := m.findAlternateStep(char, cx, cy, triedPositions)
-			if altStep == nil {
-				break // No valid alternatives
-			}
-			tx, ty = altStep[0], altStep[1]
-			triedPositions[[2]int{tx, ty}] = true
 		}
 
 		if !moved {
@@ -1413,7 +1426,6 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 // moveWithCollision handles speed accumulation and collision-aware movement for self-managing actions.
 // Used by ActionFillVessel and ActionTillSoil-style actions that handle their own movement.
 func (m *Model) moveWithCollision(char *entity.Character, cpos types.Position, delta float64) {
-	tx, ty := char.Intent.Target.X, char.Intent.Target.Y
 	speed := char.EffectiveSpeed()
 	char.SpeedAccumulator += float64(speed) * delta
 	const movementThreshold = 7.5
@@ -1422,21 +1434,34 @@ func (m *Model) moveWithCollision(char *entity.Character, cpos types.Position, d
 	}
 	char.SpeedAccumulator -= movementThreshold
 
+	cx, cy := cpos.X, cpos.Y
 	moved := false
-	triedPositions := make(map[[2]int]bool)
-	triedPositions[[2]int{tx, ty}] = true
 
-	for attempts := 0; attempts < 5 && !moved; attempts++ {
+	if char.DisplacementStepsLeft > 0 {
+		moved = m.takeDisplacementStep(char, cx, cy)
+	} else {
+		tx, ty := char.Intent.Target.X, char.Intent.Target.Y
+		triedPositions := map[[2]int]bool{{tx, ty}: true}
 		if m.gameMap.MoveCharacter(char, types.Position{X: tx, Y: ty}) {
 			moved = true
-			break
+		} else {
+			if m.gameMap.CharacterAt(types.Position{X: tx, Y: ty}) != nil {
+				moved = m.initiateDisplacement(char, cx, cy, tx, ty)
+			}
+			if !moved {
+				for attempts := 0; attempts < 5 && !moved; attempts++ {
+					altStep := m.findAlternateStep(char, cx, cy, triedPositions)
+					if altStep == nil {
+						break
+					}
+					tx, ty = altStep[0], altStep[1]
+					triedPositions[[2]int{tx, ty}] = true
+					if m.gameMap.MoveCharacter(char, types.Position{X: tx, Y: ty}) {
+						moved = true
+					}
+				}
+			}
 		}
-		altStep := m.findAlternateStep(char, cpos.X, cpos.Y, triedPositions)
-		if altStep == nil {
-			break
-		}
-		tx, ty = altStep[0], altStep[1]
-		triedPositions[[2]int{tx, ty}] = true
 	}
 
 	if !moved {
@@ -1658,6 +1683,96 @@ func (m *Model) stepForward() {
 		fpos := m.following.Pos()
 		m.cursorX, m.cursorY = fpos.X, fpos.Y
 	}
+}
+
+// takeDisplacementStep moves the character one step in the current displacement direction.
+// If the primary direction is blocked, tries the opposite perpendicular.
+// If both are blocked, clears displacement state and returns false.
+func (m *Model) takeDisplacementStep(char *entity.Character, cx, cy int) bool {
+	ddx, ddy := char.DisplacementDX, char.DisplacementDY
+
+	dispPos := types.Position{X: cx + ddx, Y: cy + ddy}
+	if m.gameMap.IsValid(dispPos) && m.gameMap.MoveCharacter(char, dispPos) {
+		char.DisplacementStepsLeft--
+		if char.DisplacementStepsLeft == 0 {
+			char.DisplacementDX, char.DisplacementDY = 0, 0
+		}
+		return true
+	}
+
+	// Primary direction blocked — try opposite perpendicular
+	oddx, oddy := -ddx, -ddy
+	otherPos := types.Position{X: cx + oddx, Y: cy + oddy}
+	if m.gameMap.IsValid(otherPos) && m.gameMap.MoveCharacter(char, otherPos) {
+		char.DisplacementDX, char.DisplacementDY = oddx, oddy
+		char.DisplacementStepsLeft--
+		if char.DisplacementStepsLeft == 0 {
+			char.DisplacementDX, char.DisplacementDY = 0, 0
+		}
+		return true
+	}
+
+	// Both directions blocked — clear displacement
+	char.DisplacementStepsLeft = 0
+	char.DisplacementDX, char.DisplacementDY = 0, 0
+	return false
+}
+
+// initiateDisplacement sets displacement state after a character-character collision.
+// Randomly selects one of the two perpendicular directions. If both are blocked, returns false.
+// On success, takes the first displacement step this tick and returns true.
+func (m *Model) initiateDisplacement(char *entity.Character, cx, cy, tx, ty int) bool {
+	moveDX := sign(tx - cx)
+	moveDY := sign(ty - cy)
+	if moveDX == 0 && moveDY == 0 {
+		return false
+	}
+
+	// Perpendicular directions to the movement direction
+	perp1DX, perp1DY := -moveDY, moveDX
+	perp2DX, perp2DY := moveDY, -moveDX
+
+	// Randomly select primary and secondary perpendicular directions
+	var pDX, pDY, sDX, sDY int
+	if rand.Intn(2) == 0 {
+		pDX, pDY, sDX, sDY = perp1DX, perp1DY, perp2DX, perp2DY
+	} else {
+		pDX, pDY, sDX, sDY = perp2DX, perp2DY, perp1DX, perp1DY
+	}
+
+	// Find an available perpendicular direction
+	var chDX, chDY int
+	var found bool
+	p1Pos := types.Position{X: cx + pDX, Y: cy + pDY}
+	if m.gameMap.IsValid(p1Pos) && !m.gameMap.IsBlocked(p1Pos) {
+		chDX, chDY, found = pDX, pDY, true
+	} else {
+		p2Pos := types.Position{X: cx + sDX, Y: cy + sDY}
+		if m.gameMap.IsValid(p2Pos) && !m.gameMap.IsBlocked(p2Pos) {
+			chDX, chDY, found = sDX, sDY, true
+		}
+	}
+
+	if !found {
+		return false
+	}
+
+	char.DisplacementStepsLeft = 3
+	char.DisplacementDX = chDX
+	char.DisplacementDY = chDY
+
+	// Take the first displacement step this tick
+	dispPos := types.Position{X: cx + chDX, Y: cy + chDY}
+	if m.gameMap.MoveCharacter(char, dispPos) {
+		char.DisplacementStepsLeft--
+		if char.DisplacementStepsLeft == 0 {
+			char.DisplacementDX, char.DisplacementDY = 0, 0
+		}
+		return true
+	}
+
+	// IsBlocked said clear but MoveCharacter still failed — state set for next tick
+	return false
 }
 
 // findAlternateStep finds an alternate step when the preferred step is blocked

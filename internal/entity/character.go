@@ -53,6 +53,12 @@ type Character struct {
 	// Speed tracking (accumulator for fractional movement)
 	SpeedAccumulator float64
 
+	// Displacement state (ephemeral, not serialized)
+	// When > 0, character takes perpendicular steps to walk around a blocking character
+	DisplacementStepsLeft int
+	DisplacementDX        int
+	DisplacementDY        int
+
 	// Activity tracking
 	CurrentActivity string
 

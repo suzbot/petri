@@ -1088,10 +1088,12 @@ func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 	}
 }
 
-// NextStepBFS calculates the next position moving toward target using BFS pathfinding.
-// Routes around permanent obstacles (water, impassable features). Ignores characters
-// since they move and per-tick collision is handled separately.
-// Falls back to greedy NextStep if no path exists.
+// NextStepBFS calculates the next position moving toward target using greedy-first pathfinding.
+// Prefers the greedy diagonal step (alternating X/Y based on larger delta) for natural
+// zigzag movement that spreads characters across different paths. Falls back to BFS only
+// when the greedy step is blocked by terrain (water, impassable features).
+// Ignores characters since they move and per-tick collision is handled separately.
+// Falls back to greedy NextStep if no BFS path exists either.
 func NextStepBFS(fromX, fromY, toX, toY int, gameMap *game.Map) (int, int) {
 	if fromX == toX && fromY == toY {
 		return fromX, fromY
@@ -1100,6 +1102,16 @@ func NextStepBFS(fromX, fromY, toX, toY int, gameMap *game.Map) (int, int) {
 	// Nil map fallback - used in tests that don't need pathfinding
 	if gameMap == nil {
 		return NextStep(fromX, fromY, toX, toY)
+	}
+
+	// Prefer greedy step for natural diagonal/zigzag movement.
+	// Only fall through to BFS when greedy hits terrain obstacles.
+	gx, gy := NextStep(fromX, fromY, toX, toY)
+	greedyPos := types.Position{X: gx, Y: gy}
+	if gameMap.IsValid(greedyPos) && !gameMap.IsWater(greedyPos) {
+		if f := gameMap.FeatureAt(greedyPos); f == nil || f.IsPassable() {
+			return gx, gy
+		}
 	}
 
 	from := types.Position{X: fromX, Y: fromY}

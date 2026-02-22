@@ -114,7 +114,7 @@ internal/
 
 **Up Next:**
 
-- Gardening in progress (Post-Slice 8 complete). Next: Slice 9 Tuning. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
+- Gardening in progress (Slice 9 Steps 1-2 complete). Next: Step 3 Food Satiation Tiers. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
 
 ## Reference and Planning Documents
 

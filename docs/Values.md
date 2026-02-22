@@ -63,3 +63,23 @@ Example: A discovery test was flaky because Go map iteration is non-deterministi
 When something fails unexpectedly, gather evidence first — run a diagnostic, add logging, check with `-v` — then reason about causes. Reasoning without evidence leads to circular re-derivation of the same candidate explanations. The cost of one diagnostic run is always lower than the cost of three rounds of speculative reasoning.
 
 Example: WaterGarden integration tests failed for unclear reasons. Three rounds of reasoning about positioning and pathfinding produced wrong fixes. One diagnostic pass with `t.Logf` immediately revealed that `findWaterGardenIntent` was returning nil because `IsWet` treated tiles adjacent to water as already wet.
+
+## Start With the Simpler Rule
+
+When designing character behavior — triggers, thresholds, conditions — default to the simplest version that addresses the observed problem. Don't add conditions (e.g., "only for stationary characters") without a concrete observed reason. A conditional rule that isn't grounded in something the player actually experiences is a complexity cost with no benefit.
+
+Similarly: when a problem is behavioral, ask what the player actually observes before reasoning abstractly about the system. Observable evidence (where it happens, when it got worse, what it looks like) is more valuable than architecture analysis alone. Ask for it early.
+
+Example: Displacement on any character collision vs. only stationary characters — "always sidestep" is the simpler rule, matches real sidewalk behavior, and avoids a tracking mechanism with no observable upside.
+
+## Test the Plan's Assumptions, Not Just Its Steps
+
+A plan encodes a causal model ("X causes Y, so fix X"). If the first human test shows the model was incomplete, that's a signal to revisit the approach, not to patch the implementation. Correct code that addresses the wrong cause is still wrong.
+
+Example: The pathing thrashing plan said perpendicular displacement fixes thrashing. Displacement was implemented correctly, but thrashing persisted — the real cause was BFS path convergence, not per-tick collision alone. One test revealed the plan's causal model was incomplete, leading to a fundamentally different approach (greedy-first pathfinding).
+
+## Layer Solutions Based on Evidence
+
+When a problem might have multiple causes, test the simplest fix first and observe what remains. Each layer of the solution should have an observed reason to exist. This produces minimal-complexity solutions and avoids speculative "belt and suspenders" code.
+
+Example: Greedy-first pathfinding was tested alone. It solved path convergence but left character-blocking unsolved. Displacement was then re-added as a targeted second layer — both layers justified by observation, not speculation.

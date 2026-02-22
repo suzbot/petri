@@ -2323,6 +2323,100 @@ func TestNextStepBFS_LShapedPond(t *testing.T) {
 }
 
 // =============================================================================
+// Greedy-first pathfinding (Slice 9 Step 2: path diversity)
+// =============================================================================
+
+// Anchor: two characters from different positions heading to the same destination
+// take different first steps, reducing path convergence.
+func TestNextStepBFS_GreedyFirst_PathDiversity(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(30, 30)
+
+	// Target: (15, 15)
+	// Character A at (5, 10) — dx=10, dy=5 → larger dx → steps right
+	// Character B at (10, 5) — dx=5, dy=10 → larger dy → steps down
+	ax, ay := NextStepBFS(5, 10, 15, 15, gameMap)
+	bx, by := NextStepBFS(10, 5, 15, 15, gameMap)
+
+	// A should step right (X+1)
+	if ax != 6 || ay != 10 {
+		t.Errorf("Character A: got (%d,%d), want (6,10) — should step along larger dx", ax, ay)
+	}
+	// B should step down (Y+1)
+	if bx != 10 || by != 6 {
+		t.Errorf("Character B: got (%d,%d), want (10,6) — should step along larger dy", bx, by)
+	}
+	// Different first steps
+	if ax == bx && ay == by {
+		t.Error("Both characters took the same first step — paths should diverge")
+	}
+}
+
+// Greedy produces zigzag: alternates X and Y steps as relative deltas shift.
+func TestNextStepBFS_GreedyFirst_ZigzagPath(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(30, 30)
+
+	// Walk from (0,0) to (4,3) — should zigzag, not L-shape
+	x, y := 0, 0
+	steps := make([][2]int, 0, 7)
+	for x != 4 || y != 3 {
+		nx, ny := NextStepBFS(x, y, 4, 3, gameMap)
+		steps = append(steps, [2]int{nx, ny})
+		x, y = nx, ny
+	}
+
+	// Count direction changes (X-move vs Y-move transitions)
+	dirChanges := 0
+	for i := 1; i < len(steps); i++ {
+		prevDX := steps[i-1][0] - (steps[i-1][0] - (steps[i][0] - steps[i-1][0]))
+		_ = prevDX
+		// Simpler: track whether each step was X or Y
+		xMove := steps[i][0] != steps[i-1][0]
+		prevXMove := false
+		if i == 1 {
+			prevXMove = steps[0][0] != 0 || (steps[0][0] == 0 && steps[0][1] == 0)
+		} else {
+			prevXMove = steps[i-1][0] != steps[i-2][0]
+		}
+		if xMove != prevXMove {
+			dirChanges++
+		}
+	}
+
+	// A zigzag path of 7 steps should have multiple direction changes.
+	// An L-shape has exactly 1 direction change. Zigzag should have more.
+	if dirChanges < 2 {
+		t.Errorf("Expected zigzag path (>= 2 direction changes), got %d changes. Steps: %v", dirChanges, steps)
+	}
+}
+
+// Greedy step blocked by water → falls back to BFS routing.
+func TestNextStepBFS_GreedyBlocked_FallsBackToBFS(t *testing.T) {
+	t.Parallel()
+
+	// Character at (5,5), target (5,1). Greedy step is (5,4).
+	// Place water at (5,4) so greedy fails but BFS can route around.
+	gameMap := game.NewMap(20, 20)
+	gameMap.AddWater(types.Position{X: 5, Y: 4}, game.WaterPond)
+
+	nx, ny := NextStepBFS(5, 5, 5, 1, gameMap)
+
+	// Should not step into water
+	if nx == 5 && ny == 4 {
+		t.Error("Should not step into water at (5,4) — BFS fallback should route around")
+	}
+	// Should be adjacent to start
+	start := types.Position{X: 5, Y: 5}
+	stepPos := types.Position{X: nx, Y: ny}
+	if start.DistanceTo(stepPos) != 1 {
+		t.Errorf("Step (%d,%d) is not adjacent to start (5,5)", nx, ny)
+	}
+}
+
+// =============================================================================
 // BFS used for initial intent creation (regression for thrashing bug)
 // =============================================================================
 

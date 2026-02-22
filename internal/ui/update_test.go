@@ -2913,3 +2913,256 @@ func TestApplyIntent_WaterGarden_RefillCycle(t *testing.T) {
 		t.Errorf("Order status: got %s, want %s", order.Status, entity.OrderCompleted)
 	}
 }
+
+// =============================================================================
+// Displacement Tests (Step 2 Slice 9)
+// =============================================================================
+
+// Anchor: character blocked by another character sidesteps perpendicular instead of staying stuck
+func TestDisplacement_Anchor_CharacterSidestepsAroundBlocker(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Mover", "berries", types.ColorRed)
+	blocker := entity.NewCharacter(2, 6, 5, "Blocker", "berries", types.ColorRed)
+	gameMap.AddCharacter(char)
+	gameMap.AddCharacter(blocker)
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionMove,
+		Target: types.Position{X: 6, Y: 5},
+		Dest:   types.Position{X: 10, Y: 5},
+	}
+	char.SpeedAccumulator = 10.0
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, 0.1)
+
+	pos := char.Pos()
+	if pos.X == 5 && pos.Y == 5 {
+		t.Error("Character should not stay stuck at start after collision with blocker")
+	}
+	if pos.X == 6 && pos.Y == 5 {
+		t.Error("Character should not occupy blocker's position")
+	}
+	// Should be at (5,4) or (5,6) — perpendicular to rightward movement
+	if pos.X != 5 {
+		t.Errorf("Should have moved perpendicular (same X=5), got (%d,%d)", pos.X, pos.Y)
+	}
+}
+
+// Displacement sets 3-step state, first step taken immediately
+func TestDisplacement_CharacterCollision_SetsDisplacementState(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Mover", "berries", types.ColorRed)
+	blocker := entity.NewCharacter(2, 6, 5, "Blocker", "berries", types.ColorRed)
+	gameMap.AddCharacter(char)
+	gameMap.AddCharacter(blocker)
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionMove,
+		Target: types.Position{X: 6, Y: 5},
+		Dest:   types.Position{X: 10, Y: 5},
+	}
+	char.SpeedAccumulator = 10.0
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, 0.1)
+
+	if char.DisplacementStepsLeft != 2 {
+		t.Errorf("Expected DisplacementStepsLeft=2 after first step, got %d", char.DisplacementStepsLeft)
+	}
+	if char.DisplacementDX == 0 && char.DisplacementDY == 0 {
+		t.Error("Expected non-zero displacement direction after collision")
+	}
+}
+
+// During displacement, character moves in displacement direction not BFS target
+func TestDisplacement_MovesInDisplacementDirection(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Mover", "berries", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	char.DisplacementStepsLeft = 2
+	char.DisplacementDX = 0
+	char.DisplacementDY = 1
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionMove,
+		Target: types.Position{X: 6, Y: 5},
+		Dest:   types.Position{X: 10, Y: 5},
+	}
+	char.SpeedAccumulator = 10.0
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, 0.1)
+
+	pos := char.Pos()
+	if pos.X != 5 || pos.Y != 6 {
+		t.Errorf("Expected displacement move to (5,6), got (%d,%d)", pos.X, pos.Y)
+	}
+	if char.DisplacementStepsLeft != 1 {
+		t.Errorf("Expected DisplacementStepsLeft=1, got %d", char.DisplacementStepsLeft)
+	}
+}
+
+// After last displacement step, state is fully cleared
+func TestDisplacement_ClearsAfterThreeSteps(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Mover", "berries", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	char.DisplacementStepsLeft = 1
+	char.DisplacementDX = 0
+	char.DisplacementDY = 1
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionMove,
+		Target: types.Position{X: 6, Y: 5},
+		Dest:   types.Position{X: 10, Y: 5},
+	}
+	char.SpeedAccumulator = 10.0
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, 0.1)
+
+	if char.DisplacementStepsLeft != 0 {
+		t.Errorf("Expected DisplacementStepsLeft=0 after last step, got %d", char.DisplacementStepsLeft)
+	}
+	if char.DisplacementDX != 0 || char.DisplacementDY != 0 {
+		t.Error("Expected displacement direction cleared after last step")
+	}
+}
+
+// If primary displacement direction is blocked, tries opposite perpendicular
+func TestDisplacement_PrimaryDirBlocked_TriesOtherPerp(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Mover", "berries", types.ColorRed)
+	blockDisp := entity.NewCharacter(2, 5, 6, "BlockDisp", "berries", types.ColorRed)
+	gameMap.AddCharacter(char)
+	gameMap.AddCharacter(blockDisp)
+
+	char.DisplacementStepsLeft = 2
+	char.DisplacementDX = 0
+	char.DisplacementDY = 1
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionMove,
+		Target: types.Position{X: 6, Y: 5},
+		Dest:   types.Position{X: 10, Y: 5},
+	}
+	char.SpeedAccumulator = 10.0
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, 0.1)
+
+	pos := char.Pos()
+	if pos.X != 5 || pos.Y != 4 {
+		t.Errorf("Expected (5,4) when +Y blocked, got (%d,%d)", pos.X, pos.Y)
+	}
+	if char.DisplacementDY != -1 {
+		t.Errorf("Expected DisplacementDY=-1 after switching, got %d", char.DisplacementDY)
+	}
+}
+
+// If both perpendicular directions blocked, displacement clears
+func TestDisplacement_BothPerpsBlocked_ClearsDisplacement(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Mover", "berries", types.ColorRed)
+	blockUp := entity.NewCharacter(2, 5, 6, "BlockUp", "berries", types.ColorRed)
+	blockDown := entity.NewCharacter(3, 5, 4, "BlockDown", "berries", types.ColorRed)
+	gameMap.AddCharacter(char)
+	gameMap.AddCharacter(blockUp)
+	gameMap.AddCharacter(blockDown)
+
+	char.DisplacementStepsLeft = 2
+	char.DisplacementDX = 0
+	char.DisplacementDY = 1
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionMove,
+		Target: types.Position{X: 6, Y: 5},
+		Dest:   types.Position{X: 10, Y: 5},
+	}
+	char.SpeedAccumulator = 10.0
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, 0.1)
+
+	if char.DisplacementStepsLeft != 0 {
+		t.Errorf("Expected DisplacementStepsLeft=0, got %d", char.DisplacementStepsLeft)
+	}
+	pos := char.Pos()
+	if pos.X != 5 || pos.Y != 5 {
+		t.Errorf("Expected stuck at (5,5), got (%d,%d)", pos.X, pos.Y)
+	}
+}
+
+// Water collision does NOT trigger displacement — only character collision does
+func TestDisplacement_WaterCollision_NoDisplacement(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Mover", "berries", types.ColorRed)
+	gameMap.AddWater(types.Position{X: 6, Y: 5}, game.WaterPond)
+	gameMap.AddCharacter(char)
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionMove,
+		Target: types.Position{X: 6, Y: 5},
+		Dest:   types.Position{X: 10, Y: 5},
+	}
+	char.SpeedAccumulator = 10.0
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, 0.1)
+
+	if char.DisplacementStepsLeft != 0 {
+		t.Errorf("Expected no displacement for water collision, got %d", char.DisplacementStepsLeft)
+	}
+}
+
+// Intent is preserved through displacement
+func TestDisplacement_IntentPreservedThroughDisplacement(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Mover", "berries", types.ColorRed)
+	blocker := entity.NewCharacter(2, 6, 5, "Blocker", "berries", types.ColorRed)
+	gameMap.AddCharacter(char)
+	gameMap.AddCharacter(blocker)
+
+	targetItem := entity.NewBerry(10, 5, types.ColorRed, false, false)
+	gameMap.AddItem(targetItem)
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionMove,
+		Target:     types.Position{X: 6, Y: 5},
+		Dest:       types.Position{X: 10, Y: 5},
+		TargetItem: targetItem,
+	}
+	char.SpeedAccumulator = 10.0
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, 0.1)
+
+	if char.Intent == nil {
+		t.Fatal("Intent should not be nil after displacement")
+	}
+	if char.Intent.TargetItem != targetItem {
+		t.Error("TargetItem should be preserved through displacement")
+	}
+	if char.Intent.Dest.X != 10 || char.Intent.Dest.Y != 5 {
+		t.Error("Dest should be preserved through displacement")
+	}
+}

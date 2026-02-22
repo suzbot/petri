@@ -455,11 +455,13 @@ Features have a `Passable` boolean — impassable features are handled by `IsBlo
 
 ### Movement & Pathfinding
 
-**`NextStepBFS`**: BFS pathfinding that routes around permanent obstacles (water, impassable features) while ignoring characters (temporary obstacles). Falls back to greedy `NextStep` if no path exists. Used by all callers with gameMap access.
+**`NextStepBFS`**: Greedy-first pathfinding. Tries a greedy diagonal step (moving along the larger of X or Y delta) before running BFS. If the greedy step is clear, takes it — this produces natural zigzag paths and spreads characters heading to the same destination across different routes. BFS only runs when the greedy step hits water or an impassable feature. Falls back to greedy `NextStep` if no BFS path exists. Used by all callers with gameMap access.
 
 **`NextStep`**: Greedy single-step toward target along larger axis delta. No obstacle awareness. Fallback only.
 
 **`findAlternateStep`**: Per-tick reactive routing around blocked tiles. Used by `MoveCharacter` when next step is occupied.
+
+**Perpendicular displacement on character collision**: When `MoveCharacter` fails due to another character (not terrain), the blocked character enters displacement mode: 3 perpendicular sidesteps before resuming BFS. Direction is chosen randomly from the two perpendiculars; if blocked, tries the opposite. If both blocked, displacement is skipped. Displacement state (`DisplacementStepsLeft`, `DisplacementDX`, `DisplacementDY`) is ephemeral — not serialized. On save/load, displacement clears and the character re-pathfinds normally. This extends `findAlternateStep`'s reactive-routing pattern to multi-step intentional routing without modifying BFS semantics or treating characters as obstacles in pathfinding.
 
 **Movement blocking**: `IsBlocked(pos)` returns true if character, water tile, or impassable feature occupies the position.
 
