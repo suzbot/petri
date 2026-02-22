@@ -11,7 +11,9 @@ then they can be removed from this list.
 
 ## Issues To resolve
 
-1. **Gardening Phase testing feedback**
+1. **Flaky test: `TestTryDiscoverKnowHow_DiscoverPlantOnLookAtPlantable`** — Fails intermittently (~1 in 5 runs). Root cause: `GetDiscoverableActivities()` iterates `ActivityRegistry` (a Go map), so discovery triggers are evaluated in non-deterministic order. When "plant" discovery's `ActionLook` trigger is evaluated after another trigger that also matches, the first match wins and "plant" isn't discovered. Fix: sort activities deterministically before iterating, or collect all matching discoveries instead of returning on first match.
+
+2. **Gardening Phase testing feedback**
 
    e. **Pathing Thrashing:** we're seeing characters thrash more often when pathing now that we've 'upgraded' our pathing logic. The most direct route to an item is blocked by a character. Characrers aren't in the patching calculation because they can move, but often they are engaged in an activity that keeps them stationary for up to 20 seconds. I see characters take one step to try and path around them, but it appears that the new path is the same as the old path, they take one step back and they are blocked again. They spend a lot of energy moving back and forth until the other character moves, and its unpleasant to observe, and doesn't feel like natural behavior. What are some different approaches to improving this?
       i. idea one - force the character to take a few random steps away before re-calculating path, in hopes that new path doesn't have the exact same blockage as the old path

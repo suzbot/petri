@@ -16,6 +16,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **ItemType constants**                 | Adding new item types; Want compile-time safety for item type checks              |
 | **Activity enum**                      | Need to enumerate/filter activities; Activity-based game logic beyond display     |
 | **Action pattern unification investigation** | Post-Gardening; Have 3+ action types with item consumption; Patterns diverge or duplicate |
+| **`continueIntent` early-return block consolidation** | 5+ action-specific early-return blocks in `continueIntent`; New multi-phase action needs early-return and the pattern feels repetitive |
 | **Feature capability derivation**      | Adding new feature types; DrinkSource/Bed bools become redundant                  |
 | **Action log retention policy**        | Implementing character memory; May need world time vs real time consideration     |
 | **UI color style map**                 | Adding new colors frequently; Switch statement maintenance becomes tedious        |
@@ -114,6 +115,16 @@ After Gardening adds more actions (planting seeds, watering, tool usage), invest
 4. Could a unified `ItemConsumer` interface simplify action handlers?
 
 Only investigate if patterns are diverging or duplicating. If each action's needs are sufficiently different, the current approach may be fine.
+
+---
+
+**`continueIntent` early-return block consolidation:**
+
+`continueIntent` (movement.go) has action-specific early-return blocks for actions whose `TargetItem` can be in different locations across phases (ground vs inventory). Current blocks: `ActionConsume`, `ActionDrink` (carried vessel), `ActionFillVessel`, `ActionWaterGarden`. These exist because the generic path's `ItemAt` check would nil the intent when the item moves to inventory.
+
+The blocks share a common shape: check if item is in inventory → return unchanged (no movement needed) or recalculate toward `Dest`. If this grows to 5+ blocks, evaluate whether a general "multi-phase item tracking" pattern could replace per-action blocks — e.g., a helper that checks inventory-then-map for `TargetItem` and recalculates accordingly, called by each action's block or replacing them entirely.
+
+Don't consolidate prematurely — the current 4 blocks are manageable and each has slight phase-detection differences. The trigger is when adding a new block feels like copy-paste.
 
 ---
 

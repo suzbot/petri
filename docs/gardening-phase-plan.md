@@ -2257,27 +2257,172 @@ No tests needed (CLAUDE.md: no tests for UI rendering, display names, configurat
 **[RETRO]** Run `/retro`.
 
 ---
-#### Post-Slice 8: `continueIntent` Look-Transition Cleanup
+#### Post-Slice 8: `continueIntent` Look-Transition Cleanup + Architecture Documentation
 
-**Status:** Workaround in place (exclusion list). Needs `/refine-feature` to evaluate the right long-term fix.
+**Status:** Refined. Ready for `/implement-feature`.
 
-**Problem:** `continueIntent` (movement.go ~line 483) converts any intent with `TargetItem != nil && DrivingStat == ""` to `ActionLook` when the character arrives adjacent to the target. This is the arrival handler for `findLookIntent`'s walk-to-item flow (which uses `Action: ActionMove`). But the condition is too broad — it catches any action with a TargetItem and no DrivingStat. Current workaround: exclusion list (`ActionPickup`, `ActionForage`, `ActionWaterGarden`).
+##### Background
+
+**Problem:** `continueIntent` (movement.go ~line 519) converts any intent with `TargetItem != nil && DrivingStat == ""` to `ActionLook` when the character arrives adjacent to the target. This is the arrival handler for `findLookIntent`'s walk-to-item flow (which uses `Action: ActionMove`). But the condition is too broad — it catches any action with a TargetItem and no DrivingStat. Current workaround: exclusion list (`ActionPickup`, `ActionForage`, `ActionWaterGarden`).
 
 **Root issue:** `findLookIntent` sets `Action: ActionMove` for the walking phase, then relies on `continueIntent` to convert to `ActionLook` on arrival. This conflates two concerns — `continueIntent` should recalculate paths, not change action types. The decision to look should live entirely in `findLookIntent`.
 
-**Proposed fix (needs evaluation):** `findLookIntent` should set `Action: entity.ActionLook` for the walking phase (not `ActionMove`), and `continueIntent`'s arrival transition should check `intent.Action == entity.ActionLook` instead of the broad heuristic. Then only intents deliberately created as looks get the arrival behavior.
+**Fix:** `findLookIntent` sets `Action: ActionLook` for the walking phase (not `ActionMove`). `continueIntent`'s arrival transition checks `intent.Action == ActionLook` instead of the broad heuristic. The exclusion list disappears entirely.
 
-**`RunVesselProcurement` interaction — may also need reevaluation:**
+##### Scope decisions
 
-Three actions use `RunVesselProcurement` for vessel pickup phases, but each interacts with `continueIntent` differently:
-- `ActionForage` — excluded from look-hijack by name
-- `ActionFillVessel` — has its own early-return block in `continueIntent` that bypasses the look-hijack entirely
-- `ActionWaterGarden` — needed both an exclusion AND its own early-return block (added during Step 5b)
+- **In scope:** ActionLook fix (eliminates exclusion list). Architecture.md "Adding New Actions" consolidation.
+- **Deferred:** `continueIntent` early-return block consolidation — tracked in `triggered-enhancements.md`. Current 4 blocks are manageable; consolidate when adding a 5th feels like copy-paste.
+- **Deferred:** Routing ordered actions through `ActionPickup` for vessel procurement — requires solving the "liquid isn't an existing item" gap for fill phases. Not needed for the look-hijack fix.
 
-This asymmetry means the exclusion list and/or the number of action-specific early-return blocks will grow as new actions use `RunVesselProcurement`. The `ActionLook`-based fix would eliminate the exclusion list, but the early-return block pattern would persist for any action where `TargetItem` can be in inventory (not on the map). Evaluate during this cleanup whether:
-1. The `ActionLook` proposal is sufficient (eliminates exclusion list, early-return blocks remain)
-2. `continueIntent` needs a more general pattern for multi-phase actions (reduces per-action blocks)
-3. Ordered actions should use `ActionPickup` for vessel procurement (aligns with TillSoil/Plant, but requires solving the "liquid isn't an existing item" gap for the fill phase)
+##### Values alignment
+
+- **Consistency Over Local Cleverness:** The fix makes `ActionLook` follow the same pattern as `ActionTalk` — the intent creator sets the final action type, and `continueIntent` just recalculates paths. No more special-case arrival conversion.
+- **Source of Truth Clarity:** The decision to look lives in `findLookIntent`, not split between `findLookIntent` (sets `ActionMove`) and `continueIntent` (converts to `ActionLook`).
+- **Reuse Before Invention:** The `ActionLook` handler in `update.go` needs a walking phase — this mirrors how `ActionTalk`'s walk-to-character flow works via `continueIntent` generic path recalculation. Same pattern, different target type.
+
+---
+
+##### Step 1: `ActionLook` Fix ✅
+
+**Anchor story:** A character decides to look at a mushroom across the clearing. They walk toward it with `ActionLook` set from the start — no mid-walk action conversion needed. `continueIntent` recalculates their path each tick via the generic fallback. When they arrive adjacent, the `ActionLook` handler in `update.go` detects they're in place and starts the look duration. The exclusion list in `continueIntent` is gone.
+
+**Architecture pattern:** Follows the `ActionTalk` walk-then-act pattern (architecture.md "Movement Special Cases"). Intent creator sets the final action type; `continueIntent` generic path handles walking; `applyIntent` handler detects arrival and performs the action. NOT a self-managing action — no early-return block needed in `continueIntent` because `TargetItem` stays on the map throughout (no inventory transition).
+
+**Tests** (in `internal/system/movement_test.go` and `internal/system/looking_test.go`):
+
+_continueIntent tests:_
+- `ActionLook` intent with `TargetItem` not yet adjacent: returns updated intent with recalculated path toward item (walking continues)
+- `ActionLook` intent arriving adjacent to `TargetItem`: returns intent with `Target`/`Dest` set to current position (ready for look duration)
+- Non-look intent with `TargetItem != nil && DrivingStat == ""` arriving adjacent: does NOT convert to `ActionLook` (the old heuristic is gone — falls through to generic movement)
+- Existing `ActionPickup`, `ActionForage`, `ActionWaterGarden` behavior unchanged (no exclusion list needed, no behavioral change)
+
+_findLookIntent tests:_
+- Existing test for distant item: update expected `Action` from `ActionMove` to `ActionLook`
+- Existing test for adjacent item: should still return `ActionLook` (no change)
+
+**Implementation:**
+
+1. **`findLookIntent`** (movement.go ~line 1273): Change walking-phase `Action` from `entity.ActionMove` to `entity.ActionLook`. No other field changes — `Target` (next BFS step), `Dest` (adjacent tile), `TargetItem` all stay the same.
+
+2. **`continueIntent` look-transition block** (movement.go ~line 519): Replace the broad heuristic:
+   ```
+   // BEFORE:
+   if intent.TargetItem != nil && intent.DrivingStat == "" &&
+      intent.Action != entity.ActionPickup &&
+      intent.Action != entity.ActionForage &&
+      intent.Action != entity.ActionWaterGarden &&
+      isAdjacent(cx, cy, tx, ty) {
+
+   // AFTER:
+   if intent.Action == entity.ActionLook &&
+      intent.TargetItem != nil &&
+      isAdjacent(cx, cy, tx, ty) {
+   ```
+   The exclusion list is eliminated. Only intents deliberately created as `ActionLook` trigger the arrival transition.
+
+3. **`ActionLook` handler in `update.go`** (~line 863): Add walking-phase handling before the existing look-duration logic. When the character has a `TargetItem` and is not yet adjacent to it, perform movement (speed accumulator + `moveWithCollision`) — same movement pattern as the `ActionMove` handler. When adjacent (or no `TargetItem`), fall through to existing look duration code.
+
+   ```
+   case entity.ActionLook:
+       // Walking phase: not yet adjacent to target item
+       if char.Intent.TargetItem != nil {
+           ipos := char.Intent.TargetItem.Pos()
+           if !isAdjacent(cx, cy, ipos.X, ipos.Y) {
+               // Movement gated by speed accumulator (same as ActionMove)
+               ... moveWithCollision ...
+               return
+           }
+       }
+       // Looking phase: already adjacent (or no target item)
+       // ... existing duration code ...
+   ```
+
+4. **`simulation.go`** (~line 131): The simulation harness has a lighter `applyIntent`. Check whether `ActionLook` intents appear in simulation runs. If they do, add the same walking-phase movement handling. If simulation doesn't exercise look intents (likely — simulation focuses on survival), no change needed. Verify by searching for `ActionLook` usage in simulation tests.
+
+5. **Clean up comments:** Remove any comments referencing the exclusion list or look-hijack workaround in `movement.go`.
+
+**Anti-patterns to avoid:**
+- Do NOT add `ActionLook` to any early-return block in `continueIntent`. The look intent's `TargetItem` is always on the map (never in inventory), so the generic path handles it fine.
+- Do NOT duplicate movement logic. Extract the speed-accumulator + `moveWithCollision` pattern if needed, or keep it inline if the duplication is small (two cases: `ActionMove` and `ActionLook`). Evaluate during implementation — if the movement block is >10 lines, a shared helper is warranted.
+
+**[TEST] Checkpoint — Look behavior unchanged, exclusion list gone:** ✅
+- `go test ./...` passes ✅
+- Build and run:
+  - Characters still walk toward items and look at them (same observable behavior as before) ✅
+  - Characters with `ActionPickup`, `ActionForage`, `ActionWaterGarden` intents are NOT converted to look when adjacent to their target items (regression check — same behavior, but now via different mechanism) ✅
+  - Order a Water Garden, observe full flow still works (vessel procurement + fill + water) ✅
+  - Forage flow still works (character walks to food, picks it up — not diverted to looking) ✅
+
+**[DOCS]** ✅
+
+**[RETRO]**
+
+---
+
+##### Step 2: Architecture.md "Adding New Actions" Consolidation ✅
+
+**Anchor story:** A developer wants to add a new ordered action with vessel procurement. They go to architecture.md, find the "Adding New Actions" section, and get a complete checklist covering every touchpoint — from action constant to `continueIntent` considerations — organized by action category. No more hunting through scattered bullet lists or discovering touchpoints by reading code.
+
+**Architecture pattern:** Documentation refactor only — no code changes.
+
+**Current state of architecture.md (what's scattered):**
+- "Adding a new self-managing action" (5 bullets, ~line 302) — inside "Action Categories" section
+- "Adding a new ordered action" (4 bullets, ~line 309) — inside "Action Categories" section
+- "Adding a New Activity" (4 bullets, ~line 568) — separate section, conflates activity registry with action types
+- `continueIntent` interaction rules are implied but not documented as a checklist item
+- No checklist for need-driven actions
+- No mention of `simulation.go` as a touchpoint
+
+**Implementation:**
+
+1. **Create "Adding New Actions" section** in architecture.md. Place it after the "Action Categories" section (which provides the conceptual framework the checklists reference). Three subsections:
+
+   **Adding a Need-Driven Action** (e.g., ActionConsume, ActionDrink, ActionSleep):
+   - Action constant in `character.go`
+   - Intent finder in `intent.go` (driven by stat urgency tiers)
+   - `applyIntent` handler in `update.go` — performs the action, clears intent when stat is satisfied or source exhausted
+   - `continueIntent`: if the action's `TargetItem` can be in inventory (e.g., eating from inventory, drinking from carried vessel), add an early-return block that skips map-existence checks. If `TargetItem` is always on the map, the generic path handles it.
+   - `simulation.go`: add handler if simulation tests exercise this action
+   - No activity registry entry (need-driven actions aren't idle activities)
+
+   **Adding an Idle Activity** (e.g., ActionLook, ActionTalk, ActionForage, ActionFillVessel):
+   - Action constant in `character.go`
+   - Activity entry in `ActivityRegistry` (`entity/activity.go`)
+   - Intent finder (location depends: `movement.go` for look/talk, `foraging.go` for forage, `picking.go` for fill)
+   - Wire into `selectIdleActivity` in `idle.go`
+   - `applyIntent` handler in `update.go`
+   - `continueIntent`: self-managing multi-phase actions (where `TargetItem` moves between ground and inventory) need an early-return block. Single-phase or walk-then-act actions (Look, Talk) use the generic path — no early-return block needed.
+   - `simulation.go`: add handler if simulation exercises this activity
+
+   **Adding an Ordered Action** (e.g., ActionTillSoil, ActionPlant, ActionWaterGarden, ActionCraft):
+   - Action constant in `character.go`
+   - Activity entry in `ActivityRegistry` (with order type)
+   - `findXxxIntent()` in `order_execution.go` — handles target selection on each resumption tick
+   - Wire into `findOrderIntent` switch, `isMultiStepOrderComplete`, `IsOrderFeasible`
+   - `applyIntent` handler in `update.go` — complete one work unit, clear intent, check order completion inline
+   - `continueIntent`: multi-phase ordered actions with vessel procurement (e.g., WaterGarden) need an early-return block for the same reason as self-managing actions. Single-phase ordered actions (TillSoil, Plant) use the generic path.
+   - `simulation.go`: add handler if simulation exercises this action
+   - If the action uses vessel procurement: use `RunVesselProcurement` tick helper (see Self-Managing Actions section for pattern)
+   - If the action uses water fill: use `RunWaterFill` tick helper
+
+2. **Add `continueIntent` interaction guidance** as a shared subsection (referenced by all three checklists above):
+
+   When does your action need an early-return block in `continueIntent`?
+   - **Yes, if:** Your action's `TargetItem` can be in different locations across phases (ground in phase 1, inventory in phase 2+). The generic path's `ItemAt` check would nil the intent when the item moves to inventory. Examples: `ActionFillVessel`, `ActionWaterGarden`, `ActionConsume`, `ActionDrink` (carried vessel).
+   - **No, if:** Your action's `TargetItem` stays on the map throughout, or your action has no `TargetItem`. The generic path handles these. Examples: `ActionLook` (item stays on map), `ActionTalk` (targets a character), `ActionTillSoil` (targets a position), `ActionPickup` (single-phase, item on map until picked up).
+
+3. **Update existing scattered checklists:**
+   - Lines ~302-313 ("Adding a new self-managing action" / "Adding a new ordered action"): Replace with a brief note pointing to the new consolidated section.
+   - Lines ~568-573 ("Adding a New Activity"): Refocus on the activity registry specifically (when to add an entry, how Category works, discovery triggers). Remove the action-type/intent-finder bullets that now live in the consolidated section. Add a cross-reference.
+
+4. **Update "Movement Special Cases" section** (~line 455): Revise the adjacent-item-look conversion description to reflect the new `ActionLook`-based detection (no more exclusion list). Remove the reference to `triggered-enhancements.md` for the cleanup since it's now done.
+
+No [TEST] checkpoint — documentation only, no code changes.
+
+**[DOCS]** — This step IS the docs update. Verify architecture.md reads coherently after changes.
+
+**[RETRO]**
 
 ---
 ### Slice 9: Tuning and Enhancements

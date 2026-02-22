@@ -113,13 +113,13 @@ internal/
 
 **Up Next:**
 
-- Gardening in progress (Slice 8 Polish complete). Next: Post-Slice 8 `continueIntent` look-transition cleanup, then Slice 9 Tuning. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
+- Gardening in progress (Post-Slice 8 complete). Next: Slice 9 Tuning. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
 
 ## Reference and Planning Documents
 
 | Document                                                         | Purpose                                       |
 | ---------------------------------------------------------------- | --------------------------------------------- |
 | [docs/VISION.txt](docs/VISION.txt)                               | Project vision and phases                     |
-| [docs/architecture.md](docs/architecture.md)                     | Design patterns, data flow, item/memory model |
+| [docs/architecture.md](docs/architecture.md)                     | Design patterns, decision rationale, "adding new X" checklists |
 | [docs/game-mechanics.md](docs/game-mechanics.md)                 | Detailed stat thresholds, rates, systems      |
 | [docs/triggered-enhancements.md](docs/triggered-enhancements.md) | Deferred items with triggers, balance tuning  |

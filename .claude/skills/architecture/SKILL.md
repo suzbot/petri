@@ -23,15 +23,17 @@ Read `docs/architecture.md` for the complete reference and details on desired pa
 - **Optional property structs**: `EdibleProperties`, `PlantProperties`, `ContainerData`
 
 ### Key Patterns to Check
-| Pattern                 | Where Documented                  | When Relevant                     |
-|-------------------------|-----------------------------------|-----------------------------------|
-| Orders and Actions      | architecture.md § Orders          | Adding player-directed tasks      |
-| Pickup/Vessel helpers   | architecture.md § Pickup Activity | Item manipulation                 |
-| Component Procurement   | architecture.md § Component       | Multi-step gathering activities   |
-| Activity Registry       | architecture.md § Activity        | Adding new activities             |
-| Recipe System           | architecture.md § Recipe          | Adding craftable items            |
-| Feature Passability     | architecture.md § Feature         | Map elements, movement            |
-| Position Handling       | architecture.md § Position        | Coordinates, distance             |
+| Pattern                 | Where Documented                        | When Relevant                     |
+|-------------------------|-----------------------------------------|-----------------------------------|
+| Action System           | architecture.md § Action System         | Adding any new character behavior |
+| Adding New Actions      | architecture.md § Adding New Actions    | Checklists for need/idle/ordered  |
+| `continueIntent` Rules  | architecture.md § continueIntent Rules  | Multi-phase actions, early returns|
+| Orders                  | architecture.md § Orders                | Player-directed tasks             |
+| Item Acquisition        | architecture.md § Item Acquisition      | Pickup, vessels, procurement      |
+| Activity Registry       | architecture.md § Activity Registry     | Adding new activities             |
+| Recipe System           | architecture.md § Recipe System         | Adding craftable items            |
+| World & Terrain         | architecture.md § World & Terrain       | Map elements, water, tilling      |
+| Position Handling       | architecture.md § Position Handling     | Coordinates, distance             |
 
 ### Common Pitfalls
 - **Game time vs wall clock**: UI indicators that work when paused need `time.Now()`
