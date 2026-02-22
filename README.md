@@ -14,6 +14,7 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 
 ## Latest Updates
 
+- **Provisioned Workers**: Characters with assigned orders who carry food or water will pause briefly to eat or drink when mildly hungry or thirsty, then resume work — rather than walking away to find a source. Unprovisioned characters keep working until needs become more urgent.
 - **Growth Speed Tiers**: Plants grow and spread at different rates — mushrooms pop up fast but spread steadily; berries establish slowly then spread aggressively; gourds are slow all around but high food value.
 - **Food Satiation Tiers**: Different foods now satisfy hunger by different amounts. Gourds are a feast; mushrooms are a meal; berries and nuts are snacks — characters will need to eat more of them to stay satisfied.
 - **Water Garden Orders**: Players can order characters to water planted tiles.

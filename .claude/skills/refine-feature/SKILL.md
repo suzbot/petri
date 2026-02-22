@@ -59,7 +59,9 @@ Before invoking expensive exploration (Explore agents, broad code reads for impl
 
 #### Step 3a: Present Outline Conversationally
 
-Before writing detailed steps into the plan doc, present the step breakdown to the user as conversation at a high-to-medium level of detail:
+**Before presenting the outline:** If the design shifted materially during Step 2 discussion (different approach, broader scope, changed mechanics), re-run the reconciliation check (reqs, decisions log, architecture, values) against the new design. The Step 2 reconciliation validated the *starting point* — Step 3a must validate what the discussion actually produced.
+
+Present the step breakdown to the user as conversation at a high-to-medium level of detail:
 - "Here are the N steps I see this breaking into: ..."
 - Include enough detail to evaluate sequencing, scope per step, and dependencies
 - Do NOT write into the plan doc yet — this is a digestibility and alignment check

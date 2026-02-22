@@ -47,6 +47,7 @@
 | Vessel drink continuation | Re-evaluate after each drink        | Vessel: drink once, re-evaluate (source is finite). Terrain: existing continuation until sated (infinite source). |
 | Ground vessel drinking | Drink in place, don't pick up         | Character moves to ground vessel and drinks from it like a small water source. Multiple characters can share. |
 | Earlier vessel thirst trigger | Deferred to Slice 9              | Keep same thirst threshold for now. Distance=0 already prioritizes carried vessel. Tune threshold in Slice 9. |
+| Ordered work Mild behavior | Inventory-only consumption at Mild, full seek at Moderate | Replaces special vessel threshold constant. At TierMild during ordered work: consume from carried inventory (food or drink), else continue working. At TierModerate: pause work, seek from any source. Uses existing ActionConsume/ActionDrink and PauseOrder protocol — no new action types. |
 | Multi-phase action pattern | Option C: self-managing + shared helper | Self-managing actions own lifecycle (proven by ActionFillVessel). Vessel procurement extracted into shared picking.go helper, not duplicated per action. Option B (central ActionPickup routing) rejected — fights self-managing pattern, scales poorly. |
 
 ---
@@ -1740,31 +1741,98 @@ Decisions log updated with intentional berry/mushroom tier divergence. Nut spawn
 
 ---
 
-#### Step 5: Vessel Drinking Threshold
+#### Step 5: Ordered Work — Inventory Consumption at Mild Tier ✅
 
-**Anchor:** A character tilling the garden has a water vessel on their person. Their thirst is creeping up (Mild tier, ~30+) but not yet urgent. Instead of ignoring the vessel until Moderate tier and then needing to cross the map to a spring, they take a quick sip from their carried vessel and get back to work.
+**Anchor:** A character is tilling the garden with a water vessel and a vessel of berries in inventory. Thirst creeps to 50 (TierMild). Instead of dropping everything and walking to the spring, the character pauses tilling, takes a quick drink from their carried vessel (0.83s), then resumes tilling. Later, hunger reaches 50 — they snack on a carried berry and get back to work. Meanwhile, another character tilling without provisions keeps working straight through to thirst 75 (TierModerate), then finally pauses to find water.
+
+**Reqs reconciliation:** Line 106 — *"consider that drinking from carried vessel can be triggered earlier than walking to spring?"* The revised design satisfies this by changing how ordered work handles TierMild: inventory-only consumption instead of full world-seeking. Generalizes to both food and drink. Decisions Log entry "Earlier vessel thirst trigger" proposed a special sub-Mild threshold; this approach achieves the same goal through the existing tier system — the character drinks earlier because the *behavior* at Mild changed (inventory-only, not leave-to-seek), not because the *threshold* moved.
+
+**Architecture alignment:**
+- **Action Categories** (architecture.md): Uses existing need-fulfilling actions (ActionConsume, ActionDrink). No new action types. Character pauses ordered work via existing PauseOrder protocol (DrivingStat is set on the consume/drink intent, triggering PauseOrder at line 242), performs standard consume/drink action, resumes order on next CalculateIntent re-evaluation via selectOrderActivity.
+- **Ordered action pattern** (architecture.md): The consume/drink IS a standard action using existing handlers. After completion, intent clears, CalculateIntent re-evaluates, finds needs below Mild, resumes order.
+- **continueIntent rules** (architecture.md): ActionConsume has an early-return block (line 288, "item is in inventory, not on map"). ActionDrink with carried vessel has an early-return block (line 293). Both already handled — no new continueIntent logic needed.
+
+**Values alignment:**
+- **Consistency Over Local Cleverness** — uses existing ActionConsume/ActionDrink and PauseOrder/resume rather than inventing a special "quick sip" mechanism or bypass of the pause protocol.
+- **Reuse Before Invention** — reuses existing action handlers, intent shapes, and pause/resume mechanics. Only new code is decision logic in CalculateIntent and two helpers.
+- **Start With the Simpler Rule** — one rule: "ordered work at Mild checks inventory, consumes if available, else continues." No conditions about which order type, character state, or special thresholds.
+
+---
+
+**Design:**
+
+Two behavioral changes in `CalculateIntent` (movement.go):
+
+1. **Inventory-only consumption at Mild:** When re-evaluating an ordered-work character (`AssignedOrderID != 0`) with `maxTier` at TierMild (below TierModerate): check carried inventory for water (if thirsty) and food (if hungry), in thirst-first priority order. If found, return consume/drink intent with DrivingStat set (triggers PauseOrder normally). After the 0.83s consume/drink completes, intent clears, CalculateIntent re-evaluates — need is now below Mild, order resumes via selectOrderActivity.
+
+2. **Continue working through Mild when unprovisioned:** When no carried consumable is found, fall through to `selectIdleActivity` → `selectOrderActivity`, which returns the same order-work action type. Since the action type matches the previous intent (line 682 in update.go), ActionProgress is preserved — work continues without losing progress.
+
+**Current behavior being changed:** Ordered work without TargetItem (till, plant, craft) is currently interrupted as soon as any need hits TierMild (50) because the re-eval default path sets `shouldReEval=true` and the priority loop finds a need-driven intent. The new behavior intercepts this: at Mild with an assigned order, try inventory first, else continue working. At Moderate (75+), the existing priority loop fires as before.
+
+**Note:** Ordered actions WITH TargetItem (WaterGarden, component Pickup) are already protected until TierModerate by the idle continuation block (line 55: `TargetItem != nil && maxTier < TierModerate`). This step doesn't change their behavior.
+
+**Implementation location:** New block in CalculateIntent between the `maxTier == TierNone` idle branch (line ~192) and the priority loop (line ~194). Condition: `maxTier < entity.TierModerate && char.AssignedOrderID != 0`.
+
+**Two separate helpers** (in movement.go, private to CalculateIntent):
+
+- `findCarriedDrinkIntent(char, pos, thirstTier)` — scans `char.Inventory` for a vessel with liquid contents (using existing `vesselHasLiquid` check). Returns ActionDrink intent targeting the vessel with `DrivingStat=StatThirst`, `DrivingTier=thirstTier`. Returns nil if no carried water. Mirrors the "carried" case shape from `findDrinkIntent` (lines 644-660).
+
+- `findCarriedFoodIntent(char, pos, hungerTier)` — scans `char.Inventory` for: (a) a vessel with edible contents, or (b) a loose edible item. Returns ActionConsume intent targeting the item/vessel with `DrivingStat=StatHunger`, `DrivingTier=hungerTier`. Returns nil if no carried food. Mirrors existing ActionConsume intent shapes from `findFoodIntent`.
+
+**Anti-pattern:** These helpers must NOT search ground items, ground vessels, or terrain sources. They are strictly inventory-only — that's the distinction between Mild (convenient) and Moderate (go seek).
+
+---
+
+**Tests** (in `internal/system/movement_test.go`):
+
+1. Character with assigned order + thirst at TierMild (55) + carrying water vessel → `CalculateIntent` returns ActionDrink intent targeting carried vessel with DrivingStat=StatThirst
+2. Character with assigned order + hunger at TierMild (55) + carrying vessel with edible contents → returns ActionConsume intent targeting vessel with DrivingStat=StatHunger
+3. Character with assigned order + hunger at TierMild (55) + carrying loose edible item → returns ActionConsume intent targeting the item
+4. Character with assigned order + thirst at TierMild (55) + NO carried water → returns order work intent (continues working, same action type as previous intent)
+5. Character with assigned order + thirst at TierModerate (80) → returns ActionDrink seeking any source (existing behavior, no regression)
+6. Character WITHOUT order + thirst at TierMild (55) → returns ActionDrink seeking any source (existing behavior, no regression)
+7. Character with assigned order + both thirst and hunger at TierMild + carrying both water and food → returns ActionDrink (thirst priority preserved)
 
 **Implementation:**
-- Add a new constant `CarriedVesselThirstThreshold` (e.g., 30.0) — the thirst level at which carrying a water vessel triggers drinking behavior
-- In `intent.go` where thirst-driven drinking is evaluated: check if character has a water vessel in inventory. If so, use the lower threshold instead of the standard Moderate tier (51+)
-- Only applies to carried vessels (distance 0), not ground vessels or terrain water sources
-
-**Architecture alignment:** Extends the existing stat urgency tier system with a context-aware threshold. Similar concept to how `TierModerate` gates idle activity interruption — a threshold that changes behavior based on context.
-
-**Design note:** This is an evaluate-and-tune step. The threshold value (30? 25? 35?) needs playtesting. Start with 30 and adjust. If the behavior feels good at the existing Moderate threshold (characters are already drinking from carried vessels often enough), this may be a no-op — document that finding and move on.
-
-**Tests:**
-- Character with thirst at 35 and carried water vessel: triggers drinking
-- Character with thirst at 35 and NO carried water vessel: does NOT trigger drinking (still waits for Moderate)
-- Character with thirst at 55 (Moderate): triggers drinking regardless of vessel state (existing behavior preserved)
+- Add `findCarriedDrinkIntent` in movement.go
+- Add `findCarriedFoodIntent` in movement.go
+- Add ordered-work Mild-tier block in CalculateIntent:
+  ```
+  if maxTier < entity.TierModerate && char.AssignedOrderID != 0 {
+      if thirstTier >= entity.TierMild {
+          if intent := findCarriedDrinkIntent(char, cpos, thirstTier); intent != nil {
+              char.FailedIntentCount = 0
+              return intent
+          }
+      }
+      if hungerTier >= entity.TierMild {
+          if intent := findCarriedFoodIntent(char, cpos, hungerTier); intent != nil {
+              char.FailedIntentCount = 0
+              return intent
+          }
+      }
+      // No carried food/water — continue working through Mild
+      if intent := selectIdleActivity(char, cpos, items, gameMap, log, orders); intent != nil {
+          return intent
+      }
+      return nil
+  }
+  ```
 
 **[TEST] Checkpoint:**
 - `go test ./...` passes
-- Run game: give a character a water vessel and an order (e.g., till soil). Observe whether they sip from the vessel at lower thirst levels
-- Does the "sip while working" feel natural? Or does it interrupt too often / not often enough?
-- Adjust threshold based on feel
-
----
+- Create test world via /test-world with:
+  - Character A: assigned till-soil order, carrying water vessel (full, 4 units) and vessel with berries, thirst ~45, hunger ~45, energy 95+, all other needs satisfied
+  - Character B: assigned till-soil order, NO provisions (empty inventory or hoe only), thirst ~45, hunger ~45, energy 95+
+  - Several tiles marked for tilling (enough work for both characters)
+  - Pond nearby (so Character B can find water when they finally pause at Moderate)
+  - Enough food growing nearby (so Character B can find food when they finally pause)
+- Observe:
+  - Character A tills, thirst/hunger hit 50, briefly pauses to sip/eat from inventory (~0.83s), resumes tilling
+  - Character B tills, thirst/hunger hit 50, keeps tilling past 50 until 75, then walks to water/food
+  - After Character A drinks, they resume tilling (not stuck, not re-seeking, no walk-away)
+  - Character A's action log shows "Drinking from vessel" / eating messages interspersed with "Tilled soil"
+  - Character B's action log shows continuous "Tilled soil" until they pause at Moderate
 
 **[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture as needed.
 
@@ -1774,6 +1842,7 @@ Decisions log updated with intentional berry/mushroom tier divergence. Nut spawn
 - Nut satiation: Snack (10), same as berry ✓
 - Exact growth speed tier values: narrative-grounded (see maturation/reproduction tables above) ✓
 - Growth multipliers: keep 1.25, tune during playtesting ✓
+- Vessel drinking threshold: replaced with broader "ordered work inventory consumption at Mild" design (see Step 5 and Decisions Log) ✓
 
 **Remaining feature questions (from earlier slices, not Slice 9 scope):**
 - Seed symbol and color? Likely `.` in parent's color. Confirm during implementation.

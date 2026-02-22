@@ -169,7 +169,11 @@ Actions fall into three categories with different continuation and interruption 
 
 Some idle activities are **self-managing** — they own their complete multi-phase flow (procurement, movement, execution) as a single continuous intent. The character never goes idle between phases and never needs to win another idle roll to continue. See "Self-Managing Actions" below.
 
-**Ordered actions** (`ActionTillSoil`, `ActionPlant`, `ActionWaterGarden`, `ActionPickup` with order context, `ActionCraft`): Player-directed via orders. Handler completes one unit of work, then **clears intent**. Next tick, `CalculateIntent` re-evaluates: if needs are pressing, the order is paused (`PauseOrder`); if needs are clear, `selectIdleActivity` resumes the order via `AssignedOrderID` (bypasses idle cooldown).
+**Ordered actions** (`ActionTillSoil`, `ActionPlant`, `ActionWaterGarden`, `ActionPickup` with order context, `ActionCraft`): Player-directed via orders. Handler completes one unit of work, then **clears intent**. Next tick, `CalculateIntent` re-evaluates via a tiered intercept:
+
+- **maxTier == TierNone**: `selectIdleActivity` → `selectOrderActivity` resumes the order (bypasses idle cooldown).
+- **maxTier == TierMild && AssignedOrderID != 0**: Inventory-only intercept — check carried inventory for water (if thirsty) or food (if hungry). If found, briefly pause order (`PauseOrder`) and consume. If not found, `selectIdleActivity` → `selectOrderActivity` continues working through Mild.
+- **maxTier >= TierModerate**: Priority loop fires as normal; order is paused (`PauseOrder`) and character seeks a fulfillable need.
 
 **The one-tick idle window** between ordered work units is the key mechanism. It gives `CalculateIntent` a natural re-evaluation point, which is how needs interruption and the pause/resume system work. Without it, ordered actions would need their own interruption logic.
 

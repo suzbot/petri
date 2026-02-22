@@ -2651,3 +2651,218 @@ func TestContinueIntent_GroundVesselArrival_ConvertsToDrink(t *testing.T) {
 		t.Errorf("Target: got (%d,%d), want (5,5) - should stay in place to drink", intent.Target.X, intent.Target.Y)
 	}
 }
+
+// =============================================================================
+// Ordered Work — Inventory Consumption at Mild Tier (Step 5)
+// =============================================================================
+
+func TestCalculateIntent_OrderedWork_ThirstMild_CarriedWater_DrinksFromVessel(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Thirst = 55 // TierMild
+	char.AssignedOrderID = 1
+
+	vessel := createWaterVessel(0, 0, 4)
+	char.AddToInventory(vessel)
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	order := entity.NewOrder(1, "till-soil", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	orders := []*entity.Order{order}
+
+	intent := CalculateIntent(char, nil, gameMap, nil, orders)
+
+	if intent == nil {
+		t.Fatal("Expected intent for carrying water at Mild thirst while on order")
+	}
+	if intent.Action != entity.ActionDrink {
+		t.Errorf("Action: got %d, want ActionDrink", intent.Action)
+	}
+	if intent.TargetItem != vessel {
+		t.Error("TargetItem: expected carried water vessel")
+	}
+	if intent.DrivingStat != types.StatThirst {
+		t.Errorf("DrivingStat: got %q, want StatThirst", intent.DrivingStat)
+	}
+}
+
+func TestCalculateIntent_OrderedWork_HungerMild_VesselContents_EatsFromVessel(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 55 // TierMild
+	char.AssignedOrderID = 1
+
+	// Vessel with edible berry contents
+	vessel := createTestVessel()
+	berryVariety := &entity.ItemVariety{
+		ID:       "berry-red",
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   &entity.EdibleProperties{},
+	}
+	vessel.Container.Contents = []entity.Stack{{Variety: berryVariety, Count: 3}}
+	char.AddToInventory(vessel)
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	order := entity.NewOrder(1, "till-soil", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	orders := []*entity.Order{order}
+
+	intent := CalculateIntent(char, nil, gameMap, nil, orders)
+
+	if intent == nil {
+		t.Fatal("Expected intent for carrying vessel with food at Mild hunger while on order")
+	}
+	if intent.Action != entity.ActionConsume {
+		t.Errorf("Action: got %d, want ActionConsume", intent.Action)
+	}
+	if intent.TargetItem != vessel {
+		t.Error("TargetItem: expected vessel with edible contents")
+	}
+	if intent.DrivingStat != types.StatHunger {
+		t.Errorf("DrivingStat: got %q, want StatHunger", intent.DrivingStat)
+	}
+}
+
+func TestCalculateIntent_OrderedWork_HungerMild_CarriedFood_EatsLooseItem(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 55 // TierMild
+	char.AssignedOrderID = 1
+
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.AddToInventory(berry)
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	order := entity.NewOrder(1, "till-soil", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	orders := []*entity.Order{order}
+
+	intent := CalculateIntent(char, nil, gameMap, nil, orders)
+
+	if intent == nil {
+		t.Fatal("Expected intent for carrying loose food at Mild hunger while on order")
+	}
+	if intent.Action != entity.ActionConsume {
+		t.Errorf("Action: got %d, want ActionConsume", intent.Action)
+	}
+	if intent.TargetItem != berry {
+		t.Error("TargetItem: expected carried berry")
+	}
+	if intent.DrivingStat != types.StatHunger {
+		t.Errorf("DrivingStat: got %q, want StatHunger", intent.DrivingStat)
+	}
+}
+
+func TestCalculateIntent_OrderedWork_ThirstMild_NoCarriedWater_NoDrinkIntent(t *testing.T) {
+	t.Parallel()
+
+	// With old code: Mild thirst → priority loop → finds spring → ActionDrink.
+	// With new code: ordered char with no carried water → new block → continue working (no drink intent).
+	char := newTestCharacter()
+	char.Thirst = 55 // TierMild
+	char.AssignedOrderID = 1
+
+	// Spring present — old code would seek it; new code should not
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	gameMap.AddWater(types.Position{X: 5, Y: 5}, game.WaterSpring)
+
+	order := entity.NewOrder(1, "till-soil", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	orders := []*entity.Order{order}
+
+	intent := CalculateIntent(char, nil, gameMap, nil, orders)
+
+	// The ordered character should not walk away to the spring at Mild thirst.
+	// (No till targets exist so selectIdleActivity returns nil, but crucially no thirst intent.)
+	if intent != nil && intent.DrivingStat == types.StatThirst {
+		t.Error("Ordered character at Mild thirst without carried water should not seek spring — should continue working or stay idle")
+	}
+}
+
+func TestCalculateIntent_OrderedWork_ThirstModerate_SeeksWater(t *testing.T) {
+	t.Parallel()
+
+	// At Moderate+, ordered chars still interrupt and seek water (existing behavior).
+	char := newTestCharacter()
+	char.Thirst = 80 // TierModerate
+	char.AssignedOrderID = 1
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	gameMap.AddWater(types.Position{X: 5, Y: 5}, game.WaterSpring)
+
+	order := entity.NewOrder(1, "till-soil", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	orders := []*entity.Order{order}
+
+	intent := CalculateIntent(char, nil, gameMap, nil, orders)
+
+	if intent == nil {
+		t.Fatal("Expected intent for Moderate thirst (priority loop should fire)")
+	}
+	if intent.DrivingStat != types.StatThirst {
+		t.Errorf("DrivingStat: got %q, want StatThirst at Moderate", intent.DrivingStat)
+	}
+}
+
+func TestCalculateIntent_NoOrder_ThirstMild_SeeksWater(t *testing.T) {
+	t.Parallel()
+
+	// Non-ordered chars at Mild thirst use the existing priority loop (no change).
+	char := newTestCharacter()
+	char.Thirst = 55 // TierMild
+	// char.AssignedOrderID = 0 (default)
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	gameMap.AddWater(types.Position{X: 5, Y: 5}, game.WaterSpring)
+
+	intent := CalculateIntent(char, nil, gameMap, nil, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent for non-ordered char at Mild thirst")
+	}
+	if intent.DrivingStat != types.StatThirst {
+		t.Errorf("DrivingStat: got %q, want StatThirst (non-ordered chars seek water normally at Mild)", intent.DrivingStat)
+	}
+}
+
+func TestCalculateIntent_OrderedWork_BothMild_ThirstPriority(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Thirst = 55 // TierMild
+	char.Hunger = 55 // TierMild (same tier)
+	char.AssignedOrderID = 1
+
+	vessel := createWaterVessel(0, 0, 4)
+	char.AddToInventory(vessel)
+
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.AddToInventory(berry)
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	order := entity.NewOrder(1, "till-soil", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	orders := []*entity.Order{order}
+
+	intent := CalculateIntent(char, nil, gameMap, nil, orders)
+
+	if intent == nil {
+		t.Fatal("Expected intent when both thirst and hunger at Mild with provisions")
+	}
+	if intent.DrivingStat != types.StatThirst {
+		t.Errorf("DrivingStat: got %q, want StatThirst (thirst takes priority at same tier)", intent.DrivingStat)
+	}
+	if intent.Action != entity.ActionDrink {
+		t.Errorf("Action: got %d, want ActionDrink (thirst priority)", intent.Action)
+	}
+}

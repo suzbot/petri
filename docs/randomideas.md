@@ -11,8 +11,7 @@ then they can be removed from this list.
 
 ## Issues To resolve
 
-1. Still occasional issues with pathing. Example: a target item is on the other side of an irregularly shaped pond. The character greedy steps and runs into the pond. Then they take a BFS step to go around the pond. Then they take a greedy step that puts them back where they were. They thrash between those two modes.
-   Suggestion: once a character switches to BFS, they stay in BFS until they get to target or until they run into a character. If they run into a character they sidestep (as in current state) and then switch back to greedy step. 
+
 
 ## UI Improvements
 
@@ -23,32 +22,15 @@ then they can be removed from this list.
    - Design must easily expand as new attribute types added
    - Example: "This is a hollow gourd. It is a vessel that can be used to carry things. It is warty and green."
 
-## Streamlined Character Creation (after Gardening)
-
-Remove single/multi mode distinction from UI and add character count control:
-
-1. **UI Streamlining**
-   - Remove single char mode from game start
-   - Adjust start screen title and keys:
-     - === Petri ===
-     - R to start with Random Characters
-     - C to create Characters
-   - "C for Create" creates first character, randomizes the rest
-
-2. **Character Count Flag**
-   - Add `-characters=N` flag to control spawn count (default 4)
-   - `-characters=0` equivalent to `-no-characters`
-   - Reasonable max cap (e.g., 20)
-   - Note: Not a quick standalone win - requires refactoring the current character creation flow, which is why it's scoped together with UI Streamlining above
 
 ## Tech Stuff
 
-3. why is create item from variety logic in character.go? are there other functions that ended up in unintuitive places?
-4. Why have we started running into all these tab/whitespace problems while editing just in the last couple weeks or so? especially since claude is the only one reading/writing code?
+
 
 ## Unallocated Features
 
-1. **Helping** - The closest character who isn't already addressing a need (ie they are doing an idle activity or an order)
+
+2. **Helping** - The closest character who isn't already addressing a need (ie they are doing an idle activity or an order)
    can be interrupted to help a character who is in crisis.
    - the helping character will give them the item they are carrying, if it will address a severe or crisis need of the needy char
    - otherwise they will target an item that will address the worst-off need of the needy char, and creates the shortest path from helper to item to needy char

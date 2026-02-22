@@ -451,8 +451,13 @@ When a character becomes eligible for an idle activity and has relevant know-how
 
 ### Order Interruption and Resumption
 
-- If a character's needs reach Moderate+ tier while working on an order, the order is **paused**
-- The character addresses their needs first (eating, drinking, sleeping, etc.)
+**At Mild tier (needs below Moderate):** Characters with assigned orders check their carried inventory first:
+- If thirsty at Mild and carrying a water vessel → briefly pause to drink from it, then resume
+- If hungry at Mild and carrying food (loose item or vessel contents) → briefly pause to eat, then resume
+- If no provisions are carried → keep working through Mild
+
+**At Moderate+ tier:** Order is **paused** regardless of provisions. The character walks away to address their needs (eating, drinking, sleeping, etc.), then resumes the order when satisfied.
+
 - When needs are satisfied and character becomes idle-eligible again, the **same order resumes**
 - No re-evaluation occurs - character continues their assigned order
 

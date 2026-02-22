@@ -191,6 +191,36 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 		return nil
 	}
 
+	// Ordered work at Mild tier: try inventory-only consumption, else continue working.
+	// At Moderate+, the priority loop below fires as normal and interrupts the order.
+	if maxTier < entity.TierModerate && char.AssignedOrderID != 0 {
+		if thirstTier >= entity.TierMild {
+			if intent := findCarriedDrinkIntent(char, cpos, thirstTier, log); intent != nil {
+				order := findOrderByID(orders, char.AssignedOrderID)
+				if order != nil {
+					PauseOrder(order, log, char.ID, char.Name)
+				}
+				char.FailedIntentCount = 0
+				return intent
+			}
+		}
+		if hungerTier >= entity.TierMild {
+			if intent := findCarriedFoodIntent(char, cpos, hungerTier, log); intent != nil {
+				order := findOrderByID(orders, char.AssignedOrderID)
+				if order != nil {
+					PauseOrder(order, log, char.ID, char.Name)
+				}
+				char.FailedIntentCount = 0
+				return intent
+			}
+		}
+		// No carried food/water — continue working through Mild
+		if intent := selectIdleActivity(char, cpos, items, gameMap, log, orders); intent != nil {
+			return intent
+		}
+		return nil
+	}
+
 	// Build priority list: stats with needs, sorted by tier (desc), then tie-breaker (Thirst > Hunger > Health > Energy)
 	type statPriority struct {
 		stat types.StatType
@@ -1346,6 +1376,84 @@ func FindClosestCardinalTile(cx, cy, tx, ty int, gameMap *game.Map) (int, int) {
 		}
 	}
 	return bestX, bestY
+}
+
+// findCarriedDrinkIntent checks the character's inventory for a water vessel.
+// Returns an ActionDrink intent if found, nil otherwise.
+// Used by the ordered-work Mild-tier intercept in CalculateIntent.
+func findCarriedDrinkIntent(char *entity.Character, pos types.Position, tier int, log *ActionLog) *entity.Intent {
+	for _, item := range char.Inventory {
+		if vesselHasLiquid(item) {
+			newActivity := "Drinking"
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+				if log != nil {
+					log.Add(char.ID, char.Name, "thirst", "Drinking from vessel")
+				}
+			}
+			return &entity.Intent{
+				Target:      pos,
+				Dest:        pos,
+				Action:      entity.ActionDrink,
+				TargetItem:  item,
+				DrivingStat: types.StatThirst,
+				DrivingTier: tier,
+			}
+		}
+	}
+	return nil
+}
+
+// findCarriedFoodIntent checks the character's inventory for edible food.
+// Looks for (a) a vessel with edible contents, or (b) a loose edible item.
+// Returns an ActionConsume intent if found, nil otherwise.
+// Used by the ordered-work Mild-tier intercept in CalculateIntent.
+func findCarriedFoodIntent(char *entity.Character, pos types.Position, tier int, log *ActionLog) *entity.Intent {
+	for _, item := range char.Inventory {
+		if item == nil {
+			continue
+		}
+		// Check vessel with edible contents first
+		if item.Container != nil && len(item.Container.Contents) > 0 {
+			variety := item.Container.Contents[0].Variety
+			if variety != nil && variety.IsEdible() {
+				newActivity := "Eating from vessel"
+				if char.CurrentActivity != newActivity {
+					char.CurrentActivity = newActivity
+					if log != nil {
+						log.Add(char.ID, char.Name, "activity", "Eating from vessel")
+					}
+				}
+				return &entity.Intent{
+					Target:      pos,
+					Dest:        pos,
+					Action:      entity.ActionConsume,
+					TargetItem:  item,
+					DrivingStat: types.StatHunger,
+					DrivingTier: tier,
+				}
+			}
+		}
+		// Check loose edible item
+		if item.IsEdible() {
+			newActivity := "Eating carried " + item.Description()
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+				if log != nil {
+					log.Add(char.ID, char.Name, "activity", "Eating from inventory")
+				}
+			}
+			return &entity.Intent{
+				Target:      pos,
+				Dest:        pos,
+				Action:      entity.ActionConsume,
+				TargetItem:  item,
+				DrivingStat: types.StatHunger,
+				DrivingTier: tier,
+			}
+		}
+	}
+	return nil
 }
 
 // findClosestAdjacentTile finds the closest unoccupied tile adjacent to (tx, ty) from position (cx, cy)

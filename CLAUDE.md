@@ -4,7 +4,7 @@ Guidance for Claude Code when working with code in this repo.
 
 Petri is a Dwarf Fortress-inspired simulation exploring emergent culture development.
 
-**Current features:** Character creation, procedural world generation (terrain, items, water), multi-stat survival with urgency-based AI, dynamic preferences and knowledge systems, social behavior, inventory and crafting, player-directed orders (including gardening with area selection UI, plant execution with sprout creation, and water garden), and action logging.
+**Current features:** Character creation, procedural world generation (terrain, items, water), multi-stat survival with urgency-based AI, dynamic preferences and knowledge systems, social behavior, inventory and crafting, player-directed orders (including gardening with area selection UI, plant execution with sprout creation, water garden, and provisioned-worker inventory consumption at Mild tier), and action logging.
 
 **Vision:** Complex roguelike simulation world with complex interactions between characters, items, and attributes. History exists only in character memories and created artifacts. As characters die, their knowledge dies with them except what they've communicated or created. See [docs/VISION.txt](docs/VISION.txt).
 
@@ -114,7 +114,7 @@ internal/
 
 **Up Next:**
 
-- Gardening in progress (Slice 9 Steps 1-4 complete). Next: Step 5 Vessel Drinking Threshold. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
+- Gardening phase complete (Slice 9 all steps done). See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md) and [docs/post-gardening-cleanup.md](docs/post-gardening-cleanup.md) for deferred items.
 
 ## Reference and Planning Documents
 
