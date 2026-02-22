@@ -235,13 +235,17 @@ func TestTryDiscoverKnowHow_DiscoverPlantOnLookAtPlantable(t *testing.T) {
 		Plantable: true,
 	}
 
-	discovered := TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
-
-	if !discovered {
-		t.Error("Expected discovery with 100% chance on plantable item")
+	// Multiple activities share the RequiresPlantable trigger (plant, waterGarden, harvest).
+	// Only one discovery per call, and map iteration order is random, so retry until plant is found.
+	for i := 0; i < 10; i++ {
+		TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
+		if char.KnowsActivity("plant") {
+			break
+		}
 	}
+
 	if !char.KnowsActivity("plant") {
-		t.Error("Expected character to know plant after discovery")
+		t.Error("Expected character to eventually discover plant from looking at plantable item")
 	}
 }
 

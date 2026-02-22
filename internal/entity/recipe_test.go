@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+
 // TestShellHoeRecipe_Registered verifies shell-hoe recipe exists with correct properties
 func TestShellHoeRecipe_Registered(t *testing.T) {
 	t.Parallel()
