@@ -861,7 +861,16 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		}
 
 	case entity.ActionLook:
-		// Looking requires duration to complete
+		// Walking phase: not yet adjacent to target item
+		if char.Intent.TargetItem != nil {
+			ipos := char.Intent.TargetItem.Pos()
+			cpos := char.Pos()
+			if !cpos.IsAdjacentTo(ipos) {
+				m.moveWithCollision(char, cpos, delta)
+				return
+			}
+		}
+		// Looking phase: already adjacent (or no target item)
 		char.ActionProgress += delta
 		if char.ActionProgress >= config.LookDuration {
 			char.ActionProgress = 0

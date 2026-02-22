@@ -237,7 +237,7 @@ func TestFindLookIntent_ReturnsLookIntentWhenAdjacent(t *testing.T) {
 	}
 }
 
-func TestFindLookIntent_ReturnsMoveIntentWhenNotAdjacent(t *testing.T) {
+func TestFindLookIntent_ReturnsLookIntentWhenNotAdjacent(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
@@ -260,8 +260,8 @@ func TestFindLookIntent_ReturnsMoveIntentWhenNotAdjacent(t *testing.T) {
 		t.Skip("No look intent returned in 20 attempts (probabilistic)")
 	}
 
-	if intent.Action != entity.ActionMove {
-		t.Errorf("Expected ActionMove when not adjacent, got %v", intent.Action)
+	if intent.Action != entity.ActionLook {
+		t.Errorf("Expected ActionLook when not adjacent, got %v", intent.Action)
 	}
 	if intent.TargetItem != item {
 		t.Error("TargetItem should be set for move toward item")

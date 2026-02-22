@@ -516,9 +516,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		}
 	}
 
-	// Check if we've arrived adjacent to an item for looking (no DrivingStat means looking intent)
-	// Skip if ActionPickup/ActionForage/ActionWaterGarden - those need to move onto the item, not stay adjacent
-	if intent.TargetItem != nil && intent.DrivingStat == "" && intent.Action != entity.ActionPickup && intent.Action != entity.ActionForage && intent.Action != entity.ActionWaterGarden && isAdjacent(cx, cy, tx, ty) {
+	// Check if we've arrived adjacent to an item for looking
+	if intent.Action == entity.ActionLook && intent.TargetItem != nil && isAdjacent(cx, cy, tx, ty) {
 		newActivity := "Looking at " + intent.TargetItem.Description()
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
@@ -1270,7 +1269,7 @@ func findLookIntent(char *entity.Character, pos types.Position, items []*entity.
 	return &entity.Intent{
 		Target:     types.Position{X: nx, Y: ny},
 		Dest:       types.Position{X: adjX, Y: adjY}, // Destination is adjacent to the item
-		Action:     entity.ActionMove,
+		Action:     entity.ActionLook,
 		TargetItem: target,
 	}
 }
