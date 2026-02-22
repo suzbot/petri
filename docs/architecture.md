@@ -64,7 +64,7 @@ Crafted items (like vessels) differ from natural items:
 ### Adding New Plant Types
 
 1. `entity/item.go` — Add `NewX()` constructor
-2. `config/config.go` — Add to `ItemLifecycle` map (spawn/death intervals)
+2. `config/config.go` — Add to `ItemLifecycle` map (spawn/death intervals); if edible, add to `SatiationTier` map
 3. `game/variety_generation.go` — Add variety generation logic
 4. `game/world.go` — Add to `GetItemTypeConfigs()` for UI/character creation. Set `Plantable: true` if items of this type can be planted directly; set `CanProduceSeeds: true` if consuming produces seeds.
 

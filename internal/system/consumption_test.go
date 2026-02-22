@@ -13,7 +13,43 @@ import (
 // Eating
 // =============================================================================
 
-func TestConsume_ReducesHunger(t *testing.T) {
+func TestConsume_GourdReducesHungerByFeast(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	item := entity.NewGourd(5, 5, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
+	gameMap.AddItem(item)
+
+	Consume(char, item, gameMap, nil)
+
+	expected := 80 - config.SatiationFeast
+	if char.Hunger != expected {
+		t.Errorf("Hunger: got %.2f, want %.2f", char.Hunger, expected)
+	}
+}
+
+func TestConsume_MushroomReducesHungerByMeal(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	item := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+	gameMap.AddItem(item)
+
+	Consume(char, item, gameMap, nil)
+
+	expected := 80 - config.SatiationMeal
+	if char.Hunger != expected {
+		t.Errorf("Hunger: got %.2f, want %.2f", char.Hunger, expected)
+	}
+}
+
+func TestConsume_BerryReducesHungerBySnack(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
@@ -25,9 +61,36 @@ func TestConsume_ReducesHunger(t *testing.T) {
 
 	Consume(char, item, gameMap, nil)
 
-	expected := 80 - config.FoodHungerReduction
+	expected := 80 - config.SatiationSnack
 	if char.Hunger != expected {
 		t.Errorf("Hunger: got %.2f, want %.2f", char.Hunger, expected)
+	}
+}
+
+func TestConsume_NutReducesHungerBySnack(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	item := entity.NewNut(5, 5)
+	gameMap.AddItem(item)
+
+	Consume(char, item, gameMap, nil)
+
+	expected := 80 - config.SatiationSnack
+	if char.Hunger != expected {
+		t.Errorf("Hunger: got %.2f, want %.2f", char.Hunger, expected)
+	}
+}
+
+func TestGetSatiationAmount_UnknownDefaultsToMeal(t *testing.T) {
+	t.Parallel()
+
+	amount := config.GetSatiationAmount("unknown_type")
+	if amount != config.SatiationMeal {
+		t.Errorf("Unknown item satiation: got %.2f, want %.2f", amount, config.SatiationMeal)
 	}
 }
 
@@ -35,7 +98,7 @@ func TestConsume_HungerFloorsAtZero(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.Hunger = 10 // Less than FoodHungerReduction
+	char.Hunger = 5 // Less than any satiation tier
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
 	item := entity.NewBerry(5, 5, types.ColorRed, false, false)
@@ -812,7 +875,7 @@ func TestConsumeFromInventory_ReducesHunger(t *testing.T) {
 
 	ConsumeFromInventory(char, item, nil, nil)
 
-	expected := 80 - config.FoodHungerReduction
+	expected := 80 - config.GetSatiationAmount(item.ItemType)
 	if char.Hunger != expected {
 		t.Errorf("Hunger: got %.2f, want %.2f", char.Hunger, expected)
 	}
@@ -934,7 +997,7 @@ func TestConsumeFromVessel_ReducesHunger(t *testing.T) {
 
 	ConsumeFromVessel(char, vessel, nil, nil)
 
-	expected := 80 - config.FoodHungerReduction
+	expected := 80 - config.GetSatiationAmount("berry")
 	if char.Hunger != expected {
 		t.Errorf("Hunger: got %.2f, want %.2f", char.Hunger, expected)
 	}

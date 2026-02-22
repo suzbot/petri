@@ -21,9 +21,20 @@ Read these before discussing approach:
 ### Step 2: Discussion First (REQUIRED)
 **Do NOT write code yet.** First:
 - Ask any clarifying questions, deferred or new
+- **Reconcile before proposing** (see below)
 - Present implementation approach with trade-offs as **conversation** (not structured multiple-choice — reserve that for simple bounded decisions)
 - Critically evaluate assumptions in existing plans
 - Get user confirmation on approach
+
+**Reconciliation check — do this before presenting your approach:**
+
+If the step already has implementation details from a prior planning pass, cross-check each detail against its sources before discussing. Explicitly state alignment or drift:
+1. **Requirements** — the specific lines this step traces to. Does the implementation match the requirement's language and intent, or has it drifted (e.g., flattened a concept, lost an abstraction)?
+2. **Decisions Log** — any entries that shaped this step's design. Does the implementation honor the recorded decision, or did a later refinement erode it?
+3. **Architecture patterns** — does the implementation follow established patterns? Name them.
+4. **Values** — which Values.md principles apply? Does the implementation honor them?
+
+Surface any drift in conversation so it gets discussed, not silently carried forward. Prior planning passes can erode design decisions — refinement that doesn't check against earlier decisions can make things worse, not better.
 
 **When presenting options:**
 - State what you're deciding between explicitly (don't assume it's obvious)
@@ -31,6 +42,7 @@ Read these before discussing approach:
 - If you realize mid-explanation that you haven't actually surfaced a question, pause and reframe
 
 **Anti-pattern:** Stating an interpretation as if it's an open question without naming the alternatives.
+**Anti-pattern:** Treating an existing plan's implementation details as ground truth. The requirements and Decisions Log are ground truth; the plan is a draft that may have drifted.
 
 ### Step 2.5: Document Decisions Before Deep Exploration (REQUIRED)
 
@@ -60,11 +72,11 @@ Once the outline is aligned, write the detailed implementation steps into the ex
 
 **Refinement checklist (verify for each step before writing):**
 - [ ] **Human testing checkpoint:** Is there a user-verifiable behavior at this step? If yes, add [TEST] checkpoint. If no, state why (e.g., "pure logic, no UI").
-- [ ] **Reqs reconciliation:** Does this step trace to a specific requirement line? If the step enables human testing, reconcile observable behavior against the reqs.
-- [ ] **Architecture alignment:** Does the step follow an established pattern (name it) or introduce new infrastructure (justify it)?
+- [ ] **Reqs reconciliation:** Verify this was addressed in Step 2 discussion. Show the work: cite the requirement lines and confirm the implementation matches.
+- [ ] **Architecture alignment:** Verify this was addressed in Step 2 discussion. Show the work: name the pattern and confirm the implementation follows it.
+- [ ] **Values alignment:** Verify this was addressed in Step 2 discussion. Show the work: cite which Values.md principles apply and how the design honors them.
 
 **If the feature resolved open design questions during Step 2, explicitly document:**
-- [ ] Values alignment (which values from Values.md does this design honor?)
 - [ ] Deferred scope (what was descoped and where is it tracked?)
 
 A plan is implementation-ready when it has:

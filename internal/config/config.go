@@ -56,7 +56,10 @@ const (
 	StarvationDamageRate    = 0.5  // health per second
 	DehydrationDamageRate   = 0.5  // health per second
 	PoisonDamageRate        = 0.33 // health per second
-	FoodHungerReduction     = 20.0 // hunger reduced per food
+	// Satiation tiers (hunger reduced per food, by tier)
+	SatiationFeast = 50.0 // gourd
+	SatiationMeal  = 25.0 // mushroom
+	SatiationSnack = 10.0 // berry, nut
 	DrinkThirstReduction    = 20.0 // thirst reduced per drink
 	BedEnergyRestoreRate    = 2.86 // energy per second in bed (~7 world hours to full)
 	GroundEnergyRestoreRate = 1.67 // energy per second on ground (~12 world hours to full)
@@ -192,4 +195,20 @@ func GetGroundSpawnCount(itemType string) int {
 		return count
 	}
 	return 1
+}
+
+// SatiationTier maps item types to their hunger reduction amount
+var SatiationTier = map[string]float64{
+	"gourd":    SatiationFeast,
+	"mushroom": SatiationMeal,
+	"berry":    SatiationSnack,
+	"nut":      SatiationSnack,
+}
+
+// GetSatiationAmount returns the hunger reduction for an item type, defaulting to Meal tier
+func GetSatiationAmount(itemType string) float64 {
+	if amount, ok := SatiationTier[itemType]; ok {
+		return amount
+	}
+	return SatiationMeal
 }

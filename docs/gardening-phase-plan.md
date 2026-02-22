@@ -1597,30 +1597,45 @@ Rejected alternatives:
 
 ---
 
-#### Step 3: Food Satiation Tiers
+#### Step 3: Food Satiation Tiers ✅
 
 **Anchor:** A hungry character eats a gourd and is satisfied for a long time. Another character snacks on a berry and barely dents their hunger — they'll need to eat again soon, or find something more substantial.
 
+**Reqs reconciliation:** Lines 133-137 — _"Different edible items have a different satiation amounts: Feast (50pts) (gourd), Meal (25 pts) (mushroom), Snack (10 pts) (nut, berry)"_. Tiers are the organizing concept, not per-item values.
+
+**Values alignment:**
+- **Design Types for Future Siblings** — Feast/Meal/Snack are named tiers. Adding a future food type means assigning it to an existing tier, not picking an arbitrary number.
+- **Consistency Over Local Cleverness** — tier-based config mirrors the shape Growth Speed Tiers will use in Step 4 (Fast/Medium/Slow constants with item-to-tier mapping). Same pattern for both tuning axes.
+- **Source of Truth Clarity** — tier values live in one place (constants), item-to-tier assignments in one place (the map).
+
+**Architecture alignment:** Follows the map-based config + getter pattern established by `ItemLifecycle`, `StackSize`, and `GroundSpawnCount` (architecture.md "Item Lifecycle" section). No new patterns. Touch points are purely in `consumption.go` — three functions (`Consume`, `ConsumeFromInventory`, `ConsumeFromVessel`) that currently reference `config.FoodHungerReduction`.
+
+**[DOCS] note:** After implementation, update architecture.md "Adding New Plant Types" checklist to include "add to `SatiationTier` if edible."
+
+**Tests** (in `internal/system/consumption_test.go`):
+- Consuming a gourd reduces hunger by 50 (Feast tier)
+- Consuming a mushroom reduces hunger by 25 (Meal tier)
+- Consuming a berry reduces hunger by 10 (Snack tier)
+- Consuming a nut reduces hunger by 10 (Snack tier)
+- Unknown item type falls back to Meal tier (25)
+- Hunger still floors at zero when satiation exceeds current hunger
+- Update existing tests that reference `config.FoodHungerReduction` to use `config.GetSatiationAmount()` with the appropriate item type
+
 **Implementation:**
-- Add `SatiationAmount map[string]float64` to `config.go` mapping item types to hunger reduction values: `gourd: 50, mushroom: 25, berry: 10, nut: 10`
-- Replace all references to `FoodHungerReduction` with lookup into `SatiationAmount` (with fallback to a default for unknown types)
-- Remove the flat `FoodHungerReduction` constant
-- Touch points: `consumption.go` where hunger reduction is applied
-
-**Architecture alignment:** Follows the same map-based config pattern as `ItemLifecycle` and `StackSize`. No new patterns.
-
-**Tests:**
-- Consuming a gourd reduces hunger by 50
-- Consuming a mushroom reduces hunger by 25
-- Consuming a berry reduces hunger by 10
-- Consuming a nut reduces hunger by 10
-- Unknown item type falls back to a reasonable default
+- Add tier constants to `config.go`: `SatiationFeast = 50.0`, `SatiationMeal = 25.0`, `SatiationSnack = 10.0`
+- Add `SatiationTier map[string]float64` mapping item types to tier constants: `"gourd": SatiationFeast`, `"mushroom": SatiationMeal`, `"berry": SatiationSnack`, `"nut": SatiationSnack`
+- Add `GetSatiationAmount(itemType string) float64` — looks up `SatiationTier`, defaults to `SatiationMeal` for unknown types
+- In `Consume()` (line 20): replace `config.FoodHungerReduction` with `config.GetSatiationAmount(item.ItemType)`
+- In `ConsumeFromInventory()` (line 149): same replacement
+- In `ConsumeFromVessel()` (line 345): replace with `config.GetSatiationAmount(variety.ItemType)` (uses variety's ItemType, not item's)
+- Remove flat `FoodHungerReduction` constant
 
 **[TEST] Checkpoint:**
 - `go test ./...` passes
-- Run game: eat different foods, observe hunger stat changes in character details
-- Gourd eating should produce visibly larger hunger reduction than mushroom, which should be visibly larger than berry/nut
-- Characters with access to mixed food types should preferentially seek higher-satiation food when very hungry (existing proximity scoring may already produce this — verify, don't force)
+- Build and run: eat different foods, observe hunger stat changes in character details
+- Gourd eating should produce a visibly large hunger drop (~50 pts)
+- Mushroom should produce a moderate drop (~25 pts)
+- Berry/nut should produce a small drop (~10 pts) — characters will need to eat more of these to stay satisfied
 
 ---
 
