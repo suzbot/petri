@@ -14,6 +14,7 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 
 ## Latest Updates
 
+- **Growth Speed Tiers**: Plants grow and spread at different rates — mushrooms pop up fast but spread steadily; berries establish slowly then spread aggressively; gourds are slow all around but high food value.
 - **Food Satiation Tiers**: Different foods now satisfy hunger by different amounts. Gourds are a feast; mushrooms are a meal; berries and nuts are snacks — characters will need to eat more of them to stay satisfied.
 - **Water Garden Orders**: Players can order characters to water planted tiles.
 - **Drinking from Vessels**: Characters can drink from water vessels they carry or find on the ground.

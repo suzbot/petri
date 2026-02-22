@@ -42,6 +42,8 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 - Movement energy drain
 - Health tier thresholds
 - Mood adjustment rates and modifiers
+- Nut ground spawn rate — currently 600s shared with sticks/shells. Nuts are Snack-tier (10 pts), contributing ~2% of total food economy. Deferred from Slice 9 Step 4 because Step 4 doesn't change nut mechanics and the contribution is negligible. Revisit if nuts gain a gameplay role beyond supplemental forage filler, or if per-type ground spawn intervals are needed for other reasons (convert `GroundSpawnInterval` to a per-type map, same pattern as `ItemLifecycle`).
+- Growth multiplier values (TilledGrowthMultiplier, WetGrowthMultiplier) — currently 1.25 each (1.56x combined). Evaluate after Slice 9 Step 4 playtesting whether the garden bonus feels rewarding with the new longer maturation/reproduction durations.
 
 ---
 

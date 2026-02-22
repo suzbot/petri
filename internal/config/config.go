@@ -89,10 +89,17 @@ const (
 	MoodPenaltyPoisoned    = 2.0 // per second while poisoned (additive with need decay)
 	MoodPenaltyFrustrated  = 2.0 // per second while frustrated (additive with need decay)
 
-	// Sprout maturation
-	SproutDuration         = 30.0 // seconds until sprout matures into a full plant
-	TilledGrowthMultiplier = 1.25 // 25% faster growth on tilled soil (tunable in Slice 9)
-	WetGrowthMultiplier    = 1.25 // 25% faster growth on wet tiles (tunable in Slice 9)
+	// Sprout maturation tiers
+	SproutDurationFast   = 120.0 // ~1 world day (mushroom)
+	SproutDurationMedium = 360.0 // ~3 world days (berry, flower)
+	SproutDurationSlow   = 600.0 // ~5 world days (gourd)
+
+	// Reproduction interval tiers (base seconds between spawn attempts per plant)
+	ReproductionFast   = 12.0 // berry: ~2 world days per plant
+	ReproductionMedium = 18.0 // mushroom, flower: ~3 world days per plant (current rate)
+	ReproductionSlow   = 30.0 // gourd: ~5 world days per plant
+	TilledGrowthMultiplier = 1.25 // 25% faster growth on tilled soil
+	WetGrowthMultiplier    = 1.25 // 25% faster growth on wet tiles
 	WateredTileDuration    = 360.0 // 3 world days (360 game seconds) until manual watering wears off
 
 	// Healing
@@ -157,10 +164,10 @@ type LifecycleConfig struct {
 // spawn attempts across all plants. To get target world-time intervals, divide by
 // expected item count (typically 20). E.g., 18 * 20 = 360s = 3 world days.
 var ItemLifecycle = map[string]LifecycleConfig{
-	"berry":    {SpawnInterval: 18.0, DeathInterval: 0},   // ~3 world days between spawns, immortal until eaten
-	"mushroom": {SpawnInterval: 18.0, DeathInterval: 0},   // ~3 world days between spawns, immortal until eaten
-	"flower":   {SpawnInterval: 18.0, DeathInterval: 48.0}, // ~3 world days between spawns, dies after ~8 world days
-	"gourd":    {SpawnInterval: 18.0, DeathInterval: 0},   // ~3 world days between spawns, immortal until eaten
+	"berry":    {SpawnInterval: ReproductionFast, DeathInterval: 0},     // ~2 world days between spawns, immortal until eaten
+	"mushroom": {SpawnInterval: ReproductionMedium, DeathInterval: 0},   // ~3 world days between spawns, immortal until eaten
+	"flower":   {SpawnInterval: ReproductionMedium, DeathInterval: 48.0}, // ~3 world days between spawns, dies after ~8 world days
+	"gourd":    {SpawnInterval: ReproductionSlow, DeathInterval: 0},     // ~5 world days between spawns, immortal until eaten
 }
 
 // StackSize maps item types to how many fit in one stack (for vessel storage)
@@ -211,4 +218,20 @@ func GetSatiationAmount(itemType string) float64 {
 		return amount
 	}
 	return SatiationMeal
+}
+
+// SproutDurationTier maps item types to their sprout maturation duration
+var SproutDurationTier = map[string]float64{
+	"mushroom": SproutDurationFast,
+	"berry":    SproutDurationMedium,
+	"flower":   SproutDurationMedium,
+	"gourd":    SproutDurationSlow,
+}
+
+// GetSproutDuration returns the sprout maturation duration for an item type, defaulting to Medium tier
+func GetSproutDuration(itemType string) float64 {
+	if duration, ok := SproutDurationTier[itemType]; ok {
+		return duration
+	}
+	return SproutDurationMedium
 }

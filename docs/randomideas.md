@@ -11,7 +11,8 @@ then they can be removed from this list.
 
 ## Issues To resolve
 
-_(Flaky discovery test and pathing thrashing moved to [gardening-phase-plan.md Slice 9](gardening-phase-plan.md). Esc key cleanup, game mechanics doc reorg, and order selection UX moved to [post-gardening-cleanup.md](post-gardening-cleanup.md).)_
+1. Still occasional issues with pathing. Example: a target item is on the other side of an irregularly shaped pond. The character greedy steps and runs into the pond. Then they take a BFS step to go around the pond. Then they take a greedy step that puts them back where they were. They thrash between those two modes.
+   Suggestion: once a character switches to BFS, they stay in BFS until they get to target or until they run into a character. If they run into a character they sidestep (as in current state) and then switch back to greedy step. 
 
 ## UI Improvements
 

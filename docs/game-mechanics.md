@@ -545,6 +545,28 @@ When a character works a Plant order:
 4. **Lock variety**: on first plant, the order locks to that exact variety (`LockedVariety`). Subsequent procurement only seeks the same variety.
 5. **Complete**: when no empty tilled tiles remain, or no matching items are available (including inside ground vessels).
 
+### Growth Speed Tiers
+
+Sprout maturation and plant reproduction are tuned on separate axes, giving each plant type a distinct growth personality. For exact durations, see `config.GetSproutDuration()` and `config.ItemLifecycle`.
+
+**Maturation (sprout → full plant):**
+
+| Tier | Items | World Time |
+|------|-------|------------|
+| Fast | Mushroom | ~1 world day |
+| Medium | Berry, Flower | ~3 world days |
+| Slow | Gourd | ~5 world days |
+
+**Reproduction (parent → new sprout spawn):**
+
+| Tier | Items | World Time |
+|------|-------|------------|
+| Fast | Berry | ~2 world days per plant |
+| Medium | Mushroom, Flower | ~3 world days per plant |
+| Slow | Gourd | ~5 world days per plant |
+
+Tilled and wet tile multipliers still apply to both maturation and reproduction timers (see `config.TilledGrowthMultiplier` and `config.WetGrowthMultiplier`).
+
 ### Sprout Pickup Guard
 
 Sprouts cannot be picked up, foraged, or targeted by harvest orders. All `IsGrowing` filters used in foraging scoring, harvest targeting, and growing-item existence checks include an `IsSprout` guard. This ensures sprouts remain in place and mature naturally rather than being harvested before they grow.

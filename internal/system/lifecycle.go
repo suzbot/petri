@@ -235,7 +235,7 @@ func spawnItem(gameMap *game.Map, parent *entity.Item, x, y int, initialItemCoun
 		Plant: &entity.PlantProperties{
 			IsGrowing:   true,
 			IsSprout:    true,
-			SproutTimer: config.SproutDuration,
+			SproutTimer: config.GetSproutDuration(parent.ItemType),
 		},
 		Edible: edible,
 	}

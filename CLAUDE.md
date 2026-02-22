@@ -114,7 +114,7 @@ internal/
 
 **Up Next:**
 
-- Gardening in progress (Slice 9 Steps 1-3 complete). Next: Step 4 Growth Speed Tiers + Nut Spawn Tuning. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
+- Gardening in progress (Slice 9 Steps 1-4 complete). Next: Step 5 Vessel Drinking Threshold. See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md).
 
 ## Reference and Planning Documents
 

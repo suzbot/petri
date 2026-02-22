@@ -480,8 +480,8 @@ func TestCreateSprout_FromGourdSeed(t *testing.T) {
 	if !sprout.Plant.IsGrowing {
 		t.Error("CreateSprout IsGrowing: got false, want true")
 	}
-	if sprout.Plant.SproutTimer != config.SproutDuration {
-		t.Errorf("CreateSprout SproutTimer: got %f, want %f", sprout.Plant.SproutTimer, config.SproutDuration)
+	if sprout.Plant.SproutTimer != config.GetSproutDuration("gourd") {
+		t.Errorf("CreateSprout SproutTimer: got %f, want %f", sprout.Plant.SproutTimer, config.GetSproutDuration("gourd"))
 	}
 	pos := sprout.Pos()
 	if pos.X != 5 || pos.Y != 10 {

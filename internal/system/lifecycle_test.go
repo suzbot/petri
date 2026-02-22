@@ -33,6 +33,97 @@ func TestCalculateSpawnInterval_ReturnsValueInExpectedRange(t *testing.T) {
 	}
 }
 
+func TestCalculateSpawnInterval_BerryUsesReproductionFast(t *testing.T) {
+	t.Parallel()
+	initialItemCount := 20
+	base := config.ReproductionFast * float64(initialItemCount)
+	variance := base * config.LifecycleIntervalVariance
+	for i := 0; i < 100; i++ {
+		interval := CalculateSpawnInterval("berry", initialItemCount)
+		if interval < base-variance || interval > base+variance {
+			t.Errorf("Berry interval %.2f outside expected range [%.2f, %.2f]", interval, base-variance, base+variance)
+		}
+	}
+}
+
+func TestCalculateSpawnInterval_MushroomUsesReproductionMedium(t *testing.T) {
+	t.Parallel()
+	initialItemCount := 20
+	base := config.ReproductionMedium * float64(initialItemCount)
+	variance := base * config.LifecycleIntervalVariance
+	for i := 0; i < 100; i++ {
+		interval := CalculateSpawnInterval("mushroom", initialItemCount)
+		if interval < base-variance || interval > base+variance {
+			t.Errorf("Mushroom interval %.2f outside expected range [%.2f, %.2f]", interval, base-variance, base+variance)
+		}
+	}
+}
+
+func TestCalculateSpawnInterval_GourdUsesReproductionSlow(t *testing.T) {
+	t.Parallel()
+	initialItemCount := 20
+	base := config.ReproductionSlow * float64(initialItemCount)
+	variance := base * config.LifecycleIntervalVariance
+	for i := 0; i < 100; i++ {
+		interval := CalculateSpawnInterval("gourd", initialItemCount)
+		if interval < base-variance || interval > base+variance {
+			t.Errorf("Gourd interval %.2f outside expected range [%.2f, %.2f]", interval, base-variance, base+variance)
+		}
+	}
+}
+
+func TestCalculateSpawnInterval_FlowerUsesReproductionMedium(t *testing.T) {
+	t.Parallel()
+	initialItemCount := 20
+	base := config.ReproductionMedium * float64(initialItemCount)
+	variance := base * config.LifecycleIntervalVariance
+	for i := 0; i < 100; i++ {
+		interval := CalculateSpawnInterval("flower", initialItemCount)
+		if interval < base-variance || interval > base+variance {
+			t.Errorf("Flower interval %.2f outside expected range [%.2f, %.2f]", interval, base-variance, base+variance)
+		}
+	}
+}
+
+// =============================================================================
+// GetSproutDuration
+// =============================================================================
+
+func TestGetSproutDuration_MushroomIsFast(t *testing.T) {
+	t.Parallel()
+	if got := config.GetSproutDuration("mushroom"); got != config.SproutDurationFast {
+		t.Errorf("GetSproutDuration(mushroom): got %.2f, want %.2f", got, config.SproutDurationFast)
+	}
+}
+
+func TestGetSproutDuration_BerryIsMedium(t *testing.T) {
+	t.Parallel()
+	if got := config.GetSproutDuration("berry"); got != config.SproutDurationMedium {
+		t.Errorf("GetSproutDuration(berry): got %.2f, want %.2f", got, config.SproutDurationMedium)
+	}
+}
+
+func TestGetSproutDuration_FlowerIsMedium(t *testing.T) {
+	t.Parallel()
+	if got := config.GetSproutDuration("flower"); got != config.SproutDurationMedium {
+		t.Errorf("GetSproutDuration(flower): got %.2f, want %.2f", got, config.SproutDurationMedium)
+	}
+}
+
+func TestGetSproutDuration_GourdIsSlow(t *testing.T) {
+	t.Parallel()
+	if got := config.GetSproutDuration("gourd"); got != config.SproutDurationSlow {
+		t.Errorf("GetSproutDuration(gourd): got %.2f, want %.2f", got, config.SproutDurationSlow)
+	}
+}
+
+func TestGetSproutDuration_UnknownDefaultsToMedium(t *testing.T) {
+	t.Parallel()
+	if got := config.GetSproutDuration("unknown"); got != config.SproutDurationMedium {
+		t.Errorf("GetSproutDuration(unknown): got %.2f, want %.2f", got, config.SproutDurationMedium)
+	}
+}
+
 // =============================================================================
 // FindEmptyAdjacent
 // =============================================================================
@@ -299,8 +390,9 @@ func TestSpawnItem_SetsSproutTimer(t *testing.T) {
 		}
 	}
 
-	if spawned.Plant.SproutTimer != config.SproutDuration {
-		t.Errorf("SproutTimer: got %.2f, want %.2f", spawned.Plant.SproutTimer, config.SproutDuration)
+	expectedDuration := config.GetSproutDuration(parent.ItemType)
+	if spawned.Plant.SproutTimer != expectedDuration {
+		t.Errorf("SproutTimer: got %.2f, want %.2f", spawned.Plant.SproutTimer, expectedDuration)
 	}
 }
 
@@ -630,8 +722,9 @@ func TestSpawnItem_CreatesSproutInsteadOfMaturePlant(t *testing.T) {
 	if spawned.Sym != config.CharSprout {
 		t.Errorf("Spawned sprout symbol: got %c, want %c", spawned.Sym, config.CharSprout)
 	}
-	if spawned.Plant.SproutTimer != config.SproutDuration {
-		t.Errorf("SproutTimer: got %.2f, want %.2f", spawned.Plant.SproutTimer, config.SproutDuration)
+	expectedDuration := config.GetSproutDuration(parent.ItemType)
+	if spawned.Plant.SproutTimer != expectedDuration {
+		t.Errorf("SproutTimer: got %.2f, want %.2f", spawned.Plant.SproutTimer, expectedDuration)
 	}
 }
 

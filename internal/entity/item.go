@@ -288,7 +288,7 @@ func CreateSprout(x, y int, plantedItem *Item, edible *EdibleProperties) *Item {
 		Plant: &PlantProperties{
 			IsGrowing:   true,
 			IsSprout:    true,
-			SproutTimer: config.SproutDuration,
+			SproutTimer: config.GetSproutDuration(parentType),
 		},
 		Edible: edible,
 	}

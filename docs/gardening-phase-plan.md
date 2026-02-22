@@ -29,7 +29,8 @@
 | Till order state      | Global marked-for-tilling pool on Map  | Marked tiles = user's tilling plan (persistent, independent of orders). Till orders = worker assignments. Cancel order = remove worker, not the plan. Unmark via separate UI action. Characters with any tillSoil order work the shared pool. |
 | Lookable water terrain | Extend Look to water-adjacent positions | Characters contemplate water sources. Triggers know-how discovery (Water Garden) but not preference formation (water has no item attributes). |
 | Food satiation tiers  | Feast (50) / Meal (25) / Snack (10)   | Per-item-type satiation. Gourd=Feast, Mushroom=Meal, Berry/Nut=Snack. Replaces flat FoodHungerReduction. |
-| Growth speed tiers    | Fast / Medium / Slow                   | Berry/mushroom=fast, flower=medium (6-min sprout), gourd=slow. Affects sprouting duration and reproduction intervals. |
+| Growth speed tiers    | Fast / Medium / Slow (independent axes) | Maturation and reproduction are tuned independently to create varied growth profiles. Intentional divergence from reqs (which group berry+mushroom as "fast" on both axes). Maturation: mushroom=Fast, berry/flower=Medium, gourd=Slow. Reproduction: berry=Fast, mushroom/flower=Medium, gourd=Slow. Mushrooms pop up fast but spread steadily; berries establish slowly but spread aggressively; gourds are slow all around but high food value. |
+| Nut spawn tuning      | Deferred (no change needed)            | After satiation tiers, nuts contribute ~2% of total food economy — a rounding error. Step 4 doesn't change nut mechanics. Revisit during general tuning pass if nut role expands beyond supplemental forage filler. Tracked in triggered-enhancements.md. |
 | Watered tile decay    | 3 world days (360 game seconds)        | Manual watering creates temporary wet status. Tiles adjacent to water are permanently wet (computed). |
 | Water symbol          | `▓▓▓` dark shade block in waterStyle   | Textured block for ponds (suggests water movement). Springs keep `☉`. Aligns with terrain fill system (`═══` tilled, `▓▓▓` water). Structure walls TBD. |
 | Sprout symbol         | `𖧧` (bold style)                       | Visually distinct from mature plants. Suggests early growth stage. |
@@ -1639,49 +1640,103 @@ Rejected alternatives:
 
 ---
 
-#### Step 4: Growth Speed Tiers + Nut Spawn Tuning
+#### Step 4: Growth Speed Tiers ✅
 
 **Anchor:** A player plants mushroom spores and gourd seeds side by side in a tilled, watered garden. The mushroom sprouts appear the next morning; the gourd sprouts take nearly a week. But once the mushrooms are grown, new ones pop up at a steady pace — while the berry bush across the garden is already surrounded by offspring.
 
-**Implementation — Sprout Duration:**
-- Add `SproutDuration map[string]float64` to `config.go`: `mushroom: 120, berry: 360, flower: 360, gourd: 600`
-- Replace references to flat `SproutDuration` constant with per-type lookup (key: item type of the sprout)
-- Remove the flat `SproutDuration` constant
-- Touch points: `lifecycle.go` where sprout timer is initialized and where maturation is checked
+**Reqs reconciliation:** Lines 138-141 — _"fast (berry, mushroom) (shorter sprouting and reproduction times)"_, _"medium (flower) (six minute sprouting time, existing reproduction time)"_, _"slow (gourd) (longer sprouting and reproduction times)"_. **Intentional divergence (confirmed):** reqs group berry+mushroom together as "fast" on both axes. Implementation splits them across maturation and reproduction to create more varied growth profiles (see Decisions Log "Growth speed tiers"). Mushroom=fast maturation but medium reproduction; berry=medium maturation but fast reproduction. This creates distinct plant personalities rather than uniform speed categories.
 
-**Implementation — Reproduction Intervals:**
-- Update `ItemLifecycle` spawn intervals: `berry: 12.0, mushroom: 18.0, flower: 18.0, gourd: 30.0`
+**Values alignment:**
+- **Design Types for Future Siblings** — Named tier constants (Fast/Medium/Slow) for both maturation and reproduction. Adding a future plant type means assigning it to an existing tier, not picking an arbitrary number. Same shape as `SatiationFeast`/`SatiationMeal`/`SatiationSnack` from Step 3.
+- **Consistency Over Local Cleverness** — Map-based config + getter pattern matches `SatiationTier`/`GetSatiationAmount` exactly. Two new maps (`SproutDurationTier`, reproduction constants in `ItemLifecycle`), each backed by named tier constants.
+- **Source of Truth Clarity** — Tier values in one place (constants), item-to-tier assignments in one place (the map).
+
+**Architecture alignment:** Extends existing map-based config pattern (`ItemLifecycle`, `StackSize`, `SatiationTier` from Step 3). No new patterns. Touch points: `config.go` (constants + maps), `lifecycle.go` (`spawnItem`), `entity/item.go` (`CreateSprout`), and tests that reference `config.SproutDuration`.
+
+**Nut spawn tuning: deferred.** Nuts contribute ~2% of total food economy (see Decisions Log). Step 4 doesn't change nut mechanics. Tracked in triggered-enhancements.md for general tuning pass.
+
+---
+
+##### Step 4a: Named growth tier constants + sprout duration map ✅
+
+**Anchor story:** All sprouts currently mature in a flat 30 seconds. After this step, mushroom sprouts pop up in 120s (~1 world day), berry and flower sprouts take 360s (~3 world days), and gourd sprouts take 600s (~5 world days). The tilled/wet multipliers still apply, making garden plots visibly faster than wild growth.
+
+**Tests** (in `internal/system/lifecycle_test.go`):
+- `GetSproutDuration("mushroom")` returns 120.0 (SproutDurationFast)
+- `GetSproutDuration("berry")` returns 360.0 (SproutDurationMedium)
+- `GetSproutDuration("flower")` returns 360.0 (SproutDurationMedium)
+- `GetSproutDuration("gourd")` returns 600.0 (SproutDurationSlow)
+- `GetSproutDuration("unknown")` returns SproutDurationMedium (default)
+- Existing `UpdateSproutTimers` test: update to use `config.GetSproutDuration(itemType)` instead of flat `config.SproutDuration`
+- Existing `spawnItem` test: update to check `SproutTimer == config.GetSproutDuration(parent.ItemType)`
+- Growth multipliers still apply correctly: sprout on tilled+wet soil matures faster than wild (existing tests, verify no regression)
+
+**Tests** (in `internal/entity/item_test.go`):
+- Existing `CreateSprout` test: update to check `SproutTimer == config.GetSproutDuration(sproutItemType)` instead of flat `config.SproutDuration`
+
+**Implementation:**
+- `config.go`: Add named tier constants:
+  ```
+  SproutDurationFast   = 120.0  // ~1 world day (mushroom)
+  SproutDurationMedium = 360.0  // ~3 world days (berry, flower)
+  SproutDurationSlow   = 600.0  // ~5 world days (gourd)
+  ```
+- `config.go`: Add `SproutDurationTier map[string]float64` mapping item types to tier constants:
+  `"mushroom": SproutDurationFast`, `"berry": SproutDurationMedium`, `"flower": SproutDurationMedium`, `"gourd": SproutDurationSlow`
+- `config.go`: Add `GetSproutDuration(itemType string) float64` — looks up `SproutDurationTier`, defaults to `SproutDurationMedium`
+- `config.go`: Remove flat `SproutDuration = 30.0` constant
+- `lifecycle.go` `spawnItem()` (~line 238): replace `config.SproutDuration` with `config.GetSproutDuration(parent.ItemType)`
+- `entity/item.go` `CreateSprout()` (~line 291): replace `config.SproutDuration` with `config.GetSproutDuration(sproutItemType)` — where `sproutItemType` is the resolved item type of the sprout (already computed in the function for seed→parent conversion)
+
+No [TEST] checkpoint — maturation speed differences aren't easily observable in isolation without also having reproduction changes (Step 4b). Combined checkpoint after 4b.
+
+##### Step 4b: Reproduction interval tiers ✅
+
+**Anchor story:** A mature berry bush is already surrounded by new sprouts while the gourd plant next to it has only spawned once. Berry spreads aggressively (12s base), mushroom and flower at a steady pace (18s, unchanged), gourd slowly but each one is a feast (30s base).
+
+**Tests** (in `internal/system/lifecycle_test.go`):
+- `CalculateSpawnInterval("berry", 20)` base is `ReproductionFast * 20` = 240s (±20% variance)
+- `CalculateSpawnInterval("mushroom", 20)` base is `ReproductionMedium * 20` = 360s (unchanged)
+- `CalculateSpawnInterval("gourd", 20)` base is `ReproductionSlow * 20` = 600s
+- `CalculateSpawnInterval("flower", 20)` base is `ReproductionMedium * 20` = 360s (unchanged)
+- Existing reproduction tests: verify no regression (multipliers still apply to reproduction timers via `effectiveDelta`)
+
+**Implementation:**
+- `config.go`: Add named reproduction tier constants:
+  ```
+  ReproductionFast   = 12.0  // berry: ~2 world days per plant
+  ReproductionMedium = 18.0  // mushroom, flower: ~3 world days per plant (current rate)
+  ReproductionSlow   = 30.0  // gourd: ~5 world days per plant
+  ```
+- `config.go`: Update `ItemLifecycle` SpawnInterval values to use named constants:
+  `"berry": {SpawnInterval: ReproductionFast, ...}`, `"mushroom": {SpawnInterval: ReproductionMedium, ...}`, `"flower": {SpawnInterval: ReproductionMedium, ...}`, `"gourd": {SpawnInterval: ReproductionSlow, ...}`
 - Death intervals unchanged
+- No code changes in lifecycle.go — `CalculateSpawnInterval` already reads from `ItemLifecycle`
 
-**Implementation — Growth Multipliers:**
-- Evaluate current `TilledGrowthMultiplier = 1.25` and `WetGrowthMultiplier = 1.25` during playtesting
-- These apply to both sprout maturation and reproduction timers
-- Adjust if the bonus doesn't feel meaningful given the new longer durations
+##### Step 4c: Document decisions ✅
 
-**Implementation — Nut Spawn Tuning:**
-- Current: `GroundSpawnInterval = 600.0` (~5 world days), shared across sticks/nuts/shells
-- Evaluate whether nuts need a separate spawn interval now that cultivated food availability is shifting
-- If nut spawn rate needs to differ from sticks/shells, convert `GroundSpawnInterval` to a per-type map (same pattern as `ItemLifecycle`)
-- May be a no-op if current rate feels right after satiation changes
+Decisions log updated with intentional berry/mushroom tier divergence. Nut spawn rate and growth multiplier values added to triggered-enhancements.md balance tuning candidates.
 
-**Architecture alignment:** Extends existing map-based config pattern (`ItemLifecycle`, `StackSize`, `SatiationAmount` from Step 3). No new patterns.
+---
 
-**Tests:**
-- Mushroom sprout duration is 120s
-- Berry sprout duration is 360s
-- Flower sprout duration is 360s
-- Gourd sprout duration is 600s
-- Growth multipliers reduce sprout duration correctly (tilled: ×0.8, wet: ×0.8, both: ×0.64 — inverse of the multiplier)
-- Reproduction intervals match new per-type values
+**Growth multiplier note:** `TilledGrowthMultiplier = 1.25` and `WetGrowthMultiplier = 1.25` stay as-is. With the new longer durations, tilled+wet (1.56x combined) saves meaningful time: ~77s on a 120s mushroom, ~231s (~2 world days) on a 600s gourd. Evaluate during human testing whether the bonus feels rewarding. If not, multiplier adjustment is a config-only change.
 
-**[TEST] Checkpoint:**
+**[TEST] Checkpoint — Growth speed tiers:**
 - `go test ./...` passes
-- Run game with `-debug` flag: plant different types, observe sprout timers
-- Mushroom sprouts should mature noticeably faster than berry/flower sprouts
-- Gourd sprouts should take significantly longer
-- Plant on tilled+wet soil vs wild: visible speed difference
-- Berry plants should produce offspring faster than mushrooms or gourds
-- Nut availability: do characters still find nuts as supplemental food? Adjust spawn rate if needed
+- Build and run: plant different types in a tilled, watered garden and observe:
+  - Mushroom sprouts mature noticeably fastest (~1 world day wild, faster in garden)
+  - Berry/flower sprouts take a few world days to mature
+  - Gourd sprouts take nearly a week to mature
+  - Tilled+wet garden visibly accelerates all maturation vs wild plants
+  - Once mature, berry plants produce offspring sprouts faster than mushrooms/flowers
+  - Gourd offspring sprouts are rare — but each one will eventually be a feast
+  - Wild plant reproduction (not in garden) also uses new intervals
+  - Existing food chain unbroken: characters still find food, no starvation spiral
+  - Save/load preserves sprout timers (existing serialization, no changes needed)
+
+**[DOCS]** ✅ Update README, CLAUDE.md, game-mechanics, architecture as needed. Note: architecture.md "Adding New Plant Types" checklist should include "add to `SproutDurationTier`" alongside the existing `SatiationTier` note from Step 3.
+
+**[RETRO]** Run /retro.
 
 ---
 
