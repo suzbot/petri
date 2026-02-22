@@ -13,9 +13,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Depression and Rage mechanics**      | Job acceptance logic implemented                                                  |
 | **Testify test package**               | Test complexity warrants it; Current assertion patterns become unwieldy           |
 | **Wandering activity**                 | More idle activities needed; Looking feels repetitive; Want more organic movement |
-| **ItemType constants**                 | Adding new item types; Want compile-time safety for item type checks              |
 | **Activity enum**                      | Need to enumerate/filter activities; Activity-based game logic beyond display     |
-| **Action pattern unification investigation** | Post-Gardening; Have 3+ action types with item consumption; Patterns diverge or duplicate |
 | **`continueIntent` early-return block consolidation** | 5+ action-specific early-return blocks in `continueIntent`; New multi-phase action needs early-return and the pattern feels repetitive |
 | **Feature capability derivation**      | Adding new feature types; DrinkSource/Bed bools become redundant                  |
 | **Action log retention policy**        | Implementing character memory; May need world time vs real time consideration     |
@@ -30,6 +28,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Drinkable bool on ItemVariety**      | Non-drinkable liquid introduced (lamp oil, dye); Need to distinguish consumable vs non-consumable liquids |
 | **Watertight bool on ContainerData**   | Non-watertight container introduced (basket, sack); Need to prevent liquid storage in permeable containers |
 | **Idle activity registry refactor**    | Idle activity needs discovery/know-how gating; Idle activities need data-driven selection (weighted probabilities, personality); Adding 7th+ hardcoded idle option feels unwieldy |
+| **Satiation-aware targeting & snacking threshold** | Characters walk past nearby berries because hunger isn't high enough to trigger foraging, then starve later; Snack-tier food feels useless because characters only eat when already quite hungry |
 | **Terrain-aware Look + discovery**     | Adding activity discovered from terrain interaction; Characters feel artificially limited to item-only observation; Want richer idle contemplation behaviors |
 
 ### Future Enhancement Details
@@ -70,19 +69,7 @@ wg.Wait()
 
 ---
 
-**ItemType constants (post-Gardening evaluation):**
-
-Gardening adds: seed, shell, stick, hoe (4 new item types).
-Current item types: berry, mushroom, gourd, flower, vessel (~5 types).
-
-After Gardening, there will be ~9 item types. Evaluate whether string comparisons like `item.ItemType == "gourd"` scattered through the codebase have become error-prone. If typos or inconsistencies emerge, formalize to constants:
-```go
-const (
-    ItemTypeBerry    = "berry"
-    ItemTypeMushroom = "mushroom"
-    // ...
-)
-```
+_(ItemType constants evaluation moved to [post-gardening-cleanup.md](post-gardening-cleanup.md).)_
 
 ---
 
@@ -100,21 +87,7 @@ When Construction begins, formalize categories to enable:
 
 ---
 
-**Action pattern unification investigation (post-Gardening):**
-
-Current action patterns for item consumption:
-- **Eating**: Pre-selects specific item via `FindFoodTarget` scoring, passes as `TargetItem`, consumes via `Consume`/`ConsumeFromVessel`/`ConsumeFromInventory`
-- **Crafting**: Uses `HasAccessibleItem` to check availability, `ConsumeAccessibleItem` to consume when complete
-
-Both defer consumption to execution time (good), but use different patterns for checking/consuming.
-
-After Gardening adds more actions (planting seeds, watering, tool usage), investigate:
-1. Are there common patterns that could share helpers?
-2. Should `HasAccessibleItem`/`ConsumeAccessibleItem` be generalized for all item consumption?
-3. Do any actions have the "extract at intent time" anti-pattern that caused the craft loop bug?
-4. Could a unified `ItemConsumer` interface simplify action handlers?
-
-Only investigate if patterns are diverging or duplicating. If each action's needs are sufficiently different, the current approach may be fine.
+_(Action pattern unification investigation moved to [post-gardening-cleanup.md](post-gardening-cleanup.md).)_
 
 ---
 
@@ -168,6 +141,18 @@ Characters can look at items but not terrain — narratively artificial. Water, 
 These are complementary — lookable terrain provides the idle behavior, terrain triggers provide the discovery mechanism. Together they create a richer observation loop where characters learn from their environment, not just from items.
 
 Deferred because: Water Garden discovery is adequately served by item-based triggers (sprouts) + action-completion triggers (ActionFillVessel). Lookable terrain is flavor, not blocking. Revisit when a future activity's discovery genuinely requires terrain observation, or when idle behaviors need more variety.
+
+---
+
+**Satiation-aware targeting & snacking threshold:**
+
+Slice 9 introduces per-item satiation tiers (Feast 50, Meal 25, Snack 10). Two related enhancements to consider after living with these values:
+
+1. **Satiation-aware foraging targeting**: When hungry, characters could factor satiation value into foraging scores — preferring a gourd (50 pts) over a berry (10 pts) when both are nearby, especially at high hunger. Currently foraging uses distance + preference scoring without considering how much the food will actually help.
+
+2. **Lower foraging threshold for snacks**: Characters could be willing to snack at a lower hunger level (e.g., Mild tier) if food is immediately adjacent or in inventory — "grab a berry while walking past" behavior. Currently all food triggers foraging at the same hunger threshold regardless of convenience. This parallels the vessel drinking threshold concept (Slice 9 Step 5): lower the trigger when the cost is near-zero.
+
+Deferred because: Need to observe how the new satiation tiers play out before adding complexity. The current system may produce acceptable behavior through existing proximity scoring — characters naturally eat nearby food first. Revisit after playtesting Slice 9.
 
 ---
 

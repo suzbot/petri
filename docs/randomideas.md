@@ -11,37 +11,11 @@ then they can be removed from this list.
 
 ## Issues To resolve
 
-1. **Flaky test: `TestTryDiscoverKnowHow_DiscoverPlantOnLookAtPlantable`** — Fails intermittently (~1 in 5 runs). Root cause: `GetDiscoverableActivities()` iterates `ActivityRegistry` (a Go map), so discovery triggers are evaluated in non-deterministic order. When "plant" discovery's `ActionLook` trigger is evaluated after another trigger that also matches, the first match wins and "plant" isn't discovered. Fix: sort activities deterministically before iterating, or collect all matching discoveries instead of returning on first match.
+_(Flaky discovery test and pathing thrashing moved to [gardening-phase-plan.md Slice 9](gardening-phase-plan.md). Esc key cleanup, game mechanics doc reorg, and order selection UX moved to [post-gardening-cleanup.md](post-gardening-cleanup.md).)_
 
-2. **Gardening Phase testing feedback**
+## UI Improvements
 
-   e. **Pathing Thrashing:** we're seeing characters thrash more often when pathing now that we've 'upgraded' our pathing logic. The most direct route to an item is blocked by a character. Characrers aren't in the patching calculation because they can move, but often they are engaged in an activity that keeps them stationary for up to 20 seconds. I see characters take one step to try and path around them, but it appears that the new path is the same as the old path, they take one step back and they are blocked again. They spend a lot of energy moving back and forth until the other character moves, and its unpleasant to observe, and doesn't feel like natural behavior. What are some different approaches to improving this?
-      i. idea one - force the character to take a few random steps away before re-calculating path, in hopes that new path doesn't have the exact same blockage as the old path
-      ii. idea 2 - disallow new paths that have any of the same first three steps as the last path
-      iii. anything else?
-
-3. **esc key clean up** (after Gardening): still a little bit inconsistant how esc behaves. Proposed new pattern: esc always takes you 'back' a level. Ideal if there's a way to generalize this behavior. desired behavior:
-   - esc from any expanded view collapses the view
-   - esc from all activity view goes nowhere
-   - esc from orders start goes back to all activity
-   - esc from within orders only goes back one level
-   - esc from select: details view > action log or no panel goes back to all activity view
-   - esc from select: details view > any other panel goes back to details action log
-   - 'l' from select: details view > any other panel goes back to details action log
-   - q from anywhere goes to start file menu
-   - q from start file menu quits
-
-4. **Game Mechanics Doc Reorg** (after Gardening): they are little disorganized, inconsistent about what level of detail it shares, not in the most intuitive order.
-   a. Reorganize in order of gameflow
-   b. Remove anything unnecessary for user, or summarize where makes sense
-
-
-## UI Improvements 
-
-1. **Order Selection UX** (after Gardening)
-   - Pain point: Scrolling through list every time
-   - Single keypress selection (numbered list)
-2. **Capitalization** consistency clean-up (not quick - lots of strings to sweep through)
+1. **Capitalization** consistency clean-up (not quick - lots of strings to sweep through)
 3. **Natural Language Descriptions**
    - Key words shown in relevant color (color text is color, poison red, healing green, growing olive) and bolded
    - Everything non-null/non-false reflected in a sentence

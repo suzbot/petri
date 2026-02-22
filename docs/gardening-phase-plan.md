@@ -2430,10 +2430,15 @@ No [TEST] checkpoint — documentation only, no code changes.
 **Reqs covered:**
 - Food Turning: Satiation tiers (lines 133-137)
 - Food Turning: Growth speed tiers (lines 138-141)
+- Bug fix: Flaky discovery test (randomideas.md #1)
+- Bug fix: Pathing thrashing (randomideas.md #2e)
+- Tuning: Vessel drinking threshold (deferred from Slice 7)
+- Tuning: Nut ground spawn frequency
+- Tuning: Growth multiplier values for tilled/wet bonuses (deferred from Slice 6)
 
-#### Design: Food Satiation Tiers
+#### Design Decisions
 
-Replace the flat `FoodHungerReduction` constant with per-item-type values:
+**Food Satiation Tiers:** Replace flat `FoodHungerReduction = 20` with per-item-type values:
 
 | Tier | Points | Items |
 |------|--------|-------|
@@ -2441,54 +2446,185 @@ Replace the flat `FoodHungerReduction` constant with per-item-type values:
 | Meal | 25 | Mushroom |
 | Snack | 10 | Berry, Nut |
 
-#### Design: Growth Speed Tiers
+Note: Berry/Nut drop from 20→10 (significant nerf), Gourd jumps from 20→50. This shifts foraging economics — gourds become high-value targets. See triggered-enhancements.md for deferred satiation-aware targeting/snacking thresholds.
 
-Replace flat `SproutDuration` with per-item-type values. Affects both sprouting time and reproduction intervals:
+**Growth Speed Tiers:** Maturation and reproduction are tuned on *separate* axes to create interesting emergent dynamics — not every plant scales uniformly with its food value.
 
-| Tier | Items | Direction |
-|------|-------|-----------|
-| Fast | Berry, Mushroom | Shorter sprouting and reproduction times |
-| Medium | Flower | ~6 min sprout, existing reproduction |
-| Slow | Gourd | Longer sprouting and reproduction times |
+Maturation (sprout → full plant):
 
-Also tune growth multiplier values:
-- `TilledGrowthMultiplier` (currently 1.25 — placeholder)
-- `WetGrowthMultiplier` (currently 1.25 — placeholder)
+| Tier | Items | Duration | World Time | Narrative |
+|------|-------|----------|------------|-----------|
+| Fast | Mushroom | 120s | 1 world day | Pops up overnight |
+| Medium | Berry, Flower | 360s | 3 world days | Needs a few days to establish |
+| Slow | Gourd | 600s | 5 world days | Substantial plant, nearly a week to mature |
 
-**Deferred from Slice 6:** Flat 30s sprout duration used for testing. This slice differentiates by tier and tunes multiplier values.
+Reproduction (parent → new plant spawn):
 
-#### Design: Vessel Drinking Thirst Trigger
+| Tier | Items | SpawnInterval | World Time | Narrative |
+|------|-------|--------------|------------|-----------|
+| Fast | Berry | 12.0s | ~2 world days per plant | Prolific spreader |
+| Medium | Mushroom, Flower | 18.0s | ~3 world days per plant | Current rate, steady |
+| Slow | Gourd | 30.0s | ~5 world days per plant | Slow but valuable |
 
-Evaluate whether carrying a water vessel should allow drinking at a lower thirst threshold than walking to a water source. Currently both trigger at Moderate tier (51+). Carried vessel at distance 0 is already prioritized by proximity.
+This means: mushrooms appear quickly but don't carpet the map; berries take time to establish but then spread aggressively; gourds are slow all around but give feast-level food. Flowers stay medium on both axes.
 
-**Deferred from Slice 7:** Keep same threshold for initial implementation. Tune here if vessel drinking feels like it should trigger earlier.
+**Deferred from Slice 6:** Flat 30s sprout duration used for testing. This slice differentiates by tier.
 
-**Outcomes:**
+**Growth Multipliers:** Keep `TilledGrowthMultiplier = 1.25` and `WetGrowthMultiplier = 1.25` as starting values. These apply multiplicatively: tilled+wet = 1.25 × 1.25 ≈ 1.56x. On a 600s gourd, that saves ~230s (~2 world days) — meaningful reward for garden investment. Adjust during playtesting if the bonus doesn't feel rewarding enough.
 
-1. Per-item-type satiation amounts replace flat hunger reduction
-2. Per-item-type growth speed tiers replace flat SproutDuration
-3. Tuned growth multiplier values for tilled/wet bonuses
-4. Evaluate vessel drinking thirst threshold
+**Vessel Drinking Threshold:** The intent is not about scoring after thirst is already triggered — it's about triggering drinking behavior *sooner* when the cost is low. A character tilling a field with a water vessel could sip at Mild tier (~30+) instead of waiting for Moderate (51+), because drinking from carried inventory is near-zero cost versus crossing the map to a spring. This is a proximity-aware trigger: `if carrying water vessel → lower thirst trigger threshold`.
 
-**[TEST] Checkpoint — Satiation and growth tuning:**
-- Eat a gourd → larger hunger reduction than eating a mushroom → larger hunger reduction than eating a berry/nut
-- Berry/mushroom sprouts mature noticeably faster than gourd sprouts
-- Flower sprouts take ~6 minutes
-- Growth hierarchy feels right: tilled+wet > tilled or wet alone > wild
-- Vessel drinking trigger feels natural (adjust threshold if needed)
+**Deferred from Slice 7:** Keep same threshold for initial implementation. Tune here based on gameplay feel — does a character working a garden ignore the water vessel on their person for too long?
+
+**Nut Ground Spawn Tuning:** Nuts currently spawn every 600s (~5 world days) via `GroundSpawnInterval`. As other food sources shift in availability (gourds become feast-level, berry reproduction speeds up), evaluate whether nut spawn rate needs adjustment. Nuts are Snack-tier (10 pts) ground-spawned food — their role is supplemental foraging between cultivated food sources.
+
+---
+
+#### Step 1: Fix Flaky Discovery Test ✅
+
+**Anchor:** A deterministic test suite is the foundation for all tuning work. Fix the intermittent discovery test failure before changing any balance values.
+
+**Root cause:** `TestTryDiscoverKnowHow_DiscoverPlantOnLookAtPlantable` asserted "plant" was discovered on the first call, but multiple activities share the `RequiresPlantable` trigger and Go map iteration is random — so a different activity could win the single-discovery slot.
+
+**Fix (test-only):** The planned approach was to sort `GetDiscoverableActivities()` for deterministic iteration. During implementation, we recognized this would remove intentional emergent variety — different characters discovering activities in different orders is a feature. The random iteration is correct behavior; the test was wrong to assert a specific winner on the first roll. Fixed the test to retry (same pattern as the existing waterGarden discovery test), asserting "plant" is discovered within several attempts. No production code changed.
+
+**[TEST] Checkpoint:** ✅ `go test -race -count=20` — zero failures across 20 runs
+
+---
+
+#### Step 2: Fix Pathing Thrashing
+
+**Anchor:** A character walking toward a pond to fill their vessel encounters another character standing at the pond's edge, crafting. Instead of stepping side to side indefinitely, they take a few displacement steps and find a different route around.
+
+**Needs dedicated refinement.** This step requires its own analysis pass to choose an approach and design the implementation. High-level direction and initial takes captured below for the refinement conversation.
+
+**Problem:** Characters thrash when their most direct route is blocked by a stationary character (engaged in a long activity). The character takes one step to path around, recalculates, gets the same blocked path, steps back, repeat. Wastes energy and looks unnatural.
+
+**Approaches to evaluate during refinement:**
+1. **Extend collision displacement** — We already have a concept of "take one step" on collision. Currently insufficient but could be extended to take multiple random displacement steps before recalculating, pushing the character far enough that the new path genuinely differs. *User's initial lean — builds on existing pattern, follows Reuse Before Invention.*
+2. **Path memory** — Disallow new paths that share the same first few steps as the last failed path. Adds state tracking.
+3. **Stationary character obstacles** — Temporarily treat characters stationary for >N seconds as obstacles in pathfinding. *Most "correct" simulation behavior but may interact with pathfinding in unexpected ways.*
+
+**[TEST] Checkpoint:**
+- Characters blocked by stationary characters find alternate routes instead of thrashing back and forth
+- Unblocked characters pathfind normally (no regression)
+- `go test -race ./...` passes
+
+---
+
+#### Step 3: Food Satiation Tiers
+
+**Anchor:** A hungry character eats a gourd and is satisfied for a long time. Another character snacks on a berry and barely dents their hunger — they'll need to eat again soon, or find something more substantial.
+
+**Implementation:**
+- Add `SatiationAmount map[string]float64` to `config.go` mapping item types to hunger reduction values: `gourd: 50, mushroom: 25, berry: 10, nut: 10`
+- Replace all references to `FoodHungerReduction` with lookup into `SatiationAmount` (with fallback to a default for unknown types)
+- Remove the flat `FoodHungerReduction` constant
+- Touch points: `consumption.go` where hunger reduction is applied
+
+**Architecture alignment:** Follows the same map-based config pattern as `ItemLifecycle` and `StackSize`. No new patterns.
+
+**Tests:**
+- Consuming a gourd reduces hunger by 50
+- Consuming a mushroom reduces hunger by 25
+- Consuming a berry reduces hunger by 10
+- Consuming a nut reduces hunger by 10
+- Unknown item type falls back to a reasonable default
+
+**[TEST] Checkpoint:**
+- `go test ./...` passes
+- Run game: eat different foods, observe hunger stat changes in character details
+- Gourd eating should produce visibly larger hunger reduction than mushroom, which should be visibly larger than berry/nut
+- Characters with access to mixed food types should preferentially seek higher-satiation food when very hungry (existing proximity scoring may already produce this — verify, don't force)
+
+---
+
+#### Step 4: Growth Speed Tiers + Nut Spawn Tuning
+
+**Anchor:** A player plants mushroom spores and gourd seeds side by side in a tilled, watered garden. The mushroom sprouts appear the next morning; the gourd sprouts take nearly a week. But once the mushrooms are grown, new ones pop up at a steady pace — while the berry bush across the garden is already surrounded by offspring.
+
+**Implementation — Sprout Duration:**
+- Add `SproutDuration map[string]float64` to `config.go`: `mushroom: 120, berry: 360, flower: 360, gourd: 600`
+- Replace references to flat `SproutDuration` constant with per-type lookup (key: item type of the sprout)
+- Remove the flat `SproutDuration` constant
+- Touch points: `lifecycle.go` where sprout timer is initialized and where maturation is checked
+
+**Implementation — Reproduction Intervals:**
+- Update `ItemLifecycle` spawn intervals: `berry: 12.0, mushroom: 18.0, flower: 18.0, gourd: 30.0`
+- Death intervals unchanged
+
+**Implementation — Growth Multipliers:**
+- Evaluate current `TilledGrowthMultiplier = 1.25` and `WetGrowthMultiplier = 1.25` during playtesting
+- These apply to both sprout maturation and reproduction timers
+- Adjust if the bonus doesn't feel meaningful given the new longer durations
+
+**Implementation — Nut Spawn Tuning:**
+- Current: `GroundSpawnInterval = 600.0` (~5 world days), shared across sticks/nuts/shells
+- Evaluate whether nuts need a separate spawn interval now that cultivated food availability is shifting
+- If nut spawn rate needs to differ from sticks/shells, convert `GroundSpawnInterval` to a per-type map (same pattern as `ItemLifecycle`)
+- May be a no-op if current rate feels right after satiation changes
+
+**Architecture alignment:** Extends existing map-based config pattern (`ItemLifecycle`, `StackSize`, `SatiationAmount` from Step 3). No new patterns.
+
+**Tests:**
+- Mushroom sprout duration is 120s
+- Berry sprout duration is 360s
+- Flower sprout duration is 360s
+- Gourd sprout duration is 600s
+- Growth multipliers reduce sprout duration correctly (tilled: ×0.8, wet: ×0.8, both: ×0.64 — inverse of the multiplier)
+- Reproduction intervals match new per-type values
+
+**[TEST] Checkpoint:**
+- `go test ./...` passes
+- Run game with `-debug` flag: plant different types, observe sprout timers
+- Mushroom sprouts should mature noticeably faster than berry/flower sprouts
+- Gourd sprouts should take significantly longer
+- Plant on tilled+wet soil vs wild: visible speed difference
+- Berry plants should produce offspring faster than mushrooms or gourds
+- Nut availability: do characters still find nuts as supplemental food? Adjust spawn rate if needed
+
+---
+
+#### Step 5: Vessel Drinking Threshold
+
+**Anchor:** A character tilling the garden has a water vessel on their person. Their thirst is creeping up (Mild tier, ~30+) but not yet urgent. Instead of ignoring the vessel until Moderate tier and then needing to cross the map to a spring, they take a quick sip from their carried vessel and get back to work.
+
+**Implementation:**
+- Add a new constant `CarriedVesselThirstThreshold` (e.g., 30.0) — the thirst level at which carrying a water vessel triggers drinking behavior
+- In `intent.go` where thirst-driven drinking is evaluated: check if character has a water vessel in inventory. If so, use the lower threshold instead of the standard Moderate tier (51+)
+- Only applies to carried vessels (distance 0), not ground vessels or terrain water sources
+
+**Architecture alignment:** Extends the existing stat urgency tier system with a context-aware threshold. Similar concept to how `TierModerate` gates idle activity interruption — a threshold that changes behavior based on context.
+
+**Design note:** This is an evaluate-and-tune step. The threshold value (30? 25? 35?) needs playtesting. Start with 30 and adjust. If the behavior feels good at the existing Moderate threshold (characters are already drinking from carried vessels often enough), this may be a no-op — document that finding and move on.
+
+**Tests:**
+- Character with thirst at 35 and carried water vessel: triggers drinking
+- Character with thirst at 35 and NO carried water vessel: does NOT trigger drinking (still waits for Moderate)
+- Character with thirst at 55 (Moderate): triggers drinking regardless of vessel state (existing behavior preserved)
+
+**[TEST] Checkpoint:**
+- `go test ./...` passes
+- Run game: give a character a water vessel and an order (e.g., till soil). Observe whether they sip from the vessel at lower thirst levels
+- Does the "sip while working" feel natural? Or does it interrupt too often / not often enough?
+- Adjust threshold based on feel
+
+---
 
 **[DOCS]** Update README, CLAUDE.md, game-mechanics, architecture as needed.
 
 **[RETRO]** Run /retro.
 
-**Feature questions:**
+**Resolved feature questions:**
+- Nut satiation: Snack (10), same as berry ✓
+- Exact growth speed tier values: narrative-grounded (see maturation/reproduction tables above) ✓
+- Growth multipliers: keep 1.25, tune during playtesting ✓
 
+**Remaining feature questions (from earlier slices, not Slice 9 scope):**
 - Seed symbol and color? Likely `.` in parent's color. Confirm during implementation.
 - Seed description format: "warty green gourd seed"? Include all parent attributes or just color + type?
-- Flower foraging cadence: can the same flower be foraged repeatedly? Timer per flower? Consider matching flower reproduction cadence.
+- Flower foraging cadence: can the same flower be foraged repeatedly? Timer per flower?
 - Does flower seed go through standard pickup logic at character position, or special handling?
-- Nut satiation: grouped with berry at Snack (10). Confirm this feels right during testing.
-- Exact growth speed tier values: need playtesting to find good feel. Start with 2x/3x ratios between tiers?
 
 ## Triggered Enhancements to Monitor
 
@@ -2497,7 +2633,7 @@ These are from [docs/triggered-enhancements.md](triggered-enhancements.md). They
 | Enhancement                            | Trigger During Gardening                                  | Action                                                                                         |
 | -------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | **Order completion criteria refactor** | Adding Till Soil, Plant, Water Garden (3 new order types) | Monitor if completion logic in update.go exceeds ~50 lines. Refactor to handler pattern if so. |
-| **ItemType constants**                 | Adding stick, shell, hoe, seed (4 new types, total ~9)    | Evaluate after Part I whether string comparisons are error-prone.                              |
+| **ItemType constants**                 | Adding stick, shell, hoe, seed (4 new types, total ~9)    | Moved to [post-gardening-cleanup.md](post-gardening-cleanup.md).                              |
 | **Category formalization**             | Hoe is first "tool" category                              | Note pattern but defer to Construction per triggered-enhancements.md.                          |
 | **Preference formation for beverages** | Fetch Water introduces water vessels as drinkable         | Evaluate during Slice 7; likely defer until actual beverage variety exists.                    |
 | **Action duration tiers**              | Craft Hoe and Till Soil both need "medium" duration       | ✅ Completed in Part I Slice 2. Short/Medium/Long defined.                                     |

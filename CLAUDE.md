@@ -98,6 +98,7 @@ internal/
 - **Reference Documentation**: docs/architecture.md might point you in a quicker direction before you go into full explore mode. Don't forget to check there early when generating context.
 - **Planning docs live in `docs/`**: When a planning document already exists for the work (e.g., `docs/gardening-phase-plan.md`), update it directly. Do not create parallel ephemeral plan files.
 - **Discussion first**: Always discuss approach before writing code. Present options with trade-offs.
+- **Speak in functional terms**: When explaining or proposing changes, describe the player-visible or gameplay impact, not just the code mechanics. The user understands system structure but is not evaluating code — they're evaluating whether proposals stay aligned with functional intent. A proposal described only in implementation terms ("sort map keys," "add a lookup table") can't be reviewed for design alignment. Translate to what changes in the game: "discovery order becomes fixed instead of varied," "hunger reduction differs by food type."
 - **Complex design questions need conversation**: Present architectural tradeoff analysis as prose for discussion. Reserve structured multiple-choice for simple, bounded decisions (naming, library choice). Don't force complex design into a menu.
 - **TDD**: Write tests before implementation
 - **User testing required**: Do NOT mark features or fixes complete until user has manually tested.
@@ -123,3 +124,4 @@ internal/
 | [docs/architecture.md](docs/architecture.md)                     | Design patterns, decision rationale, "adding new X" checklists |
 | [docs/game-mechanics.md](docs/game-mechanics.md)                 | Detailed stat thresholds, rates, systems      |
 | [docs/triggered-enhancements.md](docs/triggered-enhancements.md) | Deferred items with triggers, balance tuning  |
+| [docs/post-gardening-cleanup.md](docs/post-gardening-cleanup.md) | Small improvements to bundle after Gardening  |

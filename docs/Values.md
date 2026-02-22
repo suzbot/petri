@@ -50,6 +50,14 @@ When claiming a new feature follows an existing pattern, cite the specific evide
 
 Example: ActionWaterGarden was initially proposed as self-managing, then as ordered, with assertions of consistency both times. The actual code trace through CalculateIntent → selectIdleActivity → AssignedOrderID revealed which pattern was correct and why.
 
+## Fix the Bug, Not the Behavior
+
+When a test is flaky or failing, fix the root cause in the test — don't reshape production behavior to make the test pass. A test fix should not change what the player experiences. If "fixing" a flaky test means altering gameplay semantics, that's a feature change masquerading as a bug fix.
+
+The check is: **describe the proposed fix in terms of what the player experiences, not how the code reads.** A fix that sounds neutral in technical terms ("sort map keys for deterministic iteration") may be a behavior change in gameplay terms ("every character now discovers activities in the same fixed order instead of varied order"). Evaluate fixes against player experience, not code structure.
+
+Example: A discovery test was flaky because Go map iteration is non-deterministic, and two activities shared a trigger. The first proposed fix — discover all matching activities at once — was an obvious behavior change (discoveries are deliberately rare, one-at-a-time events). The second proposed fix — sorting iteration order for determinism — sounded like neutral infrastructure, but translated to gameplay: every character in every game would always discover activities in the same sequence, removing emergent variety. The correct fix was in the test itself: retry discovery multiple times and assert the activity is found eventually, same pattern already used by other discovery tests. Production randomness preserved, test flakiness eliminated.
+
 ## Evidence Before Reasoning
 
 When something fails unexpectedly, gather evidence first — run a diagnostic, add logging, check with `-v` — then reason about causes. Reasoning without evidence leads to circular re-derivation of the same candidate explanations. The cost of one diagnostic run is always lower than the cost of three rounds of speculative reasoning.
