@@ -483,6 +483,9 @@ func (m Model) viewGame() string {
 	// Build hints for all currently applicable actions
 	var hints []string
 
+	// q always shown
+	hints = append(hints, "q=leave world")
+
 	// View mode switching (always available)
 	if m.viewMode == viewModeAllActivity {
 		hints = append(hints, "s=select", "x=expand")
@@ -497,11 +500,14 @@ func (m Model) viewGame() string {
 		hints = append(hints, "ARROWS=cursor")
 	}
 
-	// ESC goes to menu unless it would do something else first
+	// ESC hint — context-dependent, always visible when applicable
 	inSubpanel := m.showKnowledgePanel || m.showInventoryPanel || m.showPreferencesPanel
-	if !inOrdersInput && !inSubpanel {
-		hints = append(hints, "ESC=menu")
+	if m.ordersFullScreen || m.activityFullScreen {
+		hints = append(hints, "ESC=collapse")
+	} else if inOrdersInput || inSubpanel || m.showOrdersPanel || m.viewMode == viewModeSelect {
+		hints = append(hints, "ESC=back")
 	}
+	// All-activity view with nothing expanded: no esc hint
 
 	statusBar := fmt.Sprintf("\nDay %d | [%s]%s%s SPACE=pause%s%s | %s", worldDay, status, speedHint, saveHint, speedControls, stepHint, strings.Join(hints, " | "))
 
@@ -856,6 +862,9 @@ func (m Model) renderDetails() string {
 			lines = append(lines, "", " Press F to follow")
 		}
 		lines = append(lines, " P: Preferences  K: Knowledge  I: Inventory")
+		if m.showKnowledgePanel || m.showInventoryPanel || m.showPreferencesPanel {
+			lines = append(lines, " L: Log")
+		}
 		if !m.editingCharacterName {
 			lines = append(lines, " Press E to edit name")
 		}
@@ -1475,7 +1484,7 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 					if i == m.selectedActivityIndex {
 						prefix = selectPrefix
 					}
-					lines = append(lines, prefix+activity.Name)
+					lines = append(lines, fmt.Sprintf("%s%d. %s", prefix, i+1, activity.Name))
 				}
 			}
 		} else if m.ordersAddStep == 2 {
@@ -1488,7 +1497,7 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 					if i == m.selectedPlantTypeIndex {
 						prefix = selectPrefix
 					}
-					lines = append(lines, prefix+pt.DisplayName)
+					lines = append(lines, fmt.Sprintf("%s%d. %s", prefix, i+1, pt.DisplayName))
 				}
 			}
 			// tillSoil: hints already rendered above, nothing else needed
@@ -1508,7 +1517,7 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 					if i == m.selectedTargetIndex {
 						prefix = selectPrefix
 					}
-					lines = append(lines, prefix+activity.Name)
+					lines = append(lines, fmt.Sprintf("%s%d. %s", prefix, i+1, activity.Name))
 				}
 			} else {
 				// Harvest selected - show item types
@@ -1519,7 +1528,7 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 					if i == m.selectedTargetIndex {
 						prefix = selectPrefix
 					}
-					lines = append(lines, prefix+itemType)
+					lines = append(lines, fmt.Sprintf("%s%d. %s", prefix, i+1, itemType))
 				}
 			}
 		}
@@ -1555,9 +1564,9 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 					} else {
 						statusStr = "Unfulfillable"
 					}
-					lines = append(lines, unfulfillableStyle.Render(fmt.Sprintf("%s%s [%s]", prefix, order.DisplayName(), statusStr)))
+					lines = append(lines, unfulfillableStyle.Render(fmt.Sprintf("%s%d. %s [%s]", prefix, i+1, order.DisplayName(), statusStr)))
 				} else {
-					lines = append(lines, fmt.Sprintf("%s%s [%s]", prefix, order.DisplayName(), statusStr))
+					lines = append(lines, fmt.Sprintf("%s%d. %s [%s]", prefix, i+1, order.DisplayName(), statusStr))
 				}
 			}
 		}

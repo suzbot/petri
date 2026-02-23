@@ -55,7 +55,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.multiCharMode = true
 			m.creationState = NewCharacterCreationState()
 			m.phase = phaseCharacterCreate
-		case "q", "esc", "ctrl+c":
+		case "esc":
+			m.phase = phaseWorldSelect
+		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
 
@@ -70,7 +72,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "m", "M":
 			m.selectedFood = "mushroom"
 			m.phase = phaseSelectColor
-		case "q", "esc", "ctrl+c":
+		case "esc":
+			m.phase = phaseSelectMode
+		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
 
@@ -88,7 +92,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "n", "N":
 			m.selectedColor = types.ColorBrown
 			return m.startGame(), tickCmd(m.speedMultiplier)
-		case "q", "esc", "ctrl+c":
+		case "esc":
+			m.phase = phaseSelectFood
+		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
 
@@ -99,45 +105,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 		switch msg.String() {
-		case "q", "ctrl+c":
-			m.saveGame() // Save before quitting
+		case "ctrl+c":
+			m.saveGame()
 			return m, tea.Quit
-		case "esc":
-			// Orders add mode: esc navigates back one level
-			if m.showOrdersPanel && m.ordersAddMode {
-				if m.ordersAddStep == 2 {
-					if m.step2ActivityID == "tillSoil" && m.areaSelectAnchor != nil {
-						// Clear anchor first, then back to step 1 on next esc
-						m.areaSelectAnchor = nil
-					} else {
-						// Back to step 1
-						m.ordersAddStep = 1
-						m.selectedTargetIndex = 0
-						m.areaSelectUnmarkMode = false
-					}
-				} else if m.ordersAddStep == 1 {
-					// Step 1 (sub-menu): back to step 0
-					m.ordersAddStep = 0
-					m.selectedActivityIndex = 0
-				} else {
-					// Step 0: exit add mode
-					m.ordersAddMode = false
-				}
-				return m, nil
-			}
-			// If in orders cancel mode, exit that mode
-			if m.showOrdersPanel && m.ordersCancelMode {
-				m.ordersCancelMode = false
-				return m, nil
-			}
-			// If in a details subpanel, close it and return to action log
-			if m.showKnowledgePanel || m.showInventoryPanel || m.showPreferencesPanel {
-				m.showKnowledgePanel = false
-				m.showInventoryPanel = false
-				m.showPreferencesPanel = false
-				m.logScrollOffset = 0
-				return m, nil
-			}
+		case "q":
 			// Save and return to world select screen
 			m.saveGame()
 			m.phase = phaseWorldSelect
@@ -162,6 +133,66 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.orders = nil
 			m.nextOrderID = 1
 			return m, tea.Batch(tea.ClearScreen, tea.WindowSize())
+		case "esc":
+			// Collapse expanded views first
+			if m.ordersFullScreen {
+				m.ordersFullScreen = false
+				return m, nil
+			}
+			if m.activityFullScreen {
+				m.activityFullScreen = false
+				return m, nil
+			}
+			// Orders add mode: back one level
+			if m.showOrdersPanel && m.ordersAddMode {
+				if m.ordersAddStep == 2 {
+					if m.step2ActivityID == "tillSoil" && m.areaSelectAnchor != nil {
+						// Clear anchor first, then back to step 1 on next esc
+						m.areaSelectAnchor = nil
+					} else {
+						// Back to step 1
+						m.ordersAddStep = 1
+						m.selectedTargetIndex = 0
+						m.areaSelectUnmarkMode = false
+					}
+				} else if m.ordersAddStep == 1 {
+					// Step 1 (sub-menu): back to step 0
+					m.ordersAddStep = 0
+					m.selectedActivityIndex = 0
+				} else {
+					// Step 0: exit add mode
+					m.ordersAddMode = false
+				}
+				return m, nil
+			}
+			// Orders cancel mode: exit
+			if m.showOrdersPanel && m.ordersCancelMode {
+				m.ordersCancelMode = false
+				return m, nil
+			}
+			// Subpanel open: close it, show action log
+			if m.showKnowledgePanel || m.showInventoryPanel || m.showPreferencesPanel {
+				m.showKnowledgePanel = false
+				m.showInventoryPanel = false
+				m.showPreferencesPanel = false
+				m.logScrollOffset = 0
+				return m, nil
+			}
+			// Orders normal view: close panel, go to all-activity
+			if m.showOrdersPanel {
+				m.showOrdersPanel = false
+				m.viewMode = viewModeAllActivity
+				m.logScrollOffset = 0
+				return m, nil
+			}
+			// Select view: go to all-activity
+			if m.viewMode == viewModeSelect {
+				m.viewMode = viewModeAllActivity
+				m.logScrollOffset = 0
+				return m, nil
+			}
+			// All-activity view: no-op
+			return m, nil
 		case " ":
 			m.paused = !m.paused
 			if m.paused {
@@ -239,123 +270,31 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		case "enter":
 			// Confirm selection in orders panel
-			if m.showOrdersPanel {
+			if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
+				m.applyOrdersConfirm()
+				return m, nil
+			}
+		case "1", "2", "3", "4", "5", "6", "7", "8", "9":
+			// Number key: select-and-confirm in orders lists
+			if m.showOrdersPanel && (m.ordersAddMode || m.ordersCancelMode) {
+				// tillSoil step 2 uses map cursor, not numbered list
+				if m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID != "plant" {
+					return m, nil
+				}
+				idx := int(msg.String()[0]-'0') - 1
 				if m.ordersAddMode {
-					// Handle add order confirmation inline
-					if m.ordersAddStep == 0 {
-						activities := m.getOrderableActivities()
-						if len(activities) > 0 && m.selectedActivityIndex < len(activities) {
-							// Both Harvest and Craft need step 1 selection
-							// Harvest selects target type, Craft selects craft activity
-							m.ordersAddStep = 1
-							m.selectedTargetIndex = 0
-						}
-					} else if m.ordersAddStep == 1 {
-						// Step 1: Create the order based on what was selected
-						activities := m.getOrderableActivities()
-						if len(activities) > 0 && m.selectedActivityIndex < len(activities) {
-							selectedActivity := activities[m.selectedActivityIndex]
-
-							if isSyntheticCategory(selectedActivity.ID) {
-								// Category selected - get selected activity within category
-								category := syntheticCategoryID(selectedActivity.ID)
-								categoryActivities := m.getCategoryActivities(category)
-								if m.selectedTargetIndex < len(categoryActivities) {
-									catActivity := categoryActivities[m.selectedTargetIndex]
-
-									// Activities that need a further step
-									if catActivity.ID == "tillSoil" {
-										m.ordersAddStep = 2
-										m.step2ActivityID = "tillSoil"
-										m.areaSelectAnchor = nil
-										m.areaSelectUnmarkMode = false
-									} else if catActivity.ID == "plant" {
-										m.ordersAddStep = 2
-										m.step2ActivityID = "plant"
-										m.selectedPlantTypeIndex = 0
-									} else {
-										order := entity.NewOrder(m.nextOrderID, catActivity.ID, "")
-										m.nextOrderID++
-										m.orders = append(m.orders, order)
-										m.setOrderFlash(order.DisplayName())
-										// Stay in add mode, return to activity selection
-										m.ordersAddStep = 0
-										m.selectedActivityIndex = 0
-									}
-								}
-							} else {
-								// Harvest - get selected target type
-								types := m.getEdibleItemTypes()
-								if m.selectedTargetIndex < len(types) {
-									targetType := types[m.selectedTargetIndex]
-									order := entity.NewOrder(m.nextOrderID, selectedActivity.ID, targetType)
-									m.nextOrderID++
-									m.orders = append(m.orders, order)
-									m.setOrderFlash(order.DisplayName())
-
-									// Stay in add mode, return to activity selection
-									m.ordersAddStep = 0
-									m.selectedActivityIndex = 0
-								}
-							}
-						}
-					} else if m.ordersAddStep == 2 {
-						if m.step2ActivityID == "plant" {
-							// Step 2 (plant): select plantable type to create order
-							plantTypes := game.GetPlantableTypes()
-							if m.selectedPlantTypeIndex < len(plantTypes) {
-								order := entity.NewOrder(m.nextOrderID, "plant", plantTypes[m.selectedPlantTypeIndex].TargetType)
-								m.nextOrderID++
-								m.orders = append(m.orders, order)
-								m.setOrderFlash(order.DisplayName())
-								// Back to activity selection
-								m.ordersAddStep = 0
-								m.selectedActivityIndex = 0
-							}
-						} else {
-							// Step 2 (tillSoil): Enter = done, create order if tiles marked
-							if len(m.gameMap.MarkedForTillingPositions()) > 0 {
-								order := entity.NewOrder(m.nextOrderID, "tillSoil", "")
-								m.nextOrderID++
-								m.orders = append(m.orders, order)
-								m.setOrderFlash(order.DisplayName())
-							}
-							m.ordersAddStep = 1
-							m.selectedTargetIndex = 0
-							m.areaSelectAnchor = nil
-							m.areaSelectUnmarkMode = false
-						}
+					switch m.ordersAddStep {
+					case 0:
+						m.selectedActivityIndex = idx
+					case 1:
+						m.selectedTargetIndex = idx
+					case 2:
+						m.selectedPlantTypeIndex = idx
 					}
 				} else if m.ordersCancelMode {
-					// Handle cancel order confirmation inline
-					if m.selectedOrderIndex < len(m.orders) {
-						order := m.orders[m.selectedOrderIndex]
-
-						// Clear assignment from character if order was assigned
-						if order.AssignedTo != 0 {
-							for _, char := range m.gameMap.Characters() {
-								if char.ID == order.AssignedTo {
-									char.AssignedOrderID = 0
-									char.Intent = nil // Clear intent so they re-evaluate
-									break
-								}
-							}
-						}
-
-						// Remove the selected order
-						m.orders = append(m.orders[:m.selectedOrderIndex], m.orders[m.selectedOrderIndex+1:]...)
-
-						// Adjust selection if needed
-						if m.selectedOrderIndex >= len(m.orders) && m.selectedOrderIndex > 0 {
-							m.selectedOrderIndex--
-						}
-
-						// Exit cancel mode if no orders left
-						if len(m.orders) == 0 {
-							m.ordersCancelMode = false
-						}
-					}
+					m.selectedOrderIndex = idx
 				}
+				m.applyOrdersConfirm()
 				return m, nil
 			}
 		case "k", "K":
@@ -377,6 +316,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.showKnowledgePanel = false
 					m.showPreferencesPanel = false
 				}
+			}
+		case "l", "L":
+			// Return to action log from any details subpanel (select mode only)
+			if m.viewMode == viewModeSelect && (m.showKnowledgePanel || m.showInventoryPanel || m.showPreferencesPanel) {
+				m.showKnowledgePanel = false
+				m.showInventoryPanel = false
+				m.showPreferencesPanel = false
+				m.logScrollOffset = 0
 			}
 		case "p":
 			// Plot: anchor/confirm rectangle during area selection (tillSoil only)
@@ -2108,6 +2055,112 @@ func (m *Model) saveGame() error {
 	m.lastSaveGameTime = m.elapsedGameTime
 	m.saveIndicatorEnd = time.Now().Add(1 * time.Second) // Show "Saving" for 1 second
 	return nil
+}
+
+// applyOrdersConfirm executes the confirm action for the current orders selection.
+// Used by both Enter key and number key (select-and-confirm) handlers.
+func (m *Model) applyOrdersConfirm() {
+	if m.ordersAddMode {
+		if m.ordersAddStep == 0 {
+			activities := m.getOrderableActivities()
+			if len(activities) > 0 && m.selectedActivityIndex < len(activities) {
+				m.ordersAddStep = 1
+				m.selectedTargetIndex = 0
+			}
+		} else if m.ordersAddStep == 1 {
+			activities := m.getOrderableActivities()
+			if len(activities) > 0 && m.selectedActivityIndex < len(activities) {
+				selectedActivity := activities[m.selectedActivityIndex]
+
+				if isSyntheticCategory(selectedActivity.ID) {
+					category := syntheticCategoryID(selectedActivity.ID)
+					categoryActivities := m.getCategoryActivities(category)
+					if m.selectedTargetIndex < len(categoryActivities) {
+						catActivity := categoryActivities[m.selectedTargetIndex]
+
+						if catActivity.ID == "tillSoil" {
+							m.ordersAddStep = 2
+							m.step2ActivityID = "tillSoil"
+							m.areaSelectAnchor = nil
+							m.areaSelectUnmarkMode = false
+						} else if catActivity.ID == "plant" {
+							m.ordersAddStep = 2
+							m.step2ActivityID = "plant"
+							m.selectedPlantTypeIndex = 0
+						} else {
+							order := entity.NewOrder(m.nextOrderID, catActivity.ID, "")
+							m.nextOrderID++
+							m.orders = append(m.orders, order)
+							m.setOrderFlash(order.DisplayName())
+							m.ordersAddStep = 0
+							m.selectedActivityIndex = 0
+						}
+					}
+				} else {
+					types := m.getEdibleItemTypes()
+					if m.selectedTargetIndex < len(types) {
+						targetType := types[m.selectedTargetIndex]
+						order := entity.NewOrder(m.nextOrderID, selectedActivity.ID, targetType)
+						m.nextOrderID++
+						m.orders = append(m.orders, order)
+						m.setOrderFlash(order.DisplayName())
+						m.ordersAddStep = 0
+						m.selectedActivityIndex = 0
+					}
+				}
+			}
+		} else if m.ordersAddStep == 2 {
+			if m.step2ActivityID == "plant" {
+				plantTypes := game.GetPlantableTypes()
+				if m.selectedPlantTypeIndex < len(plantTypes) {
+					order := entity.NewOrder(m.nextOrderID, "plant", plantTypes[m.selectedPlantTypeIndex].TargetType)
+					m.nextOrderID++
+					m.orders = append(m.orders, order)
+					m.setOrderFlash(order.DisplayName())
+					// Go back to step 1 (Gardening sub-category) so player can immediately create another order
+					m.ordersAddStep = 1
+					m.selectedTargetIndex = 0
+				}
+			} else {
+				// tillSoil: Enter = done, create order if tiles marked
+				if len(m.gameMap.MarkedForTillingPositions()) > 0 {
+					order := entity.NewOrder(m.nextOrderID, "tillSoil", "")
+					m.nextOrderID++
+					m.orders = append(m.orders, order)
+					m.setOrderFlash(order.DisplayName())
+				}
+				m.ordersAddStep = 1
+				m.selectedTargetIndex = 0
+				m.areaSelectAnchor = nil
+				m.areaSelectUnmarkMode = false
+			}
+		}
+	} else if m.ordersCancelMode {
+		if m.selectedOrderIndex < len(m.orders) {
+			order := m.orders[m.selectedOrderIndex]
+
+			// Clear assignment from character if order was assigned
+			if order.AssignedTo != 0 {
+				for _, char := range m.gameMap.Characters() {
+					if char.ID == order.AssignedTo {
+						char.AssignedOrderID = 0
+						char.Intent = nil
+						break
+					}
+				}
+			}
+
+			m.orders = append(m.orders[:m.selectedOrderIndex], m.orders[m.selectedOrderIndex+1:]...)
+
+			if m.selectedOrderIndex >= len(m.orders) && m.selectedOrderIndex > 0 {
+				m.selectedOrderIndex--
+			}
+
+			if len(m.orders) == 0 {
+				m.ordersCancelMode = false
+			}
+		}
+	}
 }
 
 // setOrderFlash sets or updates the order creation flash confirmation.

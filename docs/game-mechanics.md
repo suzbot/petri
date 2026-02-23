@@ -421,9 +421,11 @@ To add an order:
 1. Press `+` to start add order flow
 2. Select an activity (only activities known by at least one living character appear)
 3. Select a target type (e.g., for Harvest: choose berry, mushroom, or gourd; for Plant: choose from plantable item kinds such as Gourd seeds, Berries, or Mushrooms)
-4. Press Enter to confirm
+4. Press Enter to confirm, or press a number key (1–9) to select and confirm in one keypress
 
-Press `Esc` at any step to go back one level (step 2 → step 1 → exit add mode).
+Lists show numbered items at every step. Pressing a number instantly selects and confirms that item. Invalid numbers (beyond list length) are no-ops. Arrow-key navigation and Enter still work as before.
+
+Press `Esc` at any step to go back one level (step 2 → step 1 → exit add mode). After confirming a plant order at step 2, the flow returns to step 1 (Gardening sub-category) so another plant type can be ordered immediately.
 
 ### Order Status
 
@@ -823,10 +825,16 @@ Two view modes available during gameplay:
 - Details panel shows selected entity info
 - Action log shows events for selected character
 - Press `S` to enter
+- Press `K` / `I` / `P` to open knowledge / inventory / preferences subpanel (replaces action log)
+- Press `L` or `Esc` to close subpanel and return to action log
 
 ### All Activity Mode
 - Combined log showing all character events
 - No details panel
 - Press `A` to enter
 - Press `X` to expand to full-screen (no message truncation)
-- Press `X` again or `S` to collapse
+- Press `X` again to collapse
+
+### Navigation
+- `Esc` always means "go back one level": collapses expanded views → closes subpanels → closes orders panel → returns to All Activity mode. No-op from All Activity with nothing expanded.
+- `Q` saves and returns to the world select screen from anywhere during gameplay.

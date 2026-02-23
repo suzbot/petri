@@ -114,7 +114,7 @@ internal/
 
 **Up Next:**
 
-- Gardening phase complete (Slice 9 all steps done). See [docs/gardening-phase-plan.md](docs/gardening-phase-plan.md) and [docs/post-gardening-cleanup.md](docs/post-gardening-cleanup.md) for deferred items.
+- Post-gardening cleanup in progress (2A pathing, 2B esc/nav, 2C numbered orders done). See [docs/cleanup-phase-plan.md](docs/cleanup-phase-plan.md).
 
 ## Reference and Planning Documents
 

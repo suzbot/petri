@@ -26,6 +26,7 @@ Items refined and ready to implement, in order:
 3. **2B** — Esc key cleanup (investigation step may surface scope surprises, do last)
 
 Items needing refinement before implementation:
+- **2D** - till soil selection colors (just added)
 - **3A** — Gather orders (4 open design questions)
 - **3B** — Satiation & consumption duration (minor — duration mechanism check)
 - **4A/4B** — Character creation streamline (deferred questions about flow/scaling)
@@ -93,7 +94,7 @@ Character paths smoothly around obstacles instead of oscillating between greedy 
 
 ### 2B. Esc Key Cleanup
 
-**Player impact:** Esc consistently means "go back one level" everywhere in the UI. `q` becomes the "exit game" key. `l` returns to the action log from any details subpanel. After creating an order, you stay at the previous selection level instead of jumping back to the top.
+**Player impact:** Esc consistently means "go back one level" everywhere in the UI. `q` becomes the "go to world select" key (no longer quits). `l` returns to the action log from any details subpanel. After creating a plant order, you stay at the Gardening sub-category instead of jumping to the top. Status bar hints update contextually to reflect what Esc/q will do.
 
 **Reqs reconciliation:** Post-gardening-cleanup.md section B — desired behavior list. All items addressed:
 - Esc from any expanded view → collapse
@@ -107,40 +108,82 @@ Character paths smoothly around obstacles instead of oscillating between greedy 
 - `q` from world select → quit
 
 Additional scope from discussion:
-- Post-order-creation auto-back currently jumps to step 0 (top-level activity list). Should go back one level only — e.g., after planting gourd seeds, return to plant type selection so you can immediately plant another type.
+- Post-order-creation auto-back: step 2 plant confirm currently jumps to step 0 (top-level activity list). Should go to step 1 (Gardening sub-category) so you can immediately create another order. (tillSoil already goes to step 1 — this makes plant match.)
+- `L: Log` hint in details panel when a subpanel (knowledge/inventory/preferences) is open.
+- Status bar hints: always-visible, context-dependent. `ESC=collapse` when expanded, `ESC=back` when in orders/select, no esc hint in all-activity (no-op). `q=menu` always shown.
 
-**Architecture alignment:** MVU pattern — all key handling flows through `Update()` in update.go. Changes are to the key dispatch logic per view state. No new architecture patterns.
+**Architecture alignment:** MVU pattern (architecture.md "Key Design Patterns") — all key handling flows through `handleKey()` in update.go, view hints in view.go. Changes are to key dispatch logic and hint rendering. No new architecture patterns.
 
-**Values alignment:** Consistency Over Local Cleverness — "back one level" is a single principle applied uniformly, replacing ad-hoc per-state behavior.
+**Values alignment:** Consistency Over Local Cleverness — "back one level" is a single principle applied uniformly, replacing ad-hoc per-state behavior. Start With the Simpler Rule — one esc rule instead of per-state special cases.
 
 **Implementation:**
 
-**Step 1: Investigate current behavior delta**
+**Step 1: Investigate current behavior delta ✅**
 
-Map current Esc, `q`, and `l` behavior across all view states and expanded-view toggles. Document what already works and what needs to change. No code changes.
+Investigated. x-key expansion only applies to ordersFullScreen and activityFullScreen (knowledge/inventory/preferences panels don't have expanded views). 8 behavior changes needed plus hint updates.
 
-**Implementation note:** Check all `x`-key expansion contexts (all-activity, orders, individual panels like knowledge/inventory/preferences) to ensure Esc collapses each one.
+**Step 2: Implement Esc/q/l changes ✅**
 
-**Step 2: Implement Esc/q/l changes**
+Player experiences consistent "back one level" for Esc, `q` as navigate-to-world-select, `l` as return-to-action-log, and contextual status bar hints.
 
-Player experiences consistent "back one level" for Esc, `q` as exit-to-world-select, and `l` as return-to-action-log.
+1. **Tests first:** Key handling is UI logic (no unit tests per CLAUDE.md testing policy). Verified entirely via human testing.
 
-1. **Tests first:** Key handling is UI logic (no unit tests per CLAUDE.md testing policy). This step is verified entirely via human testing.
-2. Implement the delta identified in Step 1. Expected changes:
-   - Default Esc handler: replace "exit to world select" with context-sensitive behavior (all-activity → no-op, select with action log → all-activity, orders normal → all-activity)
-   - Esc from expanded views: collapse before doing anything else
-   - `q` key: navigate to world select from game view; quit from world select
-   - `l` key: from select view with any subpanel open, close subpanel and return to action log
-   - Post-order-creation: go back one step instead of resetting to step 0
-3. Verify all existing Esc behavior within orders add/cancel mode still works (it should — those handlers fire before the default).
+2. **Esc handler restructure** (update.go `handleKey`, phasePlaying esc case). New priority order:
+   1. `ordersFullScreen` true → set false, return (collapse expanded orders)
+   2. `activityFullScreen` true → set false, return (collapse expanded activity)
+   3. ordersAddMode → back one level (UNCHANGED — existing logic)
+   4. ordersCancelMode → exit (UNCHANGED — existing logic)
+   5. subpanels open → close (UNCHANGED — existing logic)
+   6. `showOrdersPanel` true (normal, not add/cancel) → close panel, switch to `viewModeAllActivity`
+   7. `viewModeSelect` → switch to `viewModeAllActivity`, reset logScrollOffset
+   8. `viewModeAllActivity` → no-op (return)
 
-[TEST] Walk through each scenario from the desired behavior list. Also test: expanded views collapse on Esc, `l` from each subpanel, post-order-creation stays at previous level.
+   The current "save + world select" block is REMOVED from esc entirely.
 
-**Step 3:** [DOCS] + [RETRO]
+3. **`q` key change** (update.go `handleKey`, phasePlaying). Split current `"q", "ctrl+c"` case:
+   - `q` → save game, navigate to world select (reuses the cleanup block from the old esc fallthrough: reset viewMode, clear panels, reload world list, etc.)
+   - `ctrl+c` → save + tea.Quit (standard terminal kill, unchanged)
+
+4. **`l` key** (update.go `handleKey`, phasePlaying). New case:
+   - If `viewModeSelect` and any subpanel is open → close all subpanels, reset logScrollOffset (shows action log)
+
+5. **Post-order auto-back** (update.go `applyOrdersConfirm`). In the `ordersAddStep == 2` / `step2ActivityID == "plant"` branch: change `m.ordersAddStep = 0` to `m.ordersAddStep = 1` and remove `m.selectedActivityIndex = 0` reset (stay on the Gardening category). tillSoil already does step 1 — this makes plant match.
+
+6. **`L: Log` hint** (view.go `renderDetails`). Line 858 currently shows `P: Preferences  K: Knowledge  I: Inventory`. When any subpanel is open (`showKnowledgePanel || showInventoryPanel || showPreferencesPanel`), prepend `L: Log` to the hint line.
+
+7. **Status bar hints** (view.go status bar section). Replace the current conditional `ESC=menu` hint with always-visible context-dependent hints:
+   - `q=menu` — always shown
+   - Esc hint based on state:
+     - `ordersFullScreen` or `activityFullScreen` → `ESC=collapse`
+     - orders add/cancel mode → `ESC=back` (existing: already hidden, now show it)
+     - subpanel open → `ESC=back`
+     - `showOrdersPanel` normal → `ESC=back`
+     - `viewModeSelect` → `ESC=back`
+     - `viewModeAllActivity` (nothing expanded) → no esc hint
+
+8. Verify all existing Esc behavior within orders add/cancel mode still works (those cases fire before the new ones in the priority order).
+
+[TEST] Walk through each scenario from the desired behavior list:
+- Esc from expanded all-activity → collapses
+- Esc from expanded orders → collapses
+- Esc from all-activity (not expanded) → nothing happens
+- Esc from orders normal → goes to all-activity
+- Esc from orders add/cancel → back one level (unchanged)
+- Esc from select with action log → goes to all-activity
+- Esc from select with knowledge/inventory/preferences panel → closes panel, shows action log
+- `l` from select with any subpanel → closes panel, shows action log
+- `q` from game → saves, goes to world select
+- `q` from world select → quits
+- `ctrl+c` → quits (unchanged)
+- Create plant order at step 2 → returns to step 1 (Gardening sub-category)
+- `L: Log` hint visible when subpanel open, hidden when not
+- Status bar hints update contextually
+
+**Step 3:** [DOCS] ✅ + [RETRO]
 
 ---
 
-### 2C. Order Selection UX
+### 2C. Order Selection UX ✅
 
 **Player impact:** Order lists show numbered items. Player can press a number key to instantly select an item, in addition to the existing arrow-key scrolling.
 
@@ -172,6 +215,14 @@ Player sees numbered items in all order list contexts and can press a number key
 [TEST] Open orders. Verify numbered display in each step. Verify pressing a number key selects and advances. Verify arrow+Enter still works.
 
 **Step 2:** [DOCS] + [RETRO]
+
+
+
+---
+### 2D. Till soil color improvement
+
+ Till soil color confirmation -- highlight (teal) color in select mode, tilled color (dusky earth) after plot confirmed
+
 
 ---
 
@@ -248,6 +299,7 @@ Satiation tier of food modifies consumption duration. Touches config constants a
 - Does character count affect world generation (map size, item/feature spawning)? Currently these may be fixed — need to check whether spawn counts scale or are hardcoded.
 - Where does the count selection step go in the flow? Before or after creating the first character? Likely before — pick count, then create one, then randomize the rest.
 - Does "R for Random" also prompt for count, or does it use a default count?
+- `phaseSelectFood` and `phaseSelectColor` are only reachable via the debug-only single-character flow (`-debug` flag + press "1"). When removing single/multi mode, clean up these dead view states and their handlers in update.go/view.go.
 
 [TEST] Verify both R and C paths work. Verify character count selection. Verify created + randomized characters all spawn correctly.
 [DOCS] after Part 4

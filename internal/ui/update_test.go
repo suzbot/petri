@@ -853,10 +853,10 @@ func TestReturnToWorldSelect_ClearsWorldState(t *testing.T) {
 	// Add some log entries
 	m.actionLog.Add(1, "TestChar", "test", "Some log entry")
 
-	// Act: simulate pressing ESC to return to world select
+	// Act: simulate pressing q to return to world select
 	// We can't fully simulate the key press without more infrastructure,
 	// but we can call handleKey directly
-	newModel, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
+	newModel, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
 	m2 := newModel.(Model)
 
 	// Assert: world state should be cleared

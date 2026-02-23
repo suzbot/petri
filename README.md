@@ -14,6 +14,8 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 
 ## Latest Updates
 
+- **Consistent Navigation**: `Esc` always goes back one level (collapses expanded views, closes panels, returns to previous mode). `Q` returns to the world select screen. `L` returns to the action log from any details subpanel.
+- **Numbered Order Selection**: Order lists show numbered items. Press a number key to instantly select and confirm in one keypress.
 - **Smoother Pathing**: Characters navigate around ponds and obstacles without oscillating. Once a character switches to obstacle-aware pathfinding, they stay on that path until they reach their target or bump into another character.
 - **Provisioned Workers**: Characters with assigned orders who carry food or water will pause briefly to eat or drink when mildly hungry or thirsty, then resume work — rather than walking away to find a source. Unprovisioned characters keep working until needs become more urgent.
 - **Growth Speed Tiers**: Plants grow and spread at different rates — mushrooms pop up fast but spread steadily; berries establish slowly then spread aggressively; gourds are slow all around but high food value.
@@ -78,11 +80,12 @@ go build ./cmd/petri
 - `P` - Toggle preferences panel (select mode)
 - `I` - Toggle inventory panel (select mode)
 - `K` - Toggle knowledge panel (select mode)
+- `L` - Return to action log from details subpanel (select mode)
 - `O` - Toggle orders panel (+: add, c: cancel, x: expand)
 - `A` / `S` - All Activity / Select mode (x: expand to full screen)
 - `PgUp` / `PgDn` - Scroll panels
-- `ESC` - Close panel, or save and return to world selection
-- `Q` - Save and quit
+- `ESC` - Go back one level (collapse expanded view → close subpanel → close orders → return to all-activity)
+- `Q` - Save and return to world selection
 
 ## Debug Mode
 
