@@ -114,7 +114,7 @@ internal/
 
 **Up Next:**
 
-- Post-gardening cleanup in progress (2A pathing, 2B esc/nav, 2C numbered orders done). See [docs/cleanup-phase-plan.md](docs/cleanup-phase-plan.md).
+- Post-gardening cleanup in progress (2A pathing, 2B esc/nav, 2C numbered orders, 2D till colors done). See [docs/cleanup-phase-plan.md](docs/cleanup-phase-plan.md).
 
 ## Reference and Planning Documents
 

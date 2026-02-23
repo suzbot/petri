@@ -25,10 +25,13 @@ Items refined and ready to implement, in order:
 2. **2C** — Numbered order selection (self-contained UI work)
 3. **2B** — Esc key cleanup (investigation step may surface scope surprises, do last)
 
+Refined and ready to implement:
+4. **2D** — Till soil selection colors (small UI change)
+5. **3A** — Gather orders (follows harvest pattern with vessel support)
+
 Items needing refinement before implementation:
-- **2D** - till soil selection colors (just added)
-- **3A** — Gather orders (4 open design questions)
 - **3B** — Satiation & consumption duration (minor — duration mechanism check)
+- **3C** — Satiation-aware food selection (factor satiation value into hungry food-seeking)
 - **4A/4B** — Character creation streamline (deferred questions about flow/scaling)
 
 ---
@@ -219,10 +222,29 @@ Player sees numbered items in all order list contexts and can press a number key
 
 
 ---
-### 2D. Till soil color improvement
+### 2D. Till Soil Color Improvement ✅
 
- Till soil color confirmation -- highlight (teal) color in select mode, tilled color (dusky earth) after plot confirmed
+**Player impact:** Three visually distinct states during tilling: teal highlight for active rectangle selection, sage for confirmed-but-not-yet-tilled plots, and dusky earth for tilled soil. Currently the active selection and confirmed plots both use olive green, making it hard to distinguish "still selecting" from "already marked."
 
+**Reqs reconciliation:** Post-gardening-cleanup.md doesn't have a separate section for this — it was added directly to the plan. Requirement: "highlight (teal) color in select mode, tilled color (dusky earth) after plot confirmed." Refined during discussion: three distinct states instead of two — sage (growing style, color 108) for marked-for-tilling instead of dusky earth, so "pending work" looks different from "done."
+
+**Architecture alignment:** MVU pattern — rendering changes only, in `view.go` and `styles.go`. No update logic changes.
+
+**Values alignment:** Consistency Over Local Cleverness — visual progression (teal → sage → earth) maps to workflow progression (selecting → pending → done).
+
+**Implementation:**
+
+**Step 1: Update area selection and marked-for-tilling colors**
+
+Player sees teal highlight while dragging a selection rectangle, sage for confirmed marked-for-tilling tiles, and dusky earth for already-tilled soil.
+
+1. **Tests first:** UI rendering — no unit tests per CLAUDE.md testing policy. Verified via human testing.
+2. **`styles.go`**: Change `areaSelectStyle` background from color 58 (olive) to a teal (e.g., color 30 or 38). Add `markedForTillingStyle` with sage background (color 108, matching `growingStyle` foreground). Leave `areaUnselectStyle` (dark red, color 52), `tilledStyle` (color 138), and `wetTilledStyle` (color 94) unchanged.
+3. **`view.go` `renderCell()`**: Where marked-for-tilling tiles are rendered with pre-highlight (lines ~611-623, the section that shows already-marked tiles when no anchor is set), use `markedForTillingStyle` instead of `areaSelectStyle`. The active rectangle selection (inside the anchor-set block) continues using the updated `areaSelectStyle` (now teal).
+
+[TEST] Enter area selection for till soil. Verify teal highlight during rectangle drag. Confirm a plot. Verify sage background on marked tiles. Have a worker till some tiles. Verify dusky earth on tilled tiles. Toggle to unmark mode — verify dark red still works.
+
+**Step 2:** [DOCS] + [RETRO]
 
 ---
 
@@ -230,30 +252,76 @@ Player sees numbered items in all order list contexts and can press a number key
 
 ### 3A. Gather Orders
 
-**Player impact:** Players can direct characters to gather loose items (sticks, nuts, shells, gourd seeds) via the orders menu under a "Gather" category.
+**Player impact:** Players can direct characters to gather loose items (sticks, nuts, shells, seeds) via the orders menu. "Gather" appears alongside Harvest, Craft, and Garden at the top level. Player selects an item type from a dynamic list of what's currently on the ground. Characters seek and pick up items of that type, filling vessels for seeds, nuts, and shells (supporting planting and snacking workflows), while sticks go directly to hand (bundling deferred to Construction). Anchor story: "Player gathers gourd seeds into a vessel for easy planting later."
 
-- "Gather" is a known-by-default orderable activity category (no discovery needed)
-- Player selects from a list of non-plant loose item types currently present in the world
-- Character seeks and picks up items of the selected type
-- Follows existing order execution patterns (Harvest as closest analog)
-- Establishes the "Gather" category pattern that Construction will extend for sticks (bundles) and clay
+**Reqs reconciliation:** Post-gardening-cleanup.md doesn't have a separate Gather section — originated from plan discussion. Refined design decisions below.
 
-Note: Construction's "Gather > Sticks" adds bundle stacking behavior on top of this base pattern. The cleanup version is simpler — just pick up loose items, no bundle/stacking mechanic yet.
+**Resolved design questions:**
+- **One activity with sub-selection** (like Harvest, not like Craft's category grouping). Single "gather" activity in the registry. `Order.TargetType` stores the item type to gather. The item type selection is part of the order creation flow (step 1), same as Harvest.
+- **Completion condition:** Follow Harvest model exactly — continue until no more items of target type on ground OR inventory (including vessel space) is full. Only ground items count (not other characters' inventories or future storage).
+- **Available items list:** Dynamic scan of world items, filtered to gatherable types (`Plant == nil && Container == nil && ItemType != "hoe"`). This captures sticks, nuts, shells, and seeds while excluding growing plants, dropped plant items, crafted items, and tools. Consistent with the world not "knowing" things outside of it.
+- **Vessel support:** Seeds, nuts, and shells use vessel procurement (harvest-identical via `EnsureHasVesselFor`). Sticks go to hand only — no stick varieties registered, so `AddToVessel` naturally fails and items go to inventory. `findGatherIntent` adds a variety check: if target item has no registered variety AND character has no inventory space, return nil (prevents stuck-loop where `CanVesselAccept` returns true for empty vessels but `AddToVessel` fails).
+- **Discovery:** `AvailabilityDefault` — no discovery needed. Characters know how to pick things up.
+- **No category:** Top-level orderable activity (empty Category field), same shape as Harvest. If Construction adds more gather-like activities, promote to a category at that point.
 
 **Architecture patterns:**
-- **Activity Registry** (architecture.md: Activity Registry & Know-How Discovery): New activity entries with `IntentOrderable`, `AvailabilityDefault`, `Category: "gather"`.
-- **Order Execution** (architecture.md: Adding an Ordered Action): Action constant in character.go, `findGatherIntent()` in order_execution.go, wire into `findOrderIntent` switch + `IsOrderFeasible` + `isMultiStepOrderComplete`, handler in update.go.
-- **Item Acquisition** (architecture.md: Item Acquisition): Character seeks items via `findNearestItemByType` from picking.go. No `EnsureHas*` needed — just picking up loose items directly.
-- **`continueIntent`**: Gather targets items on the map throughout, so the generic path handles it — no early-return block needed.
-- **No new entity fields** — no serialization concern. The Order struct already has fields for target item type.
+- **Activity Registry** (architecture.md: Activity Registry & Know-How Discovery): New entry with `IntentOrderable`, `AvailabilityDefault`, no Category.
+- **Adding an Ordered Action** (architecture.md): `findGatherIntent()` in order_execution.go, wire into `findOrderIntent` switch + `IsOrderFeasible`. NOT multi-step — completion via continuation chaining in ActionPickup handler (same as Harvest).
+- **Item Acquisition** (architecture.md): `findNearestItemByType` with `growingOnly=false`. `EnsureHasVesselFor` for items with registered varieties. Conditional inventory check for items without varieties (sticks).
+- **`continueIntent`**: Gather targets items on the map throughout — generic path handles it, no early-return block needed.
+- **No new entity fields** — no serialization concern. Reuses `Order.TargetType` and existing `ActionPickup`.
+- **No new ActionType** — gather uses `ActionPickup` (same physical action as Harvest).
 
-**Deferred questions:**
-- Is this one "gather" activity where the Order stores the target item type (like Plant stores variety), or separate activity entries per item type? One activity with sub-selection (like Plant) seems more consistent and scales better.
-- What's the completion condition — gather until inventory full? Gather a fixed count? Gather one item per order?
-- How does the "list of non-plant loose items in the world" get built? Scan world items and filter to non-growing types? Or a hardcoded list of gatherable types?
-- **Vessels and stacking scope:** The key value of gathering seeds, nuts, and shells is putting them in a vessel (gourd full of seeds for planting, gourd full of nuts for snacking while working). But sticks can't go in vessels (too large), and Construction's bundle/stacking mechanic isn't in scope yet. Where's the boundary? Options: (a) gathering always picks up loose to hand, vessel use is the character's existing autonomous behavior; (b) gather explicitly uses vessel procurement for small items (seeds, nuts, shells) and skips it for large items (sticks); (c) keep it simple — all gathering is loose pickup, vessel integration comes with Construction. Need to decide what feels right for the player experience without pulling in bundle complexity.
+**Prerequisite: nut variety registration.** Nuts are currently created by `NewNut()` with fixed Color=Brown but have no variety in the registry — `AddToVessel` fails without a variety. Add "nut" to `GetItemTypeConfigs()` with `NonPlantSpawned: true` (prevents double-spawning) so a nut variety is generated. Seeds and shells already have varieties. Also add `"shell": 4` to `config.StackSize` (currently defaults to 1, which is not useful for gathering).
 
-[TEST] Issue gather orders for different item types. Verify characters seek and collect the right items. Verify the Gather category appears in the orders menu.
+**Implementation:**
+
+**Step 1: Nut variety registration + shell stack size**
+
+Prerequisite for vessel support during gathering. Nuts get a variety in the registry so they can be stacked in vessels. Shells get an explicit stack size of 4.
+
+1. **Tests first:** Verify nut variety is generated by `GenerateVarieties()`. Verify `AddToVessel` succeeds for nuts (currently would fail). Verify shell stack size is 4.
+2. Add "nut" to `GetItemTypeConfigs()` in `variety_generation.go`: `Colors: []types.Color{types.ColorBrown}`, `Edible: true`, `Sym: config.CharNut`, `SpawnCount: config.GetGroundSpawnCount("nut")`, `NonPlantSpawned: true`.
+3. Add `"shell": 4` to `config.StackSize` map.
+
+[TEST] No human testing — pure logic. Verified via unit tests.
+
+**Step 2: Gather order execution**
+
+Character assigned a gather order seeks and picks up items of the target type. Seeds, nuts, and shells fill vessels; sticks go to hand. Order completes when no more items remain or inventory is full.
+
+1. **Tests first:** Test `findGatherIntent` returns pickup intent for nearest gatherable item. Test vessel procurement for seeds/nuts (items with varieties). Test sticks skip vessel procurement and check inventory space. Test `FindNextGatherTarget` returns nil when inventory full. Test `IsOrderFeasible` for gather orders. Test `GetGatherableTypes` returns correct dynamic list.
+2. **Activity registry** (`entity/activity.go`): Add "gather" entry — `IntentOrderable`, `AvailabilityDefault`, no Category, no DiscoveryTriggers.
+3. **`findGatherIntent`** (`system/order_execution.go`): Follows `findHarvestIntent` with two differences:
+   - `findNearestItemByType(pos.X, pos.Y, items, order.TargetType, false)` — `growingOnly=false` instead of `true`.
+   - Before `EnsureHasVesselFor`: check if target item has a registered variety via `registry.GetByAttributes(target.ItemType, target.Color, target.Pattern, target.Texture)`. If variety exists → call `EnsureHasVesselFor` (harvest-identical). If no variety → check `char.HasInventorySpace()`, return nil if full.
+   - Everything else identical to `findHarvestIntent`: vessel pickup, movement, ActionPickup intent.
+4. **Wire into `findOrderIntent`** switch: add `case "gather": return findGatherIntent(...)`.
+5. **`IsOrderFeasible`**: add gather case — check if any item of `order.TargetType` exists on the ground (simple type match scan, same granularity as harvest's `growingItemExists` but without the growing filter).
+6. **`FindNextGatherTarget`** (`system/order_execution.go`): Same shape as `FindNextHarvestTarget` — check `HasInventorySpace`, find nearest by type with `growingOnly=false`. Returns nil when full or no more items.
+7. **ActionPickup handler extension** (`ui/update.go`): In the `PickupToVessel` continuation block, add `order.ActivityID == "gather"` alongside `"harvest"` for `FindNextVesselTarget` chaining and `CompleteOrder`. In the `PickupToInventory` continuation block, add `order.ActivityID == "gather"` alongside `"harvest"` for `FindNextGatherTarget` chaining and `CompleteOrder`.
+8. **`GetGatherableTypes`** (`game/variety_generation.go`): Scans items on the map, filters to `Plant == nil && Container == nil && ItemType != "hoe"`, returns deduplicated list of `{DisplayName, TargetType}` sorted alphabetically. Same shape as `GetPlantableTypes`.
+
+[TEST] No human testing yet — unit tests only. UI wiring in Step 3.
+
+**Step 3: Order UI integration + human testing**
+
+Player sees "Gather" in the orders menu and can select from available gatherable item types.
+
+1. **Tests first:** UI — no unit tests per CLAUDE.md testing policy.
+2. **Step 0 (activity list)**: "gather" activity already appears via the standard `getOrderableActivities()` flow since it's `IntentOrderable` + `AvailabilityDefault`.
+3. **Step 1 (target selection)**: When selected activity is "gather", populate the target list with `GetGatherableTypes(m.gameMap.Items())` instead of the harvest/plant-specific lists. Wire into the same step 1 rendering and selection logic.
+4. **Order creation**: Set `order.TargetType` from the selected gatherable type. Standard `CreateOrder` flow.
+
+[TEST] Create a test world with sticks, nuts, shells, and seeds scattered on the ground, plus a few empty vessels. Issue gather orders for each type:
+- Gather seeds → character finds vessel, gathers seeds into it. Verify seeds stack in vessel.
+- Gather nuts → character finds vessel, gathers nuts into it. Verify nuts stack in vessel.
+- Gather shells → character finds vessel, gathers shells into it (up to 4 per vessel).
+- Gather sticks → character picks up sticks to inventory only (no vessel seeking). Verify order completes when inventory full.
+- Verify "Gather" appears in orders menu. Verify only types present on the ground show up.
+- Verify order completes when no more items of target type remain.
+
+**Step 4:** [DOCS] + [RETRO]
 
 ### 3B. Satiation & Consumption Duration
 
@@ -268,7 +336,20 @@ Satiation tier of food modifies consumption duration. Touches config constants a
 **Opportunistic assessment:** After playtesting 3B, evaluate whether satiation-aware targeting (characters preferring higher-satiation food when hungrier, snacking on nearby food at lower hunger) should be tackled now or deferred. See triggered-enhancements.md for full description.
 
 [TEST] Observe characters eating different satiation tiers. Verify feast items take noticeably longer than snacks.
-[DOCS] after 3A-3B
+
+### 3C. Satiation-Aware Food Selection
+
+**Player impact:** When hungry, characters prefer more filling food — a nearby gourd over a distant berry, or even a slightly farther gourd over a very close berry. Currently foraging scores by distance + preference only, ignoring how much the food will actually help.
+
+This is the first half of the "satiation-aware targeting & snacking threshold" item from triggered-enhancements.md. The snacking threshold (characters grabbing nearby food at lower hunger) is deferred — evaluate after playtesting 3C.
+
+**Deferred questions:**
+- How should satiation weight against distance and preference? A gourd (50 pts) 10 tiles away vs a berry (10 pts) 1 tile away — which wins? Need to examine the current scoring formula in `foraging.go` to understand the weight space.
+- Does this apply to order-context consumption too (workers eating from inventory at Mild tier), or just idle foraging? Probably just idle foraging since order consumption uses carried items, not seeking.
+- Should the weight scale with hunger level? (Starving character cares more about satiation value; mildly hungry character cares more about convenience.) Or keep it simple with a flat weight?
+
+[TEST] Observe characters choosing between high-satiation and low-satiation food at varying distances.
+[DOCS] after 3A-3C
 [RETRO] after [DOCS]
 
 ---

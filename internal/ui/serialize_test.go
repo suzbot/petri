@@ -381,9 +381,9 @@ func TestFromSaveState_RestoresVesselWithContents(t *testing.T) {
 		ID:       999,
 		ItemType: "vessel",
 		Kind:     "hollow gourd",
-		Color:   gourd.Color,
-		Pattern: gourd.Pattern,
-		Texture: gourd.Texture,
+		Color:    gourd.Color,
+		Pattern:  gourd.Pattern,
+		Texture:  gourd.Texture,
 		// Edible is nil - vessels are not edible
 		Container: &entity.ContainerData{
 			Capacity: 1,
@@ -566,9 +566,9 @@ func TestFromSaveState_RestoresCarriedVesselWithContents(t *testing.T) {
 		ID:       888,
 		ItemType: "vessel",
 		Kind:     "hollow gourd",
-		Color:   types.ColorGreen,
-		Pattern: types.PatternNone,
-		Texture: types.TextureWaxy,
+		Color:    types.ColorGreen,
+		Pattern:  types.PatternNone,
+		Texture:  types.TextureWaxy,
 		// Edible is nil - vessels are not edible
 		Container: &entity.ContainerData{
 			Capacity: 1,

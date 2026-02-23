@@ -483,7 +483,7 @@ Area selection enables players to define rectangular regions for terrain modific
 5. Press `Tab` to toggle mark/unmark mode
 6. Press `Enter` when done, `Esc` to cancel
 
-**Rendering**: Rectangle highlight uses full background for empty tiles, padding-only for entities (avoids ANSI nesting).
+**Rendering**: Rectangle highlight uses full background for empty tiles, padding-only for entities (avoids ANSI nesting). Three distinct color states map directly to workflow progression: active selection (teal) → confirmed pending (sage) → completed work (dusky earth). Each state should be visually distinct from the others — reusing a color across states collapses workflow stages the player needs to distinguish.
 
 ### Reuse for Future Activities
 

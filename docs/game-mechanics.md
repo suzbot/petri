@@ -490,8 +490,8 @@ Some activities use area selection to define rectangular work zones:
 1. Select Garden > Till Soil from orders panel → enters area selection mode
 2. Move cursor with arrow keys
 3. Press `p` to set anchor (first corner)
-4. Move cursor to define rectangle (valid tiles highlight in olive)
-5. Press `p` to confirm (marks tiles, creates one Till Soil order)
+4. Move cursor to define rectangle (valid tiles highlight in teal)
+5. Press `p` to confirm (tiles marked in sage, creates one Till Soil order)
 6. Press `Tab` to toggle between mark and unmark mode
 7. Press `Enter` when done → returns to activity selection
 

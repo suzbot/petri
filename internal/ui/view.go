@@ -612,14 +612,14 @@ func (m Model) renderCell(x, y int) string {
 		if m.gameMap.IsMarkedForTilling(pos) && !isCursor {
 			hasEntity := m.gameMap.CharacterAt(pos) != nil || m.gameMap.ItemAt(pos) != nil || m.gameMap.FeatureAt(pos) != nil
 			if hasEntity {
-				bg := areaSelectStyle.Render(" ")
+				bg := markedForTillingStyle.Render(" ")
 				return bg + sym + bg
 			}
 			padded := " " + sym + " "
 			if fill != "" {
 				padded = fill + sym + fill
 			}
-			return areaSelectStyle.Render(padded)
+			return markedForTillingStyle.Render(padded)
 		}
 	}
 

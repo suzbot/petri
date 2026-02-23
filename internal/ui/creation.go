@@ -151,7 +151,7 @@ func (s *CharacterCreationState) CycleOption() {
 		char.Food = nextOption(char.Food, foodOptions)
 	case FieldColor:
 		char.Color = nextOption(char.Color, colorOptions)
-	// FieldName: do nothing
+		// FieldName: do nothing
 	}
 }
 

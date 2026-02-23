@@ -31,15 +31,15 @@ var (
 	orderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("174")) // dusty rose
 
 	// Item colors (Bold helps Unicode symbols render more prominently)
-	redStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
-	blueStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("27")).Bold(true)
-	brownStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("136")).Bold(true)
-	whiteStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Bold(true)
-	orangeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)
-	yellowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Bold(true)
-	purpleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("135")).Bold(true)
-	tanStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("180")).Bold(true)
-	pinkStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("213")).Bold(true)
+	redStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
+	blueStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("27")).Bold(true)
+	brownStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("136")).Bold(true)
+	whiteStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Bold(true)
+	orangeStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)
+	yellowStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Bold(true)
+	purpleStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("135")).Bold(true)
+	tanStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("180")).Bold(true)
+	pinkStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("213")).Bold(true)
 	blackStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Bold(true) // dark gray for visibility
 	greenStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("34")).Bold(true)
 	palePinkStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("218")).Bold(true)
@@ -60,9 +60,10 @@ var (
 	wetSproutStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("29")).Bold(true)  // dark teal (sprouts on wet ground)
 
 	// UI highlight (background)
-	highlightStyle    = lipgloss.NewStyle().Background(lipgloss.Color("23")).Foreground(lipgloss.Color("255"))  // dark cyan bg, white text
-	areaSelectStyle   = lipgloss.NewStyle().Background(lipgloss.Color("58"))                                   // olive bg for area selection
-	areaUnselectStyle = lipgloss.NewStyle().Background(lipgloss.Color("52"))                                   // dark red bg for unmark selection
+	highlightStyle        = lipgloss.NewStyle().Background(lipgloss.Color("23")).Foreground(lipgloss.Color("255")) // dark cyan bg, white text
+	areaSelectStyle       = lipgloss.NewStyle().Background(lipgloss.Color("30"))                                   // teal bg for active area selection
+	markedForTillingStyle = lipgloss.NewStyle().Background(lipgloss.Color("108"))                                  // sage bg for confirmed marked-for-tilling tiles
+	areaUnselectStyle     = lipgloss.NewStyle().Background(lipgloss.Color("52"))                                   // dark red bg for unmark selection
 
 	// Unfulfillable order style (dimmed)
 	unfulfillableStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // gray

@@ -78,25 +78,25 @@ type Model struct {
 	activityFullScreen bool // When true and in AllActivity mode, show full-screen log
 
 	// Bottom panel toggles (mutually exclusive, replaces action log in select mode)
-	showKnowledgePanel    bool
-	showInventoryPanel    bool
-	showPreferencesPanel  bool
+	showKnowledgePanel   bool
+	showInventoryPanel   bool
+	showPreferencesPanel bool
 
 	// Orders system
 	orders      []*entity.Order
 	nextOrderID int
 
 	// Orders panel UI state
-	showOrdersPanel       bool
-	ordersFullScreen      bool
-	ordersCancelMode      bool
-	selectedOrderIndex    int
-	ordersAddMode         bool
-	ordersAddStep         int // 0 = select activity, 1 = select target, 2 = area/type selection
-	selectedActivityIndex int
-	selectedTargetIndex   int
-	step2ActivityID       string // Activity that triggered step 2 (e.g., "tillSoil", "plant")
-	selectedPlantTypeIndex int   // Index within plantable types list at step 2
+	showOrdersPanel        bool
+	ordersFullScreen       bool
+	ordersCancelMode       bool
+	selectedOrderIndex     int
+	ordersAddMode          bool
+	ordersAddStep          int // 0 = select activity, 1 = select target, 2 = area/type selection
+	selectedActivityIndex  int
+	selectedTargetIndex    int
+	step2ActivityID        string // Activity that triggered step 2 (e.g., "tillSoil", "plant")
+	selectedPlantTypeIndex int    // Index within plantable types list at step 2
 
 	// Order creation flash confirmation
 	orderFlashMessage string    // Display name of last created order
@@ -140,13 +140,13 @@ func NewModel(testCfg TestConfig) Model {
 		actionLog:        system.NewActionLog(200),
 		width:            80,
 		height:           40,
-		paused:           true,  // World starts paused
+		paused:           true, // World starts paused
 		testCfg:          testCfg,
 		worlds:           worlds,
-		selectedWorld:    0,     // First world or "New World" if empty
-		confirmingDelete: -1,    // Not confirming delete
-		nextOrderID:      1,     // Start at 1 so ID 0 means "no order"
-		speedMultiplier:  1,     // Normal speed
+		selectedWorld:    0,  // First world or "New World" if empty
+		confirmingDelete: -1, // Not confirming delete
+		nextOrderID:      1,  // Start at 1 so ID 0 means "no order"
+		speedMultiplier:  1,  // Normal speed
 	}
 }
 

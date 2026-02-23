@@ -30,7 +30,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Drinkable bool on ItemVariety**      | Non-drinkable liquid introduced (lamp oil, dye); Need to distinguish consumable vs non-consumable liquids |
 | **Watertight bool on ContainerData**   | Non-watertight container introduced (basket, sack); Need to prevent liquid storage in permeable containers |
 | **Idle activity registry refactor**    | Idle activity needs discovery/know-how gating; Idle activities need data-driven selection (weighted probabilities, personality); Adding 7th+ hardcoded idle option feels unwieldy |
-| **Satiation-aware targeting & snacking threshold** | Characters walk past nearby berries because hunger isn't high enough to trigger foraging, then starve later; Snack-tier food feels useless because characters only eat when already quite hungry |
+| **Snacking threshold** | Characters walk past nearby berries because hunger isn't high enough to trigger foraging, then starve later; Snack-tier food feels useless because characters only eat when already quite hungry |
 | **Terrain-aware Look + discovery**     | Adding activity discovered from terrain interaction; Characters feel artificially limited to item-only observation; Want richer idle contemplation behaviors |
 
 ### Future Enhancement Details
@@ -161,15 +161,13 @@ Deferred because: Water Garden discovery is adequately served by item-based trig
 
 ---
 
-**Satiation-aware targeting & snacking threshold:**
+**Snacking threshold:**
 
-Slice 9 introduces per-item satiation tiers (Feast 50, Meal 25, Snack 10). Two related enhancements to consider after living with these values:
+Characters could be willing to snack at a lower hunger level (e.g., Mild tier) if food is immediately adjacent or in inventory — "grab a berry while walking past" behavior. Currently all food triggers foraging at the same hunger threshold regardless of convenience. This parallels the vessel drinking threshold concept (Slice 9 Step 5): lower the trigger when the cost is near-zero.
 
-1. **Satiation-aware foraging targeting**: When hungry, characters could factor satiation value into foraging scores — preferring a gourd (50 pts) over a berry (10 pts) when both are nearby, especially at high hunger. Currently foraging uses distance + preference scoring without considering how much the food will actually help.
+Satiation-aware foraging targeting (first half of original item) extracted to [cleanup-phase-plan.md](cleanup-phase-plan.md) 3C.
 
-2. **Lower foraging threshold for snacks**: Characters could be willing to snack at a lower hunger level (e.g., Mild tier) if food is immediately adjacent or in inventory — "grab a berry while walking past" behavior. Currently all food triggers foraging at the same hunger threshold regardless of convenience. This parallels the vessel drinking threshold concept (Slice 9 Step 5): lower the trigger when the cost is near-zero.
-
-Deferred because: Need to observe how the new satiation tiers play out before adding complexity. The current system may produce acceptable behavior through existing proximity scoring — characters naturally eat nearby food first. Revisit after playtesting Slice 9.
+Deferred because: Need to observe how the new satiation tiers play out before adding complexity. The current system may produce acceptable behavior through existing proximity scoring — characters naturally eat nearby food first.
 
 ---
 
