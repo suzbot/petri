@@ -16,8 +16,9 @@ Read the roadmap section of CLAUDE.md to find what's next. This skill only needs
 
 ### Step 3: Discuss Approach
 **Do NOT enter plan mode.** Discuss as conversation.
-- **Read `docs/architecture.md` first** — this is the routing table that prevents expensive broad code exploration. Understand current patterns before reaching for Explore or reading implementation files.
+- **Read `docs/architecture.md`, `docs/Values.md`, and `docs/VISION.txt` first** — architecture.md is the routing table that prevents expensive broad code exploration. Values.md shapes design decisions (consistency, source of truth, reuse). VISION.txt grounds design in the project's core conceits (e.g., code structure mirrors character knowledge of the world). Understand current patterns, principles, and vision before reaching for Explore or reading implementation files.
 - **Identify which established patterns apply** to each planned step (Component Procurement, Order execution, Pickup helpers, Recipe system, etc.). Steps that involve item acquisition should name which `EnsureHas*` variant they'll use. Steps that add entity fields should include serialization. Catching pattern mismatches here prevents rework during implementation.
+- **Surface architecture and values alignment in discussion** — for each planned step, name the architecture pattern it follows and which Values.md principles apply. This is part of the conversation, not internal bookkeeping. The user evaluates whether patterns and principles are correctly applied; silently identifying them doesn't allow that.
 - Ask clarifying questions about requirements
 - Present high-level approach options with trade-offs as **prose discussion**
 - Identify an iterative approach with frequent human testing checkpoints
@@ -27,6 +28,7 @@ Read the roadmap section of CLAUDE.md to find what's next. This skill only needs
 Save the high-level phase plan to `docs/[name]-phase-plan.md` — this is the **single planning artifact** for the phase. Do not create separate plan files. Contents:
 - Original requirements reference — include an explicit link to the requirements document (e.g., `[Gardening-Reqs.txt](Gardening-Reqs.txt)`) at the top of the plan so it's easy to find during implementation
 - User-facing outcomes for each sub-phase
+- **Architecture pattern and values alignment per step** — name which architecture.md pattern each step follows and which Values.md principles apply. These references were discussed in Step 3; writing them into the plan ensures `/refine-feature` and `/implement-feature` can validate alignment without re-deriving.
 - [TEST] checkpoints where user can verify behavior
 - [DOCS] checkpoint after each [TEST] to update README, CLAUDE.md, game-mechanics, and architecture as needed
 - [RETRO] checkpoint after each [DOCS] to run /retro on any human-testable, README-worthy feature

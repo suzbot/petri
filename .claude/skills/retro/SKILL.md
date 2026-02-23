@@ -11,6 +11,8 @@ allowed-tools:
   - Grep
 ---
 
+**Note for caller (not the retro agent):** Before invoking this skill, ask the user if they want conversation history searched for uncaptured friction. If yes, search history using the process in "Conversation History Search" at the bottom of this file, then pass findings as part of the retro arguments. After the retro completes and proposals are resolved, update `memory/last-retro.txt` with the current ISO timestamp.
+
 ## Retro Skill
 
 Perform a reflection on collaboration friction. Can be triggered:
@@ -105,3 +107,58 @@ B. Take what you learned about user values, and propose additions to docs/Values
 - Present all changes as **proposals**, not decisions
 - End with a clear list of proposals for the caller to relay to the user for approval
 - All suggestions require **explicit user approval** before implementation
+- If conversation history findings were provided, integrate them into the assessment
+
+---
+
+## Conversation History Search (for caller, not retro agent)
+
+When the user opts in to history search before a retro, follow this process:
+
+### 1. Determine search window
+
+Read `memory/last-retro.txt` for the last retro timestamp. Search sessions modified after that timestamp. If no timestamp file exists, fall back to the last 3 sessions.
+
+### 2. Find session files
+
+```bash
+# List recent session JSONL files by filesystem mtime
+ls -lt ~/.claude/projects/-Users-suzanneerin-projects-petri/*.jsonl | head -N
+```
+
+Filter to files modified after the last-retro timestamp (or take last 3 if no timestamp).
+
+### 3. Extract user messages and scan for friction
+
+```bash
+# For each session file, extract user messages and look for friction signals
+python3 -c "
+import json, sys
+with open(sys.argv[1]) as f:
+    for line in f:
+        try:
+            obj = json.loads(line)
+            if obj.get('type') == 'user':
+                content = obj.get('message', {}).get('content', '')
+                if isinstance(content, str) and len(content) > 10:
+                    print(content[:300])
+                    print('---')
+        except: pass
+" <session-file>
+```
+
+Scan user messages for friction signals:
+- Corrections ("no, I meant...", "that's not what I...")
+- Reminders ("don't forget", "we already discussed", "did we", "does the skill say")
+- Process observations ("friction", "missed", "should have", "too strong", "too weak")
+
+### 4. Pass findings to retro
+
+Include a summary of friction signals found (with direct quotes) in the retro skill arguments.
+
+### 5. After retro completes
+
+Write current timestamp to `memory/last-retro.txt`:
+```bash
+date -u +"%Y-%m-%dT%H:%M:%SZ" > memory/last-retro.txt
+```

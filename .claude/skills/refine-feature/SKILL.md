@@ -39,6 +39,8 @@ Surface any drift in conversation so it gets discussed, not silently carried for
 **When presenting options:**
 - State what you're deciding between explicitly (don't assume it's obvious)
 - For design questions, name the trade-off axis (e.g., "cardinal vs 8-directional adjacency")
+- Describe each option's implications — for player experience, structural alignment with vision (code structure mirrors character knowledge per VISION.txt), scalability, performance. Don't describe options in implementation jargon (function signatures, parameter patterns). If the user can't evaluate the difference without reading code, the description needs translating.
+- If an option has no evaluable implications (purely code-organizational), decide unilaterally and note it in passing rather than presenting it as a choice.
 - If you realize mid-explanation that you haven't actually surfaced a question, pause and reframe
 
 **Anti-pattern:** Stating an interpretation as if it's an open question without naming the alternatives.
@@ -64,6 +66,7 @@ Before invoking expensive exploration (Explore agents, broad code reads for impl
 Present the step breakdown to the user as conversation at a high-to-medium level of detail:
 - "Here are the N steps I see this breaking into: ..."
 - Include enough detail to evaluate sequencing, scope per step, and dependencies
+- For each step, name the architecture pattern and Values.md principle it follows — this surfaces the Step 2 reconciliation work for the user to validate before the written plan
 - Do NOT write into the plan doc yet — this is a digestibility and alignment check
 
 Get user feedback on the outline before proceeding. Adjust if needed.

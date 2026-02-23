@@ -1,0 +1,281 @@
+# Post-Gardening Cleanup Phase Plan
+
+Requirements: [post-gardening-cleanup.md](post-gardening-cleanup.md)
+
+---
+
+## Pre-Work
+
+### 0A. Whitespace Investigation ✅
+
+**Outcome:** Root cause is Edit tool ambiguity with Go tab indentation in line-number output format. Not a codebase issue — a Claude workflow issue. Mitigations added:
+- `gofmt ./...` post-edit step added to `/implement-feature` skill
+- Tab-preservation reminder added to MEMORY.md
+
+### 0B. Test File Organization ✅
+
+**Outcome:** Evaluated — not actionable now. 26K total lines across 37 files. Top 3: update_test (3.2K), movement_test (2.9K), order_execution_test (2.5K). These are big because the systems they test are big. Splitting by sub-concern is possible but creates file proliferation without reducing total lines. Paring down risks losing coverage before a phase that touches multiple systems. Targeted Grep/Read handles large files fine for most searches. Added to triggered-enhancements.md with trigger: "a specific file becomes painful to navigate during implementation."
+
+---
+
+## Implementation Order
+
+Items refined and ready to implement, in order:
+1. **1A** — Move `CreateVessel`/`CreateHoe` (trivial relocation warmup)
+2. **2A** — Sticky BFS pathing (meatiest behavior change, get in early)
+3. **2C** — Numbered order selection (self-contained UI work)
+4. **2B** — Esc key cleanup (investigation step may surface scope surprises, do last)
+
+Items needing refinement before implementation:
+- **3A** — Gather orders (4 open design questions)
+- **3B** — Satiation & consumption duration (minor — duration mechanism check)
+- **4A/4B** — Character creation streamline (deferred questions about flow/scaling)
+
+---
+
+## Part 1: Investigations
+
+Lightweight assessments that inform whether follow-up work exists. Fine outcome for any of these: "no action needed."
+
+### 1A. Misplaced Functions Audit — Move `CreateVessel`/`CreateHoe`
+
+**Outcome of audit:** `createItemFromVariety` is in `game/world.go` (correctly placed — world generation). `ConsumeAccessibleItem` is in `entity/character.go` (correctly placed — character inventory). Everything else follows the entity/system/game separation cleanly.
+
+**One misplacement found:** `CreateVessel()` and `CreateHoe()` in `system/crafting.go` are pure item constructors with no system-level logic (`CreateHoe` literally wraps `entity.NewHoe()`). Move both to `entity/item.go` alongside the other 11 `New*` constructors.
+
+**Pattern reference:** Consistency Over Local Cleverness (Values.md) — item constructors belong with item constructors.
+
+**Implementation:**
+1. Move `CreateVessel` and `CreateHoe` from `system/crafting.go` to `entity/item.go`
+2. Update callers (in `ui/update.go` ActionCraft handler) to call `entity.CreateVessel` / `entity.CreateHoe`
+3. Run tests — no behavior change, just relocation
+
+[TEST] — No human testing needed. Pure code relocation, no behavior change. Verify via `go test ./...`.
+
+### 1B. ItemType Constants Evaluation ✅
+
+**Outcome:** No action needed. 11 distinct ItemType values across 45 occurrences in 14 files. Zero typos or inconsistencies found. Constants would add indirection without solving an observed problem. Revisit if a typo actually causes a bug or the count grows significantly.
+
+### 1C. Action Pattern Unification Investigation ✅
+
+**Outcome:** No action needed. Patterns are appropriately different, not diverging:
+- Eating (`Consume`/`ConsumeFromInventory`/`ConsumeFromVessel`): applies effects (hunger, poison, preferences)
+- Crafting/planting (`ConsumeAccessibleItem`/`ConsumePlantable`): extracts item only, no effects
+- `HasAccessibleItem` is always read-only, never extracts
+- No "extract at intent time" anti-pattern exists anywhere — all consumption happens at action completion
+
+---
+
+## Part 2: Quick Fixes
+
+Each is independently shippable and human-testable, with its own [TEST], [DOCS], [RETRO] cycle.
+
+### 2A. Pathing Improvement
+
+**Player impact:** Characters no longer thrash back and forth when a target is across an irregularly shaped pond. Once a character switches to BFS pathfinding to navigate around an obstacle, they stay in BFS mode until they reach their target or bump into another character.
+
+**Reqs reconciliation:** Post-gardening-cleanup.md section A — "once a character switches to BFS, they stay in BFS until they get to target or until they run into a character. If they run into a character they sidestep (as in current state) and then switch back to greedy step."
+
+**Architecture alignment:** Movement & Pathfinding in architecture.md — `NextStepBFS` is greedy-first-then-BFS. Currently stateless (decides greedy vs BFS from scratch each tick). Sticky BFS adds per-character ephemeral state following the displacement precedent (`DisplacementStepsLeft`, `DisplacementDX`, `DisplacementDY`) — not serialized, clears on save/load.
+
+**Values alignment:** Consistency Over Local Cleverness — follows the existing ephemeral state pattern used by displacement. Start With the Simpler Rule — simple flag with two clear-conditions, no edge-case logic.
+
+**Resolved questions:**
+- Flag clears when intent is nilled (covers reaching target + intent changes) and when displacement initiates (covers character collision). No special clearing logic needed — piggybacks on existing state transitions.
+- Flag does NOT persist across intent changes. A new intent may path in a different direction where greedy is appropriate.
+
+**Implementation:**
+
+**Step 1: Sticky BFS**
+
+Character paths smoothly around obstacles instead of oscillating between greedy and BFS steps.
+
+1. **Tests first:** Test that a character with a target across an irregular pond converges toward the target without revisiting positions (anti-thrashing). Test that the BFS flag clears after displacement initiation.
+2. Add ephemeral `UsingBFS bool` to Character struct (not serialized, like displacement fields).
+3. Modify `NextStepBFS` to accept a `preferBFS bool` parameter and return `usedBFS bool`. When `preferBFS` is true, skip the greedy attempt and go straight to BFS. Return `true` for `usedBFS` whenever BFS was actually used.
+4. Caller sets `char.UsingBFS = true` when `usedBFS` is returned. Caller passes `char.UsingBFS` as `preferBFS`.
+5. Clear `UsingBFS` in two places: (a) when intent is nilled (wherever `Intent` is set to nil), (b) when `initiateDisplacement` fires.
+6. Update all `NextStepBFS` callers for the new signature.
+
+[TEST] Create a test world with a character and a target item on the other side of an irregularly shaped pond. Verify the character paths smoothly around the pond without oscillating.
+
+**Step 2:** [DOCS] + [RETRO]
+
+---
+
+### 2B. Esc Key Cleanup
+
+**Player impact:** Esc consistently means "go back one level" everywhere in the UI. `q` becomes the "exit game" key. `l` returns to the action log from any details subpanel. After creating an order, you stay at the previous selection level instead of jumping back to the top.
+
+**Reqs reconciliation:** Post-gardening-cleanup.md section B — desired behavior list. All items addressed:
+- Esc from any expanded view → collapse
+- Esc from all-activity view → no-op
+- Esc from orders (normal view) → all-activity view
+- Esc from within orders add/cancel → back one level
+- Esc from select details > action log or no panel → all-activity view
+- Esc from select details > any other panel → details action log
+- `l` from select details > any other panel → details action log (NEW keystroke)
+- `q` from anywhere → world select screen
+- `q` from world select → quit
+
+Additional scope from discussion:
+- Post-order-creation auto-back currently jumps to step 0 (top-level activity list). Should go back one level only — e.g., after planting gourd seeds, return to plant type selection so you can immediately plant another type.
+
+**Architecture alignment:** MVU pattern — all key handling flows through `Update()` in update.go. Changes are to the key dispatch logic per view state. No new architecture patterns.
+
+**Values alignment:** Consistency Over Local Cleverness — "back one level" is a single principle applied uniformly, replacing ad-hoc per-state behavior.
+
+**Implementation:**
+
+**Step 1: Investigate current behavior delta**
+
+Map current Esc, `q`, and `l` behavior across all view states and expanded-view toggles. Document what already works and what needs to change. No code changes.
+
+**Implementation note:** Check all `x`-key expansion contexts (all-activity, orders, individual panels like knowledge/inventory/preferences) to ensure Esc collapses each one.
+
+**Step 2: Implement Esc/q/l changes**
+
+Player experiences consistent "back one level" for Esc, `q` as exit-to-world-select, and `l` as return-to-action-log.
+
+1. **Tests first:** Key handling is UI logic (no unit tests per CLAUDE.md testing policy). This step is verified entirely via human testing.
+2. Implement the delta identified in Step 1. Expected changes:
+   - Default Esc handler: replace "exit to world select" with context-sensitive behavior (all-activity → no-op, select with action log → all-activity, orders normal → all-activity)
+   - Esc from expanded views: collapse before doing anything else
+   - `q` key: navigate to world select from game view; quit from world select
+   - `l` key: from select view with any subpanel open, close subpanel and return to action log
+   - Post-order-creation: go back one step instead of resetting to step 0
+3. Verify all existing Esc behavior within orders add/cancel mode still works (it should — those handlers fire before the default).
+
+[TEST] Walk through each scenario from the desired behavior list. Also test: expanded views collapse on Esc, `l` from each subpanel, post-order-creation stays at previous level.
+
+**Step 3:** [DOCS] + [RETRO]
+
+---
+
+### 2C. Order Selection UX
+
+**Player impact:** Order lists show numbered items. Player can press a number key to instantly select an item, in addition to the existing arrow-key scrolling.
+
+**Reqs reconciliation:** Post-gardening-cleanup.md section C — "Replace with single keypress selection (numbered list)." Refined during discussion: numbers are added alongside scrolling, not replacing it. Applies to every step within orders.
+
+**Architecture alignment:** MVU pattern — view layer adds number display, update layer adds key handling. No new architecture patterns.
+
+**Values alignment:** Reuse Before Invention — extends existing list rendering and selection logic rather than replacing it.
+
+**Resolved questions:**
+- More than 9 items: deferred. Current max is ~4 items per step, well within single-digit range.
+
+**Implementation:**
+
+**Step 1: Numbered order selection**
+
+Player sees numbered items in all order list contexts and can press a number key to select instantly.
+
+1. **Tests first:** UI rendering/key handling — no unit tests per CLAUDE.md testing policy. Verified via human testing.
+2. Add number display (e.g., `1. Harvest`, `2. Craft`) to order list rendering in `renderOrdersContent()` for all contexts:
+   - Step 0: orderable activity list
+   - Step 1: target item type / category list
+   - Step 2: plant variety list
+   - Cancel mode: existing order list
+3. Add number key handling (1-9) in the order key handler that sets the corresponding selection index. Pressing a number both selects and confirms (equivalent to arrow-to-item + Enter), since the point is single-keypress selection.
+
+**Design note:** Number keys select-and-confirm in one press (otherwise it's just a different way to scroll, not a UX improvement). If an invalid number is pressed (e.g., 5 when there are only 3 items), it's a no-op.
+
+[TEST] Open orders. Verify numbered display in each step. Verify pressing a number key selects and advances. Verify arrow+Enter still works.
+
+**Step 2:** [DOCS] + [RETRO]
+
+---
+
+## Part 3: Small Features
+
+### 3A. Gather Orders
+
+**Player impact:** Players can direct characters to gather loose items (sticks, nuts, shells, gourd seeds) via the orders menu under a "Gather" category.
+
+- "Gather" is a known-by-default orderable activity category (no discovery needed)
+- Player selects from a list of non-plant loose item types currently present in the world
+- Character seeks and picks up items of the selected type
+- Follows existing order execution patterns (Harvest as closest analog)
+- Establishes the "Gather" category pattern that Construction will extend for sticks (bundles) and clay
+
+Note: Construction's "Gather > Sticks" adds bundle stacking behavior on top of this base pattern. The cleanup version is simpler — just pick up loose items, no bundle/stacking mechanic yet.
+
+**Architecture patterns:**
+- **Activity Registry** (architecture.md: Activity Registry & Know-How Discovery): New activity entries with `IntentOrderable`, `AvailabilityDefault`, `Category: "gather"`.
+- **Order Execution** (architecture.md: Adding an Ordered Action): Action constant in character.go, `findGatherIntent()` in order_execution.go, wire into `findOrderIntent` switch + `IsOrderFeasible` + `isMultiStepOrderComplete`, handler in update.go.
+- **Item Acquisition** (architecture.md: Item Acquisition): Character seeks items via `findNearestItemByType` from picking.go. No `EnsureHas*` needed — just picking up loose items directly.
+- **`continueIntent`**: Gather targets items on the map throughout, so the generic path handles it — no early-return block needed.
+- **No new entity fields** — no serialization concern. The Order struct already has fields for target item type.
+
+**Deferred questions:**
+- Is this one "gather" activity where the Order stores the target item type (like Plant stores variety), or separate activity entries per item type? One activity with sub-selection (like Plant) seems more consistent and scales better.
+- What's the completion condition — gather until inventory full? Gather a fixed count? Gather one item per order?
+- How does the "list of non-plant loose items in the world" get built? Scan world items and filter to non-growing types? Or a hardcoded list of gatherable types?
+- **Vessels and stacking scope:** The key value of gathering seeds, nuts, and shells is putting them in a vessel (gourd full of seeds for planting, gourd full of nuts for snacking while working). But sticks can't go in vessels (too large), and Construction's bundle/stacking mechanic isn't in scope yet. Where's the boundary? Options: (a) gathering always picks up loose to hand, vessel use is the character's existing autonomous behavior; (b) gather explicitly uses vessel procurement for small items (seeds, nuts, shells) and skips it for large items (sticks); (c) keep it simple — all gathering is loose pickup, vessel integration comes with Construction. Need to decide what feels right for the player experience without pulling in bundle complexity.
+
+[TEST] Issue gather orders for different item types. Verify characters seek and collect the right items. Verify the Gather category appears in the orders menu.
+
+### 3B. Satiation & Consumption Duration
+
+**Player impact:** Eating a feast takes longer than eating a snack. Meals take 15 world minutes; snacks 1/3 that; feasts 3x that.
+
+Satiation tier of food modifies consumption duration. Touches config constants and consumption timing in update.go.
+
+**Pattern reference:** Config-driven behavior — satiation tiers already defined in `config.SatiationTier` map. Consumption duration would follow the same pattern (config map keyed by item type or satiation tier). The `ActionConsume` handler in update.go manages eating duration via progress/speed accumulation.
+
+**Deferred question:** Does duration apply to drinking too, or just eating? The requirement says "satiation tier of food" so likely just eating. Need to check current eating duration mechanism to understand where the multiplier hooks in.
+
+**Opportunistic assessment:** After playtesting 3B, evaluate whether satiation-aware targeting (characters preferring higher-satiation food when hungrier, snacking on nearby food at lower hunger) should be tackled now or deferred. See triggered-enhancements.md for full description.
+
+[TEST] Observe characters eating different satiation tiers. Verify feast items take noticeably longer than snacks.
+[DOCS] after 3A-3B
+[RETRO] after [DOCS]
+
+---
+
+## Part 4: Character Creation Streamline
+
+**Player impact:** Cleaner game start — no single/multi mode choice. New ability to choose how many characters to start with (up to 16).
+
+### 4A. Remove Single/Multi Mode
+
+- Remove single character mode from game start
+- Adjust start screen:
+  ```
+  === Petri ===
+  R to start with Random Characters
+  C to create Characters
+  ```
+- "C for Create" creates first character, randomizes the rest
+
+### 4B. Character Count Selection
+
+- Add intermediate step to choose number of characters (max 16)
+- Requires refactoring the current character creation flow
+
+**Pattern reference:** UI state machine in model.go/update.go. The character creation flow is a series of view states managed in the Update handler. No new entity fields — character count is a UI/setup concern, not persisted. No save/load impact (character count isn't stored; the resulting characters are what's saved).
+
+**Deferred questions:**
+- Does character count affect world generation (map size, item/feature spawning)? Currently these may be fixed — need to check whether spawn counts scale or are hardcoded.
+- Where does the count selection step go in the flow? Before or after creating the first character? Likely before — pick count, then create one, then randomize the rest.
+- Does "R for Random" also prompt for count, or does it use a default count?
+
+[TEST] Verify both R and C paths work. Verify character count selection. Verify created + randomized characters all spawn correctly.
+[DOCS] after Part 4
+[RETRO] after [DOCS]
+
+---
+
+## Part 5: Game Mechanics Doc Reorg
+
+Reorganize game-mechanics.md for player readability:
+- Reorder by gameflow
+- Remove unnecessary detail or summarize where appropriate
+- Consistent level of detail throughout
+
+[DOCS] — this step *is* the docs update.
+
+---
+
+## Final [RETRO] on full cleanup phase

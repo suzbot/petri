@@ -11,7 +11,8 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Performance optimizations**          | Noticeable lag; Profiling shows bottlenecks                                       |
 | **Preference formation for beverages** | Other beverages (non-spring) introduced                                           |
 | **Depression and Rage mechanics**      | Job acceptance logic implemented                                                  |
-| **Testify test package**               | Test complexity warrants it; Current assertion patterns become unwieldy           |
+| **Testify test package**               | Assertion boilerplate drowns out test intent (currently ~40% of test length — trigger when it tips past 50%); Table-driven tests would reduce duplication but `if/t.Errorf` pattern makes them verbose; Writing a new test and spending more time on assertion scaffolding than on expressing what the test validates |
+| **Test file splitting**                | Largest test files (update_test 3K, movement_test 2.9K, order_execution_test 2.5K) cause context overhead during pattern searches; A specific file becomes painful to navigate during implementation |
 | **Wandering activity**                 | More idle activities needed; Looking feels repetitive; Want more organic movement |
 | **Activity enum**                      | Need to enumerate/filter activities; Activity-based game logic beyond display     |
 | **`continueIntent` early-return block consolidation** | 5+ action-specific early-return blocks in `continueIntent`; New multi-phase action needs early-return and the pattern feels repetitive |

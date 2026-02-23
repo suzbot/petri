@@ -83,3 +83,9 @@ Example: The pathing thrashing plan said perpendicular displacement fixes thrash
 When a problem might have multiple causes, test the simplest fix first and observe what remains. Each layer of the solution should have an observed reason to exist. This produces minimal-complexity solutions and avoids speculative "belt and suspenders" code.
 
 Example: Greedy-first pathfinding was tested alone. It solved path convergence but left character-blocking unsolved. Displacement was then re-added as a targeted second layer — both layers justified by observation, not speculation.
+
+## Describe Implications, Not Mechanics
+
+When presenting implementation options, describe what each option means — for player experience, structural alignment with vision, scalability, performance. Options described in implementation jargon (function signatures, parameter passing patterns, module boundaries) can't be evaluated for design alignment. If the implications are identical and the difference is purely mechanical, it's not a decision — make the call and move on.
+
+Example: "Option A: the pathfinding function takes a flag. Option B: the caller bypasses the function" — indistinguishable without reading code. "Both options produce the same player behavior; this is a code organization choice I'll handle" — evaluable in one sentence.

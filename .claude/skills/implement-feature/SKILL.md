@@ -45,6 +45,7 @@ Once approach is confirmed:
   - **Don't assert on exact log/activity wording** (per CLAUDE.md brittle string matching guideline). If you encounter existing tests that assert on exact message text, remove the brittle assertions — don't update them to match new wording.
 - Implement minimum code to pass tests
 - Run tests to verify
+- Run `gofmt ./...` after edits to catch any whitespace/formatting drift
 - **Pause at each [TEST] checkpoint** for user to rebuild and manually test
 - **Design discussion trigger:** If you find yourself proposing and evaluating design alternatives (not just implementation details like variable names or helper placement), stop and invoke `/refine-feature`. Don't assess whether it's "needed enough" — the cost of a brief refine is always lower than the cost of an incorrect design baked into code.
 - **Circles trigger:** If you find yourself re-deriving or re-evaluating an approach you've already considered, stop. First: re-read architecture.md for the relevant pattern — the answer is likely already documented. Second: if the architecture doc doesn't resolve it, invoke `/refine-feature`. Third: if you're circling on a test failure rather than a design question, run a targeted diagnostic (add logging, run with `-v`) instead of reasoning further. Evidence first, then reasoning.
@@ -53,7 +54,8 @@ Once approach is confirmed:
 
 ### Step 4: Human Testing ([TEST])
 **Do NOT mark feature complete until user has tested.**
-- If scenario for verification is complex, consider running /test-world
+- If the plan's [TEST] checkpoint explicitly calls for `/test-world`, ask the user if they'd like you to create it before they test (saves a round-trip; they can decline to save context)
+- If the checkpoint doesn't mention `/test-world` but the scenario is complex, consider offering it
 - Wait for explicit confirmation from user before continuing
 
 ### Step 5: Update Documentation ([DOCS])
