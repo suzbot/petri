@@ -104,8 +104,8 @@ func TestCalculateIntent_ReturnsNilWhenNoNeeds(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.Hunger = 0  // TierNone
-	char.Thirst = 0  // TierNone
+	char.Hunger = 0   // TierNone
+	char.Thirst = 0   // TierNone
 	char.Energy = 100 // TierNone
 
 	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
@@ -515,8 +515,8 @@ func TestFindFoodTarget_HealingBonus_OnlyWhenKnown(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.Hunger = 60        // Moderate hunger
-	char.Health = 50        // Moderate health (hurt)
+	char.Hunger = 60 // Moderate hunger
+	char.Health = 50 // Moderate health (hurt)
 	char.SetPos(types.Position{X: 0, Y: 0})
 	// No healing knowledge
 
@@ -540,8 +540,8 @@ func TestFindFoodTarget_HealingBonus_OnlyWhenHurt(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.Hunger = 60    // Moderate hunger
-	char.Health = 100   // Full health (not hurt)
+	char.Hunger = 60  // Moderate hunger
+	char.Health = 100 // Full health (not hurt)
 	char.SetPos(types.Position{X: 0, Y: 0})
 
 	// Give character healing knowledge for blue berries
@@ -1086,8 +1086,8 @@ func TestCalculateIntent_HealthIgnored_WhenNoHealingKnowledge(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.Health = 25  // Severe tier
-	char.Hunger = 75  // Moderate tier
+	char.Health = 25 // Severe tier
+	char.Hunger = 75 // Moderate tier
 	char.Thirst = 0
 	char.Energy = 100
 	char.Knowledge = []entity.Knowledge{} // No healing knowledge
@@ -1519,7 +1519,7 @@ func TestFindFoodIntent_VesselContents_RecognizedAsFood(t *testing.T) {
 		ID:       "berry-red",
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	}
 	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
 	char.AddToInventory(vessel)
@@ -1557,7 +1557,7 @@ func TestFindFoodIntent_VesselWithDislikedContents_FilteredAtModerate(t *testing
 		ID:       "mushroom-brown",
 		ItemType: "mushroom",
 		Color:    types.ColorBrown,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	}
 	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
 	char.AddToInventory(vessel)
@@ -1597,7 +1597,7 @@ func TestFindFoodIntent_DroppedVessel_RecognizedAsFood(t *testing.T) {
 		ID:       "berry-red",
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	}
 	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
 
@@ -1636,7 +1636,7 @@ func TestFindFoodIntent_DroppedVesselWithDislikedContents_FilteredAtModerate(t *
 		ID:       "mushroom-brown",
 		ItemType: "mushroom",
 		Color:    types.ColorBrown,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	}
 	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
 
@@ -1672,7 +1672,7 @@ func TestFindFoodIntent_DroppedVesselCloser_WinsOverFarFood(t *testing.T) {
 		ID:       "berry-blue",
 		ItemType: "berry",
 		Color:    types.ColorBlue,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	}
 	vessel.Container.Contents = []entity.Stack{{Variety: variety, Count: 5}}
 
@@ -1827,7 +1827,7 @@ func TestFindDrinkIntent_DrinksWhenCardinallyAdjacent(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter()
-	char.Thirst = 75 // Moderate
+	char.Thirst = 75                        // Moderate
 	char.SetPos(types.Position{X: 5, Y: 4}) // North of water at (5,5)
 
 	gameMap := game.NewMap(20, 20)
@@ -2864,5 +2864,128 @@ func TestCalculateIntent_OrderedWork_BothMild_ThirstPriority(t *testing.T) {
 	}
 	if intent.Action != entity.ActionDrink {
 		t.Errorf("Action: got %d, want ActionDrink (thirst priority)", intent.Action)
+	}
+}
+
+// =============================================================================
+// Sticky BFS (characters stay in BFS mode once obstacle detected)
+// =============================================================================
+
+// Anchor test: character navigates around a pocket-shaped obstacle and reaches
+// its target. Without sticky BFS, greedy-first oscillates between the pocket
+// entrance (1,3) and the tile south of it (1,4) forever:
+//   - At (1,3): greedy tries (1,2)-water, BFS routes south to (1,4)
+//   - At (1,4): greedy tries (1,3)-clear, moves back into the pocket
+//
+// With sticky BFS, once BFS fires at (1,3), the character stays in BFS mode
+// at (1,4) and routes east around the obstacle instead of re-entering the pocket.
+func TestStickyBFS_AntiThrashing_PocketObstacle(t *testing.T) {
+	t.Parallel()
+
+	// Map layout (10x10):
+	//   col: 0 1 2 3 4 5
+	//   row 0: T . . . . .    target at (0,0)
+	//   row 1: . . . . . .
+	//   row 2: . W . . . .    water at (1,2)
+	//   row 3: W . W . . .    water at (0,3) and (2,3) — pocket at (1,3)
+	//   row 4: . . . . . .
+	//   row 5: . C . . . .    character starts at (1,5)
+	//
+	// The pocket at (1,3) has water on three sides (N, W, E) with only
+	// south (1,4) as exit. Character approaches via greedy, enters pocket,
+	// then must use BFS to escape and navigate east.
+
+	gameMap := game.NewMap(10, 10)
+	gameMap.AddWater(types.Position{X: 1, Y: 2}, game.WaterPond)
+	gameMap.AddWater(types.Position{X: 0, Y: 3}, game.WaterPond)
+	gameMap.AddWater(types.Position{X: 2, Y: 3}, game.WaterPond)
+
+	x, y := 1, 5
+	tx, ty := 0, 0
+	usingBFS := false
+
+	for i := 0; i < 50; i++ {
+		if x == tx && y == ty {
+			break
+		}
+		nx, ny, usedBFS := nextStepBFSCore(x, y, tx, ty, gameMap, usingBFS)
+		if usedBFS {
+			usingBFS = true
+		}
+		x, y = nx, ny
+	}
+
+	if x != tx || y != ty {
+		t.Errorf("Character did not reach target: stuck at (%d,%d), target (%d,%d)", x, y, tx, ty)
+	}
+}
+
+// nextStepBFSCore with preferBFS=true skips greedy step and uses BFS directly.
+func TestNextStepBFSCore_PreferBFS_SkipsGreedy(t *testing.T) {
+	t.Parallel()
+
+	// Character at (5,5), target at (5,1). No obstacles.
+	// Greedy would step (5,4) — along Y (larger delta).
+	// BFS only has cardinal directions — would step (5,4) or one of the cardinals.
+	// With preferBFS=true, the result should be a valid BFS step (cardinal only).
+	gameMap := game.NewMap(20, 20)
+
+	// Place water at (5,4) so greedy and BFS diverge
+	gameMap.AddWater(types.Position{X: 5, Y: 4}, game.WaterPond)
+
+	// Without preferBFS: greedy tries (5,4-water), falls through to BFS
+	nx1, ny1, used1 := nextStepBFSCore(5, 5, 5, 1, gameMap, false)
+	if !used1 {
+		t.Error("Expected usedBFS=true when greedy step is blocked by water")
+	}
+
+	// With preferBFS: skips greedy entirely, goes straight to BFS
+	nx2, ny2, used2 := nextStepBFSCore(5, 5, 5, 1, gameMap, true)
+	if !used2 {
+		t.Error("Expected usedBFS=true when preferBFS=true")
+	}
+
+	// Both should produce the same result (BFS from same position)
+	if nx1 != nx2 || ny1 != ny2 {
+		t.Errorf("preferBFS should produce same BFS result: got (%d,%d) vs (%d,%d)", nx1, ny1, nx2, ny2)
+	}
+}
+
+// nextStepBFSCore returns usedBFS=false when greedy step succeeds.
+func TestNextStepBFSCore_GreedyClear_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	// No obstacles — greedy should work fine
+	nx, ny, usedBFS := nextStepBFSCore(5, 5, 10, 5, gameMap, false)
+
+	gx, gy := NextStep(5, 5, 10, 5)
+	if nx != gx || ny != gy {
+		t.Errorf("Clear path: got (%d,%d), want greedy (%d,%d)", nx, ny, gx, gy)
+	}
+	if usedBFS {
+		t.Error("Expected usedBFS=false when greedy step is clear")
+	}
+}
+
+// Sticky BFS flag clears when CalculateIntent creates a new intent
+// (not continuing an existing one).
+func TestStickyBFS_ClearsOnNewIntent(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Set UsingBFS flag as if character was navigating around an obstacle
+	char.UsingBFS = true
+	// No intent — CalculateIntent will create a new one from scratch
+	char.Intent = nil
+
+	// CalculateIntent should clear UsingBFS before creating new intent
+	CalculateIntent(char, nil, gameMap, nil, nil)
+
+	if char.UsingBFS {
+		t.Error("Expected UsingBFS=false after CalculateIntent creates a new intent")
 	}
 }

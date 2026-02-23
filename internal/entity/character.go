@@ -8,12 +8,12 @@ import (
 // Character represents a game character with preferences and survival stats
 type Character struct {
 	BaseEntity
-	ID          int
-	Name        string
-	Preferences      []Preference // Dynamic likes/dislikes for item attributes
-	Knowledge        []Knowledge  // Things learned through experience (facts)
-	KnownActivities  []string     // Activity IDs discovered (know-how)
-	KnownRecipes     []string     // Recipe IDs learned (e.g., "hollow-gourd")
+	ID              int
+	Name            string
+	Preferences     []Preference // Dynamic likes/dislikes for item attributes
+	Knowledge       []Knowledge  // Things learned through experience (facts)
+	KnownActivities []string     // Activity IDs discovered (know-how)
+	KnownRecipes    []string     // Recipe IDs learned (e.g., "hollow-gourd")
 
 	// Survival attributes
 	Health      float64
@@ -59,6 +59,11 @@ type Character struct {
 	DisplacementDX        int
 	DisplacementDY        int
 
+	// Sticky BFS state (ephemeral, not serialized)
+	// When true, continueIntent skips greedy step and uses BFS directly.
+	// Set when BFS is used to navigate around an obstacle; cleared on new intent or displacement.
+	UsingBFS bool
+
 	// Activity tracking
 	CurrentActivity string
 
@@ -74,16 +79,16 @@ type Character struct {
 
 // Intent represents what a character wants to do next tick
 type Intent struct {
-	Target           types.Position // Next step position (immediate move)
-	Dest             types.Position // Destination position (where we need to stand to interact)
-	Action           ActionType
-	TargetItem       *Item           // The specific item being pursued (nil if none)
-	TargetFeature    *Feature        // The specific feature being pursued (nil if none)
-	TargetWaterPos   *types.Position // Water tile being targeted for drinking (nil if none)
-	TargetCharacter  *Character      // The character being pursued for talking (nil if none)
-	RecipeID         string         // Recipe to craft (for ActionCraft)
-	DrivingStat      types.StatType // Which stat is driving this intent
-	DrivingTier      int            // The urgency tier when intent was set
+	Target          types.Position // Next step position (immediate move)
+	Dest            types.Position // Destination position (where we need to stand to interact)
+	Action          ActionType
+	TargetItem      *Item           // The specific item being pursued (nil if none)
+	TargetFeature   *Feature        // The specific feature being pursued (nil if none)
+	TargetWaterPos  *types.Position // Water tile being targeted for drinking (nil if none)
+	TargetCharacter *Character      // The character being pursued for talking (nil if none)
+	RecipeID        string          // Recipe to craft (for ActionCraft)
+	DrivingStat     types.StatType  // Which stat is driving this intent
+	DrivingTier     int             // The urgency tier when intent was set
 }
 
 // ActionType represents the type of action a character intends to take
@@ -97,13 +102,13 @@ const (
 	ActionSleep
 	ActionLook
 	ActionTalk
-	ActionPickup     // Picking up an item (used by harvest orders and order prerequisites)
-	ActionCraft      // Crafting an item (uses ActionProgress with Recipe.Duration)
-	ActionTillSoil   // Tilling a marked tile (uses ActionProgress with ActionDurationMedium)
-	ActionPlant      // Planting a plantable item on tilled soil (uses ActionProgress with ActionDurationMedium)
-	ActionFillVessel // Filling a vessel with water at water terrain (self-managing, uses RunVesselProcurement)
-	ActionForage       // Foraging food items, optionally picking up vessel first (self-managing, uses RunVesselProcurement)
-	ActionWaterGarden  // Watering dry tilled planted tiles (self-managing, consumes vessel water)
+	ActionPickup      // Picking up an item (used by harvest orders and order prerequisites)
+	ActionCraft       // Crafting an item (uses ActionProgress with Recipe.Duration)
+	ActionTillSoil    // Tilling a marked tile (uses ActionProgress with ActionDurationMedium)
+	ActionPlant       // Planting a plantable item on tilled soil (uses ActionProgress with ActionDurationMedium)
+	ActionFillVessel  // Filling a vessel with water at water terrain (self-managing, uses RunVesselProcurement)
+	ActionForage      // Foraging food items, optionally picking up vessel first (self-managing, uses RunVesselProcurement)
+	ActionWaterGarden // Watering dry tilled planted tiles (self-managing, consumes vessel water)
 )
 
 // NewCharacter creates a new character with the given preferences

@@ -163,6 +163,10 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 		}
 	}
 
+	// Creating a new intent from scratch — clear sticky BFS flag.
+	// (If continueIntent was called above and returned, UsingBFS was preserved.)
+	char.UsingBFS = false
+
 	// Evaluate which stat to address based on tier and tie-breakers
 
 	// Find the highest tier (health only counts if we can fulfill it)
@@ -342,7 +346,10 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 				if cx == ipos.X && cy == ipos.Y {
 					return intent // At vessel, ready for pickup
 				}
-				nx, ny := NextStepBFS(cx, cy, ipos.X, ipos.Y, gameMap)
+				nx, ny, usedBFS := nextStepBFSCore(cx, cy, ipos.X, ipos.Y, gameMap, char.UsingBFS)
+				if usedBFS {
+					char.UsingBFS = true
+				}
 				intent.Target = types.Position{X: nx, Y: ny}
 				return intent
 			}
@@ -363,7 +370,10 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		if cx == dest.X && cy == dest.Y {
 			return intent // At water destination, ready to fill
 		}
-		nx, ny := NextStepBFS(cx, cy, dest.X, dest.Y, gameMap)
+		nx, ny, usedBFS := nextStepBFSCore(cx, cy, dest.X, dest.Y, gameMap, char.UsingBFS)
+		if usedBFS {
+			char.UsingBFS = true
+		}
 		intent.Target = types.Position{X: nx, Y: ny}
 		return intent
 	}
@@ -380,7 +390,10 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 				if cx == ipos.X && cy == ipos.Y {
 					return intent // At vessel, ready for pickup
 				}
-				nx, ny := NextStepBFS(cx, cy, ipos.X, ipos.Y, gameMap)
+				nx, ny, usedBFS := nextStepBFSCore(cx, cy, ipos.X, ipos.Y, gameMap, char.UsingBFS)
+				if usedBFS {
+					char.UsingBFS = true
+				}
 				intent.Target = types.Position{X: nx, Y: ny}
 				return intent
 			}
@@ -401,7 +414,10 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		if cx == dest.X && cy == dest.Y {
 			return intent // At destination, ready for fill or water
 		}
-		nx, ny := NextStepBFS(cx, cy, dest.X, dest.Y, gameMap)
+		nx, ny, usedBFS := nextStepBFSCore(cx, cy, dest.X, dest.Y, gameMap, char.UsingBFS)
+		if usedBFS {
+			char.UsingBFS = true
+		}
 		intent.Target = types.Position{X: nx, Y: ny}
 		return intent
 	}
@@ -553,8 +569,8 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 			char.CurrentActivity = newActivity
 		}
 		return &entity.Intent{
-			Target:          types.Position{X: cx, Y: cy}, // Stay in place
-			Dest:            types.Position{X: cx, Y: cy}, // Already at destination (adjacent to item)
+			Target:     types.Position{X: cx, Y: cy}, // Stay in place
+			Dest:       types.Position{X: cx, Y: cy}, // Already at destination (adjacent to item)
 			Action:     entity.ActionLook,
 			TargetItem: intent.TargetItem,
 		}
@@ -570,7 +586,10 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		}
 	}
 
-	nx, ny := NextStepBFS(cx, cy, tx, ty, gameMap)
+	nx, ny, usedBFS := nextStepBFSCore(cx, cy, tx, ty, gameMap, char.UsingBFS)
+	if usedBFS {
+		char.UsingBFS = true
+	}
 
 	return &entity.Intent{
 		Target:          types.Position{X: nx, Y: ny},
@@ -1125,22 +1144,32 @@ func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 // Ignores characters since they move and per-tick collision is handled separately.
 // Falls back to greedy NextStep if no BFS path exists either.
 func NextStepBFS(fromX, fromY, toX, toY int, gameMap *game.Map) (int, int) {
+	nx, ny, _ := nextStepBFSCore(fromX, fromY, toX, toY, gameMap, false)
+	return nx, ny
+}
+
+// nextStepBFSCore is the internal pathfinding implementation.
+// When preferBFS is true, skips the greedy step and goes straight to BFS.
+// Returns usedBFS=true whenever BFS was actually used (greedy was skipped or blocked).
+func nextStepBFSCore(fromX, fromY, toX, toY int, gameMap *game.Map, preferBFS bool) (int, int, bool) {
 	if fromX == toX && fromY == toY {
-		return fromX, fromY
+		return fromX, fromY, false
 	}
 
 	// Nil map fallback - used in tests that don't need pathfinding
 	if gameMap == nil {
-		return NextStep(fromX, fromY, toX, toY)
+		nx, ny := NextStep(fromX, fromY, toX, toY)
+		return nx, ny, false
 	}
 
-	// Prefer greedy step for natural diagonal/zigzag movement.
-	// Only fall through to BFS when greedy hits terrain obstacles.
-	gx, gy := NextStep(fromX, fromY, toX, toY)
-	greedyPos := types.Position{X: gx, Y: gy}
-	if gameMap.IsValid(greedyPos) && !gameMap.IsWater(greedyPos) {
-		if f := gameMap.FeatureAt(greedyPos); f == nil || f.IsPassable() {
-			return gx, gy
+	// Try greedy step first (unless preferBFS forces BFS)
+	if !preferBFS {
+		gx, gy := NextStep(fromX, fromY, toX, toY)
+		greedyPos := types.Position{X: gx, Y: gy}
+		if gameMap.IsValid(greedyPos) && !gameMap.IsWater(greedyPos) {
+			if f := gameMap.FeatureAt(greedyPos); f == nil || f.IsPassable() {
+				return gx, gy, false
+			}
 		}
 	}
 
@@ -1173,7 +1202,7 @@ func NextStepBFS(fromX, fromY, toX, toY int, gameMap *game.Map) (int, int) {
 		}
 		visited[neighbor] = true
 		if neighbor == to {
-			return neighbor.X, neighbor.Y
+			return neighbor.X, neighbor.Y, true
 		}
 		queue = append(queue, node{pos: neighbor, firstStep: neighbor})
 	}
@@ -1195,14 +1224,15 @@ func NextStepBFS(fromX, fromY, toX, toY int, gameMap *game.Map) (int, int) {
 			}
 			visited[neighbor] = true
 			if neighbor == to {
-				return cur.firstStep.X, cur.firstStep.Y
+				return cur.firstStep.X, cur.firstStep.Y, true
 			}
 			queue = append(queue, node{pos: neighbor, firstStep: cur.firstStep})
 		}
 	}
 
 	// No path found - fall back to greedy
-	return NextStep(fromX, fromY, toX, toY)
+	nx, ny := NextStep(fromX, fromY, toX, toY)
+	return nx, ny, false
 }
 
 // NextStep calculates the next position moving toward target

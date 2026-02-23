@@ -382,13 +382,13 @@ func createTestVesselWithRegistry() (*entity.Item, *game.VarietyRegistry) {
 		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	})
 	registry.Register(&entity.ItemVariety{
 		ID:       entity.GenerateVarietyID("berry", types.ColorBlue, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorBlue,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	})
 
 	vessel := &entity.Item{
@@ -478,7 +478,7 @@ func TestApplyIntent_HarvestOrderWithVessel_CompletesWhenFull(t *testing.T) {
 		Color:    types.ColorGreen,
 		Pattern:  types.PatternStriped,
 		Texture:  types.TextureWarty,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	})
 	gameMap.SetVarieties(registry)
 
@@ -545,7 +545,7 @@ func TestApplyIntent_HarvestOrderWithoutVessel_CompletesAfterOneItem(t *testing.
 		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	})
 	gameMap.SetVarieties(registry)
 
@@ -3164,5 +3164,36 @@ func TestDisplacement_IntentPreservedThroughDisplacement(t *testing.T) {
 	}
 	if char.Intent.Dest.X != 10 || char.Intent.Dest.Y != 5 {
 		t.Error("Dest should be preserved through displacement")
+	}
+}
+
+// Sticky BFS flag clears when displacement is initiated (character collision
+// resets to greedy-first mode for the new direction after sidestepping).
+func TestDisplacement_ClearsUsingBFS(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Mover", "berries", types.ColorRed)
+	blocker := entity.NewCharacter(2, 6, 5, "Blocker", "berries", types.ColorRed)
+	gameMap.AddCharacter(char)
+	gameMap.AddCharacter(blocker)
+
+	// Simulate character was using BFS to navigate around a pond
+	char.UsingBFS = true
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionMove,
+		Target: types.Position{X: 6, Y: 5},
+		Dest:   types.Position{X: 10, Y: 5},
+	}
+	char.SpeedAccumulator = 10.0
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, 0.1)
+
+	// Displacement should have fired (character moved perpendicular)
+	// and UsingBFS should be cleared
+	if char.UsingBFS {
+		t.Error("Expected UsingBFS=false after displacement initiation")
 	}
 }

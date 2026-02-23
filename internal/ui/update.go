@@ -1760,6 +1760,7 @@ func (m *Model) initiateDisplacement(char *entity.Character, cx, cy, tx, ty int)
 	char.DisplacementStepsLeft = 3
 	char.DisplacementDX = chDX
 	char.DisplacementDY = chDY
+	char.UsingBFS = false // Clear sticky BFS — new direction after sidestepping
 
 	// Take the first displacement step this tick
 	dispPos := types.Position{X: cx + chDX, Y: cy + chDY}
@@ -2122,4 +2123,3 @@ func (m *Model) setOrderFlash(displayName string) {
 	}
 	m.orderFlashEnd = now.Add(2 * time.Second)
 }
-

@@ -108,6 +108,10 @@ Base speed modified by penalties that stack:
 
 Speed accumulator gates movement; higher speed = more moves per tick.
 
+## Pathfinding
+
+Characters use greedy-first pathfinding: they try to move diagonally toward their target and only run full obstacle-aware (BFS) pathfinding if the direct step is blocked by water or an impassable feature. Once a character switches to BFS to navigate around an obstacle (such as a pond), they stay in BFS mode for the rest of that intent — they will not oscillate back to greedy stepping mid-route. BFS mode clears when the character reaches their target, changes intent, or bumps into another character (which triggers sideways displacement instead).
+
 ## Action Duration
 
 Drinking, eating, and falling asleep have a duration before completing. Collapse at Energy=0 is immediate (involuntary).

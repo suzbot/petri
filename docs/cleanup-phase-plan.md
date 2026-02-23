@@ -21,10 +21,9 @@ Requirements: [post-gardening-cleanup.md](post-gardening-cleanup.md)
 ## Implementation Order
 
 Items refined and ready to implement, in order:
-1. **1A** — Move `CreateVessel`/`CreateHoe` (trivial relocation warmup)
-2. **2A** — Sticky BFS pathing (meatiest behavior change, get in early)
-3. **2C** — Numbered order selection (self-contained UI work)
-4. **2B** — Esc key cleanup (investigation step may surface scope surprises, do last)
+1. **2A** — Sticky BFS pathing (meatiest behavior change, get in early)
+2. **2C** — Numbered order selection (self-contained UI work)
+3. **2B** — Esc key cleanup (investigation step may surface scope surprises, do last)
 
 Items needing refinement before implementation:
 - **3A** — Gather orders (4 open design questions)
@@ -37,20 +36,9 @@ Items needing refinement before implementation:
 
 Lightweight assessments that inform whether follow-up work exists. Fine outcome for any of these: "no action needed."
 
-### 1A. Misplaced Functions Audit — Move `CreateVessel`/`CreateHoe`
+### 1A. Misplaced Functions Audit ✅
 
-**Outcome of audit:** `createItemFromVariety` is in `game/world.go` (correctly placed — world generation). `ConsumeAccessibleItem` is in `entity/character.go` (correctly placed — character inventory). Everything else follows the entity/system/game separation cleanly.
-
-**One misplacement found:** `CreateVessel()` and `CreateHoe()` in `system/crafting.go` are pure item constructors with no system-level logic (`CreateHoe` literally wraps `entity.NewHoe()`). Move both to `entity/item.go` alongside the other 11 `New*` constructors.
-
-**Pattern reference:** Consistency Over Local Cleverness (Values.md) — item constructors belong with item constructors.
-
-**Implementation:**
-1. Move `CreateVessel` and `CreateHoe` from `system/crafting.go` to `entity/item.go`
-2. Update callers (in `ui/update.go` ActionCraft handler) to call `entity.CreateVessel` / `entity.CreateHoe`
-3. Run tests — no behavior change, just relocation
-
-[TEST] — No human testing needed. Pure code relocation, no behavior change. Verify via `go test ./...`.
+**Outcome:** No action needed. `createItemFromVariety` is in `game/world.go` (correctly placed — world generation). `ConsumeAccessibleItem` is in `entity/character.go` (correctly placed — character inventory). `CreateVessel`/`CreateHoe` in `system/crafting.go` are correctly placed — crafting logic belongs in the system layer. Everything follows the entity/system/game separation cleanly.
 
 ### 1B. ItemType Constants Evaluation ✅
 
@@ -70,7 +58,7 @@ Lightweight assessments that inform whether follow-up work exists. Fine outcome 
 
 Each is independently shippable and human-testable, with its own [TEST], [DOCS], [RETRO] cycle.
 
-### 2A. Pathing Improvement
+### 2A. Pathing Improvement ✅
 
 **Player impact:** Characters no longer thrash back and forth when a target is across an irregularly shaped pond. Once a character switches to BFS pathfinding to navigate around an obstacle, they stay in BFS mode until they reach their target or bump into another character.
 

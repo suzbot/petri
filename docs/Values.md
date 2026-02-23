@@ -89,3 +89,11 @@ Example: Greedy-first pathfinding was tested alone. It solved path convergence b
 When presenting implementation options, describe what each option means — for player experience, structural alignment with vision, scalability, performance. Options described in implementation jargon (function signatures, parameter passing patterns, module boundaries) can't be evaluated for design alignment. If the implications are identical and the difference is purely mechanical, it's not a decision — make the call and move on.
 
 Example: "Option A: the pathfinding function takes a flag. Option B: the caller bypasses the function" — indistinguishable without reading code. "Both options produce the same player behavior; this is a code organization choice I'll handle" — evaluable in one sentence.
+
+## Pause Before Solving
+
+Before working on a solution, confirm the problem. This applies at every scale — investigation findings, implementation surprises, test failures, scope changes. The check-in is: Is this actually a problem? What specifically is the problem? Why does it matter? Is it worth solving now? Only after those questions have answers (from discussion, not assumed) should solution work begin.
+
+The recurring failure mode is momentum: something looks like it needs fixing, so fixing begins immediately. Investigation is expected to produce action items, so it produces one even when the honest answer is "nothing needs to change." A test fails, so debugging starts before asking whether the test is even testing the right thing. Implementation hits a snag, so workarounds multiply before stepping back to ask whether the approach is sound. In each case, the cost of pausing to frame the problem is low, and the cost of solving the wrong problem — or a non-problem — compounds across every subsequent phase that inherits the unexamined premise.
+
+When the situation diverges from expectations, make that divergence visible and get agreement on what it means before acting on it.

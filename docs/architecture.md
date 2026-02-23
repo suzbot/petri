@@ -459,7 +459,9 @@ Features have a `Passable` boolean — impassable features are handled by `IsBlo
 
 ### Movement & Pathfinding
 
-**`NextStepBFS`**: Greedy-first pathfinding. Tries a greedy diagonal step (moving along the larger of X or Y delta) before running BFS. If the greedy step is clear, takes it — this produces natural zigzag paths and spreads characters heading to the same destination across different routes. BFS only runs when the greedy step hits water or an impassable feature. Falls back to greedy `NextStep` if no BFS path exists. Used by all callers with gameMap access.
+**`NextStepBFS`**: Greedy-first pathfinding. Tries a greedy diagonal step (moving along the larger of X or Y delta) before running BFS. If the greedy step is clear, takes it — this produces natural zigzag paths and spreads characters heading to the same destination across different routes. BFS only runs when the greedy step hits water or an impassable feature. Falls back to greedy `NextStep` if no BFS path exists. Used by all callers with gameMap access. The public function is a thin wrapper over `nextStepBFSCore(preferBFS bool)`.
+
+**Sticky BFS (`UsingBFS` flag)**: Once a character uses BFS to navigate around an obstacle, they stay in BFS mode for the remainder of that intent. `UsingBFS bool` is an ephemeral field on Character (not serialized, like displacement fields). `continueIntent` passes `char.UsingBFS` as `preferBFS` to `nextStepBFSCore` and sets `char.UsingBFS = true` when BFS was actually used. The flag clears in two places: (a) when `Intent` is nilled in `CalculateIntent` (covers reaching target and intent changes), and (b) when `initiateDisplacement` fires (covers character collision). This follows the displacement precedent — ephemeral, not serialized, clears on save/load.
 
 **`NextStep`**: Greedy single-step toward target along larger axis delta. No obstacle awareness. Fallback only.
 

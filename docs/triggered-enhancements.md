@@ -25,6 +25,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Preference-weighted component procurement** | Multiple craft recipes with varied inputs; Characters feel flat when seeking components; Scoring math exists in foraging.go to reuse |
 | **applyIntent duplication (simulation.go)** | INTENTIONALLY SEPARATE - simulation.go is lighter test harness; only unify if maintaining both becomes burdensome |
 | **Temporarily-blocked order cooldown** | Assign/abandon churn noticeable for temporarily-blocked (but feasible) orders; Character visibly thrashes between taking and abandoning the same order |
+| **Smarter displacement direction** | Displacement oscillation visible in crowded (16-char) worlds; Characters pick a displacement perpendicular that leads back toward the blocker instead of away |
 | **Interactive inventory details panel** | Items gain enough attributes that parenthetical summary in inventory list isn't sufficient; Want to inspect individual inventory items with full details view |
 | **Drinkable bool on ItemVariety**      | Non-drinkable liquid introduced (lamp oil, dye); Need to distinguish consumable vs non-consumable liquids |
 | **Watertight bool on ContainerData**   | Non-watertight container introduced (basket, sack); Need to prevent liquid storage in permeable containers |
@@ -118,6 +119,19 @@ Candidates to generalize into picking.go when this triggers:
 **Recipe selection by preference** is a natural extension of this same system. `findCraftIntent` currently picks the first feasible recipe for an activity. When multiple recipes produce the same product (e.g., shell hoe, metal hoe, wooden hoe), the character could score each feasible recipe by net preference for its inputs — a character who likes silver shells would prefer the shell-hoe recipe and then prefer silver shells as input. The `findCraftIntent` structure (get feasible recipes → pick one → gather inputs) has the selection point built in at step 3.
 
 Deferred because: Craft Hoe is the first multi-component recipe, and there's only one recipe per activity. Nearest-distance works fine. Revisit when multiple recipes per activity create enough variety that "character ignores preferred recipe/material" feels wrong.
+
+---
+
+**Smarter displacement direction:**
+
+In crowded worlds (16 characters), the 3-step perpendicular displacement sometimes picks the wrong perpendicular direction — the one that leads back toward the blocker rather than away. This happens because the character may be on an alternating greedy step that makes one perpendicular look clear but ultimately unhelpful. The character then thrashes briefly (a few ticks) before resolving. Sticky BFS doesn't help here because the issue is displacement direction choice, not greedy-vs-BFS oscillation.
+
+Possible approaches:
+- Bias displacement toward the BFS-recommended direction (the direction BFS would have gone)
+- Try both perpendiculars and pick the one that makes more progress toward the destination
+- Increase displacement steps (currently 3) in proportion to how many blockers are nearby
+
+Deferred because: The thrashing is brief and self-resolving (not infinite like the pre-sticky-BFS pond oscillation). Only noticeable in crowded worlds. Sticky BFS handles the primary pathfinding oscillation case.
 
 ---
 
