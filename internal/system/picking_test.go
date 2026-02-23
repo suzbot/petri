@@ -258,7 +258,38 @@ func TestEnsureHasVesselFor_FullVessel_DropAndFind(t *testing.T) {
 	}
 }
 
-func TestEnsureHasVesselFor_NoInventorySpace(t *testing.T) {
+func TestEnsureHasVesselFor_NoInventorySpace_NoDropConflict(t *testing.T) {
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	// Character with full inventory (no vessel)
+	berry1 := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	berry2 := entity.NewBerry(0, 0, types.ColorBlue, false, false)
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{berry1, berry2},
+	}
+	char.X = 0
+	char.Y = 0
+
+	// Target and available vessel
+	target := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	vessel := createTestVessel()
+	vessel.X = 3
+	vessel.Y = 3
+	items := []*entity.Item{target, vessel}
+
+	intent := EnsureHasVesselFor(char, target, items, gameMap, nil, false, "forage")
+
+	// Should return nil - no space and not allowed to drop
+	if intent != nil {
+		t.Error("Should return nil when no inventory space and dropConflict=false")
+	}
+}
+
+func TestEnsureHasVesselFor_DropsItemWhenFullOnOrder(t *testing.T) {
 	registry := createTestRegistry()
 	gameMap := game.NewMap(10, 10)
 	gameMap.SetVarieties(registry)
@@ -283,9 +314,15 @@ func TestEnsureHasVesselFor_NoInventorySpace(t *testing.T) {
 
 	intent := EnsureHasVesselFor(char, target, items, gameMap, nil, true, "order")
 
-	// Should return nil - no space for vessel
-	if intent != nil {
-		t.Error("Should return nil when no inventory space for vessel")
+	// Should drop an item and return intent to pick up vessel
+	if intent == nil {
+		t.Fatal("Should return vessel pickup intent when dropConflict=true")
+	}
+	if len(char.Inventory) != 1 {
+		t.Errorf("Should have 1 item after dropping, got %d", len(char.Inventory))
+	}
+	if intent.TargetItem != vessel {
+		t.Error("Intent should target the available vessel")
 	}
 }
 
@@ -1405,5 +1442,29 @@ func TestRunVesselProcurement_NilVessel_ReturnsFailed(t *testing.T) {
 	status := RunVesselProcurement(char, nil, gameMap, nil, registry, 0.1)
 	if status != ProcureFailed {
 		t.Errorf("Expected ProcureFailed for nil vessel, got %d", status)
+	}
+}
+
+// =============================================================================
+// Nut Variety Registration Tests
+// =============================================================================
+
+// TestNutVariety_AddToVessel verifies that a nut can be added to a vessel once
+// nut varieties are registered — the end-to-end requirement for gather vessel support.
+func TestNutVariety_AddToVessel(t *testing.T) {
+	t.Parallel()
+
+	registry := game.GenerateVarieties()
+	vessel := createTestVessel()
+	nut := entity.NewNut(5, 5)
+
+	if !AddToVessel(vessel, nut, registry) {
+		t.Error("AddToVessel should succeed for nut when nut variety is registered")
+	}
+	if len(vessel.Container.Contents) != 1 {
+		t.Fatalf("Vessel contents: got %d stacks, want 1", len(vessel.Container.Contents))
+	}
+	if vessel.Container.Contents[0].Count != 1 {
+		t.Errorf("Vessel stack count: got %d, want 1", vessel.Container.Contents[0].Count)
 	}
 }

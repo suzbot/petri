@@ -1519,6 +1519,21 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 					}
 					lines = append(lines, fmt.Sprintf("%s%d. %s", prefix, i+1, activity.Name))
 				}
+			} else if m.selectedActivityIndex < len(orderableActivities) &&
+				orderableActivities[m.selectedActivityIndex].ID == "gather" {
+				// Gather selected - show gatherable types on ground
+				gatherTypes := game.GetGatherableTypes(m.gameMap.Items())
+				lines = append(lines, indent+"Select type to gather:", "")
+				if len(gatherTypes) == 0 {
+					lines = append(lines, selectIndent+"(nothing to gather)")
+				}
+				for i, gt := range gatherTypes {
+					prefix := selectIndent
+					if i == m.selectedTargetIndex {
+						prefix = selectPrefix
+					}
+					lines = append(lines, fmt.Sprintf("%s%d. %s", prefix, i+1, gt.DisplayName))
+				}
 			} else {
 				// Harvest selected - show item types
 				edibleTypes := m.getEdibleItemTypes()
@@ -1648,13 +1663,19 @@ func (m Model) getOrderableActivities() []entity.Activity {
 	knownCategories := map[string]bool{}
 
 	for _, activity := range entity.ActivityRegistry {
-		if activity.Availability != entity.AvailabilityKnowHow {
-			continue // Only knowhow activities are orderable
-		}
 		if activity.IntentFormation != entity.IntentOrderable {
 			continue // Only orderable activities
 		}
-		// Check if any living character knows this activity
+		if activity.Availability == entity.AvailabilityDefault {
+			// Always available — no know-how check needed
+			if activity.Category != "" {
+				knownCategories[activity.Category] = true
+			} else {
+				result = append(result, activity)
+			}
+			continue
+		}
+		// AvailabilityKnowHow: check if any living character knows this activity
 		for _, char := range chars {
 			if !char.IsDead && char.KnowsActivity(activity.ID) {
 				if activity.Category != "" {

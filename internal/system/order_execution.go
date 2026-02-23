@@ -129,6 +129,8 @@ func findOrderIntent(char *entity.Character, pos types.Position, items []*entity
 		return findPlantIntent(char, pos, items, order, log, gameMap)
 	case "waterGarden":
 		return findWaterGardenIntent(char, pos, items, order, log, gameMap)
+	case "gather":
+		return findGatherIntent(char, pos, items, order, log, gameMap)
 	default:
 		// Unknown activity type - cannot create intent
 		return nil
@@ -509,6 +511,8 @@ func IsOrderFeasible(order *entity.Order, items []*entity.Item, gameMap *game.Ma
 		return PlantableItemExists(items, chars, order.TargetType), false
 	case "waterGarden":
 		return waterGardenFeasible(chars, items, gameMap), false
+	case "gather":
+		return groundItemOfTypeExists(items, order.TargetType), false
 	default:
 		return true, false // Unknown activity type, assume feasible
 	}
@@ -777,6 +781,112 @@ func DryTilledPlantedTileExists(items []*entity.Item, gameMap *game.Map) bool {
 		}
 		pos := item.Pos()
 		if gameMap.IsTilled(pos) && !gameMap.IsWet(pos) {
+			return true
+		}
+	}
+	return false
+}
+
+// findGatherIntent creates an intent to gather (pick up) a specific item type per order.
+// Follows findHarvestIntent with two differences:
+//   - Uses growingOnly=false to find non-plant ground items
+//   - Checks variety registry: items with a variety use vessel procurement; items without (sticks)
+//     check inventory space directly.
+func findGatherIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	// Find nearest item matching the order's target type (growingOnly=false)
+	target := findNearestItemByType(pos.X, pos.Y, items, order.TargetType, false)
+	if target == nil {
+		return nil // No matching items - will trigger abandonment
+	}
+
+	// Check if item has a registered variety (determines vessel vs. direct inventory path)
+	registry := gameMap.Varieties()
+	variety := registry.GetByAttributes(target.ItemType, target.Color, target.Pattern, target.Texture)
+
+	if variety != nil {
+		// Item has variety — use vessel procurement (same as harvest)
+		if intent := EnsureHasVesselFor(char, target, items, gameMap, log, true, "order"); intent != nil {
+			return intent
+		}
+	} else {
+		// No variety (e.g., sticks) — must have inventory space to pick up
+		if !char.HasInventorySpace() {
+			return nil
+		}
+	}
+
+	// Ready to gather
+	tpos := target.Pos()
+	tx, ty := tpos.X, tpos.Y
+
+	if pos.X == tx && pos.Y == ty {
+		newActivity := "Gathering " + target.Description()
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+		}
+		return &entity.Intent{
+			Target:     pos,
+			Dest:       pos,
+			Action:     entity.ActionPickup,
+			TargetItem: target,
+		}
+	}
+
+	nx, ny := NextStepBFS(pos.X, pos.Y, tx, ty, gameMap)
+	newActivity := "Moving to gather " + target.Description()
+	if char.CurrentActivity != newActivity {
+		char.CurrentActivity = newActivity
+	}
+	return &entity.Intent{
+		Target:     types.Position{X: nx, Y: ny},
+		Dest:       types.Position{X: tx, Y: ty},
+		Action:     entity.ActionPickup,
+		TargetItem: target,
+	}
+}
+
+// FindGatherIntentForTest is an exported wrapper for integration tests in other packages.
+func FindGatherIntentForTest(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	return findGatherIntent(char, pos, items, order, log, gameMap)
+}
+
+// FindNextGatherTarget finds the next item to gather for order continuation.
+// Returns nil if inventory is full or no matching targets exist.
+func FindNextGatherTarget(char *entity.Character, cx, cy int, items []*entity.Item, targetType string, gameMap *game.Map) *entity.Intent {
+	if !char.HasInventorySpace() {
+		return nil
+	}
+
+	target := findNearestItemByType(cx, cy, items, targetType, false)
+	if target == nil {
+		return nil
+	}
+
+	tpos := target.Pos()
+	tx, ty := tpos.X, tpos.Y
+
+	if cx == tx && cy == ty {
+		return &entity.Intent{
+			Target:     types.Position{X: cx, Y: cy},
+			Dest:       types.Position{X: cx, Y: cy},
+			Action:     entity.ActionPickup,
+			TargetItem: target,
+		}
+	}
+
+	nx, ny := NextStepBFS(cx, cy, tx, ty, gameMap)
+	return &entity.Intent{
+		Target:     types.Position{X: nx, Y: ny},
+		Dest:       types.Position{X: tx, Y: ty},
+		Action:     entity.ActionPickup,
+		TargetItem: target,
+	}
+}
+
+// groundItemOfTypeExists checks if any item of the given type exists on the ground.
+func groundItemOfTypeExists(items []*entity.Item, itemType string) bool {
+	for _, item := range items {
+		if item.ItemType == itemType {
 			return true
 		}
 	}

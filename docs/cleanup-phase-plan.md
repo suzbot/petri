@@ -250,7 +250,7 @@ Player sees teal highlight while dragging a selection rectangle, sage for confir
 
 ## Part 3: Small Features
 
-### 3A. Gather Orders
+### 3A. Gather Orders ✅
 
 **Player impact:** Players can direct characters to gather loose items (sticks, nuts, shells, seeds) via the orders menu. "Gather" appears alongside Harvest, Craft, and Garden at the top level. Player selects an item type from a dynamic list of what's currently on the ground. Characters seek and pick up items of that type, filling vessels for seeds, nuts, and shells (supporting planting and snacking workflows), while sticks go directly to hand (bundling deferred to Construction). Anchor story: "Player gathers gourd seeds into a vessel for easy planting later."
 
@@ -276,7 +276,7 @@ Player sees teal highlight while dragging a selection rectangle, sage for confir
 
 **Implementation:**
 
-**Step 1: Nut variety registration + shell stack size**
+**Step 1: Nut variety registration + shell stack size ✅**
 
 Prerequisite for vessel support during gathering. Nuts get a variety in the registry so they can be stacked in vessels. Shells get an explicit stack size of 4.
 
@@ -286,9 +286,11 @@ Prerequisite for vessel support during gathering. Nuts get a variety in the regi
 
 [TEST] No human testing — pure logic. Verified via unit tests.
 
-**Step 2: Gather order execution**
+**Step 2: Gather order execution ✅**
 
 Character assigned a gather order seeks and picks up items of the target type. Seeds, nuts, and shells fill vessels; sticks go to hand. Order completes when no more items remain or inventory is full.
+
+**Progress:** All tests written in `order_execution_test.go` and `variety_generation_test.go`. Tests compile-fail as expected (functions don't exist yet). Next: implement activity registry entry, `findGatherIntent`, `FindNextGatherTarget`, `IsOrderFeasible` gather case, `GetGatherableTypes`, then ActionPickup handler extension in `update.go`.
 
 1. **Tests first:** Test `findGatherIntent` returns pickup intent for nearest gatherable item. Test vessel procurement for seeds/nuts (items with varieties). Test sticks skip vessel procurement and check inventory space. Test `FindNextGatherTarget` returns nil when inventory full. Test `IsOrderFeasible` for gather orders. Test `GetGatherableTypes` returns correct dynamic list.
 2. **Activity registry** (`entity/activity.go`): Add "gather" entry — `IntentOrderable`, `AvailabilityDefault`, no Category, no DiscoveryTriggers.
@@ -304,7 +306,7 @@ Character assigned a gather order seeks and picks up items of the target type. S
 
 [TEST] No human testing yet — unit tests only. UI wiring in Step 3.
 
-**Step 3: Order UI integration + human testing**
+**Step 3: Order UI integration + human testing ✅**
 
 Player sees "Gather" in the orders menu and can select from available gatherable item types.
 
@@ -320,6 +322,20 @@ Player sees "Gather" in the orders menu and can select from available gatherable
 - Gather sticks → character picks up sticks to inventory only (no vessel seeking). Verify order completes when inventory full.
 - Verify "Gather" appears in orders menu. Verify only types present on the ground show up.
 - Verify order completes when no more items of target type remain.
+
+**Step 3.5: Regression tests for bugs found during human testing ✅**
+
+Two flow-level anchor tests chain the system functions in the sequence the UI handler calls them, exercising the full gather order lifecycle:
+- **`TestGatherOrder_VesselPath_EndToEnd`** — Full inventory → drop item → pick up vessel → gather nuts into vessel → continuation → completion. Covers bugs #1 (HasItemOnMap pointer identity), #2 (EnsureHasVesselFor drop), #5 (vessel prerequisite guard).
+- **`TestGatherOrder_InventoryPath_EndToEnd`** — Empty inventory → pick up stick → continuation → second stick → inventory full → completion. Covers bug #4 (vessel guard doesn't block stick continuation).
+
+Additional targeted tests:
+- **`TestHasItemOnMap_TwoItemsSamePosition`** (`map_test.go`) — Two items at same position, pointer identity works where `ItemAt` would return wrong item (bug #1).
+- **`TestFindNextGatherTarget_FindsNextStickWithVesselInInventory`** (`order_execution_test.go`) — Validates the system function works for character carrying vessel + gathering sticks (bug #4).
+
+Previously covered: Bug #2 by `TestEnsureHasVesselFor_DropsItemWhenFullOnOrder`, Bug #3 by `TestFindNextVesselTarget_FindsNonGrowingWhenNotGrowingOnly`.
+
+**Note:** The UI-layer branching in update.go's ActionPickup handler (which function to call after pickup, and when to skip continuation for vessel prerequisites) is verified by human testing. When Construction adds more ordered actions, consider making the simulation package order-aware for automated e2e coverage of the full handler.
 
 **Step 4:** [DOCS] + [RETRO]
 

@@ -2539,3 +2539,454 @@ func TestFindWaterGardenIntent_ReturnsNilWhenNoDryTiles(t *testing.T) {
 		t.Error("Expected nil intent when all tilled planted tiles are already wet")
 	}
 }
+
+// =============================================================================
+// Gather Order Tests
+// =============================================================================
+
+// TestFindGatherIntent_ReturnsPickupForNearestItem is the anchor test:
+// a character with a gather order gets a pickup intent targeting the nearest item of that type.
+func TestFindGatherIntent_ReturnsPickupForNearestItem(t *testing.T) {
+	t.Parallel()
+
+	registry := game.GenerateVarieties()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	nut := entity.NewNut(7, 5)
+	gameMap.AddItem(nut)
+
+	order := entity.NewOrder(1, "gather", "nut")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	items := gameMap.Items()
+	intent := FindGatherIntentForTest(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected pickup intent for nearest gatherable item, got nil")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Intent.Action: got %v, want ActionPickup", intent.Action)
+	}
+	if intent.TargetItem != nut {
+		t.Errorf("Intent.TargetItem: got %v, want nut", intent.TargetItem)
+	}
+}
+
+// TestFindGatherIntent_VesselProcurementForNut verifies that when gathering nuts
+// (which have registered varieties), the character seeks a vessel.
+func TestFindGatherIntent_VesselProcurementForNut(t *testing.T) {
+	t.Parallel()
+
+	registry := game.GenerateVarieties()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	// Character has no vessel; a vessel is on the ground
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	vessel := createTestVessel()
+	vessel.X = 3
+	vessel.Y = 5
+	gameMap.AddItem(vessel)
+
+	nut := entity.NewNut(7, 5)
+	gameMap.AddItem(nut)
+
+	order := entity.NewOrder(1, "gather", "nut")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	items := gameMap.Items()
+	intent := FindGatherIntentForTest(char, char.Pos(), items, order, nil, gameMap)
+
+	// Should return an intent to pick up the vessel first
+	if intent == nil {
+		t.Fatal("Expected intent to procure vessel, got nil")
+	}
+	if intent.TargetItem != vessel {
+		t.Errorf("Intent.TargetItem: expected vessel (for procurement), got %v", intent.TargetItem)
+	}
+}
+
+// TestFindGatherIntent_StickSkipsVessel verifies that when gathering sticks
+// (no registered variety), the character picks up directly without vessel procurement.
+func TestFindGatherIntent_StickSkipsVessel(t *testing.T) {
+	t.Parallel()
+
+	registry := game.GenerateVarieties()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Vessel on the ground — should NOT be targeted for sticks
+	vessel := createTestVessel()
+	vessel.X = 3
+	vessel.Y = 5
+	gameMap.AddItem(vessel)
+
+	stick := entity.NewStick(7, 5)
+	gameMap.AddItem(stick)
+
+	order := entity.NewOrder(1, "gather", "stick")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	items := gameMap.Items()
+	intent := FindGatherIntentForTest(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected pickup intent for stick, got nil")
+	}
+	if intent.TargetItem != stick {
+		t.Errorf("Intent.TargetItem: expected stick, got %v", intent.TargetItem)
+	}
+}
+
+// TestFindGatherIntent_StickNilWhenInventoryFull verifies that when gathering sticks
+// (no variety) with a full inventory, findGatherIntent returns nil.
+func TestFindGatherIntent_StickNilWhenInventoryFull(t *testing.T) {
+	t.Parallel()
+
+	registry := game.GenerateVarieties()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.Inventory = []*entity.Item{entity.NewStick(0, 0), entity.NewStick(0, 0)}
+	gameMap.AddCharacter(char)
+
+	stick := entity.NewStick(7, 5)
+	gameMap.AddItem(stick)
+
+	order := entity.NewOrder(1, "gather", "stick")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	items := gameMap.Items()
+	intent := FindGatherIntentForTest(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent != nil {
+		t.Errorf("Expected nil intent when inventory full and no variety (stick), got %v", intent)
+	}
+}
+
+// TestFindNextGatherTarget_NilWhenInventoryFull verifies completion signal when full.
+func TestFindNextGatherTarget_NilWhenInventoryFull(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.Inventory = []*entity.Item{entity.NewNut(0, 0), entity.NewNut(0, 0)}
+	gameMap.AddCharacter(char)
+
+	nut := entity.NewNut(7, 5)
+	gameMap.AddItem(nut)
+
+	intent := FindNextGatherTarget(char, 5, 5, gameMap.Items(), "nut", gameMap)
+	if intent != nil {
+		t.Errorf("Expected nil when inventory full, got %v", intent)
+	}
+}
+
+// TestFindNextGatherTarget_NilWhenNoItems verifies completion signal when no more items.
+func TestFindNextGatherTarget_NilWhenNoItems(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	intent := FindNextGatherTarget(char, 5, 5, []*entity.Item{}, "nut", gameMap)
+	if intent != nil {
+		t.Errorf("Expected nil when no items exist, got %v", intent)
+	}
+}
+
+// TestIsOrderFeasible_GatherOrder verifies feasibility when target type exists on ground.
+func TestIsOrderFeasible_GatherOrder(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	nut := entity.NewNut(5, 5)
+	gameMap.AddItem(nut)
+
+	order := entity.NewOrder(1, "gather", "nut")
+
+	feasible, noKnowHow := IsOrderFeasible(order, gameMap.Items(), gameMap)
+	if !feasible {
+		t.Error("Expected gather order to be feasible when nut exists on ground")
+	}
+	if noKnowHow {
+		t.Error("Expected noKnowHow=false for gather (AvailabilityDefault)")
+	}
+}
+
+// TestIsOrderFeasible_GatherOrder_NoItems verifies infeasibility when nothing on ground.
+func TestIsOrderFeasible_GatherOrder_NoItems(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	order := entity.NewOrder(1, "gather", "nut")
+
+	feasible, _ := IsOrderFeasible(order, []*entity.Item{}, gameMap)
+	if feasible {
+		t.Error("Expected gather order to be infeasible when no items on ground")
+	}
+}
+
+// Anchor test: Exercises the full gather-order flow by chaining system functions
+// in the sequence the UI handler calls them. Catches regressions in any function
+// in the chain: EnsureHasVesselFor (drop + procurement), Pickup (vessel + inventory
+// paths), FindNextVesselTarget/FindNextGatherTarget (continuation), and HasItemOnMap
+// (pointer identity when items share positions).
+//
+// Scenario: Character has full inventory (2 sticks), gets a gather-nuts order.
+// Expected flow: drop stick → pick up vessel → pick up nut (to vessel) → continue
+// to next nut → no more nuts → order complete.
+func TestGatherOrder_VesselPath_EndToEnd(t *testing.T) {
+	t.Parallel()
+
+	registry := game.GenerateVarieties()
+	gameMap := game.NewMap(20, 20)
+	gameMap.SetVarieties(registry)
+
+	// Character starts with full inventory (2 sticks)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.Inventory = []*entity.Item{entity.NewStick(0, 0), entity.NewStick(0, 0)}
+	gameMap.AddCharacter(char)
+
+	// Vessel on the ground
+	vessel := createTestVessel()
+	vessel.X = 5
+	vessel.Y = 5
+	gameMap.AddItem(vessel)
+
+	// Two nuts on the ground (one at character's position, one elsewhere)
+	nut1 := entity.NewNut(5, 5)
+	nut2 := entity.NewNut(7, 5)
+	gameMap.AddItem(nut1)
+	gameMap.AddItem(nut2)
+
+	order := entity.NewOrder(1, "gather", "nut")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	// --- Phase 1: findGatherIntent with full inventory ---
+	// EnsureHasVesselFor should drop a stick to make room, then return vessel pickup intent
+	items := gameMap.Items()
+	intent := FindGatherIntentForTest(char, char.Pos(), items, order, nil, gameMap)
+	if intent == nil {
+		t.Fatal("Phase 1: Expected vessel procurement intent, got nil")
+	}
+	if intent.TargetItem != vessel {
+		t.Fatal("Phase 1: Expected intent to target vessel for procurement")
+	}
+	if len(char.Inventory) != 1 {
+		t.Fatalf("Phase 1: Expected 1 item after drop, got %d", len(char.Inventory))
+	}
+
+	// --- Phase 2: Pick up the vessel ---
+	result := Pickup(char, vessel, gameMap, nil, registry)
+	if result != PickupToInventory {
+		t.Fatalf("Phase 2: Expected PickupToInventory for vessel, got %d", result)
+	}
+	if char.GetCarriedVessel() == nil {
+		t.Fatal("Phase 2: Character should now have vessel in inventory")
+	}
+
+	// Vessel pickup is a prerequisite — not gather work. UI handler skips
+	// continuation for items with Container != nil. Verify vessel is a container
+	// (this is the guard condition from bug #5).
+	if vessel.Container == nil {
+		t.Fatal("Phase 2: Vessel should have Container (prerequisite guard check)")
+	}
+
+	// --- Phase 3: findGatherIntent again — should now target nut ---
+	items = gameMap.Items()
+	intent = FindGatherIntentForTest(char, char.Pos(), items, order, nil, gameMap)
+	if intent == nil {
+		t.Fatal("Phase 3: Expected nut pickup intent, got nil")
+	}
+	if intent.TargetItem != nut1 && intent.TargetItem != nut2 {
+		t.Fatal("Phase 3: Expected intent to target one of the nuts")
+	}
+	targetNut := intent.TargetItem
+
+	// --- Phase 4: Pick up the first nut ---
+	result = Pickup(char, targetNut, gameMap, nil, registry)
+	if result != PickupToVessel {
+		t.Fatalf("Phase 4: Expected PickupToVessel for nut, got %d", result)
+	}
+
+	// Verify nut went into vessel
+	if len(vessel.Container.Contents) == 0 {
+		t.Fatal("Phase 4: Vessel should contain the gathered nut")
+	}
+
+	// --- Phase 5: Continuation — FindNextVesselTarget finds next nut ---
+	cpos := char.Pos()
+	items = gameMap.Items()
+	nextIntent := FindNextVesselTarget(char, cpos.X, cpos.Y, items, registry, gameMap, false)
+	if nextIntent == nil {
+		t.Fatal("Phase 5: Expected continuation intent for second nut, got nil")
+	}
+
+	// Verify it targets the remaining nut (not the one we just picked up)
+	remainingNut := nut2
+	if targetNut == nut2 {
+		remainingNut = nut1
+	}
+	// The remaining nut should still be on the map
+	if !gameMap.HasItemOnMap(remainingNut) {
+		t.Fatal("Phase 5: Remaining nut should still be on the map")
+	}
+
+	// --- Phase 6: Pick up the second nut ---
+	result = Pickup(char, remainingNut, gameMap, nil, registry)
+	if result != PickupToVessel {
+		t.Fatalf("Phase 6: Expected PickupToVessel for second nut, got %d", result)
+	}
+
+	// --- Phase 7: Continuation — no more nuts, order should complete ---
+	items = gameMap.Items()
+	nextIntent = FindNextVesselTarget(char, cpos.X, cpos.Y, items, registry, gameMap, false)
+	if nextIntent != nil {
+		t.Error("Phase 7: Expected nil (no more nuts) — signals order completion")
+	}
+
+	// Verify final state: vessel has 2 nuts
+	if len(vessel.Container.Contents) != 1 {
+		t.Fatalf("Final: Expected 1 stack in vessel, got %d", len(vessel.Container.Contents))
+	}
+	if vessel.Container.Contents[0].Count != 2 {
+		t.Errorf("Final: Expected 2 nuts in vessel stack, got %d", vessel.Container.Contents[0].Count)
+	}
+}
+
+// Anchor test: Exercises gather-order flow for inventory-path items (sticks).
+// Sticks have no registered variety, so they go directly to inventory instead of vessels.
+//
+// Scenario: Character has empty inventory, gets a gather-sticks order. Two sticks
+// on the ground. Expected flow: pick up stick → continue → pick up second stick →
+// inventory full → order complete.
+func TestGatherOrder_InventoryPath_EndToEnd(t *testing.T) {
+	t.Parallel()
+
+	registry := game.GenerateVarieties()
+	gameMap := game.NewMap(20, 20)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	stick1 := entity.NewStick(5, 5)
+	stick2 := entity.NewStick(7, 5)
+	gameMap.AddItem(stick1)
+	gameMap.AddItem(stick2)
+
+	order := entity.NewOrder(1, "gather", "stick")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	// --- Phase 1: findGatherIntent targets nearest stick ---
+	items := gameMap.Items()
+	intent := FindGatherIntentForTest(char, char.Pos(), items, order, nil, gameMap)
+	if intent == nil {
+		t.Fatal("Phase 1: Expected stick pickup intent")
+	}
+	if intent.TargetItem != stick1 {
+		t.Fatal("Phase 1: Expected nearest stick (stick1)")
+	}
+
+	// --- Phase 2: Pick up first stick ---
+	result := Pickup(char, stick1, gameMap, nil, registry)
+	if result != PickupToInventory {
+		t.Fatalf("Phase 2: Expected PickupToInventory, got %d", result)
+	}
+
+	// Stick goes to inventory (no vessel path — no variety)
+	if len(char.Inventory) != 1 {
+		t.Fatalf("Phase 2: Expected 1 item in inventory, got %d", len(char.Inventory))
+	}
+
+	// --- Phase 3: Continuation — FindNextGatherTarget finds second stick ---
+	cpos := char.Pos()
+	items = gameMap.Items()
+	nextIntent := FindNextGatherTarget(char, cpos.X, cpos.Y, items, "stick", gameMap)
+	if nextIntent == nil {
+		t.Fatal("Phase 3: Expected continuation intent for second stick")
+	}
+	if nextIntent.TargetItem != stick2 {
+		t.Fatal("Phase 3: Expected second stick as target")
+	}
+
+	// --- Phase 4: Pick up second stick ---
+	result = Pickup(char, stick2, gameMap, nil, registry)
+	if result != PickupToInventory {
+		t.Fatalf("Phase 4: Expected PickupToInventory, got %d", result)
+	}
+
+	// --- Phase 5: Continuation — inventory full, signals completion ---
+	items = gameMap.Items()
+	nextIntent = FindNextGatherTarget(char, cpos.X, cpos.Y, items, "stick", gameMap)
+	if nextIntent != nil {
+		t.Error("Phase 5: Expected nil (inventory full) — signals order completion")
+	}
+
+	// Verify final state
+	if len(char.Inventory) != 2 {
+		t.Errorf("Final: Expected 2 sticks in inventory, got %d", len(char.Inventory))
+	}
+}
+
+// Regression: Character with a vessel in inventory gathers sticks. After picking up
+// the first stick, FindNextGatherTarget should find the next stick even though the
+// character is carrying a vessel. The original bug was a blanket vessel guard in the
+// UI-layer PickupToInventory handler that blocked gather continuation for characters
+// with vessels — this test validates the system-layer function works for this scenario.
+func TestFindNextGatherTarget_FindsNextStickWithVesselInInventory(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+
+	// Character has a vessel and a stick already gathered
+	vessel := createTestVessel()
+	stick := entity.NewStick(0, 0)
+	char.Inventory = []*entity.Item{vessel, stick}
+	gameMap.AddCharacter(char)
+
+	// Another stick on the ground
+	nextStick := entity.NewStick(7, 5)
+	gameMap.AddItem(nextStick)
+
+	// Should NOT find next — inventory is full (2 items)
+	intent := FindNextGatherTarget(char, 5, 5, gameMap.Items(), "stick", gameMap)
+	if intent != nil {
+		t.Error("Expected nil when inventory full (vessel + stick = 2 slots)")
+	}
+
+	// Now with only the vessel (one slot free) — should find next stick
+	char.Inventory = []*entity.Item{vessel}
+	intent = FindNextGatherTarget(char, 5, 5, gameMap.Items(), "stick", gameMap)
+	if intent == nil {
+		t.Fatal("Expected intent to gather next stick when inventory has space")
+	}
+	if intent.TargetItem != nextStick {
+		t.Error("Intent should target the next stick on the ground")
+	}
+}

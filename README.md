@@ -14,15 +14,13 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 
 ## Latest Updates
 
-- **Consistent Navigation**: `Esc` always goes back one level (collapses expanded views, closes panels, returns to previous mode). `Q` returns to the world select screen. `L` returns to the action log from any details subpanel.
-- **Numbered Order Selection**: Order lists show numbered items. Press a number key to instantly select and confirm in one keypress.
-- **Smoother Pathing**: Characters navigate around ponds and obstacles without oscillating. Once a character switches to obstacle-aware pathfinding, they stay on that path until they reach their target or bump into another character.
-- **Provisioned Workers**: Characters with assigned orders who carry food or water will pause briefly to eat or drink when mildly hungry or thirsty, then resume work — rather than walking away to find a source. Unprovisioned characters keep working until needs become more urgent.
-- **Growth Speed Tiers**: Plants grow and spread at different rates — mushrooms pop up fast but spread steadily; berries establish slowly then spread aggressively; gourds are slow all around but high food value.
-- **Food Satiation Tiers**: Different foods now satisfy hunger by different amounts. Gourds are a feast; mushrooms are a meal; berries and nuts are snacks — characters will need to eat more of them to stay satisfied.
+- **Gather Orders**: Players can order characters to gather loose items like sticks, nuts, shells, and seeds from the ground.
+- **Provisioned Workers**: Characters with assigned orders who carry food or water will pause briefly to eat or drink when mildly hungry or thirsty.
+- **Growth Speed Tiers**: Plants grow and spread at different rates.
+- **Food Satiation Tiers**: Different foods now satisfy hunger by different amounts.
 - **Water Garden Orders**: Players can order characters to water planted tiles.
 - **Drinking from Vessels**: Characters can drink from water vessels they carry or find on the ground.
-- **Fetch Water**: Idle charachters can now fill a vessel with water to keep with them
+- **Fetch Water**: Idle charachters can now fill a vessel with water to keep with them.
 - **Plant Orders**: Players can order characters to plant on tilled soil.
 - **Gourd Seeds**: Eating a gourd now drops a seed on the ground. Seeds are plantable and stack in vessels.
 - **Till Soil**: Players can mark rectangular areas for tilling using an area selection tool. Characters with till know-how procure a hoe and till the marked tiles.
@@ -37,7 +35,7 @@ See [VISION.txt](docs/VISION.txt) for the full vision statement and development 
 6. When idle, characters may look at items, talk with each other, forage, or fill vessels with water.
 7. Characters learn from experience, gaining knowledge that affects future behavior
 8. Characters gain 'know-how' by making discoveries during item interactions
-9. Player can issue orders (harvest, craft, garden) that characters with relevant know-how will complete
+9. Player can issue orders (harvest, gather, craft, garden) that characters with relevant know-how will complete
 
 For detailed mechanics, see [docs/game-mechanics.md](docs/game-mechanics.md).
 

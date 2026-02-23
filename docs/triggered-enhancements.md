@@ -24,6 +24,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **UI extensibility refactoring** | UI structure blocks adding new activities or features; Area selection pattern needs generalization |
 | **Preference-weighted component procurement** | Multiple craft recipes with varied inputs; Characters feel flat when seeking components; Scoring math exists in foraging.go to reuse |
 | **applyIntent duplication (simulation.go)** | INTENTIONALLY SEPARATE - simulation.go is lighter test harness; only unify if maintaining both becomes burdensome |
+| **Order-aware simulation for e2e testing** | Construction adds multiple new ordered actions with supply procurement; Post-pickup handler branching bugs recur across ordered actions |
 | **Temporarily-blocked order cooldown** | Assign/abandon churn noticeable for temporarily-blocked (but feasible) orders; Character visibly thrashes between taking and abandoning the same order |
 | **Smarter displacement direction** | Displacement oscillation visible in crowded (16-char) worlds; Characters pick a displacement perpendicular that leads back toward the blocker instead of away |
 | **Interactive inventory details panel** | Items gain enough attributes that parenthetical summary in inventory list isn't sufficient; Want to inspect individual inventory items with full details view |

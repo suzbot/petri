@@ -170,8 +170,8 @@ Items are generated from varieties at world creation. Each variety defines a uni
 - **Gourds**: Color + optional Pattern + optional Texture; edible, never poisonous/healing
 - **Flowers**: Color; non-edible (decorative)
 - **Sticks**: Brown `/`; non-edible, non-plant. Periodically falls from the canopy onto random empty tiles (see `config.GroundSpawnInterval`).
-- **Nuts**: Brown `o`; edible (not poisonous/healing), non-plant. Periodically falls from the canopy onto random empty tiles (see `config.GroundSpawnInterval`). Forageable by characters seeking food.
-- **Shells**: Colored `<`; non-edible, non-plant. Multiple color variants (see `types.ShellColors`). Periodically washes up adjacent to pond tiles (see `config.GroundSpawnInterval`).
+- **Nuts**: Brown `o`; edible (not poisonous/healing), non-plant. Periodically falls from the canopy onto random empty tiles (see `config.GroundSpawnInterval`). Forageable by characters seeking food. Has a registered variety, so can be stacked in vessels (gatherable via Gather orders).
+- **Shells**: Colored `<`; non-edible, non-plant. Multiple color variants (see `types.ShellColors`). Periodically washes up adjacent to pond tiles (see `config.GroundSpawnInterval`). Stack size 4 (see `config.GetStackSize()`).
 - **Seeds**: Dot `.` in parent's color; uses the Kind pattern (`ItemType: "seed"`, `Kind: "gourd seed"`). Inherits parent's full variety (Color, Pattern, Texture). Not edible, plantable. Stack size defined in `config.GetStackSize()`. Seeds are auto-dropped to ground when a gourd is consumed (from ground, inventory, or vessel). Seed varieties are registered in VarietyRegistry at world generation alongside their parent gourd varieties.
 
 ### World Features
@@ -420,7 +420,7 @@ Panel controls:
 To add an order:
 1. Press `+` to start add order flow
 2. Select an activity (only activities known by at least one living character appear)
-3. Select a target type (e.g., for Harvest: choose berry, mushroom, or gourd; for Plant: choose from plantable item kinds such as Gourd seeds, Berries, or Mushrooms)
+3. Select a target type (e.g., for Harvest: choose berry, mushroom, or gourd; for Plant: choose from plantable item kinds; for Gather: choose from items currently on the ground)
 4. Press Enter to confirm, or press a number key (1–9) to select and confirm in one keypress
 
 Lists show numbered items at every step. Pressing a number instantly selects and confirms that item. Invalid numbers (beyond list length) are no-ops. Arrow-key navigation and Enter still work as before.
@@ -432,7 +432,7 @@ Press `Esc` at any step to go back one level (step 2 → step 1 → exit add mod
 - **Open**: Available to be taken by a character with the required know-how
 - **Assigned**: Currently being worked on by a character
 - **Paused**: Interrupted by character needs; will resume when needs are satisfied
-- **Completed** *(internal)*: Set by `CompleteOrder()` when an action handler determines the order is done. Swept from the order list at the end of the same game tick. All order types (harvest, craft, till, plant) use this unified path — no scattered removal calls in action handlers.
+- **Completed** *(internal)*: Set by `CompleteOrder()` when an action handler determines the order is done. Swept from the order list at the end of the same game tick. All order types (harvest, gather, craft, till, plant) use this unified path — no scattered removal calls in action handlers.
 - **Unfulfillable** *(display only)*: Required items don't exist anywhere in the world. Shown dimmed; characters skip these orders. Automatically clears when world state changes (e.g., a hoe is crafted, berries grow back).
 - **No one knows how** *(display only)*: No living character has learned the required activity. Shown dimmed; characters skip these orders.
 
@@ -454,6 +454,17 @@ When a character becomes eligible for an idle activity and has relevant know-how
 4. **Pickup**: Character picks up the item into vessel (if carrying one) or inventory
 5. **Continuation**: If carrying a vessel with space, continues harvesting more items
 6. **Completion**: When vessel is full OR no matching items remain, order is completed
+
+
+### Gather Order Execution
+
+Gather orders direct characters to pick up loose (non-growing, non-container, non-tool) items from the ground. Available item types are determined dynamically from what exists in the world.
+
+1. **Target selection**: Player selects an item type from a list of gatherable types currently on the ground
+2. **Vessel procurement**: For items with registered varieties (seeds, nuts, shells), character seeks a vessel first — same flow as Harvest
+3. **Direct pickup**: For items without registered varieties (sticks), character picks up directly to inventory — no vessel seeking
+4. **Continuation**: Character continues gathering until no more items of that type remain on the ground or inventory is full
+5. **No discovery required**: Gather uses `AvailabilityDefault` — all characters can gather without know-how
 
 ### Order Interruption and Resumption
 

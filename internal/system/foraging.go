@@ -229,9 +229,10 @@ func FindForageFoodIntent(char *entity.Character, pos types.Position, items []*e
 }
 
 // FindNextVesselTarget finds the next item to pick up when filling a vessel.
-// Only considers growing items matching the variety already in the vessel.
+// When growingOnly is true, only considers growing (not dropped) items — used by harvest.
+// When growingOnly is false, considers any ground item matching the variety — used by gather.
 // Returns nil if vessel is empty, full, or no matching items exist.
-func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.Item, registry *game.VarietyRegistry, gameMap *game.Map) *entity.Intent {
+func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.Item, registry *game.VarietyRegistry, gameMap *game.Map, growingOnly bool) *entity.Intent {
 	vessel := char.GetCarriedVessel()
 	if vessel == nil {
 		return nil
@@ -254,9 +255,16 @@ func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.It
 	nearestDist := int(^uint(0) >> 1) // Max int
 
 	for _, item := range items {
-		// Must be growing (not dropped) and not a sprout
-		if item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout {
-			continue
+		if growingOnly {
+			// Must be growing (not dropped) and not a sprout
+			if item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout {
+				continue
+			}
+		} else {
+			// Any ground item (not in a container, not a sprout)
+			if item.Plant != nil && item.Plant.IsSprout {
+				continue
+			}
 		}
 		// Must match variety
 		if item.ItemType != targetVariety.ItemType ||

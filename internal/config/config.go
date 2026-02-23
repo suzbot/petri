@@ -177,6 +177,7 @@ var StackSize = map[string]int{
 	"flower":   10,
 	"gourd":    1,
 	"nut":      10,
+	"shell":    4,
 	"seed":     20,
 	"liquid":   4,
 }

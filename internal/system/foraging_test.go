@@ -343,7 +343,7 @@ func TestFindNextVesselTarget_EmptyVessel(t *testing.T) {
 		entity.NewBerry(5, 5, types.ColorRed, false, false),
 	}
 
-	intent := FindNextVesselTarget(char, 0, 0, items, registry, nil)
+	intent := FindNextVesselTarget(char, 0, 0, items, registry, nil, true)
 
 	if intent != nil {
 		t.Error("FindNextVesselTarget should return nil for empty vessel")
@@ -365,7 +365,7 @@ func TestFindNextVesselTarget_FindsMatchingVariety(t *testing.T) {
 	blueBerry := entity.NewBerry(3, 3, types.ColorBlue, false, false)
 	items := []*entity.Item{blueBerry, redBerry}
 
-	intent := FindNextVesselTarget(char, 0, 0, items, registry, nil)
+	intent := FindNextVesselTarget(char, 0, 0, items, registry, nil, true)
 
 	if intent == nil {
 		t.Fatal("FindNextVesselTarget should find matching berry")
@@ -375,7 +375,7 @@ func TestFindNextVesselTarget_FindsMatchingVariety(t *testing.T) {
 	}
 }
 
-func TestFindNextVesselTarget_IgnoresNonGrowing(t *testing.T) {
+func TestFindNextVesselTarget_IgnoresNonGrowingWhenGrowingOnly(t *testing.T) {
 	vessel := createTestVessel()
 	registry := createTestRegistry()
 
@@ -391,10 +391,36 @@ func TestFindNextVesselTarget_IgnoresNonGrowing(t *testing.T) {
 
 	items := []*entity.Item{droppedBerry}
 
-	intent := FindNextVesselTarget(char, 0, 0, items, registry, nil)
+	intent := FindNextVesselTarget(char, 0, 0, items, registry, nil, true)
 
 	if intent != nil {
-		t.Error("FindNextVesselTarget should ignore non-growing items")
+		t.Error("FindNextVesselTarget should ignore non-growing items when growingOnly=true")
+	}
+}
+
+func TestFindNextVesselTarget_FindsNonGrowingWhenNotGrowingOnly(t *testing.T) {
+	vessel := createTestVessel()
+	registry := createTestRegistry()
+
+	// Add a red berry to vessel
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	AddToVessel(vessel, berry, registry)
+
+	char := &entity.Character{Inventory: []*entity.Item{vessel}}
+
+	// Create a dropped (non-growing) berry — should be found when growingOnly=false
+	droppedBerry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	droppedBerry.Plant.IsGrowing = false
+
+	items := []*entity.Item{droppedBerry}
+
+	intent := FindNextVesselTarget(char, 0, 0, items, registry, nil, false)
+
+	if intent == nil {
+		t.Fatal("FindNextVesselTarget should find non-growing items when growingOnly=false")
+	}
+	if intent.TargetItem != droppedBerry {
+		t.Error("FindNextVesselTarget should target the dropped berry")
 	}
 }
 
@@ -412,7 +438,7 @@ func TestFindNextVesselTarget_VesselFull(t *testing.T) {
 	gourd2 := entity.NewGourd(5, 5, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	items := []*entity.Item{gourd2}
 
-	intent := FindNextVesselTarget(char, 0, 0, items, registry, nil)
+	intent := FindNextVesselTarget(char, 0, 0, items, registry, nil, true)
 
 	if intent != nil {
 		t.Error("FindNextVesselTarget should return nil when vessel is full")

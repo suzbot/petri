@@ -219,6 +219,16 @@ func (m *Map) ItemAt(pos types.Position) *entity.Item {
 	return nil
 }
 
+// HasItemOnMap returns true if the given item pointer is in the map's item list.
+func (m *Map) HasItemOnMap(item *entity.Item) bool {
+	for _, i := range m.items {
+		if i == item {
+			return true
+		}
+	}
+	return false
+}
+
 // AddFeature adds a feature to the map, assigning a unique ID
 func (m *Map) AddFeature(f *entity.Feature) {
 	// Assign unique ID

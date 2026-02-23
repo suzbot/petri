@@ -429,6 +429,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 							isSyntheticCategory(activities[m.selectedActivityIndex].ID) {
 							category := syntheticCategoryID(activities[m.selectedActivityIndex].ID)
 							maxIndex = len(m.getCategoryActivities(category)) - 1
+						} else if m.selectedActivityIndex < len(activities) &&
+							activities[m.selectedActivityIndex].ID == "gather" {
+							maxIndex = len(game.GetGatherableTypes(m.gameMap.Items())) - 1
 						} else {
 							maxIndex = len(m.getEdibleItemTypes()) - 1
 						}
@@ -877,7 +880,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			char.ActionProgress += delta
 			if char.ActionProgress >= config.ActionDurationShort {
 				char.ActionProgress = 0
-				if item := m.gameMap.ItemAt(types.Position{X: cx, Y: cy}); item == char.Intent.TargetItem {
+				if item := char.Intent.TargetItem; item != nil && item.Pos() == (types.Position{X: cx, Y: cy}) && m.gameMap.HasItemOnMap(item) {
 					// If on an order and inventory full, drop current item first
 					// BUT don't drop if carrying a vessel with space (can add to it)
 					// (If carrying a recipe input, we'd have ActionCraft intent instead)
@@ -896,14 +899,19 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 					if result == system.PickupToVessel {
 						// Continue filling for orders (autonomous foraging uses ActionForage)
 						if char.AssignedOrderID != 0 {
-							// On harvest order - continue until vessel full
-							if nextIntent := system.FindNextVesselTarget(char, cx, cy, m.gameMap.Items(), m.gameMap.Varieties(), m.gameMap); nextIntent != nil {
+							// Determine growing-only filter: harvest picks growing plants, gather picks any ground item
+							growingOnly := true
+							if order := m.findOrderByID(char.AssignedOrderID); order != nil && order.ActivityID == "gather" {
+								growingOnly = false
+							}
+							// Continue until vessel full
+							if nextIntent := system.FindNextVesselTarget(char, cx, cy, m.gameMap.Items(), m.gameMap.Varieties(), m.gameMap, growingOnly); nextIntent != nil {
 								char.Intent = nextIntent
 								return
 							}
 							// Vessel full or no more matching targets - complete order
 							if order := m.findOrderByID(char.AssignedOrderID); order != nil {
-								if order.ActivityID == "harvest" {
+								if order.ActivityID == "harvest" || order.ActivityID == "gather" {
 									system.CompleteOrder(char, order, m.actionLog)
 								}
 							}
@@ -925,18 +933,27 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 					}
 
 					// PickupToInventory - item added to inventory
-					// Check for harvest order continuation or completion
+					// Check for order continuation or completion
 					// Craft orders don't complete on pickup - they complete after crafting
-					// If picked up a vessel, continue harvesting into it (don't complete order)
-					if char.AssignedOrderID != 0 && char.GetCarriedVessel() == nil {
+					if char.AssignedOrderID != 0 {
 						if order := m.findOrderByID(char.AssignedOrderID); order != nil {
-							if order.ActivityID == "harvest" {
-								// Try to continue harvesting if space and targets remain
+							if order.ActivityID == "harvest" && char.GetCarriedVessel() == nil {
+								// Harvest: only continue if no vessel (vessel pickup is a prerequisite, not work)
 								if nextIntent := system.FindNextHarvestTarget(char, cx, cy, m.gameMap.Items(), order.TargetType, m.gameMap); nextIntent != nil {
 									char.Intent = nextIntent
 									return
 								}
-								// No more space or targets - complete order
+								system.CompleteOrder(char, order, m.actionLog)
+							} else if order.ActivityID == "gather" {
+								// If we just picked up a vessel, that's a prerequisite — not gather work
+								if item.Container != nil {
+									break
+								}
+								// Gather: inventory pickup IS the work — continue regardless of vessel
+								if nextIntent := system.FindNextGatherTarget(char, cx, cy, m.gameMap.Items(), order.TargetType, m.gameMap); nextIntent != nil {
+									char.Intent = nextIntent
+									return
+								}
 								system.CompleteOrder(char, order, m.actionLog)
 							}
 						}
@@ -2095,6 +2112,17 @@ func (m *Model) applyOrdersConfirm() {
 							m.ordersAddStep = 0
 							m.selectedActivityIndex = 0
 						}
+					}
+				} else if selectedActivity.ID == "gather" {
+					gatherTypes := game.GetGatherableTypes(m.gameMap.Items())
+					if m.selectedTargetIndex < len(gatherTypes) {
+						targetType := gatherTypes[m.selectedTargetIndex].TargetType
+						order := entity.NewOrder(m.nextOrderID, "gather", targetType)
+						m.nextOrderID++
+						m.orders = append(m.orders, order)
+						m.setOrderFlash(order.DisplayName())
+						m.ordersAddStep = 0
+						m.selectedActivityIndex = 0
 					}
 				} else {
 					types := m.getEdibleItemTypes()

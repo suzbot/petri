@@ -731,6 +731,44 @@ func TestIsEmpty_MarkedTileNoOccupants(t *testing.T) {
 }
 
 // =============================================================================
+// HasItemOnMap Tests
+// =============================================================================
+
+// Regression: When a character drops an item at the same position as their pickup
+// target, ItemAt returns the dropped item (first in slice), not the target. The fix
+// was switching to HasItemOnMap which uses pointer identity. This test verifies that
+// HasItemOnMap correctly identifies each item independently of position overlap.
+func TestHasItemOnMap_TwoItemsSamePosition(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	item1 := entity.NewStick(5, 5)
+	item2 := entity.NewNut(5, 5) // same position
+	m.AddItem(item1)
+	m.AddItem(item2)
+
+	// Both items should be found by pointer identity
+	if !m.HasItemOnMap(item1) {
+		t.Error("HasItemOnMap should find item1 even though item2 is at the same position")
+	}
+	if !m.HasItemOnMap(item2) {
+		t.Error("HasItemOnMap should find item2 even though item1 is at the same position")
+	}
+
+	// ItemAt returns the first item at the position — NOT the specific one you want
+	got := m.ItemAt(types.Position{X: 5, Y: 5})
+	if got != item1 {
+		t.Error("ItemAt should return first item added at that position")
+	}
+
+	// An item not on the map should not be found
+	orphan := entity.NewStick(5, 5)
+	if m.HasItemOnMap(orphan) {
+		t.Error("HasItemOnMap should return false for item not on the map")
+	}
+}
+
+// =============================================================================
 // Wet Tile Tests
 // =============================================================================
 

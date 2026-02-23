@@ -130,6 +130,12 @@ var ActivityRegistry = map[string]Activity{
 			{Action: ActionLook, RequiresPlantable: true},
 		},
 	},
+	"gather": {
+		ID:              "gather",
+		Name:            "Gather",
+		IntentFormation: IntentOrderable,
+		Availability:    AvailabilityDefault,
+	},
 }
 
 // GetDiscoverableActivities returns all activities that require know-how

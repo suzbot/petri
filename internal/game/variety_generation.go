@@ -76,6 +76,16 @@ func GetItemTypeConfigs() map[string]ItemTypeConfig {
 			SpawnCount:           config.GetGroundSpawnCount("shell"),
 			NonPlantSpawned:      true, // spawned by ground spawning, not SpawnItems
 		},
+		"nut": {
+			Colors:               []types.Color{types.ColorBrown},
+			Patterns:             nil,
+			Textures:             nil,
+			Edible:               true,
+			CanBePoisonOrHealing: false, // nuts are never poisonous or healing
+			Sym:                  config.CharNut,
+			SpawnCount:           config.GetGroundSpawnCount("nut"),
+			NonPlantSpawned:      true, // spawned by ground spawning, not SpawnItems
+		},
 	}
 }
 
@@ -113,6 +123,46 @@ func GetPlantableTypes() []PlantableTypeEntry {
 			})
 		}
 	}
+
+	return entries
+}
+
+// GatherableTypeEntry represents a gatherable item type for the order UI menu.
+type GatherableTypeEntry struct {
+	DisplayName string // e.g., "Nuts", "Sticks"
+	TargetType  string // value stored in order.TargetType: "nut", "stick", "shell"
+}
+
+// GetGatherableTypes returns the list of gatherable item types currently on the ground.
+// Filters to items with Plant == nil && Container == nil && ItemType != "hoe".
+// Returns a deduplicated, alphabetically sorted list.
+func GetGatherableTypes(items []*entity.Item) []GatherableTypeEntry {
+	seen := make(map[string]bool)
+	var entries []GatherableTypeEntry
+
+	for _, item := range items {
+		if item.Plant != nil {
+			continue // growing plant — not gatherable
+		}
+		if item.Container != nil {
+			continue // vessel — not gatherable
+		}
+		if item.ItemType == "hoe" {
+			continue // tool — not gatherable
+		}
+		if seen[item.ItemType] {
+			continue // already added
+		}
+		seen[item.ItemType] = true
+		entries = append(entries, GatherableTypeEntry{
+			DisplayName: capitalize(entity.Pluralize(item.ItemType)),
+			TargetType:  item.ItemType,
+		})
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].TargetType < entries[j].TargetType
+	})
 
 	return entries
 }

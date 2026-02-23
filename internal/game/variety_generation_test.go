@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"petri/internal/config"
+	"petri/internal/entity"
 	"petri/internal/types"
 )
 
@@ -203,6 +204,85 @@ func TestGenerateVarieties_LiquidStackSize(t *testing.T) {
 	size := config.GetStackSize("liquid")
 	if size != 4 {
 		t.Errorf("GetStackSize(\"liquid\"): got %d, want 4", size)
+	}
+}
+
+func TestGenerateVarieties_NutVarietiesGenerated(t *testing.T) {
+	registry := GenerateVarieties()
+
+	nuts := registry.VarietiesOfType("nut")
+	if len(nuts) == 0 {
+		t.Fatal("Expected nut varieties to be registered, got 0")
+	}
+
+	for _, n := range nuts {
+		if !n.IsEdible() {
+			t.Errorf("Nut variety %q should be edible", n.ID)
+		}
+		if n.Sym != config.CharNut {
+			t.Errorf("Nut variety %q has wrong symbol %c, want %c", n.ID, n.Sym, config.CharNut)
+		}
+	}
+}
+
+func TestShellStackSize(t *testing.T) {
+	size := config.GetStackSize("shell")
+	if size != 4 {
+		t.Errorf("GetStackSize(\"shell\"): got %d, want 4", size)
+	}
+}
+
+func TestGetGatherableTypes_ReturnsTypesOnGround(t *testing.T) {
+	items := []*entity.Item{
+		entity.NewNut(1, 1),
+		entity.NewStick(2, 2),
+		entity.NewShell(3, 3, types.ColorWhite),
+	}
+
+	entries := GetGatherableTypes(items)
+
+	if len(entries) == 0 {
+		t.Fatal("Expected gatherable entries, got 0")
+	}
+
+	// All returned types should be present in item list
+	typeSet := map[string]bool{}
+	for _, item := range items {
+		typeSet[item.ItemType] = true
+	}
+	for _, e := range entries {
+		if !typeSet[e.TargetType] {
+			t.Errorf("GetGatherableTypes returned type %q not present in items", e.TargetType)
+		}
+	}
+}
+
+func TestGetGatherableTypes_ExcludesPlants(t *testing.T) {
+	items := []*entity.Item{
+		entity.NewNut(1, 1),
+		entity.NewBerry(2, 2, types.ColorRed, false, false),
+	}
+
+	entries := GetGatherableTypes(items)
+
+	for _, e := range entries {
+		if e.TargetType == "berry" {
+			t.Errorf("GetGatherableTypes should not include growing plants (berry)")
+		}
+	}
+}
+
+func TestGetGatherableTypes_Deduplicated(t *testing.T) {
+	items := []*entity.Item{
+		entity.NewNut(1, 1),
+		entity.NewNut(2, 2),
+		entity.NewNut(3, 3),
+	}
+
+	entries := GetGatherableTypes(items)
+
+	if len(entries) != 1 {
+		t.Errorf("GetGatherableTypes: got %d entries for 3 nuts, want 1 (deduplicated)", len(entries))
 	}
 }
 

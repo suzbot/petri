@@ -40,7 +40,11 @@ func EnsureHasVesselFor(char *entity.Character, target *entity.Item, items []*en
 
 	// Need to find a vessel - check if we have inventory space
 	if !char.HasInventorySpace() {
-		return nil
+		if !dropConflict {
+			return nil
+		}
+		// On an order: drop an item to make room for a vessel
+		Drop(char, gameMap, log)
 	}
 
 	// Find available vessel on map
