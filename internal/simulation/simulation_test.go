@@ -137,11 +137,11 @@ func TestSimulation_DeadCharactersStopUpdating(t *testing.T) {
 
 	// Run until at least one character dies (or max ticks)
 	var deadChar *struct {
-		ID       int
-		X, Y     int
-		Hunger   float64
-		Thirst   float64
-		Energy   float64
+		ID        int
+		X, Y      int
+		Hunger    float64
+		Thirst    float64
+		Energy    float64
 		DeathTick int
 	}
 

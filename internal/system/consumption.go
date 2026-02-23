@@ -456,4 +456,3 @@ func ConsumeFromVessel(char *entity.Character, vessel *entity.Item, gameMap *gam
 
 	// Note: We don't remove from inventory - vessel stays with character
 }
-

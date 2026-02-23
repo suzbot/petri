@@ -49,13 +49,13 @@ type Map struct {
 // NewMap creates a new map with the given dimensions
 func NewMap(width, height int) *Map {
 	return &Map{
-		Width:          width,
-		Height:         height,
-		entities:       make(map[types.Position]entity.Entity),
-		characters:     make([]*entity.Character, 0),
-		characterByPos: make(map[types.Position]*entity.Character),
-		items:          make([]*entity.Item, 0),
-		features:       make([]*entity.Feature, 0),
+		Width:            width,
+		Height:           height,
+		entities:         make(map[types.Position]entity.Entity),
+		characters:       make([]*entity.Character, 0),
+		characterByPos:   make(map[types.Position]*entity.Character),
+		items:            make([]*entity.Item, 0),
+		features:         make([]*entity.Feature, 0),
 		water:            make(map[types.Position]WaterType),
 		tilled:           make(map[types.Position]bool),
 		markedForTilling: make(map[types.Position]bool),

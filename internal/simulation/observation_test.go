@@ -12,10 +12,10 @@ import (
 // TestObserveBalanceMetrics runs simulations and collects balance metrics
 func TestObserveBalanceMetrics(t *testing.T) {
 	const (
-		numRuns       = 5
-		ticksPerRun   = 16000 // ~2400 game-seconds (~20 world days) at 0.15s/tick
-		sampleEvery   = 1000  // sample metrics every N ticks
-		delta         = 0.15  // tick duration
+		numRuns     = 5
+		ticksPerRun = 16000 // ~2400 game-seconds (~20 world days) at 0.15s/tick
+		sampleEvery = 1000  // sample metrics every N ticks
+		delta       = 0.15  // tick duration
 	)
 
 	fmt.Println("\n=== BALANCE OBSERVATION REPORT ===")
@@ -299,7 +299,6 @@ func moodTier(mood float64) string {
 		return "Joyful"
 	}
 }
-
 
 func actionName(a entity.ActionType) string {
 	switch a {

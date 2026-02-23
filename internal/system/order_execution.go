@@ -186,8 +186,6 @@ func findHarvestIntent(char *entity.Character, pos types.Position, items []*enti
 	}
 }
 
-
-
 // findTillSoilIntent creates an intent to till a marked tile from the shared pool.
 // Flow: procure hoe → find nearest marked-but-not-tilled tile → move to it → till it.
 // Returns nil when pool is empty (order complete) or when no hoe exists (triggers abandonment).

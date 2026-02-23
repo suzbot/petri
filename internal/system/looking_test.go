@@ -114,8 +114,8 @@ func TestFindNearestItem_FindsClosestItem(t *testing.T) {
 	t.Parallel()
 
 	items := []*entity.Item{
-		entity.NewBerry(10, 10, types.ColorRed, false, false), // Distance 10
-		entity.NewFlower(6, 5, types.ColorPurple),              // Distance 1
+		entity.NewBerry(10, 10, types.ColorRed, false, false),                                          // Distance 10
+		entity.NewFlower(6, 5, types.ColorPurple),                                                      // Distance 1
 		entity.NewMushroom(8, 8, types.ColorBrown, types.PatternNone, types.TextureNone, false, false), // Distance 6
 	}
 

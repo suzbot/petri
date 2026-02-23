@@ -55,7 +55,7 @@ func TestUpdateGroundSpawning_ResetsTimerAfterFiring(t *testing.T) {
 
 	gameMap := game.NewMap(20, 20)
 	timers := &GroundSpawnTimers{
-		Stick: 1.0, // About to fire
+		Stick: 1.0,                            // About to fire
 		Nut:   config.GroundSpawnInterval * 2, // Won't fire
 		Shell: config.GroundSpawnInterval * 2, // Won't fire
 	}
@@ -212,8 +212,8 @@ func TestUpdateGroundSpawning_TimersFireIndependently(t *testing.T) {
 
 	timers := &GroundSpawnTimers{
 		Stick: 1.0,                            // Will fire
-		Nut:   config.GroundSpawnInterval * 2,  // Won't fire
-		Shell: config.GroundSpawnInterval * 2,  // Won't fire
+		Nut:   config.GroundSpawnInterval * 2, // Won't fire
+		Shell: config.GroundSpawnInterval * 2, // Won't fire
 	}
 
 	UpdateGroundSpawning(gameMap, 2.0, timers)

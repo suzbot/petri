@@ -847,4 +847,3 @@ func TestUpdateSpawnTimers_WetMultiplierOnReproduction(t *testing.T) {
 		t.Errorf("SpawnTimer on wet: got %.2f, want %.2f", plant.Plant.SpawnTimer, expectedTimer)
 	}
 }
-

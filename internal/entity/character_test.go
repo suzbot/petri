@@ -208,7 +208,7 @@ func TestEffectiveSpeed_Healthy(t *testing.T) {
 	t.Parallel()
 
 	c := &Character{
-		Thirst: 0,  // below parched threshold
+		Thirst: 0,   // below parched threshold
 		Energy: 100, // above tired threshold
 	}
 	got := c.EffectiveSpeed()
@@ -813,7 +813,7 @@ func TestNetPreference_NoMatch(t *testing.T) {
 
 	c := &Character{
 		Preferences: []Preference{
-			NewPositivePreference("berry", ""),       // likes berries
+			NewPositivePreference("berry", ""),        // likes berries
 			NewPositivePreference("", types.ColorRed), // likes red
 		},
 	}
@@ -1048,8 +1048,8 @@ func TestKnownHealingItems_NoKnowledge(t *testing.T) {
 	c := &Character{Knowledge: []Knowledge{}}
 
 	items := []*Item{
-		NewBerry(0, 0, types.ColorBlue, false, true),  // healing
-		NewBerry(1, 0, types.ColorRed, false, false),  // not healing
+		NewBerry(0, 0, types.ColorBlue, false, true), // healing
+		NewBerry(1, 0, types.ColorRed, false, false), // not healing
 	}
 
 	result := c.KnownHealingItems(items)
@@ -1096,7 +1096,7 @@ func TestKnownHealingItems_OnlyPoisonKnowledge(t *testing.T) {
 	c := &Character{Knowledge: []Knowledge{poisonKnowledge}}
 
 	items := []*Item{
-		NewBerry(0, 0, types.ColorBlue, false, true),     // healing but unknown
+		NewBerry(0, 0, types.ColorBlue, false, true),                                         // healing but unknown
 		NewMushroom(1, 0, types.ColorRed, types.PatternNone, types.TextureNone, true, false), // known poison
 	}
 

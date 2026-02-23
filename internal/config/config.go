@@ -16,26 +16,26 @@ const (
 	PondMaxCount     = 5
 	PondMinSize      = 4
 	PondMaxSize      = 16
-	UpdateInterval = 150 * time.Millisecond
+	UpdateInterval   = 150 * time.Millisecond
 
 	// Symbols
-	CharRobot    = '@'
-	CharBerry    = '●'
-	CharMushroom = '♠'
-	CharFlower   = '✿'
-	CharGourd    = 'G'
-	CharVessel   = 'U'
-	CharSpring   = '☉'
-	CharLeafPile = '#'
-	CharWater    = '▓'
-	CharStick    = '/'
-	CharNut      = 'o'
-	CharShell    = '<'
+	CharRobot      = '@'
+	CharBerry      = '●'
+	CharMushroom   = '♠'
+	CharFlower     = '✿'
+	CharGourd      = 'G'
+	CharVessel     = 'U'
+	CharSpring     = '☉'
+	CharLeafPile   = '#'
+	CharWater      = '▓'
+	CharStick      = '/'
+	CharNut        = 'o'
+	CharShell      = '<'
 	CharHoe        = 'L'
 	CharSeed       = '.'
 	CharTilledSoil = '═'
 	CharSprout     = '𖧧'
-	CharSleeping = 'z'
+	CharSleeping   = 'z'
 
 	// Speed system
 	BaseSpeed              = 50 // baseline speed (0-100 scale)
@@ -48,18 +48,18 @@ const (
 
 	// Survival mechanics
 	// Time scale: 1 game second = 12 world minutes, 1 world day = 120 game seconds
-	PoisonDuration          = 20.0 // seconds (~4 world hours)
-	HungerIncreaseRate      = 0.14 // per second (starving in ~6 world days)
-	ThirstIncreaseRate      = 0.28 // per second (dehydrated in ~3 world days)
-	EnergyDecreaseRate      = 0.5  // per second (base rate)
-	EnergyMovementDrain     = 0.2  // additional per movement tick
-	StarvationDamageRate    = 0.5  // health per second
-	DehydrationDamageRate   = 0.5  // health per second
-	PoisonDamageRate        = 0.33 // health per second
+	PoisonDuration        = 20.0 // seconds (~4 world hours)
+	HungerIncreaseRate    = 0.14 // per second (starving in ~6 world days)
+	ThirstIncreaseRate    = 0.28 // per second (dehydrated in ~3 world days)
+	EnergyDecreaseRate    = 0.5  // per second (base rate)
+	EnergyMovementDrain   = 0.2  // additional per movement tick
+	StarvationDamageRate  = 0.5  // health per second
+	DehydrationDamageRate = 0.5  // health per second
+	PoisonDamageRate      = 0.33 // health per second
 	// Satiation tiers (hunger reduced per food, by tier)
-	SatiationFeast = 50.0 // gourd
-	SatiationMeal  = 25.0 // mushroom
-	SatiationSnack = 10.0 // berry, nut
+	SatiationFeast          = 50.0 // gourd
+	SatiationMeal           = 25.0 // mushroom
+	SatiationSnack          = 10.0 // berry, nut
 	DrinkThirstReduction    = 20.0 // thirst reduced per drink
 	BedEnergyRestoreRate    = 2.86 // energy per second in bed (~7 world hours to full)
 	GroundEnergyRestoreRate = 1.67 // energy per second on ground (~12 world hours to full)
@@ -95,11 +95,11 @@ const (
 	SproutDurationSlow   = 600.0 // ~5 world days (gourd)
 
 	// Reproduction interval tiers (base seconds between spawn attempts per plant)
-	ReproductionFast   = 12.0 // berry: ~2 world days per plant
-	ReproductionMedium = 18.0 // mushroom, flower: ~3 world days per plant (current rate)
-	ReproductionSlow   = 30.0 // gourd: ~5 world days per plant
-	TilledGrowthMultiplier = 1.25 // 25% faster growth on tilled soil
-	WetGrowthMultiplier    = 1.25 // 25% faster growth on wet tiles
+	ReproductionFast       = 12.0  // berry: ~2 world days per plant
+	ReproductionMedium     = 18.0  // mushroom, flower: ~3 world days per plant (current rate)
+	ReproductionSlow       = 30.0  // gourd: ~5 world days per plant
+	TilledGrowthMultiplier = 1.25  // 25% faster growth on tilled soil
+	WetGrowthMultiplier    = 1.25  // 25% faster growth on wet tiles
 	WateredTileDuration    = 360.0 // 3 world days (360 game seconds) until manual watering wears off
 
 	// Healing
@@ -164,10 +164,10 @@ type LifecycleConfig struct {
 // spawn attempts across all plants. To get target world-time intervals, divide by
 // expected item count (typically 20). E.g., 18 * 20 = 360s = 3 world days.
 var ItemLifecycle = map[string]LifecycleConfig{
-	"berry":    {SpawnInterval: ReproductionFast, DeathInterval: 0},     // ~2 world days between spawns, immortal until eaten
-	"mushroom": {SpawnInterval: ReproductionMedium, DeathInterval: 0},   // ~3 world days between spawns, immortal until eaten
+	"berry":    {SpawnInterval: ReproductionFast, DeathInterval: 0},      // ~2 world days between spawns, immortal until eaten
+	"mushroom": {SpawnInterval: ReproductionMedium, DeathInterval: 0},    // ~3 world days between spawns, immortal until eaten
 	"flower":   {SpawnInterval: ReproductionMedium, DeathInterval: 48.0}, // ~3 world days between spawns, dies after ~8 world days
-	"gourd":    {SpawnInterval: ReproductionSlow, DeathInterval: 0},     // ~5 world days between spawns, immortal until eaten
+	"gourd":    {SpawnInterval: ReproductionSlow, DeathInterval: 0},      // ~5 world days between spawns, immortal until eaten
 }
 
 // StackSize maps item types to how many fit in one stack (for vessel storage)

@@ -504,8 +504,8 @@ func TestUpdateMood_IncreasesWhenAllNeedsMet(t *testing.T) {
 
 	char := newTestCharacter()
 	char.Mood = 50
-	char.Hunger = 0  // TierNone
-	char.Thirst = 0  // TierNone
+	char.Hunger = 0   // TierNone
+	char.Thirst = 0   // TierNone
 	char.Energy = 100 // TierNone
 	char.Health = 100 // TierNone
 
@@ -750,7 +750,7 @@ func TestUpdateMood_StatusPenaltiesStack(t *testing.T) {
 
 	char := newTestCharacter()
 	char.Mood = 50
-	char.Hunger = 80  // TierModerate
+	char.Hunger = 80 // TierModerate
 	char.Thirst = 0
 	char.Energy = 100
 	char.Health = 100

@@ -312,9 +312,9 @@ func TestConsume_MoodPenaltyFromNegativePreference(t *testing.T) {
 
 	// Create character with a dislike
 	char := &entity.Character{
-		ID:   1,
-		Name: "Test",
-		Mood: 50,
+		ID:     1,
+		Name:   "Test",
+		Mood:   50,
 		Hunger: 80,
 		Preferences: []entity.Preference{
 			entity.NewNegativePreference("mushroom", ""), // Dislikes mushrooms
@@ -339,9 +339,9 @@ func TestConsume_MoodFloorsAtZero(t *testing.T) {
 
 	// Create character with strong dislike and low mood
 	char := &entity.Character{
-		ID:   1,
-		Name: "Test",
-		Mood: 3, // Very low
+		ID:     1,
+		Name:   "Test",
+		Mood:   3, // Very low
 		Hunger: 80,
 		Preferences: []entity.Preference{
 			entity.NewNegativePreference("mushroom", ""),
@@ -917,7 +917,7 @@ func TestConsumeFromInventory_AppliesMoodFromPreference(t *testing.T) {
 
 	char := newTestCharacter() // Likes berry, likes red
 	char.Mood = 50
-	char.Hunger = 80 // Won't reach 0
+	char.Hunger = 80                                            // Won't reach 0
 	item := entity.NewBerry(0, 0, types.ColorRed, false, false) // +2 preference
 	char.AddToInventory(item)
 

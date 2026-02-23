@@ -11,24 +11,24 @@ const CurrentVersion = 1
 
 // SaveState represents the complete saveable state of a world
 type SaveState struct {
-	Version         int                  `json:"version"`
-	SavedAt         time.Time            `json:"saved_at"`
-	ElapsedGameTime float64              `json:"elapsed_game_time"` // Total simulation time in seconds
+	Version         int       `json:"version"`
+	SavedAt         time.Time `json:"saved_at"`
+	ElapsedGameTime float64   `json:"elapsed_game_time"` // Total simulation time in seconds
 
 	MapWidth  int `json:"map_width"`
 	MapHeight int `json:"map_height"`
 
-	Varieties   []VarietySave            `json:"varieties"`   // Full variety registry
-	Characters  []CharacterSave          `json:"characters"`
-	Items       []ItemSave               `json:"items"`
-	Features    []FeatureSave            `json:"features"`
-	WaterTiles      []WaterTileSave          `json:"water_tiles,omitempty"`
-	TilledPositions          []types.Position `json:"tilled_positions,omitempty"`
-	MarkedForTillingPositions []types.Position `json:"marked_for_tilling,omitempty"`
-	WateredTiles             []WateredTileSave `json:"watered_tiles_manual,omitempty"`
-	ActionLogs  map[int][]EventSave      `json:"action_logs"` // Per-character event logs, keyed by char ID
-	Orders      []OrderSave              `json:"orders,omitempty"`
-	NextOrderID int                      `json:"next_order_id,omitempty"`
+	Varieties                 []VarietySave       `json:"varieties"` // Full variety registry
+	Characters                []CharacterSave     `json:"characters"`
+	Items                     []ItemSave          `json:"items"`
+	Features                  []FeatureSave       `json:"features"`
+	WaterTiles                []WaterTileSave     `json:"water_tiles,omitempty"`
+	TilledPositions           []types.Position    `json:"tilled_positions,omitempty"`
+	MarkedForTillingPositions []types.Position    `json:"marked_for_tilling,omitempty"`
+	WateredTiles              []WateredTileSave   `json:"watered_tiles_manual,omitempty"`
+	ActionLogs                map[int][]EventSave `json:"action_logs"` // Per-character event logs, keyed by char ID
+	Orders                    []OrderSave         `json:"orders,omitempty"`
+	NextOrderID               int                 `json:"next_order_id,omitempty"`
 
 	// Ground spawning timers
 	GroundSpawnStick float64 `json:"ground_spawn_stick,omitempty"`

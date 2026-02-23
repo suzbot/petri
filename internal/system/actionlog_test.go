@@ -372,7 +372,7 @@ func TestFormatGameTime_Minutes(t *testing.T) {
 		expected string
 	}{
 		{60, "[1m]"},
-		{300, "[5m]"},  // 5 minutes
+		{300, "[5m]"},   // 5 minutes
 		{3540, "[59m]"}, // 59 minutes
 	}
 
@@ -391,8 +391,8 @@ func TestFormatGameTime_Hours(t *testing.T) {
 		secs     float64
 		expected string
 	}{
-		{3600, "[1h]"},  // 1 hour
-		{7200, "[2h]"},  // 2 hours
+		{3600, "[1h]"}, // 1 hour
+		{7200, "[2h]"}, // 2 hours
 	}
 
 	for _, tt := range tests {

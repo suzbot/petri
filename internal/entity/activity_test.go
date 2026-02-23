@@ -106,4 +106,3 @@ func TestCraftActivities_HaveCategory(t *testing.T) {
 		}
 	}
 }
-

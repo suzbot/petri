@@ -28,13 +28,13 @@ func createTestRegistry() *game.VarietyRegistry {
 		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	})
 	reg.Register(&entity.ItemVariety{
 		ID:       entity.GenerateVarietyID("berry", types.ColorBlue, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorBlue,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	})
 	reg.Register(&entity.ItemVariety{
 		ID:       entity.GenerateVarietyID("mushroom", types.ColorBrown, types.PatternSpotted, types.TextureSlimy),
@@ -42,7 +42,7 @@ func createTestRegistry() *game.VarietyRegistry {
 		Color:    types.ColorBrown,
 		Pattern:  types.PatternSpotted,
 		Texture:  types.TextureSlimy,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	})
 	reg.Register(&entity.ItemVariety{
 		ID:       entity.GenerateVarietyID("gourd", types.ColorGreen, types.PatternStriped, types.TextureWarty),
@@ -50,7 +50,7 @@ func createTestRegistry() *game.VarietyRegistry {
 		Color:    types.ColorGreen,
 		Pattern:  types.PatternStriped,
 		Texture:  types.TextureWarty,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	})
 	return reg
 }

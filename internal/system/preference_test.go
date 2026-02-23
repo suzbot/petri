@@ -15,10 +15,10 @@ func TestGetFormationParams_MoodTiers(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name            string
-		moodTier        int
-		expectChance    bool // true if chance > 0
-		expectValence   int  // expected valence (0 means no formation)
+		name          string
+		moodTier      int
+		expectChance  bool // true if chance > 0
+		expectValence int  // expected valence (0 means no formation)
 	}{
 		{"Joyful (TierNone) forms positive", entity.TierNone, true, 1},
 		{"Happy (TierMild) forms positive", entity.TierMild, true, 1},

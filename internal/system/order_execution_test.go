@@ -393,7 +393,7 @@ func TestFindHarvestIntent_LooksForVesselFirst(t *testing.T) {
 		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	})
 	gameMap.SetVarieties(registry)
 
@@ -442,7 +442,7 @@ func TestFindHarvestIntent_DropsIncompatibleVessel(t *testing.T) {
 		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	})
 	registry.Register(&entity.ItemVariety{
 		ID:       entity.GenerateVarietyID("mushroom", types.ColorBrown, types.PatternSpotted, types.TextureSlimy),
@@ -450,7 +450,7 @@ func TestFindHarvestIntent_DropsIncompatibleVessel(t *testing.T) {
 		Color:    types.ColorBrown,
 		Pattern:  types.PatternSpotted,
 		Texture:  types.TextureSlimy,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	})
 	gameMap.SetVarieties(registry)
 
@@ -508,7 +508,7 @@ func TestFindHarvestIntent_UsesCompatibleVessel(t *testing.T) {
 		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
-		Edible: &entity.EdibleProperties{},
+		Edible:   &entity.EdibleProperties{},
 	})
 	gameMap.SetVarieties(registry)
 
