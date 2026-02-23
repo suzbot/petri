@@ -20,6 +20,7 @@ model: sonnet
 **Do NOT write code yet.** Run through this checklist before any implementation. The goal is to confirm the step is implementation-ready without relitigating design — check for presence and alignment, not correctness of decisions already made.
 
 **Plan completeness — does the step have:**
+- [ ] Anchor story (1-2 sentence narrative of what the user/character experiences). This is what you derive anchor tests from — without it, tests validate code structure instead of user intent.
 - [ ] Detailed implementation breakdown (not "TBD", "high-level scope", or single-line bullets)
 - [ ] Architecture patterns named explicitly (e.g., "follows ordered action pattern" not just "follows existing pattern")
 - [ ] Tests listed before implementation tasks (TDD order)
@@ -41,7 +42,7 @@ Get user confirmation to proceed.
 ### Step 3: TDD Implementation
 Once approach is confirmed:
 - Write tests first
-  - **Anchor tests to requirements, not implementation.** Before writing tests, restate the user story in one sentence. Write at least one test that validates the end-to-end intent of that story. Implementation-path tests are fine as supplements, but the anchor test should be: "does the user's described outcome happen?" A test like "returns ActionPickup" validates code structure; a test like "ground vessel ends up filled with water after action completes" validates intent.
+  - **Anchor tests to requirements, not implementation.** The plan should include an anchor story per step (a 1-2 sentence narrative of what the user/character experiences). Restate that story in one sentence, then write at least one test that validates the end-to-end intent. Implementation-path tests are fine as supplements, but the anchor test should be: "does the user's described outcome happen?" A test like "returns ActionPickup" validates code structure; a test like "ground vessel ends up filled with water after action completes" validates intent. If the plan is missing its anchor story, that's a signal to invoke `/refine-feature` — you need the "why" before you can test the "what."
   - **Don't assert on exact log/activity wording** (per CLAUDE.md brittle string matching guideline). If you encounter existing tests that assert on exact message text, remove the brittle assertions — don't update them to match new wording.
 - Implement minimum code to pass tests
 - Run tests to verify
@@ -50,6 +51,9 @@ Once approach is confirmed:
 - **Design discussion trigger:** If you find yourself proposing and evaluating design alternatives (not just implementation details like variable names or helper placement), stop and invoke `/refine-feature`. Don't assess whether it's "needed enough" — the cost of a brief refine is always lower than the cost of an incorrect design baked into code.
 - **Circles trigger:** If you find yourself re-deriving or re-evaluating an approach you've already considered, stop. First: re-read architecture.md for the relevant pattern — the answer is likely already documented. Second: if the architecture doc doesn't resolve it, invoke `/refine-feature`. Third: if you're circling on a test failure rather than a design question, run a targeted diagnostic (add logging, run with `-v`) instead of reasoning further. Evidence first, then reasoning.
 - **Ordered-action integration tests:** When writing tests for ordered actions (ActionWaterGarden, ActionTillSoil, etc.) that span multiple ticks with movement, the test loop must mirror `continueIntent`: (1) recalculate `char.Intent.Target` each tick via `system.NextStepBFS(charPos, dest)`, and (2) rebuild intent via `findXxxIntentForTest` when intent is nil. Also note that `IsWet()` uses 8-directional adjacency — dry tiles in tests must be placed >1 tile from any water source.
+- **Flow-level anchor tests for ordered actions with supply procurement:** The UI handler (update.go ActionPickup) has post-pickup branching that decides which system function to call next — this is where bugs cluster (vessel guards, prerequisite skipping, continuation logic). Since the handler is UI-layer and not unit-tested, write flow-level anchor tests that **chain the system functions in the sequence the handler calls them**: `findXxxIntent` → `Pickup` → `FindNextVesselTarget`/`FindNextXxxTarget` → repeat → nil signals completion. This tests that the functions compose correctly for the intended flow without duplicating the UI handler. See `TestGatherOrder_VesselPath_EndToEnd` for the pattern.
+- **`continueIntent` and TargetItem rules:** When adding or modifying actions that involve items, read the "`continueIntent` Rules" section in `docs/architecture.md`. It specifies when an action needs an early-return block (TargetItem can be in inventory) vs. using the generic path (TargetItem stays on map). Getting this wrong causes nil pointer panics or lost intents. The decision rule and examples are in architecture.md — don't re-derive, just look it up.
+- **Debugging during human testing (Evidence Before Reasoning):** When a bug appears during human testing, gather evidence before reasoning about causes. Ask the user what they observe, check logs, add `t.Logf` or `-v` — don't propose fixes based on speculation. If a *second* bug appears in the same feature, stop patching and step back: restate the intended end-to-end flow and evaluate whether the design is sound before fixing further. Multiple bugs in the same workflow often signal a design problem, not an implementation problem (see Values.md: "Step Back on Cascading Bugs").
 - After each [TEST] checkpoint passes, follow the [DOCS] and [RETRO] checkpoints in the plan doc
 
 ### Step 4: Human Testing ([TEST])
@@ -60,7 +64,7 @@ Once approach is confirmed:
 
 ### Step 5: Update Documentation ([DOCS])
 Only after human testing confirms success:
-- Run /update-docs
+- Run /update-docs via the **Task tool** (general-purpose subagent, sonnet model). Read the skill file (`.claude/skills/update-docs/SKILL.md`) and pass its full instructions + arguments as the task prompt. Don't use Bash (requires too many approvals for file edits).
 - Mark feature complete in phase plan
 
 ### Step 6: Retro ([RETRO])

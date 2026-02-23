@@ -74,6 +74,17 @@ collaboration friction was observed**. If any of the above did occur, carry the 
 
 ---
 
+### Step 1.5: Read Existing Context (REQUIRED before proposing changes)
+
+Before formulating proposals, read what already exists so proposals build on or strengthen existing content rather than duplicating it:
+
+- **`docs/Values.md`** — current design values. Check whether a friction signal maps to an existing value that could be strengthened (new example, broader wording) rather than a new value.
+- **Relevant skills in `.claude/skills/`** — skim skills that relate to the friction observed (e.g., if the issue was during implementation, read `implement-feature/SKILL.md`). Check whether existing guidance already covers the issue but wasn't surfaced at the right time, vs. guidance that's genuinely missing.
+
+The goal is: **strengthen or surface existing content first, create new content only when nothing existing covers the gap.** This prevents values and skills from growing redundantly across retros.
+
+---
+
 ### Step 2: Process Refinement
 
 A. Assess whether Step 1 insights revealed **clear, recurring, or token/context-heavy friction**
@@ -91,12 +102,13 @@ A. Assess whether Step 1 insights revealed **clear, recurring, or token/context-
     - Specify **what future context, effort, or friction it saves**
     - Keep recommendations minimal, concrete, and scoped
     - **Prefer docs, skills, or agents over CLAUDE.md or Memories** — CLAUDE.md and Memories are always-loaded context and should stay lightweight and should only contain broadly applicable notes. Place refinements where they'll be loaded contextually.
+    - **Build on what exists** — if Values.md or a skill already covers the topic, propose strengthening (new example, broader wording, better placement) rather than creating parallel content. Cite what you found in Step 1.5.
 
 - If No: changes do not clearly pass the cost-benefit threshold
   - Did the user request the retro? If so, provide the analysis and the reasoning for no change.
   - Was the retro automatic? No output is needed, do not solicit user response.
 
-B. Take what you learned about user values, and propose additions to docs/Values.md.
+B. Take what you learned about user values, and propose additions to docs/Values.md. Check existing values first — a new example on an existing value is often more valuable than a new value.
 
 ---
 

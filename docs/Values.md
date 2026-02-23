@@ -60,9 +60,11 @@ Example: A discovery test was flaky because Go map iteration is non-deterministi
 
 ## Evidence Before Reasoning
 
-When something fails unexpectedly, gather evidence first — run a diagnostic, add logging, check with `-v` — then reason about causes. Reasoning without evidence leads to circular re-derivation of the same candidate explanations. The cost of one diagnostic run is always lower than the cost of three rounds of speculative reasoning.
+When something fails unexpectedly, gather evidence first — run a diagnostic, add logging, check with `-v` — then reason about causes. Reasoning without evidence leads to circular re-derivation of the same candidate explanations. The cost of one diagnostic run is always lower than the cost of three rounds of speculative reasoning. This applies equally during test writing, implementation debugging, and human testing — when a user reports unexpected behavior, ask what they observe and check logs before proposing fixes.
 
 Example: WaterGarden integration tests failed for unclear reasons. Three rounds of reasoning about positioning and pathfinding produced wrong fixes. One diagnostic pass with `t.Logf` immediately revealed that `findWaterGardenIntent` was returning nil because `IsWet` treated tiles adjacent to water as already wet.
+
+Example: Gather orders — user reported "characters aren't picking up vessels." Initial hypothesis was stale intent after vessel pickup. Asking "what are you actually seeing?" revealed the real issue: characters were skipping vessel procurement entirely and going straight to nuts. The initial hypothesis would have produced a fix for a non-problem.
 
 ## Start With the Simpler Rule
 

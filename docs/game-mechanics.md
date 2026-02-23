@@ -65,6 +65,18 @@ Stats have four severity tiers: Mild, Moderate, Severe, Crisis. Thresholds defin
 | Health | Lower = worse | 100 is optimal, 0 is death |
 | Mood   | Lower = worse | 100 is Joyful, 0 is Miserable |
 
+<!-- Exception to "don't duplicate config values" rule: tier thresholds are referenced
+     frequently across intent, orders, idle activities, and mood systems. Keeping them
+     here avoids constant code lookups. Source: internal/entity/character.go -->
+
+| Stat   | Mild | Moderate | Severe | Crisis |
+| ------ | ---- | -------- | ------ | ------ |
+| Hunger | ≥50  | ≥75      | ≥90    | 100    |
+| Thirst | ≥50  | ≥75      | ≥90    | 100    |
+| Energy | ≤50  | ≤25      | ≤10    | 0      |
+| Health | ≤75  | ≤50      | ≤25    | ≤10    |
+| Mood   | ≤89  | ≤64      | ≤34    | ≤10    |
+
 ## Stat Rates
 
 Stats change over time at rates defined in config. Key behaviors:

@@ -10,7 +10,35 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Project Vision
 
-See [VISION.txt](docs/VISION.txt) for the full vision statement and development roadmap.
+Characters don't follow scripts — they form preferences, learn from
+experience, transmit knowledge through conversation, and make decisions
+based on personality and memory. History exists only in what characters
+remember and create. When a character dies, their knowledge dies with them,
+except what they've taught or built.
+
+See [VISION.txt](docs/VISION.txt) for the full vision and development roadmap.
+
+## Development Process
+
+Petri is built by a product manager and an AI (Claude). The development
+process itself is part of the project — each practice here was designed and
+iterated on during development.
+
+Core process innovations developed over the course of this project:
+- **Skill-driven workflows**: Custom AI skill definitions enforce TDD,
+  human testing checkpoints, and requirement traceability at each step
+- **Recursive retrospectives**: After each feature, a structured retro
+  reviews collaboration friction, then updates its own skill definitions
+  and design values — compounding institutional knowledge across sessions
+- **Inferred design values**: Patterns observed during retros are captured
+  as explicit principles that guide future implementation decisions
+
+**See it in action:**
+- [`.claude/skills/`](.claude/skills/) — AI interaction protocols developed for this project
+- [`docs/Values.md`](docs/Values.md) — design values surfaced through retrospectives
+- [`CLAUDE.md`](CLAUDE.md) — codebase context and collaboration norms
+- `docs/*-phase-plan.md` — requirement-traced phase plans with TDD checkpoints
+- [`docs/VISION.txt`](docs/VISION.txt) — roadmap and long-term direction
 
 ## Latest Updates
 

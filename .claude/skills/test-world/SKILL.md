@@ -51,11 +51,18 @@ Use Bash to create: `~/.petri/worlds/world-test-<feature>/`
 
 ### Step 5: Write state.json
 
-Write a complete save state following the schema from Step 1. Key considerations:
+Start from the **recipe template** below, then customize for the test scenario.
+
+**Stat semantics (IMPORTANT):**
+- `hunger`: 0 = fully satisfied, 100 = starving to death
+- `thirst`: 0 = fully satisfied, 100 = dying of thirst
+- `energy`: 0 = exhausted, 100 = fully rested
+
+**Default stat levels for test worlds:** hunger=0, thirst=0, energy=98. This saturates survival needs so characters focus on the target behavior. Override only when the test specifically requires a needy character (e.g., testing hunger-driven eating).
+
+**Key considerations:**
 - Use `version: 1` and set `map_width: 60`, `map_height: 60`
 - Position characters near relevant items/features
-- Set stat levels to trigger specific behaviors (e.g., low hunger to trigger eating)
-- **Saturate needs aggressively** (hunger=0, thirst=0, energy=98) to prevent characters from pursuing needs instead of the target behavior
 - Pre-populate knowledge/known_activities if testing knowledge-dependent behavior
 - Include water_tiles for drinking, features (leaf piles, feature_type: 2) for sleeping
 - Include varieties for all item types present
@@ -63,6 +70,92 @@ Write a complete save state following the schema from Step 1. Key considerations
 - Set `talking_with_id: -1` for characters not in conversation
 - All items need complete fields: id, position, item_type, color, pattern, texture, edible, poisonous, healing, death_timer
 - **Vessel availability:** If testing a behavior that uses vessels, provide enough vessels to fill both inventory slots per character. Characters may autonomously pick up vessels for other idle activities (forage, fetch water) before the target behavior triggers — extra vessels prevent this from blocking the test.
+
+#### Recipe Template
+
+Use this as the starting structure. Add/remove characters, items, features, and varieties as needed for the specific test. Read `internal/save/state.go` for any fields not shown here.
+
+```json
+{
+  "version": 1,
+  "map_width": 60,
+  "map_height": 60,
+  "elapsed_game_time": 0,
+  "characters": [
+    {
+      "name": "Kai",
+      "symbol": "☺",
+      "position": {"x": 30, "y": 30},
+      "color": 1,
+      "hunger": 0,
+      "thirst": 0,
+      "energy": 98,
+      "hp": 100,
+      "alive": true,
+      "action": 0,
+      "action_timer": 0,
+      "dest": {"x": -1, "y": -1},
+      "talking_with_id": -1,
+      "inventory": [],
+      "preferences": [],
+      "knowledge": [],
+      "known_activities": [],
+      "known_recipes": [],
+      "assigned_order_id": 0
+    }
+  ],
+  "items": [],
+  "features": [],
+  "water_tiles": [
+    {"position": {"x": 25, "y": 25}, "water_type": 2}
+  ],
+  "tilled_positions": [],
+  "watered_tiles": [],
+  "varieties": [],
+  "next_item_id": 100,
+  "next_feature_id": 100,
+  "orders": []
+}
+```
+
+**Item template:**
+```json
+{
+  "id": 1,
+  "position": {"x": 31, "y": 30},
+  "item_type": "nut",
+  "color": 3,
+  "pattern": 1,
+  "texture": 2,
+  "edible": true,
+  "poisonous": false,
+  "healing": false,
+  "death_timer": 0
+}
+```
+
+**Feature template (leaf pile for sleeping):**
+```json
+{
+  "id": 1,
+  "position": {"x": 35, "y": 30},
+  "feature_type": 2
+}
+```
+
+**Variety template:**
+```json
+{
+  "item_type": "nut",
+  "color": 3,
+  "pattern": 1,
+  "texture": 2,
+  "edible": true,
+  "poisonous": false,
+  "healing": false,
+  "kind": ""
+}
+```
 
 ### Step 5.5: Verify Written Files (REQUIRED)
 
