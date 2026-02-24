@@ -11,10 +11,10 @@ var CharacterNames = []string{
 
 	// B
 	"Bane", "Bean", "Beech", "Beff", "Bine", "Birch", "Bit", "Bloom", "Bog", "Bole", "Bolt", "Bough", "Branch",
-	"Bract", "Briar", "Brome", "Brume", "Brush", "Bry", "Bud", "Budge", "Bug", "Burl", "Burr", "Buzz",
+	"Bract", "Briar", "Brome", "Brook", "Brume", "Brush", "Bry", "Bud", "Buff", "Bug", "Burl", "Burr", "Buzz",
 
 	// C
-	"Chert", "Claw", "Corm", "Cress", "Croft", "Cub", "Culm",
+	"Chert", "Claw", "Clump", "Combe", "Copse", "Corm", "Cress", "Croft", "Cub", "Culm",
 
 	// D
 	"Damp", "Daub", "Den", "Dew", "Dill", "Dock", "Dray", "Duff",
@@ -23,10 +23,10 @@ var CharacterNames = []string{
 	"Eft", "Egg", "Elm",
 
 	// F
-	"Fen", "Fern", "Fir", "Fitch", "Flax", "Flick", "Flit", "Fluff", "Fog", "Frog", "Frond", "Furl", "Fuzz",
+	"Fen", "Fern", "Fir", "Flax", "Flick", "Flit", "Fluff", "Fog", "Frog", "Frond", "Fur", "Furl", "Fuzz",
 
 	// G
-	"Gloam", "Glume", "Gnarl", "Gren", "Grub", "Grue",
+	"Glade", "Glen", "Gloam", "Gnarl", "Gren", "Grub", "Grue",
 
 	// H
 	"Hedge", "Herb", "Hop",
@@ -35,39 +35,39 @@ var CharacterNames = []string{
 	"Kit", "Knoll",
 
 	// L
-	"Larch", "Leaf", "Leek", "Lil", "Loam", "Log",
+	"Larch", "Leaf", "Leek", "Lek", "Loam", "Log",
 
 	// M
-	"Marl", "Marsh", "Midge", "Mint", "Mite", "Mole", "Mog", "Mor", "Moss", "Moth", "Mouse", "Mug", "Muld", "Mull", "Must",
+	"Marl", "Marsh", "Midge", "Mint", "Mire", "Mite", "Mole", "Mog", "Moss", "Moth", "Mouse", "Muck", "Mud", "Mug", "Muld", "Mull", "Must",
 
 	// N
-	"Nest", "Newt", "Nib", "Node", "Nog", "Nook", "Nut",
+	"Nest", "Newt", "Nib", "Node", "Nook",
 
 	// O
-	"Oak", "Oat", "Olm", "Ov",
+	"Oak", "Oat", "Olm", "Ov", "Owl",
 
 	// P
-	"Pad", "Pea", "Peat", "Phlom", "Phlox", "Pine", "Pitch", "Pith", "Pod", "Pog", "Puck", "Pud", "Puff", "Pup",
+	"Pad", "Paw", "Pea", "Peat", "Phlom", "Phlox", "Pine", "Pitch", "Pith", "Pod", "Pond", "Puck", "Puff",
 
 	// Q
-	"Quick", "Quill", "Quitch",
+	"Quill",
 
 	// R
-	"Ramp", "Reed", "Rime", "Root", "Rue", "Rump", "Rush", "Rye",
+	"Ramp", "Reed", "Rime", "Root", "Rue", "Ruff", "Rush", "Rust", "Rye",
 
 	// S
-	"Sap", "Scamps", "Scape", "Scarp", "Scrape", "Scratch", "Scrub", "Scurf", "Sedge", "Shoot", "Shrew", "Skink", "Skunk",
-	"Snug", "Sod", "Speck", "Sprig", "Sprout", "Spruce", "Spud", "Stem", "Stick", "Stoat", "Stub", "Stump",
+	"Sap", "Scamps", "Scape", "Scarp", "Scrape", "Scratch", "Scrub", "Scruff", "Scurf", "Sedge", "Shoot", "Shrew", "Skink", "Skunk",
+	"Smudge", "Sneak", "Snipe", "Snug", "Sod", "Soot", "Speck", "Spray", "Sprig", "Sprout", "Spruce", "Spud", "Stem", "Stick", "Stoat", "Stub", "Stump", "Sward",
 
 	// T
-	"Tad", "Tarn", "Thorn", "Toad", "Toady", "Tog", "Tuff", "Tuft", "Twig",
+	"Tar", "Tarn", "Thorn", "Toad", "Toady", "Tuff", "Tuft", "Twig",
 
 	// V
 	"Verd", "Vetch", "Vi", "Vole",
 
 	// W
-	"Web", "Weed", "Weir", "Wilt", "Wing", "Wold", "Woad", "Wort",
+	"Web", "Weed", "Weir", "Wilt", "Wing", "Wold", "Woad", "Worm", "Wort",
 
 	// Y
-	"Yew",
+	"Yew", "Yolk",
 }

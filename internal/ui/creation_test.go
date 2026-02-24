@@ -432,3 +432,142 @@ func TestCharacterCreationState_IsOptionFieldSelected(t *testing.T) {
 		t.Error("Expected IsOptionFieldSelected to be true for FieldColor")
 	}
 }
+
+// =============================================================================
+// AddCharacter / RemoveLastCharacter Tests
+// =============================================================================
+
+func TestAddCharacter_AddsWithUniqueName(t *testing.T) {
+	t.Parallel()
+
+	state := NewCharacterCreationState()
+	if len(state.Characters) != 4 {
+		t.Fatalf("Expected 4 characters initially, got %d", len(state.Characters))
+	}
+
+	ok := state.AddCharacter()
+	if !ok {
+		t.Fatal("AddCharacter returned false, expected true")
+	}
+	if len(state.Characters) != 5 {
+		t.Errorf("Expected 5 characters after add, got %d", len(state.Characters))
+	}
+
+	// New character should have a valid, unique name
+	validNames := make(map[string]bool)
+	for _, n := range config.CharacterNames {
+		validNames[n] = true
+	}
+	seenNames := make(map[string]bool)
+	for i, c := range state.Characters {
+		if !validNames[c.Name] {
+			t.Errorf("Character %d has invalid name: %q", i, c.Name)
+		}
+		if seenNames[c.Name] {
+			t.Errorf("Character %d has duplicate name: %q", i, c.Name)
+		}
+		seenNames[c.Name] = true
+	}
+}
+
+func TestAddCharacter_AtMax_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	state := NewCharacterCreationState()
+	// Fill up to 16
+	for len(state.Characters) < 16 {
+		state.AddCharacter()
+	}
+	if len(state.Characters) != 16 {
+		t.Fatalf("Expected 16 characters, got %d", len(state.Characters))
+	}
+
+	ok := state.AddCharacter()
+	if ok {
+		t.Error("AddCharacter should return false at max (16)")
+	}
+	if len(state.Characters) != 16 {
+		t.Errorf("Character count should stay at 16, got %d", len(state.Characters))
+	}
+}
+
+func TestRemoveLastCharacter_RemovesLast(t *testing.T) {
+	t.Parallel()
+
+	state := NewCharacterCreationState()
+	lastName := state.Characters[3].Name
+
+	ok := state.RemoveLastCharacter()
+	if !ok {
+		t.Fatal("RemoveLastCharacter returned false, expected true")
+	}
+	if len(state.Characters) != 3 {
+		t.Errorf("Expected 3 characters after remove, got %d", len(state.Characters))
+	}
+	// The removed character should be gone
+	for _, c := range state.Characters {
+		if c.Name == lastName {
+			t.Errorf("Last character %q should have been removed", lastName)
+		}
+	}
+}
+
+func TestRemoveLastCharacter_AdjustsSelectedChar(t *testing.T) {
+	t.Parallel()
+
+	state := NewCharacterCreationState()
+	state.SelectedChar = 3 // last card
+
+	state.RemoveLastCharacter()
+	// SelectedChar should clamp to new last index (2)
+	if state.SelectedChar != 2 {
+		t.Errorf("Expected SelectedChar 2 after remove, got %d", state.SelectedChar)
+	}
+}
+
+func TestRemoveLastCharacter_AtMin_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	state := NewCharacterCreationState()
+	// Remove down to 1
+	for len(state.Characters) > 1 {
+		state.RemoveLastCharacter()
+	}
+	if len(state.Characters) != 1 {
+		t.Fatalf("Expected 1 character, got %d", len(state.Characters))
+	}
+
+	ok := state.RemoveLastCharacter()
+	if ok {
+		t.Error("RemoveLastCharacter should return false at min (1)")
+	}
+	if len(state.Characters) != 1 {
+		t.Errorf("Character count should stay at 1, got %d", len(state.Characters))
+	}
+}
+
+func TestNavigateCharacter_WrapsAtVariableLength(t *testing.T) {
+	t.Parallel()
+
+	state := NewCharacterCreationState()
+	// Add 3 more to get to 7
+	for i := 0; i < 3; i++ {
+		state.AddCharacter()
+	}
+	if len(state.Characters) != 7 {
+		t.Fatalf("Expected 7 characters, got %d", len(state.Characters))
+	}
+
+	// Navigate to last (index 6)
+	state.SelectedChar = 6
+	state.NavigateCharacter(1)
+	if state.SelectedChar != 0 {
+		t.Errorf("Expected wrap to 0 from index 6 (len 7), got %d", state.SelectedChar)
+	}
+
+	// Navigate left from 0 should wrap to last
+	state.NavigateCharacter(-1)
+	if state.SelectedChar != 6 {
+		t.Errorf("Expected wrap to 6 from index 0 (len 7), got %d", state.SelectedChar)
+	}
+}

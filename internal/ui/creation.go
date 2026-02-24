@@ -86,12 +86,12 @@ type CharacterCreationData struct {
 
 // CharacterCreationState holds all state for the character creation screen
 type CharacterCreationState struct {
-	Characters    [4]CharacterCreationData
-	SelectedChar  int // 0-3
+	Characters    []CharacterCreationData
+	SelectedChar  int // 0 to len(Characters)-1
 	SelectedField int // FieldName, FieldFood, FieldColor
 }
 
-// NewCharacterCreationState creates a new character creation state with defaults
+// NewCharacterCreationState creates a new character creation state with 4 default characters
 func NewCharacterCreationState() *CharacterCreationState {
 	state := &CharacterCreationState{
 		SelectedChar:  0,
@@ -101,19 +101,62 @@ func NewCharacterCreationState() *CharacterCreationState {
 	// Initialize characters with random unique names and random food/color
 	names := randomUniqueNames(4)
 	for i := 0; i < 4; i++ {
-		state.Characters[i] = CharacterCreationData{
+		state.Characters = append(state.Characters, CharacterCreationData{
 			Name:  names[i],
 			Food:  randomFood(),
 			Color: randomColor(),
-		}
+		})
 	}
 
 	return state
 }
 
+// AddCharacter adds a new randomized character card. Returns false if already at max (16).
+func (s *CharacterCreationState) AddCharacter() bool {
+	if len(s.Characters) >= 16 {
+		return false
+	}
+
+	// Pick a name not already in use
+	usedNames := make(map[string]bool, len(s.Characters))
+	for _, c := range s.Characters {
+		usedNames[c.Name] = true
+	}
+	var available []string
+	for _, n := range config.CharacterNames {
+		if !usedNames[n] {
+			available = append(available, n)
+		}
+	}
+	name := "Character"
+	if len(available) > 0 {
+		name = available[rand.Intn(len(available))]
+	}
+
+	s.Characters = append(s.Characters, CharacterCreationData{
+		Name:  name,
+		Food:  randomFood(),
+		Color: randomColor(),
+	})
+	return true
+}
+
+// RemoveLastCharacter removes the last character card. Returns false if already at min (1).
+func (s *CharacterCreationState) RemoveLastCharacter() bool {
+	if len(s.Characters) <= 1 {
+		return false
+	}
+	s.Characters = s.Characters[:len(s.Characters)-1]
+	if s.SelectedChar >= len(s.Characters) {
+		s.SelectedChar = len(s.Characters) - 1
+	}
+	return true
+}
+
 // NavigateCharacter moves selection to another character (delta: -1 for left, +1 for right)
 func (s *CharacterCreationState) NavigateCharacter(delta int) {
-	s.SelectedChar = (s.SelectedChar + delta + 4) % 4
+	n := len(s.Characters)
+	s.SelectedChar = (s.SelectedChar + delta + n) % n
 }
 
 // NavigateField moves selection to another field (delta: -1 for up, +1 for down)
@@ -157,8 +200,8 @@ func (s *CharacterCreationState) CycleOption() {
 
 // RandomizeAll resets all characters to random names with random food/color
 func (s *CharacterCreationState) RandomizeAll() {
-	names := randomUniqueNames(4)
-	for i := 0; i < 4; i++ {
+	names := randomUniqueNames(len(s.Characters))
+	for i := range s.Characters {
 		s.Characters[i] = CharacterCreationData{
 			Name:  names[i],
 			Food:  randomFood(),

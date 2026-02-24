@@ -251,7 +251,7 @@ func (m Model) viewCharacterCreate() string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("240")).
 		Padding(0, 1).
-		Width(22)
+		Width(26)
 
 	selectedCardStyle := cardStyle.Copy().
 		BorderForeground(lipgloss.Color("45")) // cyan highlight
@@ -297,6 +297,7 @@ func (m Model) viewCharacterCreate() string {
 		}
 
 		cardContent := lipgloss.JoinVertical(lipgloss.Left,
+			fieldLabelStyle.Render(fmt.Sprintf("#%d", i+1)),
 			fmt.Sprintf("%s %s", nameLabel, nameValue),
 			fmt.Sprintf("%s %s", foodLabel, foodValue),
 			fmt.Sprintf("%s %s", colorLabel, colorValue),
@@ -310,29 +311,37 @@ func (m Model) viewCharacterCreate() string {
 		cards = append(cards, style.Render(cardContent))
 	}
 
-	// Join cards horizontally
-	cardRow := lipgloss.JoinHorizontal(lipgloss.Top, cards...)
+	// Arrange cards in rows of 4
+	var cardRows []string
+	for i := 0; i < len(cards); i += 4 {
+		end := i + 4
+		if end > len(cards) {
+			end = len(cards)
+		}
+		cardRows = append(cardRows, lipgloss.JoinHorizontal(lipgloss.Top, cards[i:end]...))
+	}
+	cardGrid := lipgloss.JoinVertical(lipgloss.Left, cardRows...)
 
-	// Key hints - context aware for space
-	var spaceHint string
-	if m.creationState.IsNameFieldSelected() {
-		spaceHint = ""
-	} else {
-		spaceHint = "Space: Change option  "
+	// Key hints
+	hintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+
+	hintLines := "← → Navigate characters   ↑ ↓ Navigate fields   Tab: Next field\n+/-: Add/remove character   Ctrl+R: Randomize   Enter: Start game   Esc: Back"
+	if !m.creationState.IsNameFieldSelected() {
+		hintLines += "\nSpace: Change option"
 	}
 
-	hints := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("245")).
-		Render(fmt.Sprintf("← → Navigate characters   ↑ ↓ Navigate fields   Tab: Next field\n%sCtrl+R: Randomize   Enter: Start game   Esc: Back", spaceHint))
+	hints := hintStyle.Render(hintLines)
+
+	count := len(m.creationState.Characters)
 
 	// Build full content
 	content := lipgloss.JoinVertical(lipgloss.Center,
 		"",
 		titleStyle.Render("=== CHARACTER CREATION ==="),
 		"",
-		"Customize your characters:",
+		fmt.Sprintf("Customize your characters: %d", count),
 		"",
-		cardRow,
+		cardGrid,
 		"",
 		hints,
 	)

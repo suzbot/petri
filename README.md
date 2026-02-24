@@ -40,6 +40,7 @@ Core process innovations developed over the course of this project:
 
 ## Latest Updates
 
+- **Variable character count**: choose 1–16 characters in the creation screen with +/- before starting.
 - **Satiation-aware food selection**: characters choose food that fits their current hunger — filling meals at severe hunger, snacks when foraging at low hunger, nearest food at crisis.
 - **Eating duration**: berries and nuts are quick snacks; mushrooms are a proper meal; gourds are a lengthy feast.
 
@@ -91,6 +92,7 @@ go build ./cmd/petri
 - `← →` - Navigate between characters
 - `↑ ↓` / `Tab` - Navigate fields
 - `Space` - Cycle option
+- `+` / `-` - Add or remove a character card (1–16)
 - `Ctrl+R` - Randomize all
 - `Enter` - Start game
 

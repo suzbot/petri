@@ -1913,10 +1913,14 @@ func (m Model) handleCharacterCreationKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.creationState.RandomizeAll()
 
 	case tea.KeyRunes:
-		// Handle regular character input for name field
-		if m.creationState.IsNameFieldSelected() {
-			key := msg.String()
-			if len(key) == 1 {
+		key := msg.String()
+		switch key {
+		case "+", "=":
+			m.creationState.AddCharacter()
+		case "-":
+			m.creationState.RemoveLastCharacter()
+		default:
+			if m.creationState.IsNameFieldSelected() && len(key) == 1 {
 				m.creationState.TypeCharacter(rune(key[0]))
 			}
 		}
@@ -1931,14 +1935,15 @@ func (m Model) startGameFromCreation() Model {
 	m.phase = phasePlaying
 	m.lastUpdate = time.Now()
 
-	// Clustered starting positions near center
+	// Clustered starting positions near center, 4 per row
 	cx, cy := config.MapWidth/2, config.MapHeight/2
-	offsets := [][2]int{{0, 0}, {2, 0}, {0, 2}, {2, 2}}
 
 	var chars []*entity.Character
 	for i, charData := range m.creationState.Characters {
-		x := cx + offsets[i][0]
-		y := cy + offsets[i][1]
+		col := i % 4
+		row := i / 4
+		x := cx + col*2
+		y := cy + row*2
 		// Convert food/color display strings to lowercase for consistency
 		food := DisplayToItemType(charData.Food)
 		color := DisplayToColor(charData.Color)

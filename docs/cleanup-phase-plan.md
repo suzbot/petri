@@ -28,7 +28,7 @@ Requirements: [post-gardening-cleanup.md](post-gardening-cleanup.md)
 6. **3B** — Satiation & consumption duration ✅
 7. **3C** — Satiation-aware food selection ✅
 8. **4A** — Character creation streamline: dead code + R/C screen ✅
-9. **4B** — Variable-count creation grid
+9. **4B** — Variable-count creation grid ✅
 
 ---
 
@@ -569,7 +569,7 @@ The worker at Severe hunger walks past a nearby berry to reach a filling gourd �
 
 ---
 
-### 4B. Variable-Count Creation Grid
+### 4B. Variable-Count Creation Grid ✅
 
 **Anchor story:** Player presses C, sees 4 randomized character cards in a row. They press + three times — three more cards appear in a second row. They edit a couple of names, randomize the rest with Ctrl+R, and press Enter to start with 7 characters.
 
@@ -604,7 +604,7 @@ The worker at Severe hunger walks past a nearby berry to reach a filling gourd �
 - Ctrl+R randomizes all cards (preserving count)
 - Enter starts game with correct number of characters at correct positions
 
-**Step 2:** [DOCS] + [RETRO]
+**Step 2:** [DOCS] ✅ + [RETRO]
 
 ---
 
