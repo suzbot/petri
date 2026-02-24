@@ -608,14 +608,17 @@ The worker at Severe hunger walks past a nearby berry to reach a filling gourd �
 
 ---
 
-## Part 5: Game Mechanics Doc Reorg
+## Part 5: Game Mechanics Doc Reorg ✅
 
-Reorganize game-mechanics.md for player readability:
-- Reorder by gameflow
-- Remove unnecessary detail or summarize where appropriate
-- Consistent level of detail throughout
+Reorganized game-mechanics.md:
+- Reordered by gameflow (25 sections → 14)
+- ~870 lines → ~330 lines — trimmed implementation details, merged related sections
+- Grouped: Characters (stats/speed/sleep/frustration/mood), Food & Consumption (eating/drinking/scoring), Gardening (tilled soil/sprouts/watered tiles)
+- Added Overview paragraph, Character Creation section, moved Character Names out of Preferences
+- Removed: Intent Re-evaluation Guards, ConsumePlantable Helper, Preference Log Messages, Variety Generation formula, Mood Display colors
+- Added game-mechanics.md as a reference in skills: required for `/new-phase`, optional for `/refine-feature` and `/test-world`
 
-[DOCS] — this step *is* the docs update.
+[DOCS] — this step *was* the docs update.
 
 ---
 

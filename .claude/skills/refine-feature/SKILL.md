@@ -16,6 +16,7 @@ Read these before discussing approach:
 - **Original requirements document** for full context (linked at top of phase plan doc if part of larger phase). Proposals that contradict or miss requirements waste discussion time.
 - **Phase plan document** in `docs/` (if exists) — this is the planning artifact, not a new file
 - Any questions deferred from phase planning
+- **`docs/game-mechanics.md`** (optional) — If the feature interacts with existing game systems and you need to understand current player-visible behavior without code diving, read relevant sections here. Covers stats, food selection, orders, gardening, etc.
 - **Implementation code** (if needed) — If the feature extends existing systems and the docs above don't give enough detail on how those systems currently work, use targeted reads or an Explore agent to understand the relevant code. Architecture.md often points to the right files; start there before doing broad exploration.
 
 ### Step 2: Discussion First (REQUIRED)

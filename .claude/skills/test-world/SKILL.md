@@ -23,6 +23,8 @@ Read `internal/save/state.go` for the complete `SaveState` struct and all serial
 
 Also read `internal/config/config.go` for character/item symbols, spawn counts, and any relevant constants.
 
+Optionally read `docs/game-mechanics.md` for understanding how game systems interact (e.g., hunger tiers and order interruption, idle activity triggers, food selection behavior) — this can help design better test preconditions.
+
 ### Step 2: Plan the World
 
 Based on the test description, determine:

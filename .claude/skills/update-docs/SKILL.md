@@ -24,11 +24,34 @@ Read each of these files, then apply only the changes warranted by the summary:
 |------|----------|-------------|
 | `README.md` | **Players** | Primarily Latest Updates section. Other sections only if absolutely needed. Player-visible changes only. Bug fixes and internal improvements are NOT Latest Updates material — only new player-facing capabilities or workflows. No implementation details, no specific counts or enumerations (not "seven variants" — just "multiple variants" or omit). **One short line per feature** — Max 20 words. name the capability, not its steps (e.g., "Water garden orders" not "character procures vessel, fills at water, walks to tiles..."). If details matter, they belong in game-mechanics.md. Only if a major new workflow, make a brief update to 'How it works'. |
 | `CLAUDE.md` | **AI context (always loaded)** | Current features line and roadmap only. Generalize into categories, never enumerate specifics. Keep lightweight — detailed docs exist elsewhere. Don't need a long list of completed work, prune completed section to a few words on the last completed item. |
-| `docs/game-mechanics.md` | **Detailed reference** | Add new mechanics, update existing sections. Never duplicate config values — reference config source instead (e.g., "See `config.GroundSpawnInterval`"). This includes approximate values like "~5 days" — if the number comes from config, reference the config. |
+| `docs/game-mechanics.md` | **Behavioral reference** | See game-mechanics rules below. |
 | `docs/architecture.md` | **AI developer reference** | Design patterns, decision rationale, and "adding new X" checklists. **Include:** new patterns/categories, decision rules (e.g., when to use self-managing vs ordered), `continueIntent` interaction rules for new actions, new checklists for recurring tasks. **Exclude:** API reference (function tables, parameter lists, file-to-function maps) — these belong in code comments and are discoverable via code navigation. The test is: does this capture a *design decision or rule* that can't be inferred from reading the code? If yes, it belongs. If it's just documenting what functions exist, it doesn't. |
 | `docs/*-phase-plan.md` | **Planning artifact** | Mark completed steps with ✅. Add notes about bugs found/fixed during testing. Do not modify future steps. |
 | `docs/randomideas.md`| **Small Feature Planning**` | Remove items that have been moved into plans or that have been completed.|
 | `docs/triggered-enhancements.md` | **Deferred Feature Planning** | Remove items that have been completed. Update items where intended approaches have changed.|
+
+### game-mechanics.md Rules
+
+**Audience:** The `/remind-me` skill (Grep-based lookup), users wanting to understand the game, and Claude during phase planning. All content should answer: "what does the game do?" — not "how is the code structured?" (that's architecture.md).
+
+**Placement:** The doc is organized into ~14 sections by gameflow. Add new content to the existing section that covers that system. Don't create new top-level sections unless a genuinely new game system is introduced — and if so, place it in gameflow order. When unsure where something goes, read the Table of Contents first.
+
+**Detail level — include:**
+- Player-visible behavior and mechanics
+- How systems interact from the player's perspective (e.g., "hunger tier affects food selection")
+- Stat thresholds, scoring formulas, and tier tables that are frequently referenced
+- Config references for exact values (e.g., "see `config.WetGrowthMultiplier`")
+
+**Detail level — exclude:**
+- Code flow descriptions (function call order, handler logic, "CalculateIntent returns nil then...")
+- Internal helper names (ConsumePlantable, EnsureHasVesselFor, etc.)
+- Log message exact strings or colors
+- UI rendering implementation details (ANSI, lipgloss, style names)
+- Anything that only matters to someone reading the code — it belongs in architecture.md or code comments
+
+**The test:** Would a user or the `/remind-me` skill benefit from this information? If yes, include it. If only a developer modifying the code would care, it belongs elsewhere.
+
+**No config duplication:** Never enumerate specific config values (spawn counts, stack sizes, duration numbers) in the doc. Reference the config source instead (e.g., "See `config.GroundSpawnInterval`"). This includes approximate world-time equivalents — write `(see config.ItemMealSize)` not `~5 world minutes`. Exception: stat tier thresholds are kept inline because they're referenced so frequently (noted with an HTML comment in the doc).
 
 ### Principles
 

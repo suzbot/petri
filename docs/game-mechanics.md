@@ -1,61 +1,67 @@
 # Game Mechanics Reference
 
-Detailed game mechanics. For exact values, see `internal/config/config.go`.
+Detailed game mechanics for Petri. For exact values, see `internal/config/config.go`.
 
 ## Table of Contents
 
-- [World Time](#world-time)
-- [Speed Control](#speed-control)
-- [Stat Thresholds](#stat-thresholds)
-- [Stat Rates](#stat-rates)
-- [Frustration System](#frustration-system)
-- [Intent Re-evaluation Guards](#intent-re-evaluation-guards)
-- [Sleep Mechanics](#sleep-mechanics)
-- [Satisfaction Cooldown](#satisfaction-cooldown)
-- [Speed System](#speed-system)
-- [Action Duration](#action-duration)
-- [Continuous Drinking](#continuous-drinking)
-- [Mood System](#mood-system)
-- [Item Varieties](#item-varieties)
-- [Preference System](#preference-system)
-- [Knowledge System](#knowledge-system)
-- [Know-how System](#know-how-system)
-- [Orders System](#orders-system)
-- [Tilled Soil](#tilled-soil)
-- [Sprouts](#sprouts)
-- [Inventory](#inventory)
+- [Overview](#overview)
+- [World](#world)
+- [Characters](#characters)
+- [Items](#items)
+- [Inventory & Vessels](#inventory--vessels)
 - [Crafting](#crafting)
-- [Vessels & Containers](#vessels--containers)
+- [Food & Consumption](#food--consumption)
+- [Preferences](#preferences)
+- [Knowledge & Know-how](#knowledge--know-how)
 - [Idle Activities](#idle-activities)
-- [View Modes](#view-modes)
+- [Orders](#orders)
+- [Gardening](#gardening)
+- [Character Creation](#character-creation)
+- [Controls & Views](#controls--views)
 
-## World Time
+## Overview
 
-The simulation uses a compressed time scale where game time passes faster than "world time" (the narrative time experienced by characters). This allows observing multi-day events in minutes of real time.
+Petri is a simulation where characters survive, learn, and develop culture autonomously. Characters have physical needs (hunger, thirst, energy, health) that drive their behavior through an urgency-based AI system. When needs are satisfied, characters idle — looking at items, talking to each other, foraging food, and fetching water. Through these interactions they form preferences, gain knowledge, and discover skills. Players can direct characters via orders to harvest, gather, craft, and garden.
 
-**Time scale:** 1 game second ≈ 12 world minutes, meaning 1 world day = 2 game minutes.
+## World
 
-All durations in the game are tuned to feel narratively appropriate at this scale:
+### Time
+
+The simulation uses a compressed time scale: 1 game second ≈ 12 world minutes, so 1 world day = 2 real-time minutes.
+
+All durations are tuned to feel narratively appropriate:
 - **Actions** (eating, drinking, looking): Minutes to under an hour of world time
 - **Need cycles** (hunger, thirst): Multiple world days to reach critical levels
 - **Item lifecycles** (spawning, flower death): Days of world time between events
 - **Sleep**: Several world hours to fully rest
 
-The time scale is documented in config comments and used consistently across all duration-based mechanics.
+The current world day is displayed in the status bar.
 
-The current world day is displayed in the status bar during gameplay.
+### Terrain
 
-## Speed Control
+- **Springs**: Single water tiles (`☉`), impassable, drink from adjacent tile
+- **Ponds**: Contiguous blob-shaped clusters of 4-16 water tiles (`▓`), impassable, drink from adjacent tile. 1-5 ponds generated per world.
+- **Wet tiles**: Tiles 8-directionally adjacent to any water tile are considered wet. Shown as "Wet" (blue) in the details panel. See also [Watered Tiles](#watered-tiles) for manually-watered tiles.
+- **Tilled soil**: Ground modified by characters working Till Soil orders. See [Gardening](#gardening).
+- **Leaf Piles**: Passable terrain features, used as beds for sleeping.
 
-The simulation can be slowed down for easier observation:
-- `<` - Slow down (1x → ½x → ¼x)
-- `>` - Speed up (¼x → ½x → 1x)
+### Item Spawning
 
-Current speed is shown in the status bar when not at normal speed.
+**Plant-based spawning:** Items with `IsGrowing = true` can spawn new items when total count drops below target. Children inherit all parent attributes. Spawn intervals configured per item type in `config.ItemLifecycle`.
 
-## Stat Thresholds
+**Ground spawning:** Non-plant items spawn periodically via independent timers, regardless of how many exist:
+- **Sticks & Nuts**: Fall from the canopy onto random empty tiles
+- **Shells**: Wash up adjacent to pond tiles
 
-Stats have four severity tiers: Mild, Moderate, Severe, Crisis. Thresholds defined in `internal/entity/character.go`.
+See `config.GroundSpawnInterval` for intervals.
+
+**Death timers:** Items with a death interval are removed when their timer expires. Currently only flowers have death timers; edibles are immortal until eaten. See `config.ItemLifecycle`.
+
+## Characters
+
+### Stats & Thresholds
+
+Characters have five stats with four severity tiers: Mild, Moderate, Severe, Crisis.
 
 | Stat   | Direction | Notes |
 | ------ | --------- | ----- |
@@ -77,172 +83,176 @@ Stats have four severity tiers: Mild, Moderate, Severe, Crisis. Thresholds defin
 | Health | ≤75  | ≤50      | ≤25    | ≤10    |
 | Mood   | ≤89  | ≤64      | ≤34    | ≤10    |
 
-## Stat Rates
+**Stat rates:** Hunger and thirst increase continuously. Energy decreases when awake, with additional drain per movement step. Health decreases from starvation, dehydration, or poison damage. After a stat is fully satisfied, it holds at optimal for a brief cooldown before resuming natural change.
 
-Stats change over time at rates defined in config. Key behaviors:
-- Hunger and Thirst increase continuously
-- Energy decreases when awake, plus additional drain per movement step
-- Health decreases from starvation, dehydration, or poison damage
+**Intent priority:** When multiple needs are elevated, the highest tier wins. Tie-breaker order: Thirst > Hunger > Health > Energy. A stat can only drive intent if it can actually be fulfilled (e.g., energy won't drive intent if no beds exist and the character isn't Exhausted).
 
-## Frustration System
+### Speed & Movement
 
-When a character cannot fulfill urgent needs (Severe+), they accumulate failed intent counts. After reaching the threshold, they become Frustrated for a duration, during which they skip intent calculation and display "?" symbol.
+Base movement speed is modified by stacking penalties: poison, high thirst (tiered), and exhaustion (tiered). A minimum speed floor prevents complete immobility.
 
-Flow:
-1. `CalculateIntent` returns nil when no stat can be fulfilled
-2. Only if maxTier >= Severe: increment failed count
-3. If count >= threshold: set Frustrated with timer
-4. While frustrated: skip intent, show "?" (orange), status "FRUSTRATED"
-5. Timer decrements; when expired: clear frustration, log "Calmed down"
+### Pathfinding
 
-## Intent Re-evaluation Guards
+Characters use greedy-first pathfinding: they move diagonally toward their target and only run obstacle-aware (BFS) pathfinding if the direct step is blocked. Once a character switches to BFS to navigate around an obstacle (such as a pond), they stay in BFS mode for the rest of that intent — no oscillation back to greedy. BFS mode clears when the character reaches their target, changes intent, or bumps into another character (which triggers sideways displacement instead).
 
-Re-evaluation only triggers when a higher-tier stat can actually be fulfilled. Prevents thrashing when e.g., energy tier > thirst tier but no beds exist.
+### Sleep
 
-## Sleep Mechanics
-
-- Wake at full energy (bed) or partial energy (ground)
-- Early wake only if another stat is Moderate+ tier AND has worse raw urgency than energy
+- Wake at full energy (in a bed) or partial energy (on the ground)
+- Early wake only if another stat is Moderate+ and more urgent than energy
 - Ground sleep available at Exhausted tier
 - Collapse (immediate, involuntary) at 0 energy
 
-## Satisfaction Cooldown
+### Frustration
 
-Stats hang at optimal for a cooldown period before starting natural change. This gives a "freshly satisfied" feel.
+When a character cannot fulfill urgent needs (Severe+) repeatedly, they become Frustrated. While frustrated they skip intent calculation, display "?" (orange), and have status "FRUSTRATED." Frustration clears after a timer expires.
 
-## Speed System
+### Mood
 
-Base speed modified by penalties that stack:
-- Poison penalty
-- High thirst penalties (tiered)
-- Exhaustion penalties (tiered)
-- Minimum speed floor prevents complete immobility
+Mood reflects emotional state (0-100, higher is better). Levels: Joyful, Happy, Neutral, Unhappy, Miserable.
 
-Speed accumulator gates movement; higher speed = more moves per tick.
-
-## Pathfinding
-
-Characters use greedy-first pathfinding: they try to move diagonally toward their target and only run full obstacle-aware (BFS) pathfinding if the direct step is blocked by water or an impassable feature. Once a character switches to BFS to navigate around an obstacle (such as a pond), they stay in BFS mode for the rest of that intent — they will not oscillate back to greedy stepping mid-route. BFS mode clears when the character reaches their target, changes intent, or bumps into another character (which triggers sideways displacement instead).
-
-## Action Duration
-
-Drinking, eating, and falling asleep have a duration before completing. Collapse at Energy=0 is immediate (involuntary).
-
-Eating duration varies by food tier (see `config.ItemMealSize`): feast-tier foods take significantly longer to eat than snack-tier foods. Drinking duration is unchanged — water has no satiation tier.
-
-## Continuous Drinking
-
-**From terrain**: At water sources (springs and ponds), characters drink until thirst == 0 (not just until tier boundary). Intent persists across drinks.
-
-**From vessels**: Each drink from a water vessel (carried or on the ground) consumes one unit and clears intent, forcing re-evaluation. Characters re-select the nearest water source (same vessel if it still has water, or terrain/other vessel if emptied).
-
-## Mood System
-
-Mood reflects character emotional state (0-100, higher is better).
-
-Levels: Joyful, Happy, Neutral, Unhappy, Miserable (thresholds in character.go)
-
-### Mood Changes from Need States
-
-Mood changes based on the highest need tier (Hunger, Thirst, Energy, Health):
+**Need-based changes:** Mood changes based on the highest need tier:
 - All optimal: mood increases slowly
 - Mild: no change
 - Moderate: mood decreases slowly
 - Severe: mood decreases at medium rate
 - Crisis: mood decreases quickly
 
-### Mood Penalties from Status Effects
+**Status effect penalties:** Poisoned and Frustrated each apply additional mood penalties that stack with each other and with need-based decay.
 
-Status effects apply additional mood penalties (additive with need-based decay):
-- **Poisoned**: mood penalty per second
-- **Frustrated**: mood penalty per second
+**Fulfillment boost:** When a need is fully satisfied (hunger→0, thirst→0, energy→100, health→100), mood receives a one-time boost.
 
-These stack with each other and with need-based decay.
+**Food preference impact:** Eating liked or disliked food adjusts mood based on NetPreference (see [Preferences](#preferences)).
 
-### Mood Boost on Need Fulfillment
+### Character Names
 
-When a need is **fully satisfied**, mood receives a boost:
-- Hunger reaches 0 (from eating)
-- Thirst reaches 0 (from drinking)
-- Energy reaches 100 (from sleeping in bed)
-- Health reaches 100 (from healing items)
+Random character names are drawn from `internal/entity/names.go`. Names can be edited during gameplay by pressing `E` in select mode when the cursor is on a character (max 16 characters).
 
-### Mood Display
-
-- Mood tier transitions logged in Action Log (e.g., "Feeling Joyful")
-- Log colors: Joyful (dark green), Unhappy (yellow), Miserable (red)
-- Details Panel shows mood with tier-based coloring
-
-## Item Varieties
-
-Items are generated from varieties at world creation. Each variety defines a unique combination of attributes.
+## Items
 
 ### Item Types
 
-- **Berries**: Color, optional poisonous/healing; edible
-- **Mushrooms**: Color + optional Pattern + optional Texture, optional poisonous/healing; edible
-- **Gourds**: Color + optional Pattern + optional Texture; edible, never poisonous/healing
-- **Flowers**: Color; non-edible (decorative)
-- **Sticks**: Brown `/`; non-edible, non-plant. Periodically falls from the canopy onto random empty tiles (see `config.GroundSpawnInterval`).
-- **Nuts**: Brown `o`; edible (not poisonous/healing), non-plant. Periodically falls from the canopy onto random empty tiles (see `config.GroundSpawnInterval`). Forageable by characters seeking food. Has a registered variety, so can be stacked in vessels (gatherable via Gather orders).
-- **Shells**: Colored `<`; non-edible, non-plant. Multiple color variants (see `types.ShellColors`). Periodically washes up adjacent to pond tiles (see `config.GroundSpawnInterval`). Stack size 4 (see `config.GetStackSize()`).
-- **Seeds**: Dot `.` in parent's color; uses the Kind pattern (`ItemType: "seed"`, `Kind: "gourd seed"`). Inherits parent's full variety (Color, Pattern, Texture). Not edible, plantable. Stack size defined in `config.GetStackSize()`. Seeds are auto-dropped to ground when a gourd is consumed (from ground, inventory, or vessel). Seed varieties are registered in VarietyRegistry at world generation alongside their parent gourd varieties.
+- **Berries**: Color, optional poisonous/healing; edible. Plantable when picked up.
+- **Mushrooms**: Color + optional Pattern + optional Texture, optional poisonous/healing; edible. Plantable when picked up.
+- **Gourds**: Color + optional Pattern + optional Texture; edible, never poisonous/healing. Consuming a gourd drops a seed.
+- **Flowers**: Color; non-edible, decorative. Have death timers.
+- **Nuts**: Brown `o`; edible, not poisonous/healing. Falls from canopy periodically.
+- **Sticks**: Brown `/`; non-edible, crafting material. Falls from canopy periodically.
+- **Shells**: Colored `<`; non-edible, crafting material. Multiple color variants. Washes up adjacent to ponds.
+- **Seeds**: Dot `.` in parent gourd's color; not edible, plantable. Inherits parent's full variety. Auto-dropped when a gourd is consumed.
 
-### World Features
+### Varieties
 
-- **Springs**: Single water tiles (`☉`), impassable, drink from adjacent tile
-- **Ponds**: Contiguous blob-shaped clusters of 4-16 water tiles (`▓`), impassable, drink from adjacent tile. 1-5 ponds generated per world. Map connectivity verified after generation.
-- **Wet tiles**: Tiles 8-directionally adjacent to any water tile (pond or spring) are considered wet. Computed on the fly — no persistent state. Water tiles themselves are not wet (they're impassable). Wet status is shown as "Wet" (in blue) in the details panel when the cursor is on a wet empty tile or an item on a wet tile.
-- **Leaf Piles**: Passable, used as beds for sleeping
+Items are generated from varieties at world creation. Each variety defines a unique combination of attributes (type, color, pattern, texture). Multiple varieties per item type are generated, with 20% of edible varieties marked poisonous and 20% marked healing (mutually exclusive).
 
-### Variety Generation
+## Inventory & Vessels
 
-At world creation:
-1. Generate varieties for each item type
-2. Variety count = max(2, spawnCount / VarietyDivisor)
-3. 20% of edible varieties marked poisonous
-4. 20% of edible varieties marked healing (mutually exclusive with poison)
+### Inventory
 
-### Item Lifecycle
+Characters carry items in a 2-slot inventory. Each slot holds one item or one vessel (with contents). Press `I` in select mode to view.
 
-Items have spawn and death timers managed by the lifecycle system (`internal/system/lifecycle.go`).
+When an item is picked up:
+- Removed from the map, no longer grows or has spawn/death timers
+- Berries and mushrooms become Plantable
 
-**Spawning:**
-- Each item has a spawn timer
-- When timer expires, chance to spawn adjacent copy with same attributes
-- Children inherit all parent attributes (color, pattern, texture, poison, healing)
-- Spawn interval configured per item type in `config.ItemLifecycle`
+Characters drop items when working an order that requires picking up a different item, or when inventory is full and they need something else.
 
-**Death:**
-- Items with a death interval have a death timer; when it expires, the item is removed
-- Items with death interval of 0 are immortal (removed only when consumed)
-- Currently only flowers have death timers; edibles are immortal until eaten
-- Death creates natural population equilibrium for decorative items
+### Vessels
 
-See `config.ItemLifecycle` for per-item-type spawn and death intervals.
+Vessels are containers crafted from gourds that hold stacks of items. Different item types stack to different limits (see `config.GetStackSize()`).
 
-## Preference System
+**Variety lock:** When an item is added to an empty vessel, only items of the exact same variety can be added afterward. When emptied, the vessel accepts any variety again.
+
+**Liquid contents:** Vessels can hold liquids (currently water) stacking to 4 units per vessel.
+
+**Look-for-container:** When starting to forage or harvest without a vessel, characters first look for an available vessel on the ground (empty or compatible with space). If none found, they pick up items directly.
+
+**Drop-when-blocked:** If a vessel can't accept the target item — for orders, the character drops the vessel (order takes priority); for idle foraging, the character skips the incompatible item (don't lose vessel contents for casual activity).
+
+## Crafting
+
+### Recipes
+
+- **hollow-gourd**: 1 gourd → 1 vessel (container). Vessel inherits gourd's appearance.
+- **shell-hoe**: 1 stick + 1 shell → 1 hoe (tool for tilling soil). Hoe inherits shell's color.
+
+### Discovery
+
+Crafting know-how and recipes are discovered together:
+- **craftVessel + hollow-gourd**: Discovered via gourd interaction (look, pickup, eat) or drinking at a spring
+- **craftHoe + shell-hoe**: Discovered via stick or shell interaction (look, pickup)
+
+Discovery chance depends on mood (same as other know-how discovery — see [Know-how](#know-how)).
+
+### Craft Orders
+
+1. Player creates a Craft order (Orders panel → Craft → select activity)
+2. Character with relevant know-how takes the order
+3. If missing inputs: drops non-recipe items, seeks missing components
+4. Crafting takes recipe duration (see `config.ActionDurationLong`)
+5. On completion: crafted item drops on ground, order completed
+
+## Food & Consumption
+
+### Eating
+
+Eating duration varies by food size tier (see `config.ItemMealSize`). Feast-tier foods (gourds) take significantly longer than snack-tier foods (berries, nuts). Mushrooms are meal-tier (middle).
+
+### Food Selection
+
+Characters choose food using gradient scoring across all sources (map items, carried items, vessel contents):
+
+`Score = (NetPreference × PrefWeight) - (Distance × DistWeight) - |hunger - satiation| + HealingBonus`
+
+Carried items and vessel contents have distance = 0; map items use Manhattan distance.
+
+The **satiation fit** term (`|hunger - satiation|`) penalizes food that's too small or too large for current hunger. A meal that matches current hunger scores best; snacks are penalized at high hunger, feasts are penalized at low hunger.
+
+**Behavior by hunger tier:**
+- **Moderate (50-74)**: High preference weight, low distance weight. Only considers non-disliked items. Preference and fit compete freely.
+- **Severe (75-89)**: Medium preference weight, moderate distance weight. Considers all items including disliked. Filling food is worth a longer walk, but a decent meal on the path wins over a distant feast.
+- **Crisis (90+)**: No preference weight, high distance weight. Nearest food wins regardless of fit or preference.
+
+Idle foraging uses Moderate-tier weights. When scores are equal, closer item wins.
+
+### Drinking
+
+Characters prioritize water sources by distance:
+
+| Source | Distance | Behavior |
+|--------|----------|----------|
+| Carried water vessel | 0 (always closest) | Drinks immediately without moving |
+| Ground water vessel | Manhattan distance | Walks to vessel, drinks in place |
+| Terrain (spring/pond) | Manhattan distance to adjacent tile | Walks adjacent, drinks from terrain |
+
+**From terrain:** Characters drink continuously until thirst reaches 0. Intent persists across drinks.
+
+**From vessels:** Each drink consumes 1 water unit and clears intent. Character re-evaluates and may drink again from the same vessel or seek another source.
+
+### Poison & Healing Effects
+
+Poisonous items deal damage and reduce speed. Healing items restore health. Both effects are properties of the item variety — characters don't know about them until they eat the item and gain knowledge (see [Knowledge](#knowledge--know-how)).
+
+## Preferences
 
 Characters have dynamic preferences that affect food selection and mood.
 
-### Preference Structure
+### Structure
 
 Each preference targets item attributes:
 - **ItemType only**: e.g., "Likes berries" (matches any berry)
 - **Color only**: e.g., "Likes red" (matches any red item)
-- **Pattern only**: e.g., "Likes Spots" (matches any spotted mushroom) - uses noun form
-- **Texture only**: e.g., "Likes Slime" (matches any slimy mushroom) - uses noun form
-- **Combo (2-3 attributes)**: e.g., "Likes spotted brown mushrooms" - always includes ItemType
+- **Pattern only**: e.g., "Likes Spots" (uses noun form)
+- **Texture only**: e.g., "Likes Slime" (uses noun form)
+- **Combo (2-3 attributes)**: e.g., "Likes spotted brown mushrooms" — always includes ItemType
 
 Each preference has a **valence**: +1 (likes) or -1 (dislikes).
 
-### NetPreference Calculation
+### NetPreference
 
 When evaluating an item, sum all matching preference scores:
 - Single-attribute preference: contributes `Valence × 1`
 - Combo preference (2 attributes): contributes `Valence × 2`
 
-Examples:
 | Character Preferences | Item | NetPreference |
 |-----------------------|------|---------------|
 | Likes berries, Likes red | Red berry | +2 (perfect) |
@@ -252,616 +262,266 @@ Examples:
 | Likes red, Likes berries, Likes red berries | Red berry | +4 (all stack) |
 | Dislikes slimy, Dislikes mushrooms, Dislikes slimy mushrooms | Slimy mushroom | -4 (all stack) |
 
-### Food Selection by Hunger Tier
-
-Uses gradient scoring for all food sources (map items, carried items, vessel contents):
-
-`Score = (NetPreference × PrefWeight) - (Distance × DistWeight) - |hunger - satiation| + HealingBonus`
-
-Carried items and vessel contents have distance = 0; map items use Manhattan distance.
-
-The satiation fit term (`|hunger - satiation|`) penalizes food that's too small or too large for the character's current hunger. A meal that matches current hunger scores best; snacks are penalized at high hunger, feasts are penalized at low hunger.
-
-Higher hunger = lower preference weight + willingness to eat disliked items + more expensive distance:
-- **Moderate (50-74)**: High PrefWeight, low DistWeight (see `config.FoodSeekDistWeightModerate`), only considers NetPreference >= 0 items (filters disliked)
-- **Severe (75-89)**: Medium PrefWeight, moderate DistWeight (see `config.FoodSeekDistWeightSevere`), considers all items including disliked — filling food worth a longer walk
-- **Crisis (90+)**: No PrefWeight, high DistWeight (see `config.FoodSeekDistWeightCrisis`) — nearest food wins regardless of fit or preference
-
-Idle foraging uses Moderate-tier weights. When scores are equal, closer item wins (distance tiebreaker).
-
 ### Initial Preferences
 
-Characters start with two positive preferences based on character creation:
-- Likes [selected food type]
-- Likes [selected color]
+Characters start with two positive preferences based on character creation: likes [selected food type] and likes [selected color].
+
+### Formation
+
+Preferences form dynamically when consuming or looking at items, based on current mood:
+- **Joyful/Happy**: chance to form positive preference (likes)
+- **Neutral**: no formation
+- **Unhappy/Miserable**: chance to form negative preference (dislikes)
+
+Formation types:
+- **Solo**: Single attribute (ItemType, Color, Pattern, or Texture)
+- **Combo**: ItemType + 1-2 other attributes (max 3 total)
+
+If a character already has the exact same preference with opposite valence, the existing preference is removed instead of creating a new one.
 
 ### Viewing Preferences
 
-Press `P` in select mode to toggle the Preferences panel (replaces action log). Shows all character preferences with color coding:
-- **Likes** (positive): shown in green
-- **Dislikes** (negative): shown in yellow
+Press `P` in select mode to toggle the Preferences panel. Likes shown in green, dislikes in yellow. Scrollable with `PgUp`/`PgDn`. Press `P` or `Esc` to return.
 
-The panel is scrollable with `PgUp`/`PgDn` when preferences exceed the panel height. Press `P` or `Esc` to return to the action log.
+## Knowledge & Know-how
 
-### Character Names
+Characters learn about the world through experience. Knowledge persists per-character and affects future behavior.
 
-Random character names are drawn from `internal/entity/names.go`. Edit this file to add or remove names from the pool. Names are organized alphabetically by starting letter.
+### Knowledge (Facts)
 
-### Editing Character Names
+When a character eats a poisonous or healing item, they gain knowledge about that variety:
+- **Poisonous**: Learns "[Variety] are poisonous" — automatically forms a dislike preference
+- **Healing**: Learns "[Variety] are healing" — only if health actually increased
 
-Character names can be edited during gameplay:
-- Press `E` in select mode when cursor is on a character
-- Type to edit the name (max 16 characters)
-- Press `Enter` to save, `Esc` to cancel
-- Empty names are not allowed
+Knowledge is gained once per variety. Duplicates are not created.
 
-### Preference Formation
+**Poison knowledge → avoidance:** The auto-formed dislike preference affects food selection — at Moderate hunger the character avoids the item entirely; at Severe it scores lower but may be eaten; at Crisis nearest food wins regardless.
 
-Preferences form dynamically when consuming or looking at items, based on current mood:
-- Joyful/Happy: chance to form positive preference (likes)
-- Neutral: no formation
-- Unhappy/Miserable: chance to form negative preference (dislikes)
-
-Formation types (weights configured in config.go):
-- **Solo**: Single attribute (ItemType, Color, Pattern, or Texture)
-  - Pattern/Texture solo use noun forms: "Likes Spots", "Likes Slime"
-- **Combo**: ItemType + 1-2 other attributes (max 3 total)
-  - Combos always include ItemType: "spotted mushrooms", "slimy red mushrooms"
-  - Uses adjective forms in combos: "spotted", "slimy"
-
-If character already has exact same preference:
-- Same valence: No change
-- Opposite valence: Removes existing preference
-
-### Preference Mood Impact
-
-When consuming food, mood adjusts based on NetPreference (scaled by config modifier).
-
-### Preference Log Messages
-
-**Formation:**
-- "New Opinion: Likes [x]" → dark green
-- "New Opinion: Dislikes [x]" → yellow
-- "No longer likes/dislikes [x]" → light blue
-
-**Mood impact (debug mode only):**
-- "Eating [item] Improved Mood (mood X→Y)"
-- "Eating [item] Worsened Mood (mood X→Y)"
-
-## Knowledge System
-
-Characters learn about items through experience. Knowledge persists and affects future behavior.
-
-### Learning by Experience
-
-When a character eats a poisonous or healing item, they gain knowledge about that specific variety:
-- **Poisonous item**: Learns "[Variety] are poisonous" (e.g., "Spotted red mushrooms are poisonous")
-- **Healing item**: Learns "[Variety] are healing" (e.g., "Blue berries are healing") - only if health actually increased
-
-Knowledge is only gained once per variety - eating the same type again does not create duplicate entries.
-
-When knowledge is gained, "Learned something!" appears in the action log (darker blue color).
-
-### Knowledge Panel
-
-Press `K` in select mode to toggle the Knowledge panel (replaces action log). Shows two sections:
-- **Facts**: Learned poison/healing knowledge (e.g., "Red berries are poisonous")
-- **Knows how to**: Discovered activity skills (e.g., "Harvest", "Garden: Plant", "Garden: Till Soil")
-
-Press `K` again to return to action log.
-
-### Knowledge Affects Behavior
-
-**Poison Knowledge → Dislike Preference:**
-When a character learns an item is poisonous, they automatically form a dislike preference for the full variety (e.g., "Dislikes spotted brown mushrooms"). This affects food selection:
-- At Moderate hunger: character avoids the disliked item entirely
-- At Severe hunger: disliked items score lower but may still be eaten
-- At Crisis hunger: nearest food is eaten regardless of preference
-
-If the character had an exact matching "like" preference, it is removed instead of creating a new dislike.
-
-### Healing Knowledge → Health Seeking
-
-When a character knows an item is healing AND their health is below full:
-- Health becomes a need that can drive intent (priority: Thirst > Hunger > Health > Energy)
-- Character seeks the nearest known healing item when health is the most urgent stat
-- If no known healing items exist, health cannot drive intent (character won't seek healing without knowledge)
-
-### Healing Knowledge → Food Selection Bonus
-
-When seeking food while hurt (health below full), known healing items receive a bonus to their gradient score:
-- **Mild (health ≤75)**: +5 bonus
-- **Moderate (health ≤50)**: +10 bonus
-- **Severe (health ≤25)**: +20 bonus
-- **Crisis (health ≤10)**: +40 bonus
-
-This makes injured characters prefer known healing food over equally-distant alternatives, with stronger preference at lower health.
+**Healing knowledge → health seeking:** When a character knows a healing item AND health is below full, health becomes a need that can drive intent (priority: Thirst > Hunger > Health > Energy). Known healing items also receive a scoring bonus when seeking food while hurt, scaling with health severity.
 
 ### Knowledge Transmission
 
-Characters can share knowledge through conversation:
-- When a conversation completes naturally (5 seconds), each character shares one random piece of knowledge
+Characters share knowledge through conversation:
+- When a conversation completes naturally, each character shares one random piece of knowledge
 - If the partner doesn't already have that knowledge, they learn it
-- Learning poison knowledge via transmission also creates a dislike preference (same as learning by eating)
+- Learning poison knowledge via transmission also creates a dislike preference
 - Interrupted conversations do not transmit knowledge
 
-Log messages for transmission:
-- Sharer: "Shared knowledge with [Name]"
-- Learner: "Learned: [knowledge description]" + "Learned something!"
+### Know-how
 
-## Know-how System
+Know-how represents activity skills discovered through experience. Unlike facts, know-how cannot be transmitted through talking.
 
-Know-how represents activity skills that characters discover through experience. Unlike facts, know-how cannot be transmitted through talking.
+**Discovery triggers:**
+- **Harvest**: Discovered when foraging, eating edible items, or looking at edible items
+- **Plant**: Discovered when picking up or looking at plantable items (berries, mushrooms, gourd seeds)
+- **Crafting know-how**: See [Crafting Discovery](#discovery)
 
-### Discovery
-
-Characters can discover know-how by performing related activities. Currently discoverable:
-- **Harvest**: Discovered when foraging (picking up items), eating edible items, or looking at edible items
-- **Plant**: Discovered when picking up or looking at plantable items (berries, mushrooms, gourd seeds). Discovery triggers use the `RequiresPlantable` flag, which fires only when the item has `Plantable: true`
-
-Discovery chance depends on mood:
-- **Joyful**: Uses `config.KnowHowDiscoveryChance` (e.g., 5%)
-- **Happy**: 20% of Joyful rate (e.g., 1%)
+**Discovery chance depends on mood:**
+- **Joyful**: Highest chance (see `config.KnowHowDiscoveryChance`)
+- **Happy**: 20% of Joyful rate
 - **Neutral and below**: No discovery possible
 
-When discovery occurs, "Discovered how to [Activity]!" appears in the action log (blue color).
+### Knowledge Panel
 
-### Know-how vs Facts
+Press `K` in select mode to view. Shows two sections:
+- **Facts**: Learned poison/healing knowledge
+- **Knows how to**: Discovered activity skills
 
-| Aspect | Facts (Knowledge) | Know-how |
-|--------|-------------------|----------|
-| Examples | "Red berries are poisonous" | "Harvest" |
-| Learned by | Experience (eating/healing) | Discovery (foraging/eating/looking) |
+| Aspect | Facts | Know-how |
+|--------|-------|----------|
+| Examples | "Red berries are poisonous" | "Harvest", "Garden: Plant" |
+| Learned by | Experience (eating) | Discovery (foraging/eating/looking) |
 | Can be transmitted | Yes (via talking) | No |
-| Display | Knowledge panel: "Facts:" section | Knowledge panel: "Knows how to:" section |
-
-## Orders System
-
-Players can issue orders to direct characters to perform specific tasks. Orders are managed through the Orders panel.
-
-### Orders Panel
-
-Press `O` to toggle the Orders panel. The panel shows:
-- List of current orders with status (Open, Assigned, Paused)
-- Hints for available actions
-
-Panel controls:
-- `+` - Add a new order
-- `c` - Enter cancel mode to remove orders
-- `x` - Toggle between side panel and full-screen view
-- `o` - Close the panel
-
-### Adding Orders
-
-To add an order:
-1. Press `+` to start add order flow
-2. Select an activity (only activities known by at least one living character appear)
-3. Select a target type (e.g., for Harvest: choose berry, mushroom, or gourd; for Plant: choose from plantable item kinds; for Gather: choose from items currently on the ground)
-4. Press Enter to confirm, or press a number key (1–9) to select and confirm in one keypress
-
-Lists show numbered items at every step. Pressing a number instantly selects and confirms that item. Invalid numbers (beyond list length) are no-ops. Arrow-key navigation and Enter still work as before.
-
-Press `Esc` at any step to go back one level (step 2 → step 1 → exit add mode). After confirming a plant order at step 2, the flow returns to step 1 (Gardening sub-category) so another plant type can be ordered immediately.
-
-### Order Status
-
-- **Open**: Available to be taken by a character with the required know-how
-- **Assigned**: Currently being worked on by a character
-- **Paused**: Interrupted by character needs; will resume when needs are satisfied
-- **Completed** *(internal)*: Set by `CompleteOrder()` when an action handler determines the order is done. Swept from the order list at the end of the same game tick. All order types (harvest, gather, craft, till, plant) use this unified path — no scattered removal calls in action handlers.
-- **Unfulfillable** *(display only)*: Required items don't exist anywhere in the world. Shown dimmed; characters skip these orders. Automatically clears when world state changes (e.g., a hoe is crafted, berries grow back).
-- **No one knows how** *(display only)*: No living character has learned the required activity. Shown dimmed; characters skip these orders.
-
-### Requirements
-
-Orders can only be created for activities that at least one living character knows. For example, Harvest orders require at least one character to have discovered Harvest know-how.
-
-### Variety Locking (Plant Orders)
-
-Plant orders track a `LockedVariety` that is set when the first item is planted. After locking, the character seeks only items of the exact same variety. The order completes when no further matching items are available. This keeps a single Plant order focused on one plant variety per planting session.
-
-### Order Execution
-
-When a character becomes eligible for an idle activity and has relevant know-how:
-
-1. **Assignment**: Character takes the first available open order (first-come-first-served)
-2. **Vessel Search**: If not carrying a vessel, looks for one that can hold target items
-3. **Seeking**: Character moves toward nearest item matching the order's target type
-4. **Pickup**: Character picks up the item into vessel (if carrying one) or inventory
-5. **Continuation**: If carrying a vessel with space, continues harvesting more items
-6. **Completion**: When vessel is full OR no matching items remain, order is completed
-
-
-### Gather Order Execution
-
-Gather orders direct characters to pick up loose (non-growing, non-container, non-tool) items from the ground. Available item types are determined dynamically from what exists in the world.
-
-1. **Target selection**: Player selects an item type from a list of gatherable types currently on the ground
-2. **Vessel procurement**: For items with registered varieties (seeds, nuts, shells), character seeks a vessel first — same flow as Harvest
-3. **Direct pickup**: For items without registered varieties (sticks), character picks up directly to inventory — no vessel seeking
-4. **Continuation**: Character continues gathering until no more items of that type remain on the ground or inventory is full
-5. **No discovery required**: Gather uses `AvailabilityDefault` — all characters can gather without know-how
-
-### Order Interruption and Resumption
-
-**At Mild tier (needs below Moderate):** Characters with assigned orders check their carried inventory first:
-- If thirsty at Mild and carrying a water vessel → briefly pause to drink from it, then resume
-- If hungry at Mild and carrying food (loose item or vessel contents) → briefly pause to eat, then resume
-- If no provisions are carried → keep working through Mild
-
-**At Moderate+ tier:** Order is **paused** regardless of provisions. The character walks away to address their needs (eating, drinking, sleeping, etc.), then resumes the order when satisfied.
-
-- When needs are satisfied and character becomes idle-eligible again, the **same order resumes**
-- No re-evaluation occurs - character continues their assigned order
-
-### Order Abandonment
-
-Orders are abandoned (removed) if:
-- No items matching the target type exist on the map
-- The order is cancelled by the player while assigned
-
-When cancelled while assigned, the character's assignment is cleared and they return to normal idle behavior.
-
-### Order Priority vs Idle Activities
-
-Order work takes priority over random idle activities:
-1. Check for assigned order to resume → if found, continue order
-2. Check for open orders character can take → if found, take order
-3. Fall through to random idle activity selection (look/talk/forage/idle)
-
-### Area Selection Orders
-
-Some activities use area selection to define rectangular work zones:
-
-**Till Soil**:
-1. Select Garden > Till Soil from orders panel → enters area selection mode
-2. Move cursor with arrow keys
-3. Press `p` to set anchor (first corner)
-4. Move cursor to define rectangle (valid tiles highlight in teal)
-5. Press `p` to confirm (tiles marked in sage, creates one Till Soil order)
-6. Press `Tab` to toggle between mark and unmark mode
-7. Press `Enter` when done → returns to activity selection
-
-**Water Garden**: Select Garden > Water Garden from orders panel → creates order immediately. Character must discover Water Garden know-how first (by filling a vessel with water). Character finds a vessel with water (or procures one), then walks to each dry tilled planted tile and waters it (consuming 1 water unit per tile). Order completes when no dry tilled planted tiles remain.
-
-**Marked-for-Tilling Pool**: Area selection adds tiles to a shared pool. Till Soil orders assign workers to that pool. Multiple orders = multiple workers on the same plan. Cancelling an order removes the worker but keeps marked tiles. Unmarking tiles (Tab to unmark mode) removes them from the pool without affecting orders.
-
-## Tilled Soil
-
-Tilled soil is a terrain state that modifies the ground without blocking movement or item placement. It is created by characters working Till Soil orders.
-
-### Visual
-
-Empty tilled tiles render as `═══` (box-drawing lines) in dusky earth. When a character or item occupies a tilled tile, the entity renders normally with `═X═` fill padding. The tilled state is shown in the details panel.
-
-### Marked-for-Tilling Pool
-
-The player's tilling plan is stored as a pool of marked tiles, separate from the Till Soil orders that assign workers to that plan:
-
-- **Marked tiles**: Added via area selection. Persist independently of orders. Visible on the map.
-- **Till Soil orders**: Each order is a worker slot. Multiple orders = multiple characters working the same pool simultaneously.
-- Cancelling an order removes a worker but leaves marked tiles in the pool.
-- Unmarking tiles (via Garden > Unmark Tilling) removes them from the plan without affecting orders.
-
-### Till Soil Action
-
-When a character tills a marked tile:
-- The tile becomes tilled terrain
-- The tile is removed from the marked-for-tilling pool
-- Growing items at the position are destroyed
-- Non-growing items at the position are displaced to an adjacent empty tile
-
-An individual character's Till Soil order completes when they find no remaining marked-but-not-tilled tiles in the pool.
-
-## Sprouts
-
-When a character executes a Plant order, the planted item is consumed and replaced with a sprout at that position.
-
-### Sprout Appearance
-
-Sprouts render as `𖧧` (bold). Color depends on conditions:
-- **Wet tile**: dark teal
-- **Mushroom variety**: variety's own color
-- **Otherwise**: muted green
-
-When a sprout is on tilled soil, the tile renders as `═𖧧═` (same fill pattern as other entities on tilled soil).
-
-### Sprout Details Panel
-
-The details panel shows:
-- **Type**: Sprout
-- **Kind**: e.g., "berry sprout", "gourd sprout"
-
-`Description()` appends "sprout" to the variety description for sprout items.
-
-### Plant Order Execution
-
-When a character works a Plant order:
-1. **Procure**: pick up a plantable item matching the order's target type. Search order: (a) already in inventory or carried vessel, (b) inside a vessel on the ground (picked up and used directly), (c) loose item on the ground. If inventory is full, drop unneeded items to make room.
-2. **Move**: navigate to the nearest empty tilled tile.
-3. **Plant**: spend `ActionDurationMedium` time planting, then consume the item and place a sprout.
-4. **Lock variety**: on first plant, the order locks to that exact variety (`LockedVariety`). Subsequent procurement only seeks the same variety.
-5. **Complete**: when no empty tilled tiles remain, or no matching items are available (including inside ground vessels).
-
-### Growth Speed Tiers
-
-Sprout maturation and plant reproduction are tuned on separate axes, giving each plant type a distinct growth personality. For exact durations, see `config.GetSproutDuration()` and `config.ItemLifecycle`.
-
-**Maturation (sprout → full plant):**
-
-| Tier | Items | World Time |
-|------|-------|------------|
-| Fast | Mushroom | ~1 world day |
-| Medium | Berry, Flower | ~3 world days |
-| Slow | Gourd | ~5 world days |
-
-**Reproduction (parent → new sprout spawn):**
-
-| Tier | Items | World Time |
-|------|-------|------------|
-| Fast | Berry | ~2 world days per plant |
-| Medium | Mushroom, Flower | ~3 world days per plant |
-| Slow | Gourd | ~5 world days per plant |
-
-Tilled and wet tile multipliers still apply to both maturation and reproduction timers (see `config.TilledGrowthMultiplier` and `config.WetGrowthMultiplier`).
-
-### Sprout Pickup Guard
-
-Sprouts cannot be picked up, foraged, or targeted by harvest orders. All `IsGrowing` filters used in foraging scoring, harvest targeting, and growing-item existence checks include an `IsSprout` guard. This ensures sprouts remain in place and mature naturally rather than being harvested before they grow.
-
-### ConsumePlantable Helper
-
-`ConsumePlantable` extracts a plantable item from a character's inventory or vessel contents for use in planting. It handles both loose inventory items and vessel stack items, restoring the item's `Kind`, `Plantable`, `Sym`, and `Edible` fields from the variety on extraction.
-
-## Watered Tiles
-
-Tiles can be wet from two sources, both checked via `IsWet(pos)`:
-
-- **Water-adjacent**: Tiles 8-directionally adjacent to any water tile (pond or spring) are always wet. Computed on the fly — no persistent state.
-- **Manually watered**: Tiles watered by a character executing a Water Garden order. Wetness decays after approximately 3 world days (see `config.WateredTileDuration`). Stored as a timer map on the game map and persisted in save files.
-
-**Visual**: Wet tilled tiles render dark brown `═══` instead of dusky earth. Applies to empty wet tilled tiles and the fill padding around entities on wet tilled soil.
-
-**Growth effect**: Wet tiles accelerate sprout maturation and plant reproduction. See `config.WetGrowthMultiplier`. Growth code calls only `IsWet()` — both wetness sources get the bonus automatically.
-
-## Inventory
-
-Characters can carry items in their inventory.
-
-### Capacity
-
-Current inventory capacity: 2 slots. Each slot holds one item OR one vessel (with contents).
-
-### Viewing Inventory
-
-Press `I` in select mode to toggle the Inventory panel (replaces action log). Shows "Inventory: N/2 slots" with list of carried items. If carrying a vessel, also shows the vessel's contents with stack count and capacity. Press `I` again to return to action log.
-
-### Carried Item Properties
-
-When an item is picked up:
-- Item is removed from the map
-- IsGrowing set to false (picked items don't spawn new items)
-- Spawn/death timers are cleared (carried items are static)
-- Item remains in inventory until consumed or dropped
-- Berries and mushrooms become Plantable on pickup (shown as "Plantable" in details panel)
-
-### Dropping Items
-
-Characters drop items when:
-- Working on an order that requires picking up a different item
-- Inventory is full and they need to pick up something else for an order
-
-Dropped items:
-- Remain where dropped (at character's position)
-- Keep IsGrowing = false (don't spawn new items)
-- Can be picked up again, eaten, or looked at
-
-## Crafting
-
-Characters can craft items from materials using recipes.
-
-### Recipes
-
-Recipes define what can be crafted:
-- **hollow-gourd**: 1 gourd → 1 vessel (container with capacity 1)
-  - Duration: see `config.ActionDurationLong`
-  - Vessel inherits gourd's appearance (color, pattern, texture)
-  - Vessel is not edible
-- **shell-hoe**: 1 stick + 1 shell → 1 hoe (tool for tilling soil)
-  - Duration: see `config.ActionDurationLong`
-  - Hoe inherits shell's color (e.g., "silver shell hoe")
-  - Hoe cannot go in vessels
-
-### Discovery
-
-Crafting know-how and recipes are discovered together:
-- **craftVessel + hollow-gourd recipe**: Discovered via gourd interaction (look, pickup, eat) or drinking at a spring
-- **craftHoe + shell-hoe recipe**: Discovered via stick or shell interaction (look, pickup)
-
-Discovery chance depends on mood (same as other know-how discovery).
-
-### Craft Orders
-
-To craft items:
-1. Player creates a Craft order (Orders panel → + → Craft → select activity)
-2. Character with relevant know-how takes the order
-3. If carrying all recipe inputs: begin crafting immediately
-4. If missing inputs: drop non-recipe items, move to pick up missing components
-5. Crafting takes recipe duration (uses ActionProgress like eating/drinking)
-6. On completion: crafted item drops on ground, order completed (allows other characters to use it)
-
-### Crafted Items
-
-Crafted items differ from natural items:
-- Have a display name (e.g., "Hollow Gourd") instead of attribute-based description
-- Are not edible (vessel Edible = false)
-- Don't spawn new items (Plant = nil)
-- May have container storage (vessel has Capacity 1)
-
-## Vessels & Containers
-
-Vessels are containers that can hold stacks of items. Currently, vessels are crafted from gourds.
-
-### Stack Sizes
-
-Different item types stack to different limits within a vessel. See `config.GetStackSize()` for per-type limits.
-
-### Variety Lock
-
-When an item is added to an empty vessel, the vessel becomes "variety locked":
-- Only items of the exact same variety (type + color + pattern + texture) can be added
-- When the vessel is emptied, it accepts any variety again
-- Hollow gourd vessels have capacity 1 (one stack)
-
-### Foraging with Vessels
-
-When a character carrying a vessel forages:
-- Items are added to the vessel's stack instead of filling inventory
-- **Autonomous foraging completes after picking up one growing item** (prevents world resource stripping)
-- Foraging skips items incompatible with the carried vessel
-
-### Harvesting with Vessels
-
-When working on a harvest order with a vessel:
-- Items are added to the vessel until full or no targets remain
-- Order completes when vessel is full OR no matching items exist
-
-### Look-for-Container
-
-When starting to forage or harvest without carrying a vessel:
-- Character first looks for an available vessel on the ground
-- Available = empty OR partially filled with compatible variety AND has space
-- Character picks up the vessel, then continues to forage/harvest into it
-- If no suitable vessel found, picks up items directly (single item to inventory)
-
-### Drop-when-Blocked
-
-If a character's vessel cannot accept the target item (full or wrong variety):
-- **For orders (harvesting)**: Drop the vessel and pick up the item directly (order takes priority)
-- **For idle foraging**: Skip the incompatible item (don't lose vessel contents for casual activity)
-
-### Eating from Vessels
-
-Hungry characters can eat from vessel contents (carried or dropped on the ground):
-
-**Unified food selection**: All food sources use the same scoring system:
-- Carried loose item: distance = 0
-- Carried vessel contents: distance = 0
-- Dropped vessel contents: distance = Manhattan distance to vessel
-- Map items: distance = Manhattan distance
-
-Score formula: `Score = (NetPreference × PrefWeight) - (Distance × DistWeight) + HealingBonus`
-
-This means:
-- At Moderate hunger: carried disliked items are filtered; character may seek better food on map
-- At Severe hunger: carried food has distance advantage but preferences still influence choice
-- At Crisis hunger: closest food wins (carried food at distance=0 almost always wins)
-
-**Effects from vessel contents**: When eating from a vessel, effects (poison, healing) come from the item variety stored in the stack. Knowledge and preferences are formed/applied based on the variety.
-
-**Stack decrement**: Each time a character eats from a vessel, the stack count decreases by 1. When empty, the vessel can accept any variety again.
-
-### Liquid Contents
-
-Vessels can hold liquids (currently water) as Stack contents with ItemType "liquid" and Kind (e.g., "water"). Liquids stack to 4 units per vessel. Vessel contents display shows liquid name and count.
-
-### Viewing Vessel Contents
-
-- When carrying a vessel: Inventory panel shows contents with count and max stack size (including liquids)
-- When selecting a dropped vessel: Details panel shows contents
 
 ## Idle Activities
 
-When characters have no urgent needs (all stats below Moderate tier), they select from idle activities:
+When characters have no urgent needs (all stats below Moderate tier), they select from idle activities. Idle activities are interruptible by any Moderate+ need that can be fulfilled.
 
 ### Activity Selection
 
-Every 10 seconds (IdleCooldown), characters roll for an idle activity:
-- **1/5 chance**: Look at nearest item
-- **1/5 chance**: Talk with nearby idle character
-- **1/5 chance**: Forage for edible item (if inventory not full)
-- **1/5 chance**: Fetch water (fill empty vessel from water source)
-- **1/5 chance**: Stay idle
+Every 10 seconds, characters roll for an idle activity (equal probability each):
+- **Look** at nearest item
+- **Talk** with nearby idle character
+- **Forage** for edible item (if inventory not full)
+- **Fetch water** (fill empty vessel from water source)
+- **Stay idle**
 
-If the selected activity isn't possible (no items to look at, no idle characters nearby, inventory full, no empty vessels for fetch water), the system falls back to the next option.
+If the selected activity isn't possible, the system falls back to the next option.
 
 ### Looking
 
-Characters look at nearby items, which:
-- Provides opportunity for preference formation (based on mood)
-- Adjusts mood based on existing preferences
-- Takes 3 seconds to complete
-- Avoids looking at the same item twice in a row
+Characters look at nearby items, which provides opportunity for preference formation (based on mood) and adjusts mood based on existing preferences. Avoids looking at the same item twice in a row.
 
 ### Talking
 
-Characters seek out other characters doing idle activities (Idle, Looking, Talking, or Foraging):
-- Initiator moves to adjacent position of target
-- When adjacent, both characters enter "Talking with [Name]" state
-- Conversation lasts 5 seconds
-- On completion: knowledge transmission occurs (see Knowledge Transmission above)
-- Either character can be interrupted by Moderate+ needs
-- When one partner is interrupted, both stop talking (no knowledge transmitted)
+Characters seek other idle characters. When adjacent, both enter a conversation. On completion, knowledge transmission occurs (see [Knowledge Transmission](#knowledge-transmission)). Either character can be interrupted by Moderate+ needs; if one is interrupted, both stop and no knowledge is transmitted.
 
 ### Foraging
 
-Characters pick up edible items to carry in inventory:
-- Only available when inventory has room (not full, or carrying a vessel with space)
-- Uses unified scoring: `Score = (NetPreference × PrefWeight) - (Distance × DistWeight)`
-- **Vessel bonus scales with hunger**: `vesselBonus = PrefWeight × (1 - hunger/100)`
-  - Low hunger → higher vessel bonus (willing to plan ahead)
-  - High hunger → lower vessel bonus (grab immediate food)
-- Character moves to item, then picks it up (takes ActionDuration to complete)
-- Picked up item is removed from map and placed in inventory or vessel
-- **Foraging completes after one growing item** (casual activity, doesn't strip resources)
-- Logs "Foraging for [item type]" when starting, "Picked up [item]" on completion
+Characters pick up edible items to carry:
+- Uses food selection scoring with satiation fit (see [Food Selection](#food-selection))
+- If carrying a vessel, items are added to the stack instead of filling inventory
+- **Vessel bonus scales with hunger**: at low hunger characters prefer stocking vessels (planning ahead); at high hunger they grab immediate food
+- **Completes after one growing item** — casual activity, doesn't strip world resources
+- Skips items incompatible with carried vessel
 
 ### Fetch Water
 
-Characters fill empty vessels with water from nearby water sources:
-- Only available when character has access to an empty vessel (carried or on ground)
-- Character seeks empty vessel (if not already carrying one), then moves to nearest water source
-- Fills vessel with 4 units of water (liquid stack stored in vessel contents)
-- Characters skip fetch water if already carrying water in a vessel
-- Characters with non-water vessel contents (e.g., berries) will seek a different empty vessel on the ground
-- Logs "Filling vessel with water" when starting
+Characters fill empty vessels with water:
+- Seeks an empty vessel (carried or on ground), then moves to nearest water source
+- Fills vessel with water (liquid stack)
+- Skipped if already carrying water in a vessel
+- Characters with non-water vessel contents seek a different empty vessel
 
-### Drinking Water
+## Orders
 
-Characters prioritize water sources by distance when thirsty:
+Players issue orders to direct characters to perform specific tasks. Orders take priority over random idle activities.
 
-| Source | Distance | Behavior |
-|--------|----------|----------|
-| Carried water vessel | 0 (always closest) | Drinks immediately without moving |
-| Ground water vessel | Manhattan distance | Walks to vessel, drinks in place |
-| Terrain (spring/pond) | Manhattan distance to nearest adjacent tile | Walks adjacent, drinks from terrain |
+### Orders Panel
 
-**Vessel drinking**: Each drink consumes 1 water unit and clears intent. Character re-evaluates and may drink again from the same vessel (if still thirsty and vessel has water) or seek another source (if vessel empties).
+Press `O` to toggle. Controls:
+- `+` — Add new order
+- `c` — Cancel mode to remove orders
+- `x` — Toggle side panel / full-screen view
+- `O` — Close panel
 
-**Terrain drinking**: Character drinks continuously until thirst reaches 0. Intent persists across drinks.
+### Adding Orders
 
-Log messages indicate source: "Drinking from vessel", "Drinking from spring", "Drinking from pond".
+1. Press `+` to start
+2. Select an activity (only activities known by at least one living character appear; Gather requires no know-how)
+3. Select a target type (varies by activity)
+4. Press Enter or a number key (1-9) to select and confirm in one keypress
 
-Idle activities are interruptible by any Moderate or higher tier need that can be fulfilled.
+Press `Esc` at any step to go back one level.
 
-## View Modes
+### Order Status
 
-Two view modes available during gameplay:
+- **Open**: Available to be taken by an eligible character
+- **Assigned**: Currently being worked on
+- **Paused**: Interrupted by character needs; will resume when needs are satisfied
+- **Unfulfillable** *(display)*: Required items don't exist. Shown dimmed; clears automatically when world state changes.
+- **No one knows how** *(display)*: No living character has the required skill. Shown dimmed.
 
-### Select Mode (default)
+### Order Execution
+
+When a character becomes idle-eligible:
+1. Check for assigned order to resume → continue if found
+2. Check for open orders character can take → take first available
+3. Fall through to random idle activity
+
+**Harvest orders:** Character seeks growing items of the target type, picks them up into a vessel (or inventory). Continues until vessel is full or no matching items remain.
+
+**Gather orders:** Character picks up loose (non-growing, non-container, non-tool) items from the ground. For items with registered varieties (seeds, nuts, shells), uses vessel procurement. For items without varieties (sticks), picks up directly to inventory. No know-how required — all characters can gather.
+
+### Order Interruption and Resumption
+
+**At Mild tier:** Characters with assigned orders check carried inventory first:
+- If thirsty and carrying water → briefly pause to drink, then resume
+- If hungry and carrying food → briefly pause to eat, then resume
+- If no provisions carried → keep working through Mild
+
+**At Moderate+ tier:** Order is paused. Character addresses needs, then resumes the same order when idle-eligible again.
+
+### Order Abandonment
+
+Orders are abandoned if no items matching the target type exist on the map, or if cancelled by the player while assigned.
+
+## Gardening
+
+### Tilled Soil
+
+Tilled soil is a terrain state that doesn't block movement or item placement. Created by characters working Till Soil orders.
+
+**Visual:** Empty tilled tiles render as `═══` in dusky earth. Entities on tilled tiles render as `═X═`. Wet tilled tiles render in dark brown.
+
+**Marked-for-tilling pool:** The player's tilling plan is stored as marked tiles, separate from Till Soil orders that assign workers:
+- Marked tiles are added via area selection and persist independently of orders
+- Till Soil orders are worker slots — multiple orders = multiple workers on the same pool
+- Cancelling an order removes a worker but keeps marked tiles
+- Unmarking tiles (via Garden > Unmark Tilling) removes them from the plan
+
+**Till Soil action:** When a character tills a marked tile, growing items at the position are destroyed and non-growing items are displaced to an adjacent empty tile.
+
+### Area Selection (Till Soil)
+
+1. Select Garden > Till Soil from orders panel → enters area selection mode
+2. Move cursor, press `p` to set anchor (first corner)
+3. Move cursor to define rectangle (valid tiles highlight in teal)
+4. Press `p` to confirm (tiles marked in sage)
+5. Press `Tab` to toggle mark/unmark mode
+6. Press `Enter` when done
+
+### Planting
+
+When a character works a Plant order:
+1. Procures a plantable item matching the order's target type (checks inventory, ground vessels, loose items)
+2. Moves to the nearest empty tilled tile
+3. Plants: consumes the item and places a sprout
+4. On first plant, the order locks to that exact variety — subsequent procurement seeks only the same variety
+5. Completes when no empty tilled tiles remain or no matching items are available
+
+### Sprouts
+
+Planted items are consumed and replaced with a sprout. Sprouts render as `𖧧` — dark teal on wet tiles, variety's color for mushrooms, muted green otherwise. Sprouts cannot be picked up, foraged, or harvested.
+
+**Growth tiers** — maturation and reproduction are tuned per plant type (see `config.GetSproutDuration()` and `config.ItemLifecycle`):
+
+| | Fast | Medium | Slow |
+|--|------|--------|------|
+| **Maturation** (sprout → plant) | Mushroom | Berry, Flower | Gourd |
+| **Reproduction** (parent → new sprout) | Berry | Mushroom, Flower | Gourd |
+
+Tilled and wet tile multipliers apply to both timers (see `config.TilledGrowthMultiplier`, `config.WetGrowthMultiplier`).
+
+### Watered Tiles
+
+Tiles can be wet from two sources:
+- **Water-adjacent**: Tiles next to water tiles are always wet (computed on the fly)
+- **Manually watered**: Tiles watered by a Water Garden order. Wetness decays over time (see `config.WateredTileDuration`).
+
+**Water Garden orders:** Character discovers Water Garden know-how by filling a vessel with water. Character procures a vessel with water, walks to each dry tilled planted tile, and waters it (consuming 1 water unit per tile). Order completes when no dry tilled planted tiles remain.
+
+**Growth effect:** Wet tiles accelerate sprout maturation and plant reproduction (see `config.WetGrowthMultiplier`).
+
+## Character Creation
+
+### Start Screen
+
+After selecting "New World":
+- **R** — Start with random characters (default count, randomized names/preferences)
+- **C** — Open creation grid to customize characters
+
+### Creation Grid
+
+The creation grid shows character cards in rows of 4. Each card displays a name, food preference, and color preference — all randomized by default and individually editable.
+
+- **+/-** — Add/remove characters (min 1, max 16)
+- **Arrow keys/Tab** — Navigate between cards and fields
+- **Ctrl+R** — Randomize all cards (preserving count)
+- **Enter** — Start game with current characters
+
+## Controls & Views
+
+### View Modes
+
+**Select Mode** (default, press `S`):
 - Details panel shows selected entity info
 - Action log shows events for selected character
-- Press `S` to enter
-- Press `K` / `I` / `P` to open knowledge / inventory / preferences subpanel (replaces action log)
-- Press `L` or `Esc` to close subpanel and return to action log
+- Subpanels: `K` knowledge, `I` inventory, `P` preferences (replace action log)
+- `L` or `Esc` closes subpanel and returns to action log
 
-### All Activity Mode
+**All Activity Mode** (press `A`):
 - Combined log showing all character events
-- No details panel
-- Press `A` to enter
-- Press `X` to expand to full-screen (no message truncation)
-- Press `X` again to collapse
+- `X` to expand to full-screen, `X` again to collapse
 
 ### Navigation
-- `Esc` always means "go back one level": collapses expanded views → closes subpanels → closes orders panel → returns to All Activity mode. No-op from All Activity with nothing expanded.
-- `Q` saves and returns to the world select screen from anywhere during gameplay.
+
+- **Esc** always means "go back one level": collapse expanded view → close subpanel → close orders panel → return to All Activity. No-op from All Activity with nothing expanded.
+- **Q** saves and returns to world select from anywhere during gameplay.
+
+### Speed Control
+
+- `<` — Slow down (1x → ½x → ¼x)
+- `>` — Speed up (¼x → ½x → 1x)
+
+Current speed shown in status bar when not at normal speed.
