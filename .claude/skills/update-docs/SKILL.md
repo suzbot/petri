@@ -33,7 +33,7 @@ Read each of these files, then apply only the changes warranted by the summary:
 ### Principles
 
 1. **Audience awareness**: Each doc has a different reader. Apply the rules above strictly.
-2. **No config duplication**: Never enumerate specific config values (spawn counts, stack sizes, thresholds) in docs. Reference the config source.
+2. **No config duplication**: Never enumerate specific config values (spawn counts, stack sizes, thresholds) in docs. Reference the config source. This includes approximate world-time equivalents derived from config — write `(see config.ItemMealSize)` not `~5 world minutes`. If the number traces back to a constant, reference the constant.
 3. **Minimal changes**: Only add/update what the summary warrants. Do not reorganize, rewrite, or "improve" existing content.
 4. **Consistency**: Match the style and formatting of the existing content in each file.
 5. **No new files**: Only edit existing files listed above. If a file doesn't need changes, skip it.

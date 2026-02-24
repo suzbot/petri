@@ -341,32 +341,169 @@ Previously covered: Bug #2 by `TestEnsureHasVesselFor_DropsItemWhenFullOnOrder`,
 
 ### 3B. Satiation & Consumption Duration
 
-**Player impact:** Eating a feast takes longer than eating a snack. Meals take 15 world minutes; snacks 1/3 that; feasts 3x that.
+**Player impact:** Eating a feast takes longer than eating a snack. Berries and nuts are a quick ~5-minute nibble. Mushrooms are a proper ~15-minute meal. Gourds are a lengthy ~45-minute feast. Currently all eating takes a fixed ~10 world minutes regardless of food type.
 
-Satiation tier of food modifies consumption duration. Touches config constants and consumption timing in update.go.
+**Reqs reconciliation:** Post-gardening-cleanup.md section H — "Satiation tier of food should modify the amount of time it takes to consume. Meal = 15 world mins; Snack 1/3 that time; Feast 3x that time." All three tiers addressed with exact specified ratios.
 
-**Pattern reference:** Config-driven behavior — satiation tiers already defined in `config.SatiationTier` map. Consumption duration would follow the same pattern (config map keyed by item type or satiation tier). The `ActionConsume` handler in update.go manages eating duration via progress/speed accumulation.
+**Architecture alignment:** Config-driven behavior — extends the existing satiation tier concept by making it a first-class struct with both satiation and duration properties. The `ActionConsume` handler in update.go (line ~991) accumulates `ActionProgress` against a threshold; this changes the threshold from fixed (`ActionDurationShort`) to tier-resolved. No new action types, no new entity fields, no serialization changes.
 
-**Deferred question:** Does duration apply to drinking too, or just eating? The requirement says "satiation tier of food" so likely just eating. Need to check current eating duration mechanism to understand where the multiplier hooks in.
+**Values alignment:**
+- **Follow the Existing Shape** — satiation tiers already exist as constants (`SatiationFeast`/`SatiationMeal`/`SatiationSnack`) with an item→value map. This restructures them into an explicit tier struct, making the implicit concept explicit.
+- **Source of Truth Clarity** — tier properties (satiation amount, duration) live on the tier definition, not scattered across parallel maps or derived from multipliers.
+- **Start With the Simpler Rule** — flat duration per tier, no character-specific modifiers or hunger-level scaling.
+
+**Resolved questions:**
+- **Drinking unchanged.** Requirement says "satiation tier of food." Water has no satiation tiers. `ActionDrink` continues using `ActionDurationShort`.
+- **Vessel eating.** When eating from a vessel, `char.Intent.TargetItem` is the vessel, not the food. Duration lookup resolves the actual food type from vessel contents (`Container.Contents[0].Variety.ItemType`).
 
 **Opportunistic assessment:** After playtesting 3B, evaluate whether satiation-aware targeting (characters preferring higher-satiation food when hungrier, snacking on nearby food at lower hunger) should be tackled now or deferred. See triggered-enhancements.md for full description.
 
-[TEST] Observe characters eating different satiation tiers. Verify feast items take noticeably longer than snacks.
+**Implementation:**
+
+**Step 1: Restructure satiation config to tier-based struct**
+
+No player-visible change — satiation values and eating behavior remain identical. This restructures the config to support duration in Step 2.
+
+1. **Tests first:**
+   - Test that looking up satiation for each item type returns the same values as today (gourd=50, mushroom=25, berry=10, nut=10).
+   - Test that looking up duration for each item type returns the correct values (gourd=3.75, mushroom=1.25, berry=0.417, nut=0.417 game seconds).
+   - Test that an unknown item type falls back gracefully (returns a default — use `ActionDurationShort` and 0 satiation, or whatever the current implicit behavior is for unlisted types).
+
+2. **Config restructure** (`config/config.go`):
+   - Define `MealSize` struct: `type MealSize struct { Satiation float64; Duration float64 }`.
+   - Define tier constants as `MealSize` values:
+     ```
+     MealSizeFeast = MealSize{Satiation: 50.0, Duration: 3.75}  // ~45 world mins
+     MealSizeMeal  = MealSize{Satiation: 25.0, Duration: 1.25}  // ~15 world mins
+     MealSizeSnack = MealSize{Satiation: 10.0, Duration: 0.417} // ~5 world mins
+     ```
+   - Replace `SatiationTier map[string]float64` with `ItemMealSize map[string]MealSize`:
+     ```
+     "gourd" → MealSizeFeast, "mushroom" → MealSizeMeal,
+     "berry" → MealSizeSnack, "nut" → MealSizeSnack
+     ```
+   - Add helper: `GetMealSize(itemType string) MealSize` — returns the tier for an item type, with a sensible default for unknown types (Meal tier as middle ground).
+   - Remove the old `SatiationFeast`/`SatiationMeal`/`SatiationSnack` float constants and `SatiationTier` map.
+
+3. **Update callsites** (`system/consumption.go`): Everywhere that currently reads `config.SatiationTier[itemType]` for the satiation value, change to `config.GetMealSize(itemType).Satiation`. The resolved values are identical — this is a mechanical refactor.
+
+   **Anti-pattern:** Do NOT wire duration into the handler yet. Step 1 only restructures config; Step 2 adds the behavior change. This keeps the refactor verifiable in isolation.
+
+No human testing — pure config refactor. Verified via unit tests.
+
+**Step 2: Tier-based consumption duration**
+
+A character eats a berry in ~5 world minutes (quick snack), a mushroom in ~15 minutes (proper meal), and a gourd in ~45 minutes (lengthy feast). The player can see the difference watching characters eat different foods.
+
+1. **Tests first:**
+   - Test that eating a snack-tier item completes after accumulating 0.417 game seconds of progress.
+   - Test that eating a feast-tier item does NOT complete after 1.25 game seconds but DOES complete after 3.75 game seconds.
+   - Test eating from a vessel uses the vessel contents' tier, not a default.
+
+2. **Resolve eaten item type** (`ui/update.go`): Add a small helper `getEatenItemType(item *entity.Item) string` used by the `ActionConsume` handler:
+   - If `item.Container != nil && len(item.Container.Contents) > 0` → return `item.Container.Contents[0].Variety.ItemType` (vessel eating: food type from contents).
+   - Otherwise → return `item.ItemType` (loose item eating).
+
+3. **ActionConsume handler** (`ui/update.go`, ~line 991): Replace the fixed `config.ActionDurationShort` threshold:
+   - Before accumulating progress, resolve the duration: `duration := config.GetMealSize(getEatenItemType(char.Intent.TargetItem)).Duration`.
+   - Change `if char.ActionProgress >= config.ActionDurationShort` to `if char.ActionProgress >= duration`.
+   - Everything else in the handler stays the same — consumption functions, vessel/inventory branching, side effects.
+
+   **Note:** `ActionDurationShort` is still used by `ActionDrink`, `ActionPickup`, and other actions. Only `ActionConsume` changes.
+
+[TEST] Start a game with varied food. Observe:
+- Berry/nut eating completes noticeably fast (~5 world minutes).
+- Mushroom eating takes a moderate amount of time (~15 world minutes).
+- Gourd eating takes significantly longer (~45 world minutes).
+- Eating from a vessel with berries is fast; vessel with mushrooms is moderate.
+- Drinking speed is unchanged.
+
+**Step 3:** [DOCS] + [RETRO]
 
 ### 3C. Satiation-Aware Food Selection
 
-**Player impact:** When hungry, characters prefer more filling food — a nearby gourd over a distant berry, or even a slightly farther gourd over a very close berry. Currently foraging scores by distance + preference only, ignoring how much the food will actually help.
+**Anchor story:** An unprovisioned worker is tilling fields all day. He only pulls himself away when hunger reaches Severe — time to walk home for a hearty filling meal. He passes the nearby berry bush without stopping; the gourd waiting 20 tiles away is worth the walk. But if a mushroom is right there on the path (5-6 tiles), that's a sensible enough meal to stop for. And if things get truly desperate — Crisis hunger — he grabs whatever is closest just to survive. When foraging proactively at low hunger, characters stock up on snack-sized food (berries, mushrooms) rather than gourds they can't practically eat during a workday.
 
-This is the first half of the "satiation-aware targeting & snacking threshold" item from triggered-enhancements.md. The snacking threshold (characters grabbing nearby food at lower hunger) is deferred — evaluate after playtesting 3C.
+**Player impact:** Characters choose food that fits their current hunger level. At moderate hunger, they eat what they like nearby. At severe hunger, they bypass snacks and seek filling meals worth the walk — unless a decent meal is right on the path. At crisis, nearest food wins. When idle-foraging at low hunger, they prefer snacks over feasts they don't need.
 
-**Deferred questions:**
-- How should satiation weight against distance and preference? A gourd (50 pts) 10 tiles away vs a berry (10 pts) 1 tile away — which wins? Need to examine the current scoring formula in `foraging.go` to understand the weight space.
-- Does this apply to order-context consumption too (workers eating from inventory at Mild tier), or just idle foraging? Probably just idle foraging since order consumption uses carried items, not seeking.
-- Should the weight scale with hunger level? (Starving character cares more about satiation value; mildly hungry character cares more about convenience.) Or keep it simple with a flat weight?
+**Reqs reconciliation:** Post-gardening-cleanup.md section 3C / triggered-enhancements.md "satiation-aware targeting." The snacking threshold (characters grabbing nearby food at lower hunger before reaching Moderate) is a future enhancement — evaluate after playtesting 3C. This feature lays the groundwork by incorporating satiation fit into scoring, which naturally supports lower hunger thresholds if added later.
 
-[TEST] Observe characters choosing between high-satiation and low-satiation food at varying distances.
-[DOCS] after 3A-3C
-[RETRO] after [DOCS]
+**Architecture alignment:** Modifies two existing scoring paths — `FindFoodTarget` in movement.go (hunger-driven food seeking) and `scoreForageItems` in foraging.go (idle foraging). Both already use `(pref × PrefWeight) - distance` scoring. Adds two terms: raw fit delta as a negative modifier, and per-tier distance weight. New config constants follow the existing per-tier weight pattern (`FoodSeekPrefWeight*`). No new functions, no new entity fields, no new action types.
+
+**Values alignment:**
+- **Anchor to Intent** — formula designed and validated against the worker story, not abstract scoring math.
+- **Follow the Existing Shape** — `FoodSeekDistWeight*` per tier sits alongside existing `FoodSeekPrefWeight*` per tier, same config pattern.
+- **Start With the Simpler Rule** — raw delta with no weight coefficient. Tuning surface is DistWeight per tier only.
+
+**Resolved questions:**
+- **How does satiation factor into scoring?** Not raw satiation (which always favors the biggest meal), but *fit*: `|hunger - satiation|`. A food that matches the character's current hunger scores best. Too small = leftover hunger; too big = wasted satiation. This naturally scales with hunger level without needing per-tier fit weights.
+- **Distance weight scaling creates the behavioral arc.** At Moderate hunger, distance is cheap (DistW=1) — preference and fit compete freely. At Severe, distance is moderate (DistW=1.5) — fit can overcome distance for filling food, but only for reasonable walks. At Crisis, distance is expensive (DistW=3) — nearest food wins regardless of fit.
+- **Order-context consumption?** No. Workers at Mild eat from carried inventory with no scoring. Workers at Moderate+ pause and go through `FindFoodTarget`, which picks up fit scoring naturally.
+- **Idle foraging?** Yes. `scoreForageItems` in foraging.go gets the same fit delta. At low hunger (sub-50), characters prefer snack-sized food: berry (delta 10-20) over gourd (delta 30-50). This means workers forage berries for the field, not gourds they'd waste 45 minutes eating. Vessel scoring (`scoreForageVessels`) is unchanged — that's about container decisions, not food-fit decisions.
+
+**Formula:**
+```
+score = (pref × PrefWeight) - (dist × DistWeight) - |hunger - satiation| + healingBonus
+```
+
+**Starting weight values (tune after playtesting):**
+
+| Tier | PrefWeight (existing) | DistWeight (new) |
+|------|----------------------|-----------------|
+| None (idle) | 20 | 1.0 |
+| Moderate | 20 | 1.0 |
+| Severe | 5 | 1.5 |
+| Crisis | 0 | 3.0 |
+
+**Reference scenarios (berry pref +2, mushroom pref +1, gourd neutral):**
+
+| Hunger | Berry (d=2) | Mushroom (d=10) | Gourd (d=20) | Winner |
+|--------|-------------|-----------------|--------------|--------|
+| 30 (idle) | (40)-2-20 = 18 | (20)-10-5 = 5 | (0)-20-20 = -40 | Berry |
+| 55 (Moderate) | (40)-2-45 = -7 | (20)-10-30 = -20 | (0)-20-5 = -25 | Berry |
+| 75 (Severe) | (10)-3-65 = -58 | (5)-15-50 = -60 | (0)-30-25 = -55 | Gourd (by 3) |
+| 75 + mush d=5 | (10)-3-65 = -58 | (5)-7.5-50 = -52.5 | (0)-30-25 = -55 | Mushroom |
+| 95 (Crisis) | (0)-6-85 = -91 | (0)-30-70 = -100 | (0)-60-45 = -105 | Berry |
+
+**Dependency:** Uses `GetMealSize(itemType).Satiation` from 3B's restructured config.
+
+**Implementation:**
+
+**Step 1: Satiation fit scoring**
+
+The worker at Severe hunger walks past a nearby berry to reach a filling gourd — unless a decent mushroom is right on the path. At Crisis, the nearest food wins. When foraging at low hunger, characters prefer snacks over feasts.
+
+1. **Tests first:**
+   - Test `FindFoodTarget`: character at Severe hunger (75), neutral preferences, berry at dist 3, gourd at dist 20 → chooses gourd (fit overcomes distance).
+   - Test `FindFoodTarget`: same layout at Crisis hunger (95) → chooses berry (distance overcomes fit).
+   - Test `FindFoodTarget`: Severe hunger, mushroom at dist 5, berry at 2, gourd at 20 → chooses mushroom (right-sized meal on the path).
+   - Test `scoreForageItems`: character at hunger 20, berry and gourd equidistant → prefers berry (better fit at low hunger).
+   - Test that inventory items (distance 0) use fit as the deciding factor: character carrying berry and gourd at hunger 75 → prefers gourd.
+
+2. **Config constants** (`config/config.go`): Add per-tier distance weights alongside existing preference weights:
+   ```
+   FoodSeekDistWeightModerate = 1.0
+   FoodSeekDistWeightSevere   = 1.5
+   FoodSeekDistWeightCrisis   = 3.0
+   ```
+
+3. **`FindFoodTarget`** (`system/movement.go`): Modify the scoring loop:
+   - Resolve each candidate's satiation: `config.GetMealSize(item.ItemType).Satiation`. For vessel contents, resolve from the vessel's contents variety.
+   - Add fit delta as a negative term: `score -= math.Abs(float64(char.Hunger) - satiation)`.
+   - Apply per-tier distance weight: change `score -= float64(distance)` to `score -= float64(distance) * distWeight`, where `distWeight` is resolved from the hunger tier alongside `prefWeight`.
+
+4. **`scoreForageItems`** (`system/foraging.go`): Same formula change. Uses DistWeight=1.0 (TierNone, same as Moderate). Resolve satiation per item, subtract `|hunger - satiation|` from score.
+
+   **Scope note:** `scoreForageVessels` is unchanged — vessel scoring is about container decisions (vessel bonus), not food-fit decisions.
+
+[TEST] Start a world with varied food at different distances from a tilling worker:
+- Worker at Severe hunger bypasses nearby berries, heads for a distant gourd.
+- If a mushroom is on the path (5-6 tiles), worker stops for it instead.
+- At Crisis hunger, worker grabs nearest food regardless.
+- Idle characters forage berries/mushrooms over gourds when not very hungry.
+- Characters with strong food preferences still eat preferred food at Moderate hunger (preference wins when not desperate).
+
+**Step 2:** [DOCS] + [RETRO]
 
 ---
 

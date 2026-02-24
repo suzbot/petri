@@ -10,30 +10,28 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ## Project Vision
 
-Characters don't follow scripts — they form preferences, learn from
-experience, transmit knowledge through conversation, and make decisions
-based on personality and memory. History exists only in what characters
-remember and create. When a character dies, their knowledge dies with them,
-except what they've taught or built.
+Characters don't follow scripts — they will form preferences, learn from experience, share knowledge,
+and make decisions based on personality and memory. History exists only in what characters remember and create.
+When a character dies, their knowledge dies with them, except what they've taught or built.
 
 See [VISION.txt](docs/VISION.txt) for the full vision and development roadmap.
 
 ## Development Process
 
-Petri is built by a product manager and an AI (Claude). The development
-process itself is part of the project — each practice here was designed and
-iterated on during development.
+Petri is built by a product manager and an AI (Claude).
+The development process itself is part of the project —
+each practice here was designed and iterated on during development.
 
 Core process innovations developed over the course of this project:
-- **Skill-driven workflows**: Custom AI skill definitions enforce TDD,
-  human testing checkpoints, and requirement traceability at each step
-- **Recursive retrospectives**: After each feature, a structured retro
-  reviews collaboration friction, then updates its own skill definitions
-  and design values — compounding institutional knowledge across sessions
-- **Inferred design values**: Patterns observed during retros are captured
-  as explicit principles that guide future implementation decisions
+
+- **Skill-driven workflows**: Custom AI skill definitions support iterative development, TDD, human testing checkpoints, and requirement traceability at each step —
+  preventing drift with agile spirit
+- **Recursive retrospectives**: After each feature, a structured retro reviews collaboration friction, then updates its own skill definitions and design values —
+  compounding institutional knowledge across sessions
+- **Inferred design values**: Patterns observed during retros are captured as explicit principles that guide future implementation decisions
 
 **See it in action:**
+
 - [`.claude/skills/`](.claude/skills/) — AI interaction protocols developed for this project
 - [`docs/Values.md`](docs/Values.md) — design values surfaced through retrospectives
 - [`CLAUDE.md`](CLAUDE.md) — codebase context and collaboration norms
@@ -42,16 +40,17 @@ Core process innovations developed over the course of this project:
 
 ## Latest Updates
 
+- **Snacks**: different foods have different satiation levels; characters can eat carried food at mild hunger while working.
+
+### Gardening
+
+- **Gourd Seeds**: Eating a gourd drops a seed on the ground. Seeds are plantable and stack in vessels.
 - **Gather Orders**: Players can order characters to gather loose items like sticks, nuts, shells, and seeds from the ground.
-- **Provisioned Workers**: Characters with assigned orders who carry food or water will pause briefly to eat or drink when mildly hungry or thirsty.
-- **Growth Speed Tiers**: Plants grow and spread at different rates.
-- **Food Satiation Tiers**: Different foods now satisfy hunger by different amounts.
-- **Water Garden Orders**: Players can order characters to water planted tiles.
-- **Drinking from Vessels**: Characters can drink from water vessels they carry or find on the ground.
-- **Fetch Water**: Idle charachters can now fill a vessel with water to keep with them.
-- **Plant Orders**: Players can order characters to plant on tilled soil.
-- **Gourd Seeds**: Eating a gourd now drops a seed on the ground. Seeds are plantable and stack in vessels.
+- **Fetch Water**: Idle characters can fill a vessel with water to keep with them to drink from while they work.
 - **Till Soil**: Players can mark rectangular areas for tilling using an area selection tool. Characters with till know-how procure a hoe and till the marked tiles.
+- **Plant Orders**: Players can order characters to plant on tilled soil.
+- **Water Garden Orders**: Players can order characters to water planted tiles.
+- **Growth Speed Tiers**: Plants grow and spread at different rates, faster when on tilled and/or wet soil.
 
 ## How It Works
 

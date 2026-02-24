@@ -69,6 +69,14 @@ Address the following **only if applicable**:
   - What recurring pattern or pitfall caused them?
   - Could a lightweight guardrail have prevented them?
 
+#### 6. Intensive processes
+- Were there any suspiciusly high-token or high-touch procceses for actions that were expected to be more straightforward? examples
+  - test world creation needing to search code and other save files to reason about how to build it
+  - internal churning going back and forth over a question without surfacing it
+  - many requests for user approvals/interventions on what is supposed to be largely autonomous (test world creation)
+- If yes:
+  - Was it merited due to actual complexity, or could have a different prompt or different availability of information circumvented the extra effort?
+
 If none of the above occurred, explicitly state that **no meaningful
 collaboration friction was observed**. If any of the above did occur, carry the insights to Step 2.
 

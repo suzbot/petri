@@ -64,7 +64,7 @@ Crafted items (like vessels) differ from natural items:
 ### Adding New Plant Types
 
 1. `entity/item.go` — Add `NewX()` constructor
-2. `config/config.go` — Add to `ItemLifecycle` map (spawn/death intervals); if edible, add to `SatiationTier` map; add to `SproutDurationTier` map (maturation speed tier)
+2. `config/config.go` — Add to `ItemLifecycle` map (spawn/death intervals); if edible, add to `ItemMealSize` map (use `GetMealSize` to look up satiation and eating duration); add to `SproutDurationTier` map (maturation speed tier)
 3. `game/variety_generation.go` — Add variety generation logic
 4. `game/world.go` — Add to `GetItemTypeConfigs()` for UI/character creation. Set `Plantable: true` if items of this type can be planted directly; set `CanProduceSeeds: true` if consuming produces seeds.
 
@@ -165,7 +165,7 @@ Actions fall into three categories with different continuation and interruption 
 
 **Need-fulfilling actions** (`ActionConsume`, `ActionDrink`, `ActionSleep`): Driven by stat urgency tiers. Direct actions — eat food, drink water, go to sleep. The intent system prioritizes these when stats are elevated.
 
-**Idle activities** (`ActionForage`, `ActionFillVessel`, `ActionLook`, `ActionTalk`): Chosen autonomously when no needs are pressing (`maxTier == TierNone`). **Idle activities are interruptible** — `CalculateIntent` checks `maxTier < TierModerate` before continuing an idle intent. If needs become Moderate+, the idle activity is dropped.
+**Idle activities** (`ActionForage`, `ActionFillVessel`, `ActionLook`, `ActionTalk`): Chosen autonomously when no needs are pressing (`maxTier == TierNone`). **Idle activities are interruptible** — `CalculateIntent` checks `maxTier < TierModerate` before continuing an idle intent. If needs become Moderate+, the idle activity is dropped. **Idle activities should be non-destructive** — they should never destroy player-relevant state. Need-driven behavior may consume or displace things for survival, but autonomous idle choices should be safe by default (e.g., Fetch Water only triggers when a character has or can find an empty vessel — it never dumps existing contents).
 
 Some idle activities are **self-managing** — they own their complete multi-phase flow (procurement, movement, execution) as a single continuous intent. The character never goes idle between phases and never needs to win another idle roll to continue. See "Self-Managing Actions" below.
 

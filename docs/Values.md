@@ -1,101 +1,68 @@
 Name: Values
 
-Description: A record of observations about the principles and values that are important to the user in this project.
+Description: Design principles observed and refined through retrospectives. Ordered from most broadly applicable to most context-specific.
 
-## Consistency Over Local Cleverness
+## Anchor to Intent, Not Structure
 
-When a new case resembles an existing pattern, follow the existing pattern's shape — even if an ad-hoc inline solution is faster to write. Diverging from the pattern creates conceptual debt and inconsistency that will need to be reconciled later. If the existing pattern doesn't quite fit, that's a discussion point, not a reason to quietly do something different.
+Every phase of work — planning, refinement, implementation, testing, fixing — should trace to what the user or character experiences, not to code structure.
 
-Examples: Kind on ItemVariety (mirrors Edible on ItemVariety). EnsureHasPlantable (mirrors EnsureHasItem). ConsumePlantable (mirrors ConsumeAccessibleItem).
+**Planning and refinement:** Prefer to break work into iterative chunks of deliverable value, over technical layers. Each chunk should have an anchor story — a 1-2 sentence narrative of what the player or character experiences — that grounds implementation details in "why" and gives testing a north star.
 
-## Source of Truth Clarity
+**Testing:** A test that validates "returns ActionPickup" checks code structure; "vessel gets filled with water after action completes" validates intent. Anchor tests to the story, not the implementation path.
 
-Every piece of data should live in exactly one place. Don't reconstruct a field from surrounding context when the entity itself should carry that field. "Where does this value rightfully live?" is a design question worth asking explicitly before writing code.
+**Fixing:** A bug fix that changes what the player experiences is a feature change, not a fix. A plan whose causal model is wrong produces correct code that addresses the wrong cause. Describe any proposed change in terms of what the player experiences — a fix that sounds neutral technically ("sort map keys") may be a behavior change in gameplay terms ("every character discovers activities in the same fixed order").
 
-Example: item.Kind belongs on ItemVariety, not reconstructed from order.targetType.
-
-## Reuse Before Invention
-
-Before creating a new utility, helper, or pattern, ask: "Does something existing already handle this, or can it be extended?" Even if the answer is no, the question itself often reveals the right shape for the new code by identifying what's adjacent. The cost of a brief analysis is always lower than the cost of discovering redundant abstractions later.
-
-Example: FindVesselContaining — checked whether FindAvailableVessel could serve the need first. It couldn't (inverted semantics), but the analysis confirmed the new utility should be a structural sibling.
-
-## Design Types for Future Siblings
-
-When introducing a new type or category, ask: "What else will eventually live alongside this?" and design the type hierarchy to accommodate those future siblings — even if only one member exists today. A narrow type that fits only the current case creates refactoring debt when the next sibling arrives.
-
-Example: Water as ItemType "liquid", Kind "water" (not ItemType "water"). Future beverages (mead, beer, wine) become Kind variants under the same ItemType, with no structural changes needed.
-
-## Requirements as Ground Truth
-
-Implementation and tests should trace back to the stated requirement. When a test validates code structure ("returns ActionPickup") rather than user intent ("vessel gets filled with water"), it's testing the wrong thing. The requirement is the ground truth — code and tests are accountable to it, not the other way around.
-
-Example: Fetch Water tests initially validated that ground-vessel pickup returned ActionPickup. But the requirement was "get the vessel and fill it as one continuous activity." The structural test passed while the intent was broken.
-
-## Step Back on Cascading Bugs
-
-Multiple bugs in the same workflow signal a design problem, not an implementation problem. Fix the design, don't keep patching symptoms. The cost of one step-back conversation is always lower than the cost of another round of testing, bug-finding, and context consumption.
-
-Example: Fetch Water went through four rounds of testing with new bugs each time. Each fix was correct in isolation, but the underlying two-roll design was wrong. A step back after the second bug would have saved two rounds.
-
-## Idle Activities Should Be Non-Destructive
-
-Idle activities — the things characters choose to do on their own when no needs or orders are pressing — should never destroy player-relevant state. Need-driven behavior (eating, drinking, sleeping) may consume or displace things to ensure survival, and that's appropriate for a simulation. But idle choices should be safe by default.
-
-Example: Fetch Water only triggers when a character has or can find an empty vessel. It never dumps existing vessel contents to make room for water.
-
-## Demonstrate Alignment, Don't Assert It
-
-When claiming a new feature follows an existing pattern, cite the specific evidence — from architecture.md or from the code itself. "This follows the ordered action pattern" is an assertion; "This follows the ordered action pattern (architecture.md 'Action Categories' section) — handler clears intent after each work unit, resumption via AssignedOrderID bypass in selectIdleActivity" is a demonstration. If the architecture doc doesn't cover the relevant distinction, that's a signal to update it (via `/refine-feature`, `/new-phase`, or a general agent — not during implementation).
-
-Example: ActionWaterGarden was initially proposed as self-managing, then as ordered, with assertions of consistency both times. The actual code trace through CalculateIntent → selectIdleActivity → AssignedOrderID revealed which pattern was correct and why.
-
-## Fix the Bug, Not the Behavior
-
-When a test is flaky or failing, fix the root cause in the test — don't reshape production behavior to make the test pass. A test fix should not change what the player experiences. If "fixing" a flaky test means altering gameplay semantics, that's a feature change masquerading as a bug fix.
-
-The check is: **describe the proposed fix in terms of what the player experiences, not how the code reads.** A fix that sounds neutral in technical terms ("sort map keys for deterministic iteration") may be a behavior change in gameplay terms ("every character now discovers activities in the same fixed order instead of varied order"). Evaluate fixes against player experience, not code structure.
-
-Example: A discovery test was flaky because Go map iteration is non-deterministic, and two activities shared a trigger. The first proposed fix — discover all matching activities at once — was an obvious behavior change (discoveries are deliberately rare, one-at-a-time events). The second proposed fix — sorting iteration order for determinism — sounded like neutral infrastructure, but translated to gameplay: every character in every game would always discover activities in the same sequence, removing emergent variety. The correct fix was in the test itself: retry discovery multiple times and assert the activity is found eventually, same pattern already used by other discovery tests. Production randomness preserved, test flakiness eliminated.
-
-## Evidence Before Reasoning
-
-When something fails unexpectedly, gather evidence first — run a diagnostic, add logging, check with `-v` — then reason about causes. Reasoning without evidence leads to circular re-derivation of the same candidate explanations. The cost of one diagnostic run is always lower than the cost of three rounds of speculative reasoning. This applies equally during test writing, implementation debugging, and human testing — when a user reports unexpected behavior, ask what they observe and check logs before proposing fixes.
-
-Example: WaterGarden integration tests failed for unclear reasons. Three rounds of reasoning about positioning and pathfinding produced wrong fixes. One diagnostic pass with `t.Logf` immediately revealed that `findWaterGardenIntent` was returning nil because `IsWet` treated tiles adjacent to water as already wet.
-
-Example: Gather orders — user reported "characters aren't picking up vessels." Initial hypothesis was stale intent after vessel pickup. Asking "what are you actually seeing?" revealed the real issue: characters were skipping vessel procurement entirely and going straight to nuts. The initial hypothesis would have produced a fix for a non-problem.
-
-## Start With the Simpler Rule
-
-When designing character behavior — triggers, thresholds, conditions — default to the simplest version that addresses the observed problem. Don't add conditions (e.g., "only for stationary characters") without a concrete observed reason. A conditional rule that isn't grounded in something the player actually experiences is a complexity cost with no benefit.
-
-Similarly: when a problem is behavioral, ask what the player actually observes before reasoning abstractly about the system. Observable evidence (where it happens, when it got worse, what it looks like) is more valuable than architecture analysis alone. Ask for it early.
-
-Example: Displacement on any character collision vs. only stationary characters — "always sidestep" is the simpler rule, matches real sidewalk behavior, and avoids a tracking mechanism with no observable upside.
-
-## Test the Plan's Assumptions, Not Just Its Steps
-
-A plan encodes a causal model ("X causes Y, so fix X"). If the first human test shows the model was incomplete, that's a signal to revisit the approach, not to patch the implementation. Correct code that addresses the wrong cause is still wrong.
-
-Example: The pathing thrashing plan said perpendicular displacement fixes thrashing. Displacement was implemented correctly, but thrashing persisted — the real cause was BFS path convergence, not per-tick collision alone. One test revealed the plan's causal model was incomplete, leading to a fundamentally different approach (greedy-first pathfinding).
-
-## Layer Solutions Based on Evidence
-
-When a problem might have multiple causes, test the simplest fix first and observe what remains. Each layer of the solution should have an observed reason to exist. This produces minimal-complexity solutions and avoids speculative "belt and suspenders" code.
-
-Example: Greedy-first pathfinding was tested alone. It solved path convergence but left character-blocking unsolved. Displacement was then re-added as a targeted second layer — both layers justified by observation, not speculation.
-
-## Describe Implications, Not Mechanics
-
-When presenting implementation options, describe what each option means — for player experience, structural alignment with vision, scalability, performance. Options described in implementation jargon (function signatures, parameter passing patterns, module boundaries) can't be evaluated for design alignment. If the implications are identical and the difference is purely mechanical, it's not a decision — make the call and move on.
-
-Example: "Option A: the pathfinding function takes a flag. Option B: the caller bypasses the function" — indistinguishable without reading code. "Both options produce the same player behavior; this is a code organization choice I'll handle" — evaluable in one sentence.
+Examples: Fetch Water tests validated ActionPickup returns while the actual requirement — continuous vessel-fill activity — was broken. A flaky discovery test was fixed by retrying in the test (preserving production randomness), not by sorting iteration order (removing emergent variety). Pathing plan said displacement fixes thrashing; one human test showed the real cause was BFS convergence, requiring a different approach.
 
 ## Pause Before Solving
 
-Before working on a solution, confirm the problem. This applies at every scale — investigation findings, implementation surprises, test failures, scope changes. The check-in is: Is this actually a problem? What specifically is the problem? Why does it matter? Is it worth solving now? Only after those questions have answers (from discussion, not assumed) should solution work begin.
+Before working on a solution, confirm the problem. Is this actually a problem? What specifically is it? Is it worth solving now? Only after those questions have answers — from discussion, not assumed — should solution work begin.
 
-The recurring failure mode is momentum: something looks like it needs fixing, so fixing begins immediately. Investigation is expected to produce action items, so it produces one even when the honest answer is "nothing needs to change." A test fails, so debugging starts before asking whether the test is even testing the right thing. Implementation hits a snag, so workarounds multiply before stepping back to ask whether the approach is sound. In each case, the cost of pausing to frame the problem is low, and the cost of solving the wrong problem — or a non-problem — compounds across every subsequent phase that inherits the unexamined premise.
+The failure mode is momentum: something looks wrong, so fixing begins immediately. A test fails, so debugging starts before asking whether the test is correct. Investigation is expected to produce action items, so it produces one even when the honest answer is "nothing needs to change." The cost of pausing is low; the cost of solving the wrong problem compounds across every phase that inherits the unexamined premise.
 
-When the situation diverges from expectations, make that divergence visible and get agreement on what it means before acting on it.
+When the situation diverges from expectations, make that divergence visible and get agreement before acting on it.
+
+## Make Reasoning Evaluable
+
+Present thinking in terms others can evaluate — functional language, cited evidence, and clear recommendations.
+
+**Use functional language:** Describe proposals in terms of player experience, gameplay impact, structural alignment, or scalability — not implementation mechanics. "Sort map keys for deterministic iteration" can't be evaluated for design alignment; "every character discovers activities in the same fixed order instead of varied order" can. This applies to refinement, implementation proposals, options, and retro findings alike.
+
+**When presenting options:** Include pros, cons, relevant reasoning, and a recommendation. State which option you'd pick and why, so the decision can be approved, overridden, or discussed — not just handed back as an open question.
+
+**When claiming alignment:** Demonstrate specific evidence from docs or code. "This follows the ordered action pattern" is an assertion; tracing the path through CalculateIntent → selectIdleActivity → AssignedOrderID is a demonstration.
+If the difference between options is purely code-organizational with no functional impact, make the call and note it in passing.
+
+## Evidence Before Reasoning
+
+When something fails, gather evidence first — run a diagnostic, add logging, ask what the user observes — before attempting to reason about causes. Reasoning without evidence leads to circular re-derivation. The cost of one diagnostic run is always lower than three rounds of speculation.
+
+**Corollary — step back on cascading bugs:** Multiple bugs in the same workflow signal a design problem, not an implementation problem. After a second bug in the same feature, stop patching and restate the intended end-to-end flow before fixing further. (Fetch Water went four rounds before stepping back revealed the two-roll design was wrong.)
+
+**Corollary — layer solutions:** When a problem might have multiple causes, test the simplest fix first and observe what remains. Each layer should have an observed reason to exist. (Greedy-first pathfinding was tested alone; displacement was re-added only after observing what it didn't solve.)
+
+Examples: WaterGarden tests failed — three rounds of reasoning about positioning produced wrong fixes. One `t.Logf` pass revealed the actual cause (`IsWet` adjacency). Gather orders — "characters aren't picking up vessels" prompted a hypothesis about stale intent, but asking "what are you seeing?" revealed they were skipping vessel procurement entirely.
+
+## Follow the Existing Shape
+
+When a new case resembles an existing pattern, give preference to that pattern — even if an ad-hoc solution is faster. Divergence creates conceptual debt. If the pattern doesn't quite fit, that's a discussion point, not a reason to quietly diverge.
+
+**Before creating something new**, ask: "Does something existing handle this, or can it be extended?" Even when the answer is no, the question reveals the right shape by identifying what's adjacent.
+
+**Every piece of data should live in one place.** Don't reconstruct a field from surrounding context when the entity should carry it. "Where does this value rightfully live?" is a design question worth asking before writing code.
+
+**Don't duplicate logic across call sites.** When multiple actions need the same behavior, extract a shared helper rather than copying the logic. Duplication means bug fixes and behavior changes must be applied in multiple places — and they won't be. (EnsureHasVesselFor, FindNextVesselTarget, and the pickup helpers in picking.go all exist because multiple actions needed the same procurement/continuation logic.)
+
+Examples: Kind on ItemVariety mirrors Edible on ItemVariety. FindVesselContaining checked whether FindAvailableVessel could serve the need first — it couldn't, but the analysis confirmed the new utility should be a structural sibling. item.Kind belongs on ItemVariety, not reconstructed from order.targetType.
+
+## Consider Extensibility
+
+When introducing a new type, category, or pattern, ask: "What else will eventually live alongside this?" Design to accommodate future siblings — even if only one member exists today. A narrow type that fits only the current case creates refactoring debt when the next sibling arrives. This applies to type hierarchies, action categories, registry patterns, and any structure that's likely to grow.
+
+Example: Water as ItemType "liquid", Kind "water" (not ItemType "water"). Future beverages become Kind variants under the same ItemType with no structural changes.
+
+## Start With the Simpler Rule
+
+When designing character behavior, default to the simplest version that addresses the observed problem. Don't add conditions without a concrete observed reason. A conditional rule that isn't grounded in something the player actually experiences is complexity with no benefit.
+
+Example: Displacement on any collision vs. only stationary characters — "always sidestep" is simpler, matches real behavior, and avoids a tracking mechanism with no observable upside.

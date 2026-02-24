@@ -71,6 +71,13 @@ Start from the **recipe template** below, then customize for the test scenario.
 - All items need complete fields: id, position, item_type, color, pattern, texture, edible, poisonous, healing, death_timer
 - **Vessel availability:** If testing a behavior that uses vessels, provide enough vessels to fill both inventory slots per character. Characters may autonomously pick up vessels for other idle activities (forage, fetch water) before the target behavior triggers — extra vessels prevent this from blocking the test.
 
+#### Type Reference
+
+**Color, Pattern, Texture are strings** in the save format (not integers):
+- Colors: `"red"`, `"blue"`, `"brown"`, `"white"`, `"orange"`, `"yellow"`, `"purple"`, `"tan"`, `"pink"`, `"black"`, `"green"`, `"pale_pink"`, `"pale_yellow"`, `"silver"`, `"gray"`, `"lavender"`
+- Patterns: `""` (none), `"spotted"`, `"striped"`, `"speckled"`
+- Textures: `""` (none), `"smooth"`, `"slimy"`, `"waxy"`, `"warty"`
+
 #### Recipe Template
 
 Use this as the starting structure. Add/remove characters, items, features, and varieties as needed for the specific test. Read `internal/save/state.go` for any fields not shown here.
@@ -83,18 +90,14 @@ Use this as the starting structure. Add/remove characters, items, features, and 
   "elapsed_game_time": 0,
   "characters": [
     {
+      "id": 1,
       "name": "Kai",
-      "symbol": "☺",
       "position": {"x": 30, "y": 30},
-      "color": 1,
+      "health": 100,
       "hunger": 0,
       "thirst": 0,
       "energy": 98,
-      "hp": 100,
-      "alive": true,
-      "action": 0,
-      "action_timer": 0,
-      "dest": {"x": -1, "y": -1},
+      "mood": 50,
       "talking_with_id": -1,
       "inventory": [],
       "preferences": [],
@@ -118,21 +121,70 @@ Use this as the starting structure. Add/remove characters, items, features, and 
 }
 ```
 
-**Item template:**
+**Item template (loose edible):**
 ```json
 {
   "id": 1,
   "position": {"x": 31, "y": 30},
-  "item_type": "nut",
-  "color": 3,
-  "pattern": 1,
-  "texture": 2,
+  "item_type": "berry",
+  "color": "red",
+  "pattern": "",
+  "texture": "",
   "edible": true,
   "poisonous": false,
   "healing": false,
   "death_timer": 0
 }
 ```
+
+**Growing plant template** (add `plant` field):
+```json
+{
+  "id": 2,
+  "position": {"x": 32, "y": 30},
+  "item_type": "berry",
+  "color": "red",
+  "pattern": "",
+  "texture": "",
+  "edible": true,
+  "poisonous": false,
+  "healing": false,
+  "death_timer": 0,
+  "plant": {"is_growing": true, "spawn_timer": 0}
+}
+```
+
+**Vessel with contents** (in inventory or on map). `name` is the display name, `container` holds stacks. Stack variety attributes must match an entry in the top-level `varieties` array:
+```json
+{
+  "id": 10,
+  "position": {"x": 0, "y": 0},
+  "name": "Hollow Gourd",
+  "item_type": "vessel",
+  "kind": "hollow gourd",
+  "color": "green",
+  "pattern": "",
+  "texture": "",
+  "edible": false,
+  "poisonous": false,
+  "healing": false,
+  "death_timer": 0,
+  "container": {
+    "capacity": 1,
+    "contents": [
+      {
+        "item_type": "berry",
+        "color": "red",
+        "pattern": "",
+        "texture": "",
+        "count": 5
+      }
+    ]
+  }
+}
+```
+
+To put a vessel in a character's inventory, add it to the character's `"inventory"` array (same ItemSave format). Characters have 2 inventory slots.
 
 **Feature template (leaf pile for sleeping):**
 ```json
@@ -146,10 +198,10 @@ Use this as the starting structure. Add/remove characters, items, features, and 
 **Variety template:**
 ```json
 {
-  "item_type": "nut",
-  "color": 3,
-  "pattern": 1,
-  "texture": 2,
+  "item_type": "berry",
+  "color": "red",
+  "pattern": "",
+  "texture": "",
   "edible": true,
   "poisonous": false,
   "healing": false,
@@ -157,16 +209,9 @@ Use this as the starting structure. Add/remove characters, items, features, and 
 }
 ```
 
-### Step 5.5: Verify Written Files (REQUIRED)
+### Step 5.5: Verify File Exists (REQUIRED)
 
-After writing state.json, read it back and confirm key counts match intent:
-- Character count
-- Item count
-- Tilled positions count (if applicable)
-- `elapsed_game_time` is 0 (fresh world)
-- Characters have expected inventory contents
-
-Do NOT report to user until verification passes.
+After writing state.json, verify the file was actually created (e.g., `ls` the directory). Do NOT report to user until the file exists.
 
 ### Step 6: Report to User
 

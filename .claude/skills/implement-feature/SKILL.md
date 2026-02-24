@@ -34,6 +34,7 @@ model: sonnet
 - Confirm the architecture patterns referenced in the plan exist in `docs/architecture.md` and match current usage — show evidence of this check (cite section, state how it applies)
 - Verify the plan's pattern references match what's actually in the code (patterns may have evolved since planning)
 - Verify no code changes since planning invalidate the approach
+- When the plan changes a constant, threshold, or behavior, grep for all usage sites in the codebase and verify the plan addresses each one. A constant used in two handlers needs both updated — the plan may have identified only the primary one.
 
 **If the plan is complete and aligned: say so and move on.** No need to generate discussion where none is needed. If genuine issues are found: present them and re-invoke `/refine-feature` to update the plan before proceeding.
 
