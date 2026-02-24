@@ -123,10 +123,6 @@ func (m Model) View() string {
 		return m.viewModeSelect()
 	case phaseCharacterCreate:
 		return m.viewCharacterCreate()
-	case phaseSelectFood:
-		return m.viewFoodSelect()
-	case phaseSelectColor:
-		return m.viewColorSelect()
 	default:
 		return m.viewGame()
 	}
@@ -231,54 +227,14 @@ func formatTimeAgo(t time.Time) string {
 
 // viewModeSelect renders the game mode selection screen
 func (m Model) viewModeSelect() string {
-	var options string
-	if m.testCfg.Debug {
-		// Show both options in debug mode
-		options = "(1) Single character - customize preferences\n(M) Multiple characters - customize your team"
-	} else {
-		// Only show multi-character option in normal mode
-		options = "(M) Start game - customize your team"
-	}
-
 	content := lipgloss.JoinVertical(lipgloss.Center,
 		"",
-		titleStyle.Render("=== PETRI PROJECT ==="),
+		titleStyle.Render("=== Petri ==="),
 		"",
-		options,
+		"R  Random Characters",
+		"C  Create Characters",
 		"",
-		"Press Q to quit",
-	)
-
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
-}
-
-// viewFoodSelect renders the food selection screen
-func (m Model) viewFoodSelect() string {
-	content := lipgloss.JoinVertical(lipgloss.Center,
-		"",
-		titleStyle.Render("=== PETRI PROJECT ==="),
-		"",
-		"Choose your character's FAVORITE FOOD:",
-		"",
-		"(B) Berries  or  (M) Mushrooms",
-		"",
-		"Press Q to quit",
-	)
-
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
-}
-
-// viewColorSelect renders the color selection screen
-func (m Model) viewColorSelect() string {
-	content := lipgloss.JoinVertical(lipgloss.Center,
-		"",
-		titleStyle.Render("=== PETRI PROJECT ==="),
-		"",
-		"Choose your character's FAVORITE COLOR:",
-		"",
-		"(R) Red   (L) Blue   (W) White   (N) Brown",
-		"",
-		"Press Q to quit",
+		"Esc: Back",
 	)
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)

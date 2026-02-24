@@ -20,19 +20,15 @@ Requirements: [post-gardening-cleanup.md](post-gardening-cleanup.md)
 
 ## Implementation Order
 
-Items refined and ready to implement, in order:
-1. **2A** — Sticky BFS pathing (meatiest behavior change, get in early)
-2. **2C** — Numbered order selection (self-contained UI work)
-3. **2B** — Esc key cleanup (investigation step may surface scope surprises, do last)
-
-Refined and ready to implement:
-4. **2D** — Till soil selection colors (small UI change)
-5. **3A** — Gather orders (follows harvest pattern with vessel support)
-
-Items needing refinement before implementation:
-- **3B** — Satiation & consumption duration (minor — duration mechanism check)
-- **3C** — Satiation-aware food selection (factor satiation value into hungry food-seeking)
-- **4A/4B** — Character creation streamline (deferred questions about flow/scaling)
+1. **2A** — Sticky BFS pathing ✅
+2. **2C** — Numbered order selection ✅
+3. **2B** — Esc key cleanup ✅
+4. **2D** — Till soil selection colors ✅
+5. **3A** — Gather orders ✅
+6. **3B** — Satiation & consumption duration ✅
+7. **3C** — Satiation-aware food selection ✅
+8. **4A** — Character creation streamline: dead code + R/C screen ✅
+9. **4B** — Variable-count creation grid
 
 ---
 
@@ -510,35 +506,105 @@ The worker at Severe hunger walks past a nearby berry to reach a filling gourd �
 
 ## Part 4: Character Creation Streamline
 
-**Player impact:** Cleaner game start — no single/multi mode choice. New ability to choose how many characters to start with (up to 16).
+**Player impact:** Cleaner game start — no single/multi mode choice. R for instant random community (4 characters), C for a creation grid where you can customize any number of characters (1-16) with +/- to add/remove. All characters start randomized and are equally editable — there's no protagonist, just a community you're setting up.
 
-### 4A. Remove Single/Multi Mode
+**Reqs reconciliation:** Post-gardening-cleanup.md section G — "Remove single char mode, adjust start screen to R/C, add character count." Refined during discussion: all characters are equal (no protagonist/companion model), count merged into the creation grid via +/- (no separate count step), no summary screen (creation grid → game directly).
 
-- Remove single character mode from game start
-- Adjust start screen:
-  ```
-  === Petri ===
-  R to start with Random Characters
-  C to create Characters
-  ```
-- "C for Create" creates first character, randomizes the rest
+**Architecture alignment:** MVU pattern — phase handlers in update.go, views in view.go, creation state in creation.go. No new architecture patterns. Extends the existing CharacterCreationState by making it variable-length.
 
-### 4B. Character Count Selection
+**Values alignment:**
+- Follow the Existing Shape — extends creation.go's card-per-character pattern rather than replacing it.
+- Consider Extensibility — slice-based character list supports future count changes.
+- Start With the Simpler Rule — +/- on the grid is simpler than a separate count step.
 
-- Add intermediate step to choose number of characters (max 16)
-- Requires refactoring the current character creation flow
+**Dead code to remove:** `phaseSelectFood`, `phaseSelectColor`, `startGame()`, `startGameMulti()`, `viewFoodSelect()`, `viewColorSelect()`, model fields `multiCharMode`, `selectedFood`, `selectedColor`. All self-contained in ui/ — no external references.
 
-**Pattern reference:** UI state machine in model.go/update.go. The character creation flow is a series of view states managed in the Update handler. No new entity fields — character count is a UI/setup concern, not persisted. No save/load impact (character count isn't stored; the resulting characters are what's saved).
+**Deferred:** Character count does not affect world generation (map size, item/feature spawning) yet. Revisit if playtesting reveals scaling needs.
 
-**Deferred questions:**
-- Does character count affect world generation (map size, item/feature spawning)? Currently these may be fixed — need to check whether spawn counts scale or are hardcoded.
-- Where does the count selection step go in the flow? Before or after creating the first character? Likely before — pick count, then create one, then randomize the rest.
-- Does "R for Random" also prompt for count, or does it use a default count?
-- `phaseSelectFood` and `phaseSelectColor` are only reachable via the debug-only single-character flow (`-debug` flag + press "1"). When removing single/multi mode, clean up these dead view states and their handlers in update.go/view.go.
+**Implementation:**
 
-[TEST] Verify both R and C paths work. Verify character count selection. Verify created + randomized characters all spawn correctly.
-[DOCS] after Part 4
-[RETRO] after [DOCS]
+### 4A. Clean Up Dead Code + R/C Start Screen ✅
+
+**Anchor story:** Player selects "New World" and sees "R: Random Characters / C: Create Characters" instead of the old Single/Multi mode screen. Pressing R drops them straight into a world with 4 random characters. Pressing C takes them to the creation screen.
+
+1. **Tests first:** UI-only changes — no unit tests per CLAUDE.md testing policy.
+
+2. **Remove dead phases** (model.go): Delete `phaseSelectFood` and `phaseSelectColor` from the phase enum. `phasePlaying` renumbers via iota (internal only, not serialized).
+
+3. **Remove dead model fields** (model.go): Delete `multiCharMode`, `selectedFood`, `selectedColor`.
+
+4. **Remove dead functions and handlers** (update.go):
+   - Delete `phaseSelectFood` case and `phaseSelectColor` case from `handleKey`.
+   - Delete `startGame()` function (single-char start).
+   - Delete `startGameMulti()` function (unused random start).
+
+5. **Remove dead views** (view.go): Delete `viewFoodSelect()` and `viewColorSelect()`.
+
+6. **Repurpose phaseSelectMode handler** (update.go): Replace current handler with:
+   - `"r"/"R"` → `startGameRandom()` (new function) + `tickCmd`
+   - `"c"/"C"` → `m.creationState = NewCharacterCreationState()` + `m.phase = phaseCharacterCreate`
+   - `"esc"` → `m.phase = phaseWorldSelect`
+   - Remove "1" single-char debug path, remove "m"/"M" multi-char path.
+
+7. **New `startGameRandom()`** (update.go): Generates 4 random characters and starts the game. Extract logic from the deleted `startGameMulti()`:
+   - Generate 4 unique random names via `randomUniqueNames(4)`
+   - Random food/color for each
+   - Clustered placement at offsets `{0,0}, {2,0}, {0,2}, {2,2}` around map center
+   - Spawn world (ponds, features, items)
+   - Same initialization as `startGameFromCreation()` (world ID, cursor, following)
+
+8. **Repurpose viewModeSelect** (view.go): Render the R/C screen:
+   ```
+   === Petri ===
+
+   R  Random Characters
+   C  Create Characters
+
+   Esc: Back
+   ```
+
+[TEST] Start a new world via R — 4 random characters appear, game plays normally. Start via C — creation screen works as before. Load an existing world — still works. Esc from R/C screen goes back to world select.
+
+**Step 2:** [DOCS] ✅ + [RETRO]
+
+---
+
+### 4B. Variable-Count Creation Grid
+
+**Anchor story:** Player presses C, sees 4 randomized character cards in a row. They press + three times — three more cards appear in a second row. They edit a couple of names, randomize the rest with Ctrl+R, and press Enter to start with 7 characters.
+
+1. **Tests first:** Test that `NewCharacterCreationState()` creates 4 characters with unique names (default count). Test that `AddCharacter()` adds a card (up to 16) with a unique name and `RemoveLastCharacter()` removes the last card (min 1, adjusts SelectedChar if needed). Test that `NavigateCharacter` wraps correctly at variable lengths.
+
+2. **CharacterCreationState restructure** (creation.go):
+   - `Characters` from `[4]CharacterCreationData` to `[]CharacterCreationData`.
+   - `NewCharacterCreationState()` takes no arguments, defaults to 4 characters.
+   - New `AddCharacter()`: appends a new random card with a unique name. Returns false if at max (16).
+   - New `RemoveLastCharacter()`: removes last card. Adjusts `SelectedChar` if it pointed at the removed card. Returns false if at min (1).
+   - `NavigateCharacter`: modulo `len(s.Characters)` instead of `4`.
+   - `RandomizeAll`: regenerates `len(s.Characters)` characters.
+
+3. **Key handling** (update.go `handleCharacterCreationKey`): Add `"+"/"="` → `AddCharacter()`, `"-"` → `RemoveLastCharacter()`.
+
+4. **View** (view.go `viewCharacterCreate`):
+   - Render cards in rows of 4 using `lipgloss.JoinHorizontal` per row.
+   - Show count + "+/- to add/remove" header line.
+   - Each card shows `#N`, name, food, color with selected card highlighted (cyan border) and selected field highlighted within the active card.
+   - Navigation hints include +/- controls.
+
+5. **Dynamic character placement** (update.go `startGameFromCreation`):
+   - Generate offsets dynamically: `col = i % 4`, `row = i / 4`, `x = cx + col*2`, `y = cy + row*2`.
+   - Iterate over `m.creationState.Characters` slice (no fixed-length assumption).
+
+[TEST] Create characters with counts 1, 4, 8, and 16:
+- Grid renders correctly at each size (1 card, 1 row of 4, 2 rows, 4 rows)
+- + adds a card with unique name, - removes last card
+- Cannot go below 1 or above 16
+- Navigate across cards with left/right/tab, fields with up/down
+- Edit names, cycle food/color on any card
+- Ctrl+R randomizes all cards (preserving count)
+- Enter starts game with correct number of characters at correct positions
+
+**Step 2:** [DOCS] + [RETRO]
 
 ---
 

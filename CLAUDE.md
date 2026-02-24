@@ -114,7 +114,7 @@ internal/
 
 **Up Next:**
 
-- Post-gardening cleanup in progress (2A-2D done, 3A-3C done). See [docs/cleanup-phase-plan.md](docs/cleanup-phase-plan.md).
+- Post-gardening cleanup in progress (2A-2D, 3A-3C, 4A done). See [docs/cleanup-phase-plan.md](docs/cleanup-phase-plan.md).
 
 ## Reference and Planning Documents
 

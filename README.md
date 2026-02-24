@@ -36,13 +36,12 @@ Core process innovations developed over the course of this project:
 - [`docs/Values.md`](docs/Values.md) — design values surfaced through retrospectives
 - [`CLAUDE.md`](CLAUDE.md) — codebase context and collaboration norms
 - `docs/*-phase-plan.md` — requirement-traced phase plans with TDD checkpoints
-- [`docs/VISION.txt`](docs/VISION.txt) — roadmap and long-term direction
+-
 
 ## Latest Updates
 
 - **Satiation-aware food selection**: characters choose food that fits their current hunger — filling meals at severe hunger, snacks when foraging at low hunger, nearest food at crisis.
 - **Eating duration**: berries and nuts are quick snacks; mushrooms are a proper meal; gourds are a lengthy feast.
-- **Snacks**: different foods have different satiation levels; characters can eat carried food at mild hunger while working.
 
 ### Gardening
 
@@ -56,7 +55,7 @@ Core process innovations developed over the course of this project:
 
 ## How It Works
 
-1. Create characters with names, favorite food, and favorite color, then start the simulation
+1. Choose R to start with random characters, or C to customize characters before starting
 2. The world contains edible plants, flowers, water sources for drinking, and leaf piles for sleep
 3. Characters manage needs (hunger, thirst, energy, health) prioritized by urgency
 4. Mood reflects emotional state, affected by need urgency and preferences

@@ -20,8 +20,6 @@ const (
 	phaseWorldSelect gamePhase = iota // New: world selection screen
 	phaseSelectMode
 	phaseCharacterCreate
-	phaseSelectFood
-	phaseSelectColor
 	phasePlaying
 )
 
@@ -45,10 +43,7 @@ type TestConfig struct {
 
 // Model is the main Bubble Tea model
 type Model struct {
-	phase         gamePhase
-	multiCharMode bool // true = 4 characters, false = 1 character
-	selectedFood  string
-	selectedColor types.Color
+	phase gamePhase
 
 	gameMap *game.Map
 

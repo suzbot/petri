@@ -45,14 +45,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case phaseSelectMode:
 		switch msg.String() {
-		case "1":
-			// Single character mode only available in debug mode
-			if m.testCfg.Debug {
-				m.multiCharMode = false
-				m.phase = phaseSelectFood
-			}
-		case "m", "M":
-			m.multiCharMode = true
+		case "r", "R":
+			return m.startGameRandom(), tickCmd(m.speedMultiplier)
+		case "c", "C":
 			m.creationState = NewCharacterCreationState()
 			m.phase = phaseCharacterCreate
 		case "esc":
@@ -63,40 +58,6 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case phaseCharacterCreate:
 		return m.handleCharacterCreationKey(msg)
-
-	case phaseSelectFood:
-		switch msg.String() {
-		case "b", "B":
-			m.selectedFood = "berry"
-			m.phase = phaseSelectColor
-		case "m", "M":
-			m.selectedFood = "mushroom"
-			m.phase = phaseSelectColor
-		case "esc":
-			m.phase = phaseSelectMode
-		case "q", "ctrl+c":
-			return m, tea.Quit
-		}
-
-	case phaseSelectColor:
-		switch msg.String() {
-		case "r", "R":
-			m.selectedColor = types.ColorRed
-			return m.startGame(), tickCmd(m.speedMultiplier)
-		case "l", "L":
-			m.selectedColor = types.ColorBlue
-			return m.startGame(), tickCmd(m.speedMultiplier)
-		case "w", "W":
-			m.selectedColor = types.ColorWhite
-			return m.startGame(), tickCmd(m.speedMultiplier)
-		case "n", "N":
-			m.selectedColor = types.ColorBrown
-			return m.startGame(), tickCmd(m.speedMultiplier)
-		case "esc":
-			m.phase = phaseSelectFood
-		case "q", "ctrl+c":
-			return m, tea.Quit
-		}
 
 	case phasePlaying:
 		// Handle character name editing mode
@@ -490,50 +451,19 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// startGame initializes the game world
-func (m Model) startGame() Model {
+// startGameRandom initializes the game world with 4 random characters
+func (m Model) startGameRandom() Model {
 	m.gameMap = game.NewMap(config.MapWidth, config.MapHeight)
 	m.phase = phasePlaying
 	m.lastUpdate = time.Now()
 
-	// Create character at center
-	cx, cy := config.MapWidth/2, config.MapHeight/2
-	char := entity.NewCharacter(1, cx, cy, "Len", m.selectedFood, m.selectedColor)
-	m.gameMap.AddCharacter(char)
-	m.cursorX, m.cursorY = cx, cy
-	m.following = char
-
-	// Spawn world: ponds first (before items/features), then features, then items
-	if !m.testCfg.NoWater {
-		game.SpawnPonds(m.gameMap)
-	}
-	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
-	if !m.testCfg.NoFood {
-		game.SpawnItems(m.gameMap, m.testCfg.MushroomsOnly)
-	}
-	game.SpawnGroundItems(m.gameMap)
-	m.groundSpawnTimers = system.GroundSpawnTimers{
-		Stick: system.RandomGroundSpawnInterval(),
-		Nut:   system.RandomGroundSpawnInterval(),
-		Shell: system.RandomGroundSpawnInterval(),
-	}
-
-	return m
-}
-
-// startGameMulti initializes the game world with 4 characters
-func (m Model) startGameMulti() Model {
-	m.gameMap = game.NewMap(config.MapWidth, config.MapHeight)
-	m.phase = phasePlaying
-	m.lastUpdate = time.Now()
-
-	// Center position for cursor fallback
+	// Center position
 	cx, cy := config.MapWidth/2, config.MapHeight/2
 	m.cursorX, m.cursorY = cx, cy
 
 	// Spawn characters unless disabled
 	if !m.testCfg.NoCharacters {
-		names := []string{"Len", "Macca", "Hari", "Starr"}
+		names := randomUniqueNames(4)
 		foods := getEdibleItemTypes()
 		colors := types.AllColors
 		offsets := [][2]int{{0, 0}, {2, 0}, {0, 2}, {2, 2}}
@@ -569,6 +499,14 @@ func (m Model) startGameMulti() Model {
 		Stick: system.RandomGroundSpawnInterval(),
 		Nut:   system.RandomGroundSpawnInterval(),
 		Shell: system.RandomGroundSpawnInterval(),
+	}
+
+	// Create world for saving
+	if m.worldID == "" {
+		worldID, err := save.CreateWorld()
+		if err == nil {
+			m.worldID = worldID
+		}
 	}
 
 	return m
