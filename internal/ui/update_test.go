@@ -203,6 +203,143 @@ func TestApplyIntent_ActionConsume_VerifiesTargetMatchesCarrying(t *testing.T) {
 }
 
 // =============================================================================
+// Consumption Duration by Food Tier
+// =============================================================================
+
+func TestApplyIntent_ActionConsume_SnackCompletesAfterSnackDuration(t *testing.T) {
+	t.Parallel()
+
+	// Anchor: a berry (snack tier) is eaten in ~5 world minutes (0.417 game seconds).
+	// After accumulating just under the snack duration, berry should not be consumed.
+	// After reaching snack duration, berry should be consumed.
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.Hunger = 80
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.AddToInventory(berry)
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionConsume,
+		Target:     types.Position{X: 5, Y: 5},
+		TargetItem: berry,
+	}
+	gameMap.AddCharacter(char)
+
+	m := &Model{
+		gameMap:   gameMap,
+		actionLog: system.NewActionLog(100),
+	}
+
+	// Accumulate just under snack duration — berry should NOT be consumed
+	m.applyIntent(char, config.MealSizeSnack.Duration-0.01)
+	if len(char.Inventory) == 0 {
+		t.Fatal("Berry should NOT be consumed before snack duration completes")
+	}
+
+	// One more tick pushes past threshold — berry should be consumed
+	m.applyIntent(char, 0.02)
+	if len(char.Inventory) != 0 {
+		t.Error("Berry should be consumed after snack duration completes")
+	}
+	if char.Hunger >= 80 {
+		t.Errorf("Hunger should be reduced after eating berry, got %.2f", char.Hunger)
+	}
+}
+
+func TestApplyIntent_ActionConsume_FeastRequiresFeastDuration(t *testing.T) {
+	t.Parallel()
+
+	// Anchor: a gourd (feast tier) takes ~45 world minutes (3.75 game seconds) to eat.
+	// After meal-tier duration (1.25s), gourd should NOT be consumed.
+	// After feast duration (3.75s), gourd should be consumed.
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.Hunger = 80
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
+	char.AddToInventory(gourd)
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionConsume,
+		Target:     types.Position{X: 5, Y: 5},
+		TargetItem: gourd,
+	}
+	gameMap.AddCharacter(char)
+
+	m := &Model{
+		gameMap:   gameMap,
+		actionLog: system.NewActionLog(100),
+	}
+
+	// Accumulate meal duration (1.25s) — gourd should NOT be consumed
+	m.applyIntent(char, config.MealSizeMeal.Duration)
+	if len(char.Inventory) == 0 {
+		t.Fatal("Gourd should NOT be consumed after only meal-tier duration")
+	}
+	if char.Hunger != 80 {
+		t.Errorf("Hunger should be unchanged before consumption, got %.2f", char.Hunger)
+	}
+
+	// Accumulate remaining feast duration — gourd should be consumed
+	remaining := config.MealSizeFeast.Duration - config.MealSizeMeal.Duration + 0.01
+	m.applyIntent(char, remaining)
+	if len(char.Inventory) != 0 {
+		t.Error("Gourd should be consumed after feast duration completes")
+	}
+	if char.Hunger >= 80 {
+		t.Errorf("Hunger should be reduced after eating gourd, got %.2f", char.Hunger)
+	}
+}
+
+func TestApplyIntent_ActionConsume_VesselUsesContentsFoodTier(t *testing.T) {
+	t.Parallel()
+
+	// Anchor: eating berries from a vessel uses snack duration (~5 world minutes),
+	// not a default duration. The food type comes from vessel contents, not the vessel itself.
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.Hunger = 80
+
+	// Create vessel with berries
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	vessel := system.CreateVessel(gourd, recipe)
+	variety := &entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   &entity.EdibleProperties{},
+	}
+	vessel.Container.Contents = []entity.Stack{
+		{Variety: variety, Count: 5},
+	}
+	char.AddToInventory(vessel)
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionConsume,
+		Target:     types.Position{X: 5, Y: 5},
+		TargetItem: vessel,
+	}
+	gameMap.AddCharacter(char)
+
+	m := &Model{
+		gameMap:   gameMap,
+		actionLog: system.NewActionLog(100),
+	}
+
+	// Accumulate just under snack duration — should NOT have eaten yet
+	m.applyIntent(char, config.MealSizeSnack.Duration-0.01)
+	if vessel.Container.Contents[0].Count != 5 {
+		t.Fatal("Berry in vessel should NOT be consumed before snack duration completes")
+	}
+
+	// Push past snack duration — should have eaten one berry
+	m.applyIntent(char, 0.02)
+	if vessel.Container.Contents[0].Count != 4 {
+		t.Errorf("Expected berry count 4 after eating one from vessel, got %d", vessel.Container.Contents[0].Count)
+	}
+	if char.Hunger >= 80 {
+		t.Errorf("Hunger should be reduced after eating berry from vessel, got %.2f", char.Hunger)
+	}
+}
+
+// =============================================================================
 // Craft Order Tests
 // =============================================================================
 

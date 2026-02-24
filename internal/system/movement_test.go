@@ -290,8 +290,8 @@ func TestFindFoodTarget_SevereUsesGradientScoring(t *testing.T) {
 	char.SetPos(types.Position{X: 0, Y: 0})
 
 	// Liked item far away vs neutral item close
-	// Score(redBerry) = 5*2 - 20 = -10
-	// Score(brownMushroom) = 5*0 - 6 = -6
+	// Score(redBerry) = 5*2 - 1.5*20 - |80-10| = 10-30-70 = -90
+	// Score(brownMushroom) = 5*0 - 1.5*6 - |80-25| = 0-9-55 = -64
 	// brownMushroom wins (less negative score)
 	redBerry := entity.NewBerry(10, 10, types.ColorRed, false, false)
 	brownMushroom := entity.NewMushroom(3, 3, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
@@ -323,7 +323,7 @@ func TestFindFoodTarget_SevereConsidersDislikedItems(t *testing.T) {
 	}
 }
 
-func TestFindFoodTarget_SeverePrefersLikedOverDisliked(t *testing.T) {
+func TestFindFoodTarget_SevereFitOvercomesPreference(t *testing.T) {
 	t.Parallel()
 
 	char := newTestCharacter() // Likes berries and red
@@ -332,9 +332,10 @@ func TestFindFoodTarget_SeverePrefersLikedOverDisliked(t *testing.T) {
 	// Add dislike for mushrooms
 	char.Preferences = append(char.Preferences, entity.NewNegativePreference("mushroom", ""))
 
-	// Liked item same distance as disliked
-	// Score(blueBerry at 5,5) = 5*1 - 10 = -5 (likes berries)
-	// Score(brownMushroom at 5,5) = 5*(-1) - 10 = -15 (dislikes mushrooms)
+	// At Severe hunger, mushroom (satiation=25) fits better than berry (satiation=10)
+	// Mushroom's fit advantage (|80-25|=55 vs |80-10|=70) overcomes preference disadvantage
+	// Score(blueBerry) = 5*1 - 1.5*10 - 70 = -80
+	// Score(brownMushroom) = 5*(-1) - 1.5*10 - 55 = -75
 	blueBerry := entity.NewBerry(5, 5, types.ColorBlue, false, false)
 	brownMushroom := entity.NewMushroom(5, 5, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
 
@@ -342,8 +343,8 @@ func TestFindFoodTarget_SeverePrefersLikedOverDisliked(t *testing.T) {
 
 	result := FindFoodTarget(char, items)
 
-	if result.Item != blueBerry {
-		t.Error("Severe should prefer liked over disliked at same distance")
+	if result.Item != brownMushroom {
+		t.Error("At Severe hunger, better-fitting food should beat preference (mushroom sat=25 vs berry sat=10)")
 	}
 }
 
@@ -650,6 +651,108 @@ func TestFindFoodTarget_HealingBonus_ScalesWithHealthTier(t *testing.T) {
 
 	if result.Item != blueBerry {
 		t.Errorf("At Crisis health, larger healing bonus should win, got %v", result.Item.Description())
+	}
+}
+
+// =============================================================================
+// Satiation-Aware Food Selection (3C)
+// =============================================================================
+
+// Anchor: worker at Severe hunger walks past nearby berry to reach filling gourd
+func TestFindFoodTarget_SevereFit_GourdOverBerry(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 75 // Severe
+	char.Preferences = nil
+	char.SetPos(types.Position{X: 0, Y: 0})
+
+	// Berry close (dist=2), gourd far (dist=20)
+	// Score(berry) = 5*0 - 1.5*2 - |75-10| = -68
+	// Score(gourd) = 5*0 - 1.5*20 - |75-50| = -55
+	// Gourd wins — better fit overcomes distance
+	berry := entity.NewBerry(2, 0, types.ColorRed, false, false)
+	gourd := entity.NewGourd(10, 10, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
+
+	result := FindFoodTarget(char, []*entity.Item{berry, gourd})
+
+	if result.Item != gourd {
+		t.Error("At Severe hunger, gourd (sat=50, fit=25) should beat berry (sat=10, fit=65) despite distance")
+	}
+}
+
+// Anchor: at Crisis, nearest food wins regardless of fit
+func TestFindFoodTarget_CrisisFit_BerryOverGourd(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 95 // Crisis
+	char.Preferences = nil
+	char.SetPos(types.Position{X: 0, Y: 0})
+
+	// Same layout as Severe test — but Crisis distWeight=3 makes distance dominate
+	// Score(berry) = 0*0 - 3*2 - |95-10| = -91
+	// Score(gourd) = 0*0 - 3*20 - |95-50| = -105
+	// Berry wins — distance dominates at Crisis
+	berry := entity.NewBerry(2, 0, types.ColorRed, false, false)
+	gourd := entity.NewGourd(10, 10, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
+
+	result := FindFoodTarget(char, []*entity.Item{berry, gourd})
+
+	if result.Item != berry {
+		t.Error("At Crisis hunger, nearest food should win (berry at dist 2 vs gourd at dist 20)")
+	}
+}
+
+// Anchor: at Severe, mushroom on the path is a sensible meal to stop for
+func TestFindFoodTarget_SevereFit_MushroomOnPath(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter() // Likes berries (+2 for red berry) and red
+	char.Hunger = 75           // Severe
+	char.SetPos(types.Position{X: 0, Y: 0})
+	// Add mushroom preference (+1)
+	char.Preferences = append(char.Preferences, entity.NewPositivePreference("mushroom", ""))
+
+	// Score(berry d=2) = 5*2 - 1.5*2 - |75-10| = 10-3-65 = -58
+	// Score(mush d=5) = 5*1 - 1.5*5 - |75-25| = 5-7.5-50 = -52.5
+	// Score(gourd d=20) = 5*0 - 1.5*20 - |75-50| = 0-30-25 = -55
+	// Mushroom wins — right-sized meal on the path
+	berry := entity.NewBerry(2, 0, types.ColorRed, false, false)
+	mushroom := entity.NewMushroom(5, 0, types.ColorBrown, types.PatternNone, types.TextureNone, false, false)
+	gourd := entity.NewGourd(10, 10, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
+
+	result := FindFoodTarget(char, []*entity.Item{berry, mushroom, gourd})
+
+	if result.Item != mushroom {
+		t.Errorf("At Severe hunger, mushroom (sat=25, d=5) should beat berry (d=2) and gourd (d=20), got %s",
+			result.Item.Description())
+	}
+}
+
+// Anchor: carried food uses fit as the deciding factor (distance=0 for both)
+func TestFindFoodTarget_InventoryFit_PrefersGourdAtSevere(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 75 // Severe
+	char.Preferences = nil
+	char.SetPos(types.Position{X: 0, Y: 0})
+
+	// Both in inventory (distance=0), fit decides
+	// Score(berry) = 5*0 - 1.5*0 - |75-10| = -65
+	// Score(gourd) = 5*0 - 1.5*0 - |75-50| = -25
+	// Gourd wins — much better fit
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
+	char.AddToInventory(berry)
+	char.AddToInventory(gourd)
+
+	result := FindFoodTarget(char, nil)
+
+	if result.Item != gourd {
+		t.Errorf("With inventory items at Severe hunger, gourd (sat=50) should beat berry (sat=10), got %s",
+			result.Item.Description())
 	}
 }
 

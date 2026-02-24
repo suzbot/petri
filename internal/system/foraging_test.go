@@ -834,3 +834,30 @@ func TestCreateForageIntent_NonVessel_ActivitySaysForaging(t *testing.T) {
 		t.Errorf("Log message: got %q, want %q", events[0].Message, "Foraging for berry")
 	}
 }
+
+// =============================================================================
+// Satiation-Aware Foraging (3C)
+// =============================================================================
+
+// Anchor: idle characters at low hunger forage snacks over feasts
+func TestScoreForageItems_LowHungerPrefersSnacks(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 20 // Low hunger (idle foraging range)
+	char.Preferences = nil
+	char.SetPos(types.Position{X: 0, Y: 0})
+
+	// Berry and gourd equidistant (dist=5)
+	// Score(berry) = 20*0 - 1*5 - |20-10| = -15
+	// Score(gourd) = 20*0 - 1*5 - |20-50| = -35
+	// Berry wins — much better fit at low hunger
+	berry := entity.NewBerry(5, 0, types.ColorRed, false, false)
+	gourd := entity.NewGourd(0, 5, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
+
+	bestItem, _ := scoreForageItems(char, char.Pos(), []*entity.Item{berry, gourd}, nil)
+
+	if bestItem != berry {
+		t.Error("At low hunger, foraging should prefer berry (sat=10) over gourd (sat=50)")
+	}
+}

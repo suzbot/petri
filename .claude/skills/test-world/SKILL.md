@@ -66,9 +66,9 @@ Start from the **recipe template** below, then customize for the test scenario.
 - Pre-populate knowledge/known_activities if testing knowledge-dependent behavior
 - Include water_tiles for drinking, features (leaf piles, feature_type: 2) for sleeping
 - Include varieties for all item types present
-- Set `next_item_id` higher than the highest item ID used
 - Set `talking_with_id: -1` for characters not in conversation
-- All items need complete fields: id, position, item_type, color, pattern, texture, edible, poisonous, healing, death_timer
+- All items need fields matching the `ItemSave` struct in `state.go`. See templates below for common examples.
+- **Position format**: Characters, items, features, and water tiles all use flat `"x": N, "y": N` fields (NOT nested `"position": {"x": N, "y": N}`)
 - **Vessel availability:** If testing a behavior that uses vessels, provide enough vessels to fill both inventory slots per character. Characters may autonomously pick up vessels for other idle activities (forage, fetch water) before the target behavior triggers — extra vessels prevent this from blocking the test.
 
 #### Type Reference
@@ -92,7 +92,8 @@ Use this as the starting structure. Add/remove characters, items, features, and 
     {
       "id": 1,
       "name": "Kai",
-      "position": {"x": 30, "y": 30},
+      "x": 30,
+      "y": 30,
       "health": 100,
       "hunger": 0,
       "thirst": 0,
@@ -110,13 +111,11 @@ Use this as the starting structure. Add/remove characters, items, features, and 
   "items": [],
   "features": [],
   "water_tiles": [
-    {"position": {"x": 25, "y": 25}, "water_type": 2}
+    {"x": 25, "y": 25, "water_type": 2}
   ],
   "tilled_positions": [],
   "watered_tiles": [],
   "varieties": [],
-  "next_item_id": 100,
-  "next_feature_id": 100,
   "orders": []
 }
 ```
@@ -125,7 +124,8 @@ Use this as the starting structure. Add/remove characters, items, features, and 
 ```json
 {
   "id": 1,
-  "position": {"x": 31, "y": 30},
+  "x": 31,
+  "y": 30,
   "item_type": "berry",
   "color": "red",
   "pattern": "",
@@ -141,7 +141,8 @@ Use this as the starting structure. Add/remove characters, items, features, and 
 ```json
 {
   "id": 2,
-  "position": {"x": 32, "y": 30},
+  "x": 32,
+  "y": 30,
   "item_type": "berry",
   "color": "red",
   "pattern": "",
@@ -158,7 +159,8 @@ Use this as the starting structure. Add/remove characters, items, features, and 
 ```json
 {
   "id": 10,
-  "position": {"x": 0, "y": 0},
+  "x": 0,
+  "y": 0,
   "name": "Hollow Gourd",
   "item_type": "vessel",
   "kind": "hollow gourd",
@@ -190,7 +192,8 @@ To put a vessel in a character's inventory, add it to the character's `"inventor
 ```json
 {
   "id": 1,
-  "position": {"x": 35, "y": 30},
+  "x": 35,
+  "y": 30,
   "feature_type": 2
 }
 ```

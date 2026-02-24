@@ -806,7 +806,7 @@ func findFoodIntent(char *entity.Character, pos types.Position, items []*entity.
 	// Check if best food is in inventory (any slot)
 	isInInventory := char.FindInInventory(func(i *entity.Item) bool { return i == result.Item }) != nil
 	if isInInventory {
-		newActivity := "Eating carried " + result.Item.Description()
+		newActivity := eatingActivityName(result.Item)
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
 			if log != nil {
@@ -995,19 +995,23 @@ func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 
 	// Determine hunger tier and corresponding weights/filters
 	var prefWeight float64
+	var distWeight float64
 	var filterDisliked bool
 
 	if char.Hunger >= 90 {
 		// Crisis: just pick nearest
 		prefWeight = config.FoodSeekPrefWeightCrisis
+		distWeight = config.FoodSeekDistWeightCrisis
 		filterDisliked = false
 	} else if char.Hunger >= 75 {
 		// Severe: gradient with medium pref weight, consider all items
 		prefWeight = config.FoodSeekPrefWeightSevere
+		distWeight = config.FoodSeekDistWeightSevere
 		filterDisliked = false
 	} else {
 		// Moderate: gradient with high pref weight, filter disliked
 		prefWeight = config.FoodSeekPrefWeightModerate
+		distWeight = config.FoodSeekDistWeightModerate
 		filterDisliked = true
 	}
 
@@ -1045,8 +1049,8 @@ func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 			return
 		}
 
-		// Calculate gradient score
-		score := float64(netPref)*prefWeight - float64(dist)*config.FoodSeekDistWeight
+		// Calculate gradient score with satiation fit
+		score := ScoreFoodFit(netPref, dist, char.Hunger, item.ItemType, prefWeight, distWeight)
 
 		// Apply healing bonus if character knows this item is healing
 		if healingBonus > 0 && char.KnowsItemIsHealing(item) {
@@ -1075,7 +1079,7 @@ func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 
 				// At Moderate hunger, filter out disliked items
 				if !filterDisliked || netPref >= 0 {
-					score := float64(netPref)*prefWeight - 0*config.FoodSeekDistWeight // distance = 0
+					score := ScoreFoodFit(netPref, 0, char.Hunger, variety.ItemType, prefWeight, distWeight)
 
 					// Apply healing bonus if character knows this variety is healing
 					if healingBonus > 0 && char.KnowsVarietyIsHealing(variety) {
@@ -1109,7 +1113,7 @@ func FindFoodTarget(char *entity.Character, items []*entity.Item) FoodTargetResu
 
 				// At Moderate hunger, filter out disliked items
 				if !filterDisliked || netPref >= 0 {
-					score := float64(netPref)*prefWeight - float64(dist)*config.FoodSeekDistWeight
+					score := ScoreFoodFit(netPref, dist, char.Hunger, variety.ItemType, prefWeight, distWeight)
 
 					// Apply healing bonus if character knows this variety is healing
 					if healingBonus > 0 && char.KnowsVarietyIsHealing(variety) {
@@ -1447,11 +1451,11 @@ func findCarriedFoodIntent(char *entity.Character, pos types.Position, tier int,
 		if item.Container != nil && len(item.Container.Contents) > 0 {
 			variety := item.Container.Contents[0].Variety
 			if variety != nil && variety.IsEdible() {
-				newActivity := "Eating from vessel"
+				newActivity := eatingActivityName(item)
 				if char.CurrentActivity != newActivity {
 					char.CurrentActivity = newActivity
 					if log != nil {
-						log.Add(char.ID, char.Name, "activity", "Eating from vessel")
+						log.Add(char.ID, char.Name, "activity", newActivity)
 					}
 				}
 				return &entity.Intent{
@@ -1484,6 +1488,16 @@ func findCarriedFoodIntent(char *entity.Character, pos types.Position, tier int,
 		}
 	}
 	return nil
+}
+
+// eatingActivityName returns the display activity for eating an item.
+// For vessels, names the food inside ("Eating Berry from vessel").
+// For loose items, names the item ("Eating carried Red Berry").
+func eatingActivityName(item *entity.Item) string {
+	if item.Container != nil && len(item.Container.Contents) > 0 {
+		return "Eating " + item.Container.Contents[0].Variety.Description() + " from vessel"
+	}
+	return "Eating carried " + item.Description()
 }
 
 // findClosestAdjacentTile finds the closest unoccupied tile adjacent to (tx, ty) from position (cx, cy)

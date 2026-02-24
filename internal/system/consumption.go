@@ -17,7 +17,7 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 	char.CurrentActivity = "Consuming " + itemName
 
 	// Reduce hunger (per-item satiation tier)
-	char.Hunger -= config.GetSatiationAmount(item.ItemType)
+	char.Hunger -= config.GetMealSize(item.ItemType).Satiation
 	if char.Hunger < 0 {
 		char.Hunger = 0
 	}
@@ -146,7 +146,7 @@ func ConsumeFromInventory(char *entity.Character, item *entity.Item, gameMap *ga
 	char.CurrentActivity = "Consuming " + itemName
 
 	// Reduce hunger (per-item satiation tier)
-	char.Hunger -= config.GetSatiationAmount(item.ItemType)
+	char.Hunger -= config.GetMealSize(item.ItemType).Satiation
 	if char.Hunger < 0 {
 		char.Hunger = 0
 	}
@@ -342,7 +342,7 @@ func ConsumeFromVessel(char *entity.Character, vessel *entity.Item, gameMap *gam
 	char.CurrentActivity = "Consuming " + varietyName + " from vessel"
 
 	// Reduce hunger (per-item satiation tier, uses variety's ItemType)
-	char.Hunger -= config.GetSatiationAmount(variety.ItemType)
+	char.Hunger -= config.GetMealSize(variety.ItemType).Satiation
 	if char.Hunger < 0 {
 		char.Hunger = 0
 	}

@@ -25,7 +25,7 @@ func TestConsume_GourdReducesHungerByFeast(t *testing.T) {
 
 	Consume(char, item, gameMap, nil)
 
-	expected := 80 - config.SatiationFeast
+	expected := 80 - config.MealSizeFeast.Satiation
 	if char.Hunger != expected {
 		t.Errorf("Hunger: got %.2f, want %.2f", char.Hunger, expected)
 	}
@@ -43,7 +43,7 @@ func TestConsume_MushroomReducesHungerByMeal(t *testing.T) {
 
 	Consume(char, item, gameMap, nil)
 
-	expected := 80 - config.SatiationMeal
+	expected := 80 - config.MealSizeMeal.Satiation
 	if char.Hunger != expected {
 		t.Errorf("Hunger: got %.2f, want %.2f", char.Hunger, expected)
 	}
@@ -61,7 +61,7 @@ func TestConsume_BerryReducesHungerBySnack(t *testing.T) {
 
 	Consume(char, item, gameMap, nil)
 
-	expected := 80 - config.SatiationSnack
+	expected := 80 - config.MealSizeSnack.Satiation
 	if char.Hunger != expected {
 		t.Errorf("Hunger: got %.2f, want %.2f", char.Hunger, expected)
 	}
@@ -79,18 +79,18 @@ func TestConsume_NutReducesHungerBySnack(t *testing.T) {
 
 	Consume(char, item, gameMap, nil)
 
-	expected := 80 - config.SatiationSnack
+	expected := 80 - config.MealSizeSnack.Satiation
 	if char.Hunger != expected {
 		t.Errorf("Hunger: got %.2f, want %.2f", char.Hunger, expected)
 	}
 }
 
-func TestGetSatiationAmount_UnknownDefaultsToMeal(t *testing.T) {
+func TestGetMealSize_UnknownDefaultsToMeal(t *testing.T) {
 	t.Parallel()
 
-	amount := config.GetSatiationAmount("unknown_type")
-	if amount != config.SatiationMeal {
-		t.Errorf("Unknown item satiation: got %.2f, want %.2f", amount, config.SatiationMeal)
+	ms := config.GetMealSize("unknown_type")
+	if ms.Satiation != config.MealSizeMeal.Satiation {
+		t.Errorf("Unknown item satiation: got %.2f, want %.2f", ms.Satiation, config.MealSizeMeal.Satiation)
 	}
 }
 
@@ -875,7 +875,7 @@ func TestConsumeFromInventory_ReducesHunger(t *testing.T) {
 
 	ConsumeFromInventory(char, item, nil, nil)
 
-	expected := 80 - config.GetSatiationAmount(item.ItemType)
+	expected := 80 - config.GetMealSize(item.ItemType).Satiation
 	if char.Hunger != expected {
 		t.Errorf("Hunger: got %.2f, want %.2f", char.Hunger, expected)
 	}
@@ -997,7 +997,7 @@ func TestConsumeFromVessel_ReducesHunger(t *testing.T) {
 
 	ConsumeFromVessel(char, vessel, nil, nil)
 
-	expected := 80 - config.GetSatiationAmount("berry")
+	expected := 80 - config.GetMealSize("berry").Satiation
 	if char.Hunger != expected {
 		t.Errorf("Hunger: got %.2f, want %.2f", char.Hunger, expected)
 	}

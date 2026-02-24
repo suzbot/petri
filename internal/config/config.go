@@ -56,10 +56,7 @@ const (
 	StarvationDamageRate  = 0.5  // health per second
 	DehydrationDamageRate = 0.5  // health per second
 	PoisonDamageRate      = 0.33 // health per second
-	// Satiation tiers (hunger reduced per food, by tier)
-	SatiationFeast          = 50.0 // gourd
-	SatiationMeal           = 25.0 // mushroom
-	SatiationSnack          = 10.0 // berry, nut
+	// Satiation tiers — see MealSize below for per-food satiation + duration
 	DrinkThirstReduction    = 20.0 // thirst reduced per drink
 	BedEnergyRestoreRate    = 2.86 // energy per second in bed (~7 world hours to full)
 	GroundEnergyRestoreRate = 1.67 // energy per second on ground (~12 world hours to full)
@@ -142,7 +139,10 @@ const (
 	FoodSeekPrefWeightModerate = 20.0 // Strong preference influence at moderate hunger
 	FoodSeekPrefWeightSevere   = 5.0  // Moderate preference influence at severe hunger
 	FoodSeekPrefWeightCrisis   = 0.0  // No preference influence, just distance
-	FoodSeekDistWeight         = 1.0  // Distance penalty per tile
+	FoodSeekDistWeight         = 1.0  // Distance penalty per tile (base, used by vessel scoring)
+	FoodSeekDistWeightModerate = 1.0  // Distance weight at moderate hunger
+	FoodSeekDistWeightSevere   = 1.5  // Distance weight at severe hunger (fit can overcome distance)
+	FoodSeekDistWeightCrisis   = 3.0  // Distance weight at crisis hunger (nearest food wins)
 
 	// Healing bonus in food selection - when hungry AND hurt, known healing items score higher
 	// Only applies when health tier >= Mild and character knows item is healing
@@ -205,20 +205,34 @@ func GetGroundSpawnCount(itemType string) int {
 	return 1
 }
 
-// SatiationTier maps item types to their hunger reduction amount
-var SatiationTier = map[string]float64{
-	"gourd":    SatiationFeast,
-	"mushroom": SatiationMeal,
-	"berry":    SatiationSnack,
-	"nut":      SatiationSnack,
+// MealSize defines the satiation and eating duration for a food tier
+type MealSize struct {
+	Satiation float64 // hunger reduction amount
+	Duration  float64 // game seconds to complete eating
 }
 
-// GetSatiationAmount returns the hunger reduction for an item type, defaulting to Meal tier
-func GetSatiationAmount(itemType string) float64 {
-	if amount, ok := SatiationTier[itemType]; ok {
-		return amount
+// Meal size tier constants
+// Time scale: 1 game second = 12 world minutes
+var (
+	MealSizeFeast = MealSize{Satiation: 50.0, Duration: 3.75}  // ~45 world mins (gourd)
+	MealSizeMeal  = MealSize{Satiation: 25.0, Duration: 1.25}  // ~15 world mins (mushroom)
+	MealSizeSnack = MealSize{Satiation: 10.0, Duration: 0.417} // ~5 world mins (berry, nut)
+)
+
+// ItemMealSize maps item types to their meal size configuration
+var ItemMealSize = map[string]MealSize{
+	"gourd":    MealSizeFeast,
+	"mushroom": MealSizeMeal,
+	"berry":    MealSizeSnack,
+	"nut":      MealSizeSnack,
+}
+
+// GetMealSize returns the meal size for an item type, defaulting to Meal tier
+func GetMealSize(itemType string) MealSize {
+	if ms, ok := ItemMealSize[itemType]; ok {
+		return ms
 	}
-	return SatiationMeal
+	return MealSizeMeal
 }
 
 // SproutDurationTier maps item types to their sprout maturation duration

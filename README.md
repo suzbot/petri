@@ -40,6 +40,8 @@ Core process innovations developed over the course of this project:
 
 ## Latest Updates
 
+- **Satiation-aware food selection**: characters choose food that fits their current hunger — filling meals at severe hunger, snacks when foraging at low hunger, nearest food at crisis.
+- **Eating duration**: berries and nuts are quick snacks; mushrooms are a proper meal; gourds are a lengthy feast.
 - **Snacks**: different foods have different satiation levels; characters can eat carried food at mild hunger while working.
 
 ### Gardening

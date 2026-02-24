@@ -128,6 +128,8 @@ Characters use greedy-first pathfinding: they try to move diagonally toward thei
 
 Drinking, eating, and falling asleep have a duration before completing. Collapse at Energy=0 is immediate (involuntary).
 
+Eating duration varies by food tier (see `config.ItemMealSize`): feast-tier foods take significantly longer to eat than snack-tier foods. Drinking duration is unchanged — water has no satiation tier.
+
 ## Continuous Drinking
 
 **From terrain**: At water sources (springs and ponds), characters drink until thirst == 0 (not just until tier boundary). Intent persists across drinks.
@@ -254,16 +256,18 @@ Examples:
 
 Uses gradient scoring for all food sources (map items, carried items, vessel contents):
 
-`Score = (NetPreference × PrefWeight) - (Distance × DistWeight) + HealingBonus`
+`Score = (NetPreference × PrefWeight) - (Distance × DistWeight) - |hunger - satiation| + HealingBonus`
 
 Carried items and vessel contents have distance = 0; map items use Manhattan distance.
 
-Higher hunger = lower preference weight + willingness to eat disliked items:
-- **Moderate (50-74)**: High PrefWeight, only considers NetPreference >= 0 items (filters disliked)
-- **Severe (75-89)**: Medium PrefWeight, considers all items including disliked
-- **Crisis (90+)**: No PrefWeight (nearest wins), considers all items
+The satiation fit term (`|hunger - satiation|`) penalizes food that's too small or too large for the character's current hunger. A meal that matches current hunger scores best; snacks are penalized at high hunger, feasts are penalized at low hunger.
 
-Weights configured in config.go. When scores are equal, closer item wins (distance tiebreaker).
+Higher hunger = lower preference weight + willingness to eat disliked items + more expensive distance:
+- **Moderate (50-74)**: High PrefWeight, low DistWeight (see `config.FoodSeekDistWeightModerate`), only considers NetPreference >= 0 items (filters disliked)
+- **Severe (75-89)**: Medium PrefWeight, moderate DistWeight (see `config.FoodSeekDistWeightSevere`), considers all items including disliked — filling food worth a longer walk
+- **Crisis (90+)**: No PrefWeight, high DistWeight (see `config.FoodSeekDistWeightCrisis`) — nearest food wins regardless of fit or preference
+
+Idle foraging uses Moderate-tier weights. When scores are equal, closer item wins (distance tiebreaker).
 
 ### Initial Preferences
 

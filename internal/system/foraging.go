@@ -81,7 +81,7 @@ func scoreForageItems(char *entity.Character, pos types.Position, items []*entit
 
 		netPref := char.NetPreference(item)
 		dist := pos.DistanceTo(item.Pos())
-		score := float64(netPref)*config.FoodSeekPrefWeightModerate - float64(dist)*config.FoodSeekDistWeight
+		score := ScoreFoodFit(netPref, dist, char.Hunger, item.ItemType, config.FoodSeekPrefWeightModerate, config.FoodSeekDistWeightModerate)
 
 		if score > bestScore {
 			bestItem = item

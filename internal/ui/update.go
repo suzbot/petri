@@ -679,9 +679,16 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			if isEdible || isVesselWithFood {
 				ipos := targetItem.Pos()
 				if cx == ipos.X && cy == ipos.Y {
-					// At target item - eating in progress
+					// At target item - eating in progress, duration varies by food tier
+					// Update activity from "Moving to X" to "Eating X"
+					if isVesselWithFood {
+						char.CurrentActivity = "Eating " + targetItem.Container.Contents[0].Variety.Description() + " from vessel"
+					} else {
+						char.CurrentActivity = "Eating " + targetItem.Description()
+					}
+					duration := config.GetMealSize(getEatenItemType(targetItem)).Duration
 					char.ActionProgress += delta
-					if char.ActionProgress >= config.ActionDurationShort {
+					if char.ActionProgress >= duration {
 						char.ActionProgress = 0
 						if item := m.gameMap.ItemAt(types.Position{X: cx, Y: cy}); item == targetItem {
 							if isVesselWithFood {
@@ -989,11 +996,12 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		}
 
 	case entity.ActionConsume:
-		// Eating from inventory - no movement needed, just duration
+		// Eating from inventory - no movement needed, duration varies by food tier
+		targetItem := char.Intent.TargetItem
+		duration := config.GetMealSize(getEatenItemType(targetItem)).Duration
 		char.ActionProgress += delta
-		if char.ActionProgress >= config.ActionDurationShort {
+		if char.ActionProgress >= duration {
 			char.ActionProgress = 0
-			targetItem := char.Intent.TargetItem
 			// Check if target item is in inventory
 			inInventory := char.FindInInventory(func(i *entity.Item) bool { return i == targetItem }) != nil
 			if inInventory {
@@ -2203,4 +2211,13 @@ func (m *Model) setOrderFlash(displayName string) {
 		m.orderFlashCount = 1
 	}
 	m.orderFlashEnd = now.Add(2 * time.Second)
+}
+
+// getEatenItemType returns the item type being eaten, resolving vessel contents.
+// For vessels, the food type comes from the first stack's variety, not the vessel itself.
+func getEatenItemType(item *entity.Item) string {
+	if item.Container != nil && len(item.Container.Contents) > 0 {
+		return item.Container.Contents[0].Variety.ItemType
+	}
+	return item.ItemType
 }
