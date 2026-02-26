@@ -2,7 +2,6 @@ package system
 
 import (
 	"math/rand"
-	"strings"
 
 	"petri/internal/config"
 	"petri/internal/entity"
@@ -34,6 +33,15 @@ func selectIdleActivity(char *entity.Character, pos types.Position, items []*ent
 	// Check for new order work (taking unassigned orders)
 	if intent := selectOrderActivity(char, pos, items, gameMap, orders, log); intent != nil {
 		return intent
+	}
+
+	// Helping override: before the random roll, check for crisis characters
+	if needer := findNearestCrisisCharacter(char, gameMap.Characters()); needer != nil {
+		if needer.HungerTier() == entity.TierCrisis {
+			if intent := findHelpFeedIntent(char, needer, pos, items, gameMap, log); intent != nil {
+				return intent
+			}
+		}
 	}
 
 	// Roll 0-4 for activity selection (equal 1/5 probability each)
@@ -100,29 +108,17 @@ func selectIdleActivity(char *entity.Character, pos types.Position, items []*ent
 	return nil
 }
 
-// isIdleActivity returns true if the activity string represents an idle activity
-// that can be interrupted for talking. Idle activities are: Idle, Looking, Talking, Foraging.
-func isIdleActivity(activity string) bool {
-	if strings.HasPrefix(activity, "Idle") {
+// isIdleAction returns true if the character is performing an idle activity
+// that can be interrupted for talking. Checks ActionType instead of activity strings.
+// Characters with no intent (nil) are considered idle.
+func isIdleAction(char *entity.Character) bool {
+	if char.Intent == nil {
 		return true
 	}
-	if strings.HasPrefix(activity, "Looking") {
+	switch char.Intent.Action {
+	case entity.ActionNone, entity.ActionLook, entity.ActionTalk, entity.ActionForage, entity.ActionFillVessel:
 		return true
+	default:
+		return false
 	}
-	if strings.HasPrefix(activity, "Talking") {
-		return true
-	}
-	if strings.HasPrefix(activity, "Foraging") {
-		return true
-	}
-	if strings.HasPrefix(activity, "Moving to forage") {
-		return true
-	}
-	if strings.HasPrefix(activity, "Fetching") {
-		return true
-	}
-	if strings.HasPrefix(activity, "Filling vessel") {
-		return true
-	}
-	return false
 }

@@ -33,6 +33,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Idle activity registry refactor**    | Idle activity needs discovery/know-how gating; Idle activities need data-driven selection (weighted probabilities, personality); Adding 7th+ hardcoded idle option feels unwieldy |
 | **Snacking threshold** | Characters walk past nearby berries because hunger isn't high enough to trigger foraging, then starve later; Snack-tier food feels useless because characters only eat when already quite hungry |
 | **Terrain-aware Look + discovery**     | Adding activity discovered from terrain interaction; Characters feel artificially limited to item-only observation; Want richer idle contemplation behaviors |
+| **Character event/signal system**      | Helping needs richer reactions (gratitude, relationship changes); Multiple systems need to signal between characters; Current intent-clearing is too coarse for nuanced responses |
 
 ### Future Enhancement Details
 
@@ -98,7 +99,7 @@ _(Action pattern unification investigation moved to [post-gardening-cleanup.md](
 
 **`continueIntent` early-return block consolidation:**
 
-`continueIntent` (movement.go) has action-specific early-return blocks for actions whose `TargetItem` can be in different locations across phases (ground vs inventory). Current blocks: `ActionConsume`, `ActionDrink` (carried vessel), `ActionFillVessel`, `ActionWaterGarden`. These exist because the generic path's `ItemAt` check would nil the intent when the item moves to inventory.
+`continueIntent` (movement.go) has action-specific early-return blocks for actions whose `TargetItem` can be in different locations across phases (ground vs inventory). Current blocks: `ActionConsume`, `ActionDrink` (carried vessel), `ActionFillVessel`, `ActionWaterGarden`, `ActionHelpFeed`. These exist because the generic path's `ItemAt` check would nil the intent when the item moves to inventory.
 
 The blocks share a common shape: check if item is in inventory → return unchanged (no movement needed) or recalculate toward `Dest`. If this grows to 5+ blocks, evaluate whether a general "multi-phase item tracking" pattern could replace per-action blocks — e.g., a helper that checks inventory-then-map for `TargetItem` and recalculates accordingly, called by each action's block or replacing them entirely.
 
@@ -169,6 +170,17 @@ Characters could be willing to snack at a lower hunger level (e.g., Mild tier) i
 Satiation-aware foraging targeting (first half of original item) extracted to [cleanup-phase-plan.md](cleanup-phase-plan.md) 3C.
 
 Deferred because: Need to observe how the new satiation tiers play out before adding complexity. The current system may produce acceptable behavior through existing proximity scoring — characters naturally eat nearby food first.
+
+---
+
+**Character event/signal system:**
+
+Currently, the helper "shout" that alerts a needy character to dropped food is implemented as a direct `needer.Intent = nil` — simple and effective, but the signaling is invisible to the code structure. A formal event system would allow:
+- Characters to react to signals with richer behavior (gratitude expression, relationship score changes)
+- Multiple signal types beyond "re-evaluate your needs" (warning, sharing, teaching)
+- Observable event flow for debugging and action log richness
+
+The current approach (direct intent clearing + action log entry) works well for the helping use case. Formalize when character relationships are introduced and signals need to carry metadata (who helped, what they provided, how the recipient feels about it).
 
 ---
 

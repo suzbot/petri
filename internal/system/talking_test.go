@@ -201,7 +201,7 @@ func TestFindTalkIntent_SkipsCharactersWithActiveNeeds(t *testing.T) {
 
 	char := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
 	busy := entity.NewCharacter(2, 6, 5, "Busy", "mushroom", types.ColorBlue)
-	busy.CurrentActivity = "Moving to berry" // Not an idle activity
+	busy.Intent = &entity.Intent{Action: entity.ActionConsume} // Need-driven, not idle
 
 	gameMap := game.NewMap(10, 10)
 	gameMap.AddCharacter(char)
@@ -215,44 +215,8 @@ func TestFindTalkIntent_SkipsCharactersWithActiveNeeds(t *testing.T) {
 }
 
 // =============================================================================
-// isIdleActivity helper
+// isIdleAction helper (tests moved to helping_test.go)
 // =============================================================================
-
-func TestIsIdleActivity_ReturnsTrueForIdleActivities(t *testing.T) {
-	t.Parallel()
-
-	idleActivities := []string{
-		"Idle",
-		"Idle (no needs)",
-		"Looking at Red Berry",
-		"Talking with Bob",
-	}
-
-	for _, activity := range idleActivities {
-		if !isIdleActivity(activity) {
-			t.Errorf("Activity %q should be considered idle", activity)
-		}
-	}
-}
-
-func TestIsIdleActivity_ReturnsFalseForNonIdleActivities(t *testing.T) {
-	t.Parallel()
-
-	nonIdleActivities := []string{
-		"Moving to berry",
-		"Moving to spring",
-		"Drinking",
-		"Sleeping (in bed)",
-		"Sleeping (on ground)",
-		"Frustrated",
-	}
-
-	for _, activity := range nonIdleActivities {
-		if isIdleActivity(activity) {
-			t.Errorf("Activity %q should not be considered idle", activity)
-		}
-	}
-}
 
 // =============================================================================
 // selectIdleActivity
@@ -927,8 +891,8 @@ func TestCalculateIntent_ApproachStopsIfTargetBecomesNonIdle(t *testing.T) {
 		TargetCharacter: bob,
 	}
 
-	// Bob stops being idle (e.g., gets hungry and starts moving)
-	bob.CurrentActivity = "Moving to berry"
+	// Bob stops being idle (e.g., gets hungry and starts moving to food)
+	bob.Intent = &entity.Intent{Action: entity.ActionConsume, DrivingStat: types.StatHunger}
 
 	// Alice should abandon approach and re-evaluate
 	intent := CalculateIntent(alice, items, gameMap, nil, nil)

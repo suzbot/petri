@@ -934,7 +934,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		}
 
 	case entity.ActionConsume:
-		// Eating from inventory - no movement needed, duration varies by food tier
+		// Eating - duration varies by food tier
 		targetItem := char.Intent.TargetItem
 		duration := config.GetMealSize(getEatenItemType(targetItem)).Duration
 		char.ActionProgress += delta
@@ -951,6 +951,13 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 					// Eat the carried item directly
 					system.ConsumeFromInventory(char, targetItem, m.gameMap, m.actionLog)
 				}
+			} else if m.gameMap.ItemAt(char.Pos()) == targetItem &&
+				targetItem.Container != nil && len(targetItem.Container.Contents) > 0 &&
+				targetItem.Container.Contents[0].Variety.IsEdible() {
+				// Ground food vessel: eat in place without picking up
+				system.ConsumeFromVessel(char, targetItem, m.gameMap, m.actionLog)
+				// Clear intent after each unit (like vessel drinking) so character re-evaluates
+				char.Intent = nil
 			}
 		}
 
@@ -1330,7 +1337,151 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 				}
 			}
 		}
+	case entity.ActionHelpFeed:
+		// Help Feed — self-managing action: procure food, deliver to needy character
+		// Phase 1: food on ground → walk to it, pick up
+		// Phase 2: food in inventory → walk to needer, drop cardinal-adjacent
+		cpos := char.Pos()
+		target := char.Intent.TargetItem
+		needer := char.Intent.TargetCharacter
+
+		if needer == nil || needer.IsDead {
+			// Needer gone — drop food at current position if carrying, go idle
+			if target != nil {
+				for _, item := range char.Inventory {
+					if item == target {
+						system.DropItem(char, target, m.gameMap, m.actionLog)
+						break
+					}
+				}
+			}
+			char.CurrentActivity = "Idle"
+			char.Intent = nil
+			return
+		}
+
+		// Phase 1: procurement — TargetItem is on the ground
+		if target != nil {
+			ipos := target.Pos()
+			if m.gameMap.ItemAt(ipos) == target {
+				if cpos.X == ipos.X && cpos.Y == ipos.Y {
+					// At food/vessel — pick up
+					char.ActionProgress += delta
+					if char.ActionProgress >= config.ActionDurationShort {
+						char.ActionProgress = 0
+						result := system.Pickup(char, target, m.gameMap, m.actionLog, m.gameMap.Varieties())
+
+						// Determine what to deliver
+						deliveryItem := target
+						if result == system.PickupToVessel {
+							// Food absorbed into carried vessel — deliver the vessel instead
+							deliveryItem = char.GetCarriedVessel()
+						} else if result == system.PickupFailed {
+							char.CurrentActivity = "Idle"
+							char.Intent = nil
+							return
+						}
+
+						// Rebuild intent for delivery phase
+						npos := needer.Pos()
+						nx, ny := system.NextStepBFS(cpos.X, cpos.Y, npos.X, npos.Y, m.gameMap)
+						char.Intent = &entity.Intent{
+							Target:          types.Position{X: nx, Y: ny},
+							Dest:            npos,
+							Action:          entity.ActionHelpFeed,
+							TargetItem:      deliveryItem,
+							TargetCharacter: needer,
+						}
+						char.CurrentActivity = "Bringing food to " + needer.Name
+						if m.actionLog != nil {
+							m.actionLog.Add(char.ID, char.Name, "activity", "Bringing food to "+needer.Name)
+						}
+					}
+					return
+				}
+				// Not at food yet — move toward it
+				m.moveWithCollision(char, cpos, delta)
+				return
+			}
+			// Check if target is in inventory (carried food — skip to delivery)
+			inInventory := false
+			for _, item := range char.Inventory {
+				if item == target {
+					inInventory = true
+					break
+				}
+			}
+			if !inInventory {
+				// Food gone, not in inventory — give up
+				char.CurrentActivity = "Idle"
+				char.Intent = nil
+				return
+			}
+		}
+
+		// Phase 2: delivery — food in inventory, walk toward needer
+		npos := needer.Pos()
+		if cpos.IsCardinallyAdjacentTo(npos) {
+			// Adjacent to needer — drop food at an empty cardinal tile next to needer
+			// (not where the helper is standing, so the needer can reach it)
+			if target != nil {
+				for _, item := range char.Inventory {
+					if item == target {
+						// Find empty cardinal tile adjacent to needer for the drop
+						dropPos := findEmptyCardinalTile(npos, cpos, m.gameMap)
+						char.RemoveFromInventory(target)
+						target.X = dropPos.X
+						target.Y = dropPos.Y
+						m.gameMap.AddItem(target)
+						if m.actionLog != nil {
+							m.actionLog.Add(char.ID, char.Name, "activity",
+								"Brought "+target.Description()+" to "+needer.Name)
+						}
+						// Signal the needer to re-evaluate — clear their current intent
+						// so they notice the closer food on their next tick
+						needer.Intent = nil
+						if m.actionLog != nil {
+							m.actionLog.Add(char.ID, char.Name, "social",
+								char.Name+" called out to "+needer.Name)
+						}
+						break
+					}
+				}
+			}
+			char.CurrentActivity = "Idle"
+			char.Intent = nil
+			char.IdleCooldown = config.IdleCooldown
+			return
+		}
+
+		// Not adjacent yet — move toward needer
+		char.CurrentActivity = "Bringing food to " + needer.Name
+		m.moveWithCollision(char, cpos, delta)
 	}
+}
+
+// findEmptyCardinalTile finds an unoccupied cardinal-adjacent tile next to center.
+// Prefers tiles not occupied by the helper (avoidPos). Falls back to avoidPos if all others blocked.
+func findEmptyCardinalTile(center types.Position, avoidPos types.Position, gameMap *game.Map) types.Position {
+	cardinalDirs := [4][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+	for _, dir := range cardinalDirs {
+		pos := types.Position{X: center.X + dir[0], Y: center.Y + dir[1]}
+		if pos == avoidPos {
+			continue // Skip helper's position
+		}
+		if !gameMap.IsValid(pos) || gameMap.IsWater(pos) {
+			continue
+		}
+		if occupant := gameMap.CharacterAt(pos); occupant != nil {
+			continue
+		}
+		if f := gameMap.FeatureAt(pos); f != nil && !f.IsPassable() {
+			continue
+		}
+		return pos
+	}
+	// All cardinal tiles blocked — fall back to helper's position (best effort)
+	return avoidPos
 }
 
 // moveWithCollision handles speed accumulation and collision-aware movement for self-managing actions.

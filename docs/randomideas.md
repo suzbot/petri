@@ -11,6 +11,25 @@ then they can be removed from this list.
 
 ## Issues To resolve
 
+1. **Action log events appear in character order instead of tick order** — When stepping through ticks manually (pressing '.'), events from different ticks display in character ID order rather than chronological order. This happens because `GameTime` advances by wall-clock delta between ticks, and rapid keypresses produce deltas so small that events from separate ticks share effectively the same timestamp. The action log then sorts them by character ID.
+
+   **Existing diagnostic:** `update.go:521-525` logs a warning to `~/.petri/debug.log` when `delta <= 0.001s`, but the threshold is too tight to catch most occurrences — the delta from manual stepping is typically above 1ms but still too small for meaningful ordering.
+
+   **Root cause:** The action log relies on `GameTime` (a float64) for ordering, but `GameTime` advances by wall-clock delta which doesn't guarantee meaningful separation between ticks. This is a systemic issue, not specific to any feature. Primarily observed when stepping with '.' — the manual step path may not be incrementing game time correctly, or increments are too small to differentiate.
+
+   **Likely fix direction:** Monotonic sequence numbers on log entries (e.g., a tick counter) instead of or in addition to `GameTime` for ordering purposes. Also investigate whether the '.' step code path handles time advancement differently from the normal tick path.
+
+2. **Characters target unreachable/invisible items** — Observed during playtesting: a character would target an item, move toward it, but the item wasn't visible on the map. The character would spam movement attempts until a higher-priority need interrupted.
+
+   **Root cause (suspected):** No reachability or validity check at targeting time. Characters select items by iterating all world items and scoring by distance + preference. Two likely scenarios:
+   - **Stale reference after pickup:** Character A targets item X. Character B picks it up first. A's intent still holds a reference to item X, now in B's inventory and no longer on the map. A chases an invisible item.
+   - **Stacked items:** `ItemAt()` returns the first item at a position for rendering, but scoring sees all items. A character could target a second item at the same tile — invisible on screen but present in data.
+
+   **Steps to resolve:**
+   - Add diagnostic logging: when pathfinding fails for a targeted item, log the item description, its position, whether it's still on the map (`gameMap.ItemAt()`), and whether any character is carrying it. This makes the invisible-item scenario observable during playtesting.
+   - Audit intent invalidation: trace what happens to Character A's intent when Character B picks up the targeted item. Confirm whether there's a stale-reference gap.
+   - Audit item stacking: check whether multiple items can end up at the same position, and whether only the top one renders.
+   - Fix: either invalidate intents when items are picked up by others, or add a validity check (item still on map, reachable) at targeting time.
 
 
 ## UI Improvements
@@ -30,16 +49,34 @@ then they can be removed from this list.
 ## Unallocated Features
 
 
-2. **Helping** - The closest character who isn't already addressing a need (ie they are doing an idle activity or an order)
-   can be interrupted to help a character who is in crisis.
-   - the helping character will give them the item they are carrying, if it will address a severe or crisis need of the needy char
-   - otherwise they will target an item that will address the worst-off need of the needy char, and creates the shortest path from helper to item to needy char
-   - helping character will drop one unhelpful item if their inventory is too full to pick up the helpful item
-   - helper will resume their order if they had one assigned
-2. **Activity Preferences**
-   - A Character who does something in an order category (eg: 'Garden', 'Harvest', 'Craft') has a chance to form a preference for orders in that category, based on their mood at completion.
-   - They will get a mood impact from completing orders in that category.
-   - Future: preference could affect what orders they accept
+2. **Helping** — Characters help community members in crisis by finding and delivering items to address their needs. The community is helpful at baseline — this isn't a rare event, it's the default social response to crisis.
+
+   **Handoff:** Helper drops item adjacent to the needy character. The needy character's existing food/water scoring picks it up naturally — no direct "give" action needed.
+
+   **Trigger pattern (needs refinement — compare these during design):**
+   - **A. Order-like:** When a character hits crisis, a "help" order is implicitly created. First eligible character takes it.
+   - **B. Need-like:** Closest character treats the needy character's crisis as their own overriding need, interrupting whatever they're doing (idle or working).
+   - **C. Idle override:** Characters doing an idle roll are forced to choose helping as long as someone is in crisis. Multiple idle helpers may respond simultaneously.
+
+   Not limited to idle characters — working characters should be able to help too. Size based on largest option (B, which interrupts any activity).
+
+   **Item selection:** Helper chooses an item the way they'd choose food for themselves if they had the needy character's hunger level. Formula: `(Helper's Pref × Needer's severity weight) - (Helper's Distance × Needer's severity weight) - (Needer's Fit Delta)`. This naturally biases toward carried items (distance=0), incorporates the helper's poison/healing knowledge if they have it, and scales urgency against distance. Helper does not need to share knowledge — they just use their own knowledge when scoring.
+
+   **Multi-step flow:** Helper may need to go find an item (not just give what they're carrying). Existing patterns for multi-step idle activities and ordered actions handle this. Helper drops unhelpful items if inventory is full, picks up the selected item, navigates to needy character, drops it adjacent.
+
+   **Resumption:** Helper resumes their previous order if they had one assigned.
+
+3. **Activity Preferences** — Characters form opinions about order categories (Garden, Harvest, Craft) through experience, similar to how food preferences form from eating.
+
+   **Formation:** Chance to form a preference for the order's activity category on order completion, based on mood (same trigger conditions as item preference formation — Joyful/Happy → like, Unhappy/Miserable → dislike). Same formation chance as item preferences initially; can be tuned separately later if needed.
+
+   **Player-visible impact (v1):** Mood change rate during the activity while performing it. A character who likes gardening feels happier while gardening; one who dislikes it feels worse. Visible in the preferences panel as a separate category (like how knowledge panel has Facts and Know-how sections).
+
+   **Preference structure:** Separate category in the preferences panel, not the same Preference struct as item preferences (different target type — category string vs item attributes). Displayed alongside item preferences but visually distinct.
+
+   **Future extensions (not v1):**
+   - Preference affects which orders characters voluntarily accept
+   - Personality emergence — characters develop work identities over time
 
 ## Flower Seeds / Flower Cultivation (After Construction)
 

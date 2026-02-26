@@ -622,4 +622,6 @@ Reorganized game-mechanics.md:
 
 ---
 
-## Final [RETRO] on full cleanup phase
+## Final [RETRO] on full cleanup phase ✅
+
+Skipped — process reflections were captured incrementally after each feature.

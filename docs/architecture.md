@@ -233,10 +233,10 @@ Action handler pseudocode:
 **The decision rule for new actions:**
 
 - **Needs an early-return block if:** Your action's `TargetItem` can be in the character's inventory (not on the map) during any phase. The generic path's `ItemAt` check would nil the intent when the item moves to inventory.
-  - Examples: `ActionConsume` (food in inventory), `ActionDrink` (carried vessel), `ActionFillVessel` (vessel moves ground → inventory), `ActionWaterGarden` (vessel moves ground → inventory)
+  - Examples: `ActionConsume` (food in inventory), `ActionDrink` (carried vessel), `ActionFillVessel` (vessel moves ground → inventory), `ActionWaterGarden` (vessel moves ground → inventory), `ActionHelpFeed` (food moves ground → inventory during procurement)
 
 - **Uses the generic path if:** Your action's `TargetItem` stays on the map throughout, targets a character, targets a position, or has no `TargetItem`.
-  - Examples: `ActionLook` (item stays on map), `ActionTalk` (targets character via Dest), `ActionTillSoil` (targets position), `ActionPickup` (item on map until picked up)
+  - Examples: `ActionLook` (item stays on map), `ActionTalk` (targets character via Dest), `ActionTillSoil` (targets position), `ActionPickup` (item on map until picked up), `ActionConsume` targeting a ground food vessel (vessel stays on map; arrival detected in the handler)
 
 **Walk-then-act pattern:** Actions like `ActionLook` and `ActionTalk` set their final action type from the start (not `ActionMove`). The intent creator owns the action type; `continueIntent` just recalculates paths via the generic fallthrough. The handler in `update.go` has a walking phase (moves via `moveWithCollision` while not yet at target) and an acting phase (performs the action when arrived). This follows **Consistency Over Local Cleverness** (Values.md) — all walk-then-act actions share the same shape.
 
@@ -256,12 +256,13 @@ Three checklists organized by category. Each includes every touchpoint; see the 
 **Adding an Idle Activity** (e.g., ActionLook, ActionTalk, ActionForage, ActionFillVessel):
 
 1. Action constant in `character.go`
-2. Activity entry in `ActivityRegistry` (`entity/activity.go`)
-3. Intent finder (location depends on context: `movement.go` for social/observation, `foraging.go` for food-seeking, `picking.go` for resource-seeking)
-4. Wire into `selectIdleActivity` in `idle.go`
-5. `applyIntent` handler in `update.go`
-6. `continueIntent`: self-managing multi-phase actions (where `TargetItem` moves between ground and inventory) need an early-return block. Walk-then-act actions (Look, Talk) use the generic path. (See `continueIntent` Rules above.)
-7. `simulation.go`: add handler if simulation exercises this activity
+2. Activity entry in `ActivityRegistry` (`entity/activity.go`) — omit if the activity is a pre-roll override (like `ActionHelpFeed`) rather than a rolled idle activity
+3. Intent finder (location depends on context: `movement.go` for social/observation, `foraging.go` for food-seeking, `picking.go` for resource-seeking, `helping.go` for crisis response)
+4. Wire into `selectIdleActivity` in `idle.go` — either as a pre-roll override (checked before the roll) or as a rollable option
+5. Add action to `isIdleAction` in `idle.go` if the action should be treated as idle for talking availability (i.e., it is a true idle activity, not a helping/delivery action). `isIdleAction` checks `ActionType` enum — simpler and more robust than string matching.
+6. `applyIntent` handler in `update.go`
+7. `continueIntent`: self-managing multi-phase actions (where `TargetItem` moves between ground and inventory) need an early-return block. Walk-then-act actions (Look, Talk) use the generic path. (See `continueIntent` Rules above.)
+8. `simulation.go`: add handler if simulation exercises this activity
 
 **Adding an Ordered Action** (e.g., ActionTillSoil, ActionPlant, ActionWaterGarden, ActionCraft):
 
@@ -440,6 +441,16 @@ Characters can drink from three source types, unified by distance scoring in `fi
 - **Ground vessel** — finite, character moves to vessel and drinks in place
 
 Intent clearing for vessel drinking ensures characters naturally handle vessel depletion and re-prioritize the nearest source.
+
+### Food Sources
+
+Characters score food across four candidate pools in `FindFoodTarget`:
+- **Carried loose food** — distance 0
+- **Carried food vessel contents** — distance 0, scored by contents' variety
+- **Ground loose food** — Manhattan distance from character
+- **Ground food vessel contents** — Manhattan distance to vessel, scored by contents' variety; vessel is TargetItem
+
+Ground vessel eating follows the same eat-in-place pattern as ground vessel drinking: character walks to the vessel, consumes one unit, clears intent, and re-evaluates. The vessel stays on the map throughout — no early-return block needed in `continueIntent` (vessel never enters inventory). `ConsumeFromVessel` operates on the vessel pointer directly, whether it is in inventory or on the ground.
 
 ### Tilled Soil
 

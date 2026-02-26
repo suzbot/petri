@@ -3092,3 +3092,219 @@ func TestStickyBFS_ClearsOnNewIntent(t *testing.T) {
 		t.Error("Expected UsingBFS=false after CalculateIntent creates a new intent")
 	}
 }
+
+// =============================================================================
+// Ground Vessel Eating — continueIntent arrival detection + FindFoodTarget regression
+// =============================================================================
+
+// Helper: create a food vessel at position with edible contents
+func createFoodVessel(x, y int, variety *entity.ItemVariety, count int) *entity.Item {
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{{Variety: variety, Count: count}},
+		},
+	}
+	vessel.SetPos(types.Position{X: x, Y: y})
+	return vessel
+}
+
+// Regression: FindFoodTarget already scores ground food vessels
+func TestFindFoodTarget_GroundFoodVessel_ScoredAsCandidate(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 80 // Severe — distance matters, preference reduced
+	char.SetPos(types.Position{X: 0, Y: 0})
+
+	mushroomVariety := &entity.ItemVariety{
+		ID:       "mushroom-brown",
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+		Edible:   &entity.EdibleProperties{},
+	}
+	vessel := createFoodVessel(3, 0, mushroomVariety, 3)
+
+	// Loose berry much farther away
+	berry := entity.NewBerry(20, 0, types.ColorRed, false, false)
+
+	result := FindFoodTarget(char, []*entity.Item{vessel, berry})
+
+	if result.Item != vessel {
+		t.Error("Ground food vessel closer than loose berry should be selected at Severe hunger")
+	}
+}
+
+// Regression: at Crisis hunger, nearest wins — loose berry closer than ground vessel
+func TestFindFoodTarget_Crisis_LooseBerryCloserThanGroundVessel(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 95 // Crisis
+	char.SetPos(types.Position{X: 0, Y: 0})
+
+	mushroomVariety := &entity.ItemVariety{
+		ID:       "mushroom-brown",
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+		Edible:   &entity.EdibleProperties{},
+	}
+	vessel := createFoodVessel(8, 0, mushroomVariety, 3)
+
+	berry := entity.NewBerry(2, 0, types.ColorRed, false, false)
+
+	result := FindFoodTarget(char, []*entity.Item{vessel, berry})
+
+	if result.Item != berry {
+		t.Error("At Crisis hunger, nearest food should win — loose berry at dist 2 beats vessel at dist 8")
+	}
+}
+
+// Regression: ground vessel with non-edible contents (water) is not scored as food
+func TestFindFoodTarget_GroundVesselWithWater_NotScoredAsFood(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 75 // Severe
+	char.SetPos(types.Position{X: 0, Y: 0})
+
+	waterVessel := createWaterVessel(3, 0, 3)
+
+	result := FindFoodTarget(char, []*entity.Item{waterVessel})
+
+	if result.Item != nil {
+		t.Error("Ground vessel with water should not be scored as food")
+	}
+}
+
+// Regression: empty ground vessel is not scored as food
+func TestFindFoodTarget_EmptyGroundVessel_NotScoredAsFood(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 75 // Severe
+	char.SetPos(types.Position{X: 0, Y: 0})
+
+	vessel := &entity.Item{
+		ItemType:  "vessel",
+		Name:      "Empty Vessel",
+		Container: &entity.ContainerData{Capacity: 1, Contents: []entity.Stack{}},
+	}
+	vessel.SetPos(types.Position{X: 3, Y: 0})
+
+	result := FindFoodTarget(char, []*entity.Item{vessel})
+
+	if result.Item != nil {
+		t.Error("Empty ground vessel should not be scored as food")
+	}
+}
+
+// Anchor: hungry character arrives at ground food vessel → continueIntent switches to ActionConsume
+func TestContinueIntent_GroundFoodVesselArrival_ConvertsToConsume(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPos(types.Position{X: 5, Y: 5})
+
+	gameMap := game.NewMap(20, 20)
+
+	mushroomVariety := &entity.ItemVariety{
+		ID:       "mushroom-brown",
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+		Edible:   &entity.EdibleProperties{},
+	}
+	vessel := createFoodVessel(5, 5, mushroomVariety, 3)
+	gameMap.AddItem(vessel)
+
+	// Intent: was moving toward ground food vessel, now arrived at same position
+	char.Intent = &entity.Intent{
+		Target:      types.Position{X: 5, Y: 5},
+		Dest:        types.Position{X: 5, Y: 5},
+		Action:      entity.ActionMove,
+		TargetItem:  vessel,
+		DrivingStat: types.StatHunger,
+		DrivingTier: entity.TierSevere,
+	}
+
+	intent := continueIntent(char, 5, 5, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent when arrived at ground food vessel")
+	}
+	if intent.Action != entity.ActionConsume {
+		t.Errorf("Action: got %d, want ActionConsume on arrival at ground food vessel", intent.Action)
+	}
+	if intent.TargetItem != vessel {
+		t.Error("Expected TargetItem to be the ground food vessel")
+	}
+	if intent.DrivingStat != types.StatHunger {
+		t.Errorf("DrivingStat: got %q, want StatHunger", intent.DrivingStat)
+	}
+	// Should stay in place
+	if intent.Target.X != 5 || intent.Target.Y != 5 {
+		t.Errorf("Target: got (%d,%d), want (5,5) — should stay in place to eat", intent.Target.X, intent.Target.Y)
+	}
+}
+
+// Arrival detection only fires for food vessels, not water vessels with StatHunger
+func TestContinueIntent_GroundWaterVessel_DoesNotConvertToConsumeForHunger(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPos(types.Position{X: 5, Y: 5})
+
+	gameMap := game.NewMap(20, 20)
+
+	waterVessel := createWaterVessel(5, 5, 3)
+	gameMap.AddItem(waterVessel)
+
+	// Intent: moving toward water vessel but with StatHunger (shouldn't happen normally, but verifies guard)
+	char.Intent = &entity.Intent{
+		Target:      types.Position{X: 5, Y: 5},
+		Dest:        types.Position{X: 5, Y: 5},
+		Action:      entity.ActionMove,
+		TargetItem:  waterVessel,
+		DrivingStat: types.StatHunger,
+		DrivingTier: entity.TierSevere,
+	}
+
+	intent := continueIntent(char, 5, 5, gameMap, nil)
+
+	// Should NOT switch to ActionConsume — water isn't food
+	if intent != nil && intent.Action == entity.ActionConsume {
+		t.Error("Water vessel should not trigger ActionConsume arrival detection")
+	}
+}
+
+// Full inventory character can eat from ground food vessel (eat-in-place, no pickup)
+func TestFindFoodTarget_FullInventory_GroundFoodVesselStillSelected(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 75 // Severe
+	char.SetPos(types.Position{X: 0, Y: 0})
+
+	// Fill inventory with non-food items
+	for i := 0; i < entity.InventoryCapacity; i++ {
+		stick := &entity.Item{ItemType: "stick"}
+		stick.SetPos(types.Position{X: 0, Y: 0})
+		char.AddToInventory(stick)
+	}
+
+	mushroomVariety := &entity.ItemVariety{
+		ID:       "mushroom-brown",
+		ItemType: "mushroom",
+		Color:    types.ColorBrown,
+		Edible:   &entity.EdibleProperties{},
+	}
+	vessel := createFoodVessel(3, 0, mushroomVariety, 3)
+
+	result := FindFoodTarget(char, []*entity.Item{vessel})
+
+	if result.Item != vessel {
+		t.Error("Ground food vessel should be selected even when inventory is full — eat-in-place doesn't need inventory space")
+	}
+}

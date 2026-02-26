@@ -72,7 +72,7 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 				}
 			}
 			// If approaching to talk, check target is still valid (idle activity, not dead/sleeping)
-			if !target.IsDead && !target.IsSleeping && isIdleActivity(target.CurrentActivity) {
+			if !target.IsDead && !target.IsSleeping && isIdleAction(target) {
 				return continueIntent(char, cx, cy, gameMap, log)
 			}
 			// Target no longer valid, fall through to re-evaluate
@@ -422,6 +422,53 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		return intent
 	}
 
+	// ActionHelpFeed has two phases:
+	// Phase 1: TargetItem is on the map (ground food) — move toward it for pickup
+	// Phase 2: TargetItem is in inventory — move toward TargetCharacter.Pos() for delivery
+	if intent.Action == entity.ActionHelpFeed {
+		if intent.TargetItem != nil {
+			ipos := intent.TargetItem.Pos()
+			if gameMap.ItemAt(ipos) == intent.TargetItem {
+				// Phase 1: food is on the ground — recalculate toward it
+				if cx == ipos.X && cy == ipos.Y {
+					return intent // At food, ready for pickup
+				}
+				nx, ny, usedBFS := nextStepBFSCore(cx, cy, ipos.X, ipos.Y, gameMap, char.UsingBFS)
+				if usedBFS {
+					char.UsingBFS = true
+				}
+				intent.Target = types.Position{X: nx, Y: ny}
+				return intent
+			}
+			// Check if food is in inventory (delivery phase)
+			inInventory := false
+			for _, item := range char.Inventory {
+				if item == intent.TargetItem {
+					inInventory = true
+					break
+				}
+			}
+			if !inInventory {
+				return nil // Food was taken by someone else
+			}
+		}
+		// Phase 2: food in inventory — navigate toward needer
+		if intent.TargetCharacter == nil || intent.TargetCharacter.IsDead {
+			return nil // Needer gone
+		}
+		npos := intent.TargetCharacter.Pos()
+		intent.Dest = npos // Update dest to current needer position
+		if isCardinallyAdjacent(cx, cy, npos.X, npos.Y) {
+			return intent // Adjacent to needer, ready to drop
+		}
+		nx, ny, usedBFS := nextStepBFSCore(cx, cy, npos.X, npos.Y, gameMap, char.UsingBFS)
+		if usedBFS {
+			char.UsingBFS = true
+		}
+		intent.Target = types.Position{X: nx, Y: ny}
+		return intent
+	}
+
 	// Check if target item still exists at expected position (O(1) instead of O(n))
 	if intent.TargetItem != nil {
 		ipos := intent.TargetItem.Pos()
@@ -510,6 +557,28 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 			TargetItem:  intent.TargetItem,
 			DrivingStat: intent.DrivingStat,
 			DrivingTier: intent.DrivingTier,
+		}
+	}
+
+	// Check if we've arrived at a ground food vessel for eating - switch to consume action
+	if intent.TargetItem != nil && intent.DrivingStat == types.StatHunger && cx == tx && cy == ty {
+		item := intent.TargetItem
+		if item.Container != nil && len(item.Container.Contents) > 0 && item.Container.Contents[0].Variety.IsEdible() {
+			newActivity := "Eating " + item.Container.Contents[0].Variety.Description() + " from vessel"
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+				if log != nil {
+					log.Add(char.ID, char.Name, "hunger", fmt.Sprintf("Eating from ground vessel"))
+				}
+			}
+			return &entity.Intent{
+				Target:      types.Position{X: cx, Y: cy},
+				Dest:        types.Position{X: cx, Y: cy},
+				Action:      entity.ActionConsume,
+				TargetItem:  intent.TargetItem,
+				DrivingStat: intent.DrivingStat,
+				DrivingTier: intent.DrivingTier,
+			}
 		}
 	}
 

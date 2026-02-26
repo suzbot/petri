@@ -4,7 +4,7 @@ Guidance for Claude Code when working with code in this repo.
 
 Petri is a Dwarf Fortress-inspired simulation exploring emergent culture development.
 
-**Current features:** Character creation, procedural world generation (terrain, items, water), multi-stat survival with urgency-based AI, dynamic preferences and knowledge systems, social behavior, inventory and crafting, player-directed orders (including gardening, gather, and provisioned-worker inventory consumption at Mild tier), and action logging.
+**Current features:** Character creation, procedural world generation (terrain, items, water), multi-stat survival with urgency-based AI, dynamic preferences and knowledge systems, social behavior, inventory and crafting, player-directed orders (including gardening, gather, and provisioned-worker inventory consumption at Mild tier), crisis food delivery (helpFeed), and action logging.
 
 **Vision:** Complex roguelike simulation world with complex interactions between characters, items, and attributes. History exists only in character memories and created artifacts. As characters die, their knowledge dies with them except what they've communicated or created. See [docs/VISION.txt](docs/VISION.txt).
 
@@ -67,7 +67,9 @@ internal/
 - `internal/system/survival.go` - Stat decay, damage, sleep/wake mechanics
 - `internal/system/consumption.go` - Eating, drinking, poison/healing effects
 - `internal/system/preference.go` - Preference formation on eat/look
-- `internal/system/talking.go` - Idle activity selection, talking state, knowledge transmission (LearnKnowledgeWithEffects)
+- `internal/system/talking.go` - Talking state, knowledge transmission (LearnKnowledgeWithEffects)
+- `internal/system/idle.go` - Idle activity selection, selectIdleActivity, isIdleAction (ActionType-based idle check)
+- `internal/system/helping.go` - Crisis detection, findHelpFeedIntent (food delivery to starving characters)
 - `internal/system/order_execution.go` - Order assignment, intent finding, completion/abandonment
 - `internal/system/crafting.go` - CreateVessel, crafted item creation
 - `internal/system/picking.go` - Pickup, Drop, vessel helpers, EnsureHasVesselFor, EnsureHasItem
@@ -114,7 +116,7 @@ internal/
 
 **Up Next:**
 
-- Post-gardening cleanup in progress (2A-2D, 3A-3C, 4A-4B done). See [docs/cleanup-phase-plan.md](docs/cleanup-phase-plan.md).
+- Helping feature in progress (Steps 1-2 done: ground vessel eating + crisis food delivery). Step 3: helpWater next. See [docs/helping-phase-plan.md](docs/helping-phase-plan.md).
 
 ## Reference and Planning Documents
 
