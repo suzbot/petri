@@ -469,6 +469,68 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		return intent
 	}
 
+	// ActionHelpWater has three phases:
+	// Phase 1: TargetItem on ground (vessel) → move toward it for pickup
+	// Phase 2: TargetItem in inventory, no water → move toward Dest (water-adjacent tile)
+	// Phase 3: TargetItem in inventory, has water → move toward TargetCharacter.Pos()
+	if intent.Action == entity.ActionHelpWater {
+		if intent.TargetItem != nil {
+			ipos := intent.TargetItem.Pos()
+			if gameMap.ItemAt(ipos) == intent.TargetItem {
+				// Phase 1: vessel is on the ground — recalculate toward it
+				if cx == ipos.X && cy == ipos.Y {
+					return intent // At vessel, ready for pickup
+				}
+				nx, ny, usedBFS := nextStepBFSCore(cx, cy, ipos.X, ipos.Y, gameMap, char.UsingBFS)
+				if usedBFS {
+					char.UsingBFS = true
+				}
+				intent.Target = types.Position{X: nx, Y: ny}
+				return intent
+			}
+			// Check if vessel is in inventory
+			inInventory := false
+			for _, item := range char.Inventory {
+				if item == intent.TargetItem {
+					inInventory = true
+					break
+				}
+			}
+			if !inInventory {
+				return nil // Vessel taken by someone else
+			}
+			// Vessel in inventory — check phase
+			if !vesselHasLiquid(intent.TargetItem) {
+				// Phase 2: empty vessel — navigate toward water Dest
+				dest := intent.Dest
+				if cx == dest.X && cy == dest.Y {
+					return intent // At water, ready to fill
+				}
+				nx, ny, usedBFS := nextStepBFSCore(cx, cy, dest.X, dest.Y, gameMap, char.UsingBFS)
+				if usedBFS {
+					char.UsingBFS = true
+				}
+				intent.Target = types.Position{X: nx, Y: ny}
+				return intent
+			}
+		}
+		// Phase 3: vessel has water — navigate toward needer
+		if intent.TargetCharacter == nil || intent.TargetCharacter.IsDead {
+			return nil // Needer gone
+		}
+		npos := intent.TargetCharacter.Pos()
+		intent.Dest = npos // Update dest to current needer position
+		if isCardinallyAdjacent(cx, cy, npos.X, npos.Y) {
+			return intent // Adjacent to needer, ready to drop
+		}
+		nx, ny, usedBFS := nextStepBFSCore(cx, cy, npos.X, npos.Y, gameMap, char.UsingBFS)
+		if usedBFS {
+			char.UsingBFS = true
+		}
+		intent.Target = types.Position{X: nx, Y: ny}
+		return intent
+	}
+
 	// Check if target item still exists at expected position (O(1) instead of O(n))
 	if intent.TargetItem != nil {
 		ipos := intent.TargetItem.Pos()
@@ -720,10 +782,6 @@ func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.M
 	if best == nil {
 		for _, item := range items {
 			if !vesselHasLiquid(item) {
-				continue
-			}
-			// Skip vessels in character inventories (only ground vessels)
-			if gameMap.ItemAt(item.Pos()) != item {
 				continue
 			}
 			dist := pos.DistanceTo(item.Pos())
@@ -1335,7 +1393,7 @@ func canFulfillThirst(char *entity.Character, gameMap *game.Map, pos types.Posit
 	}
 	// Ground water vessels
 	for _, item := range items {
-		if vesselHasLiquid(item) && gameMap.ItemAt(item.Pos()) == item {
+		if vesselHasLiquid(item) {
 			return true
 		}
 	}

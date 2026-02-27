@@ -7,12 +7,14 @@ import (
 	"petri/internal/types"
 )
 
-// findNearestCrisisCharacter returns the nearest character with Crisis hunger.
-// Skips the helper themselves, dead characters, and sleeping characters.
+// findNearestCrisisCharacter returns the nearest character with any Crisis stat
+// (hunger or thirst). Distance is the primary criterion. Stat tie-break (thirst > hunger)
+// applies only for equidistant characters. Skips the helper themselves, dead, and sleeping.
 // Returns nil if no character is in crisis.
 func findNearestCrisisCharacter(helper *entity.Character, characters []*entity.Character) *entity.Character {
 	var nearest *entity.Character
 	nearestDist := int(^uint(0) >> 1) // Max int
+	nearestStatPriority := 0          // Higher = more urgent for tie-breaking
 
 	hpos := helper.Pos()
 
@@ -23,19 +25,157 @@ func findNearestCrisisCharacter(helper *entity.Character, characters []*entity.C
 		if other.IsDead || other.IsSleeping {
 			continue
 		}
-		if other.HungerTier() != entity.TierCrisis {
+
+		hasThirstCrisis := other.ThirstTier() == entity.TierCrisis
+		hasHungerCrisis := other.HungerTier() == entity.TierCrisis
+		if !hasThirstCrisis && !hasHungerCrisis {
 			continue
+		}
+
+		// Stat priority for tie-breaking: thirst > hunger (matches intent system)
+		statPriority := 0
+		if hasHungerCrisis {
+			statPriority = 1
+		}
+		if hasThirstCrisis {
+			statPriority = 2 // Thirst wins tie-break
 		}
 
 		opos := other.Pos()
 		dist := hpos.DistanceTo(opos)
-		if dist < nearestDist {
+		if dist < nearestDist || (dist == nearestDist && statPriority > nearestStatPriority) {
 			nearestDist = dist
 			nearest = other
+			nearestStatPriority = statPriority
 		}
 	}
 
 	return nearest
+}
+
+// findHelpWaterIntent creates an intent to find and deliver water to a needy character.
+// Determines water delivery approach based on helper's current state:
+//   - Helper carrying full water vessel → skip to delivery
+//   - Helper carrying empty vessel → fill phase (find water)
+//   - No vessel in inventory, has space → procure ground vessel
+//   - No vessel available → return nil
+//
+// Returns nil if no vessel is available or helper can't carry anything.
+func findHelpWaterIntent(helper *entity.Character, needer *entity.Character, pos types.Position, items []*entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
+	// Scan inventory for vessels
+	var emptyVessel *entity.Item
+	var waterVessel *entity.Item
+	for _, item := range helper.Inventory {
+		if item == nil || item.Container == nil {
+			continue
+		}
+		if len(item.Container.Contents) > 0 {
+			if item.Container.Contents[0].Variety != nil &&
+				item.Container.Contents[0].Variety.ItemType == "liquid" {
+				waterVessel = item
+			}
+		} else {
+			if emptyVessel == nil {
+				emptyVessel = item
+			}
+		}
+	}
+
+	npos := needer.Pos()
+
+	// Carrying water vessel → deliver directly
+	if waterVessel != nil {
+		nx, ny := NextStepBFS(pos.X, pos.Y, npos.X, npos.Y, gameMap)
+		newActivity := "Bringing water to " + needer.Name
+		if helper.CurrentActivity != newActivity {
+			helper.CurrentActivity = newActivity
+			if log != nil {
+				log.Add(helper.ID, helper.Name, "activity", "Bringing water to "+needer.Name)
+			}
+		}
+		return &entity.Intent{
+			Target:          types.Position{X: nx, Y: ny},
+			Dest:            npos,
+			Action:          entity.ActionHelpWater,
+			TargetItem:      waterVessel,
+			TargetCharacter: needer,
+		}
+	}
+
+	// Carrying empty vessel → fill phase
+	if emptyVessel != nil {
+		waterPos, found := gameMap.FindNearestWater(pos)
+		if !found {
+			return nil
+		}
+		adjX, adjY := FindClosestCardinalTile(pos.X, pos.Y, waterPos.X, waterPos.Y, gameMap)
+		if adjX == -1 {
+			return nil
+		}
+		nx, ny := NextStepBFS(pos.X, pos.Y, adjX, adjY, gameMap)
+		newActivity := "Fetching water for " + needer.Name
+		if helper.CurrentActivity != newActivity {
+			helper.CurrentActivity = newActivity
+			if log != nil {
+				log.Add(helper.ID, helper.Name, "activity", "Fetching water for "+needer.Name)
+			}
+		}
+		return &entity.Intent{
+			Target:          types.Position{X: nx, Y: ny},
+			Dest:            types.Position{X: adjX, Y: adjY},
+			Action:          entity.ActionHelpWater,
+			TargetItem:      emptyVessel,
+			TargetCharacter: needer,
+		}
+	}
+
+	// No vessel in inventory — look for ground vessel
+	if !helper.HasInventorySpace() {
+		return nil
+	}
+
+	// Prefer ground water vessel — already filled, fewer steps than empty vessel + fill phase
+	if waterVessel := findGroundWaterVessel(pos, items); waterVessel != nil {
+		vpos := waterVessel.Pos()
+		nx, ny := NextStepBFS(pos.X, pos.Y, vpos.X, vpos.Y, gameMap)
+		newActivity := "Bringing water to " + needer.Name
+		if helper.CurrentActivity != newActivity {
+			helper.CurrentActivity = newActivity
+			if log != nil {
+				log.Add(helper.ID, helper.Name, "activity", "Picking up water for "+needer.Name)
+			}
+		}
+		return &entity.Intent{
+			Target:          types.Position{X: nx, Y: ny},
+			Dest:            vpos,
+			Action:          entity.ActionHelpWater,
+			TargetItem:      waterVessel,
+			TargetCharacter: needer,
+		}
+	}
+
+	// Fall back to ground empty vessel (needs fill phase)
+	groundVessel := findEmptyGroundVessel(pos, items)
+	if groundVessel == nil {
+		return nil
+	}
+
+	vpos := groundVessel.Pos()
+	nx, ny := NextStepBFS(pos.X, pos.Y, vpos.X, vpos.Y, gameMap)
+	newActivity := "Fetching water for " + needer.Name
+	if helper.CurrentActivity != newActivity {
+		helper.CurrentActivity = newActivity
+		if log != nil {
+			log.Add(helper.ID, helper.Name, "activity", "Picking up vessel for "+needer.Name)
+		}
+	}
+	return &entity.Intent{
+		Target:          types.Position{X: nx, Y: ny},
+		Dest:            vpos,
+		Action:          entity.ActionHelpWater,
+		TargetItem:      groundVessel,
+		TargetCharacter: needer,
+	}
 }
 
 // findHelpFeedIntent creates an intent to find food and deliver it to a needy character.

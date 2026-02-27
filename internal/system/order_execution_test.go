@@ -2467,6 +2467,125 @@ func TestFindWaterGardenIntent_NoVessel_TargetsGroundVessel(t *testing.T) {
 	}
 }
 
+func TestFindWaterGardenIntent_NoVessel_TargetsGroundWaterVessel(t *testing.T) {
+	// Anchor: character has no vessel, ground water vessel exists → Phase 1: targets ground water vessel
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"waterGarden"}
+	gameMap.AddCharacter(char)
+
+	// Ground vessel with water nearby
+	waterVessel := &entity.Item{
+		ItemType:   "vessel",
+		Name:       "Water Vessel",
+		BaseEntity: entity.BaseEntity{X: 8, Y: 5, Sym: 'U', EType: entity.TypeItem},
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{{
+				Variety: &entity.ItemVariety{
+					ItemType: "liquid",
+					Kind:     "water",
+				},
+				Count: 4,
+			}},
+		},
+	}
+	gameMap.AddItem(waterVessel)
+
+	// Dry tilled planted tile
+	pos := types.Position{X: 7, Y: 5}
+	gameMap.SetTilled(pos)
+	sprout := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 7, Y: 5, Sym: 'v', EType: entity.TypeItem},
+		ItemType:   "berry",
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true},
+	}
+	gameMap.AddItem(sprout)
+
+	order := entity.NewOrder(1, "waterGarden", "")
+	items := gameMap.Items()
+
+	intent := findWaterGardenIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected intent to pick up ground water vessel, got nil")
+	}
+	if intent.Action != entity.ActionWaterGarden {
+		t.Errorf("Expected ActionWaterGarden, got %v", intent.Action)
+	}
+	if intent.TargetItem != waterVessel {
+		t.Error("Expected TargetItem to be the ground water vessel")
+	}
+}
+
+func TestFindWaterGardenIntent_PrefersGroundWaterOverGroundEmpty(t *testing.T) {
+	// Anchor: ground water vessel AND ground empty vessel both exist.
+	// Water vessel is preferred because it skips the fill phase.
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"waterGarden"}
+	gameMap.AddCharacter(char)
+
+	// Empty vessel closer
+	emptyVessel := &entity.Item{
+		ItemType:   "vessel",
+		Name:       "Empty Vessel",
+		BaseEntity: entity.BaseEntity{X: 6, Y: 5, Sym: 'U', EType: entity.TypeItem},
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	gameMap.AddItem(emptyVessel)
+
+	// Water vessel farther
+	waterVessel := &entity.Item{
+		ItemType:   "vessel",
+		Name:       "Water Vessel",
+		BaseEntity: entity.BaseEntity{X: 9, Y: 5, Sym: 'U', EType: entity.TypeItem},
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{{
+				Variety: &entity.ItemVariety{
+					ItemType: "liquid",
+					Kind:     "water",
+				},
+				Count: 4,
+			}},
+		},
+	}
+	gameMap.AddItem(waterVessel)
+
+	// Water source for fill path
+	gameMap.AddWater(types.Position{X: 15, Y: 5}, game.WaterPond)
+
+	// Dry tilled planted tile
+	pos := types.Position{X: 7, Y: 5}
+	gameMap.SetTilled(pos)
+	sprout := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 7, Y: 5, Sym: 'v', EType: entity.TypeItem},
+		ItemType:   "berry",
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true},
+	}
+	gameMap.AddItem(sprout)
+
+	order := entity.NewOrder(1, "waterGarden", "")
+	items := gameMap.Items()
+
+	intent := findWaterGardenIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected intent, got nil")
+	}
+	if intent.TargetItem != waterVessel {
+		t.Error("Should prefer ground water vessel over ground empty vessel (skips fill phase)")
+	}
+}
+
 func TestFindWaterGardenIntent_NoVesselAnywhere_ReturnsNil(t *testing.T) {
 	// Anchor: no vessel in inventory or on ground → abandon (return nil)
 	t.Parallel()

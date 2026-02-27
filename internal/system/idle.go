@@ -37,7 +37,17 @@ func selectIdleActivity(char *entity.Character, pos types.Position, items []*ent
 
 	// Helping override: before the random roll, check for crisis characters
 	if needer := findNearestCrisisCharacter(char, gameMap.Characters()); needer != nil {
-		if needer.HungerTier() == entity.TierCrisis {
+		if needer.ThirstTier() == entity.TierCrisis {
+			if intent := findHelpWaterIntent(char, needer, pos, items, gameMap, log); intent != nil {
+				return intent
+			}
+			// Fallback: can't help with water, but needer also has Crisis hunger
+			if needer.HungerTier() == entity.TierCrisis {
+				if intent := findHelpFeedIntent(char, needer, pos, items, gameMap, log); intent != nil {
+					return intent
+				}
+			}
+		} else if needer.HungerTier() == entity.TierCrisis {
 			if intent := findHelpFeedIntent(char, needer, pos, items, gameMap, log); intent != nil {
 				return intent
 			}

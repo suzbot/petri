@@ -708,12 +708,30 @@ func findWaterGardenIntent(char *entity.Character, pos types.Position, items []*
 	}
 
 	// Phase 1: no vessel → procure ground vessel
+	if !char.HasInventorySpace() {
+		return nil // No space to pick up vessel — abandon
+	}
+
+	// Prefer ground water vessel — already filled, fewer steps than empty vessel + fill phase
+	if waterVessel := findGroundWaterVessel(pos, items); waterVessel != nil {
+		vpos := waterVessel.Pos()
+		nx, ny := NextStepBFS(pos.X, pos.Y, vpos.X, vpos.Y, gameMap)
+		newActivity := "Getting water for garden"
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+		}
+		return &entity.Intent{
+			Target:     types.Position{X: nx, Y: ny},
+			Dest:       vpos,
+			Action:     entity.ActionWaterGarden,
+			TargetItem: waterVessel,
+		}
+	}
+
+	// Fall back to ground empty vessel (needs fill phase)
 	groundVessel := findEmptyGroundVessel(pos, items)
 	if groundVessel == nil {
 		return nil // No vessel available anywhere — abandon
-	}
-	if !char.HasInventorySpace() {
-		return nil // No space to pick up vessel — abandon
 	}
 	vpos := groundVessel.Pos()
 	nx, ny := NextStepBFS(pos.X, pos.Y, vpos.X, vpos.Y, gameMap)

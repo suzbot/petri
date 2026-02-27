@@ -39,6 +39,7 @@ Core process innovations developed over the course of this project:
 
 ## Latest Updates
 
+- **Crisis water delivery**: idle characters notice dehydrated community members and deliver a filled water vessel to them.
 - **Crisis food delivery**: idle characters notice starving community members and autonomously bring them food; helper calls out on delivery.
 - **Ground vessel eating**: hungry characters eat from food vessels on the ground without picking them up; multiple characters can share a communal vessel.
 - **Satiation-aware food selection**: characters choose food that fits their current hunger — filling meals at severe hunger, snacks when foraging at low hunger, nearest food at crisis.

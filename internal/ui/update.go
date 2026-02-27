@@ -1229,7 +1229,14 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		case system.ProcureFailed:
 			return
 		case system.ProcureReady:
-			// Vessel in hand — fall through to Phase 2
+			// Vessel in hand — check if already has water (ground water vessel pickup)
+			if vessel != nil && vessel.Container != nil && len(vessel.Container.Contents) > 0 {
+				// Already has water — mission accomplished, go idle
+				char.CurrentActivity = "Idle"
+				char.Intent = nil
+				return
+			}
+			// Empty vessel — fall through to Phase 2
 		}
 
 		// Phase 2: fill vessel at water (shared helper)
@@ -1270,7 +1277,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 				return
 			case system.ProcureReady:
 				// Vessel in hand — clear intent so findWaterGardenIntent
-				// re-evaluates for Phase 2 (fill) or Phase 3 (water)
+				// re-evaluates for Phase 2 (fill) or Phase 3 (water tiles)
 				char.CurrentActivity = "Idle"
 				char.Intent = nil
 				return
@@ -1456,6 +1463,136 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 
 		// Not adjacent yet — move toward needer
 		char.CurrentActivity = "Bringing food to " + needer.Name
+		m.moveWithCollision(char, cpos, delta)
+
+	case entity.ActionHelpWater:
+		// Help Water — self-managing action: procure vessel, fill at water, deliver to needy character
+		// Phase 1: vessel on ground → RunVesselProcurement
+		// Phase 2: vessel in inventory, empty → RunWaterFill
+		// Phase 3: vessel has water → walk to needer, drop cardinal-adjacent
+		cpos := char.Pos()
+		vessel := char.Intent.TargetItem
+		needer := char.Intent.TargetCharacter // Capture before procurement may nil intent
+
+		if needer == nil || needer.IsDead {
+			// Needer gone — drop vessel at current position if carrying, go idle
+			if vessel != nil {
+				for _, item := range char.Inventory {
+					if item == vessel {
+						system.DropItem(char, vessel, m.gameMap, m.actionLog)
+						break
+					}
+				}
+			}
+			char.CurrentActivity = "Idle"
+			char.Intent = nil
+			return
+		}
+
+		// Phase 1: vessel procurement (if vessel is on the ground)
+		vesselOnGround := vessel != nil && m.gameMap.ItemAt(vessel.Pos()) == vessel
+		if vesselOnGround {
+			status := system.RunVesselProcurement(char, vessel, m.gameMap, m.actionLog, m.gameMap.Varieties(), delta)
+			switch status {
+			case system.ProcureApproaching:
+				m.moveWithCollision(char, cpos, delta)
+				return
+			case system.ProcureInProgress:
+				return
+			case system.ProcureFailed:
+				return
+			case system.ProcureReady:
+				// Vessel in hand — check if already has water (ground water vessel pickup)
+				if vessel != nil && vessel.Container != nil && len(vessel.Container.Contents) > 0 {
+					// Already has water — transition to delivery (skip fill)
+					npos := needer.Pos()
+					nx, ny := system.NextStepBFS(cpos.X, cpos.Y, npos.X, npos.Y, m.gameMap)
+					char.Intent = &entity.Intent{
+						Target:          types.Position{X: nx, Y: ny},
+						Dest:            npos,
+						Action:          entity.ActionHelpWater,
+						TargetItem:      vessel,
+						TargetCharacter: needer,
+					}
+					char.CurrentActivity = "Bringing water to " + needer.Name
+					if m.actionLog != nil {
+						m.actionLog.Add(char.ID, char.Name, "activity", "Bringing water to "+needer.Name)
+					}
+					return
+				}
+				// Empty vessel — fall through to fill phase (same tick)
+			}
+		}
+
+		// Phase 2: fill vessel at water source (vessel in inventory, empty)
+		vesselEmpty := vessel != nil && vessel.Container != nil && len(vessel.Container.Contents) == 0
+		if vesselEmpty {
+			fillStatus := system.RunWaterFill(char, vessel, entity.ActionHelpWater, m.gameMap, m.actionLog, m.gameMap.Varieties(), delta)
+			// Restore TargetCharacter after RunWaterFill (may have rebuilt intent without it)
+			if char.Intent != nil && char.Intent.TargetCharacter == nil && needer != nil {
+				char.Intent.TargetCharacter = needer
+			}
+			switch fillStatus {
+			case system.FillApproaching:
+				m.moveWithCollision(char, cpos, delta)
+				return
+			case system.FillInProgress:
+				return
+			case system.FillFailed:
+				return
+			case system.FillReady:
+				// Vessel filled — transition to delivery
+				npos := needer.Pos()
+				nx, ny := system.NextStepBFS(cpos.X, cpos.Y, npos.X, npos.Y, m.gameMap)
+				char.Intent = &entity.Intent{
+					Target:          types.Position{X: nx, Y: ny},
+					Dest:            npos,
+					Action:          entity.ActionHelpWater,
+					TargetItem:      vessel,
+					TargetCharacter: needer,
+				}
+				char.CurrentActivity = "Bringing water to " + needer.Name
+				if m.actionLog != nil {
+					m.actionLog.Add(char.ID, char.Name, "activity", "Bringing water to "+needer.Name)
+				}
+				return
+			}
+		}
+
+		// Phase 3: delivery — vessel has water, walk toward needer
+		npos := needer.Pos()
+		if cpos.IsCardinallyAdjacentTo(npos) {
+			// Adjacent to needer — drop water vessel
+			if vessel != nil {
+				for _, item := range char.Inventory {
+					if item == vessel {
+						dropPos := findEmptyCardinalTile(npos, cpos, m.gameMap)
+						char.RemoveFromInventory(vessel)
+						vessel.X = dropPos.X
+						vessel.Y = dropPos.Y
+						m.gameMap.AddItem(vessel)
+						if m.actionLog != nil {
+							m.actionLog.Add(char.ID, char.Name, "activity",
+								"Brought water to "+needer.Name)
+						}
+						// Signal the needer to re-evaluate
+						needer.Intent = nil
+						if m.actionLog != nil {
+							m.actionLog.Add(char.ID, char.Name, "social",
+								char.Name+" called out to "+needer.Name)
+						}
+						break
+					}
+				}
+			}
+			char.CurrentActivity = "Idle"
+			char.Intent = nil
+			char.IdleCooldown = config.IdleCooldown
+			return
+		}
+
+		// Not adjacent yet — move toward needer
+		char.CurrentActivity = "Bringing water to " + needer.Name
 		m.moveWithCollision(char, cpos, delta)
 	}
 }

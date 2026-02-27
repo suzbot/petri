@@ -35,14 +35,33 @@ func findFetchWaterIntent(char *entity.Character, pos types.Position, items []*e
 
 	if emptyVessel == nil {
 		// No empty vessel in inventory — look for one on the ground
-		groundVessel := findEmptyGroundVessel(pos, items)
-		if groundVessel == nil {
-			return nil // No empty vessel available anywhere
-		}
-
-		// Need inventory space to pick it up
 		if !char.HasInventorySpace() {
 			return nil
+		}
+
+		// Prefer ground water vessel — already filled, fewer steps than empty vessel + fill phase
+		if waterVessel := findGroundWaterVessel(pos, items); waterVessel != nil {
+			vpos := waterVessel.Pos()
+			nx, ny := NextStepBFS(pos.X, pos.Y, vpos.X, vpos.Y, gameMap)
+			newActivity := "Fetching water"
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+				if log != nil {
+					log.Add(char.ID, char.Name, "activity", "Picking up water vessel")
+				}
+			}
+			return &entity.Intent{
+				Target:     types.Position{X: nx, Y: ny},
+				Dest:       vpos,
+				Action:     entity.ActionFillVessel,
+				TargetItem: waterVessel,
+			}
+		}
+
+		// Fall back to ground empty vessel
+		groundVessel := findEmptyGroundVessel(pos, items)
+		if groundVessel == nil {
+			return nil // No vessel available anywhere
 		}
 
 		// Phase 1: ActionFillVessel with Dest at vessel position
@@ -97,6 +116,35 @@ func findFetchWaterIntent(char *entity.Character, pos types.Position, items []*e
 		Action:     entity.ActionFillVessel,
 		TargetItem: vessel,
 	}
+}
+
+// findGroundWaterVessel finds the nearest vessel on the ground that contains water.
+func findGroundWaterVessel(pos types.Position, items []*entity.Item) *entity.Item {
+	var nearest *entity.Item
+	nearestDist := int(^uint(0) >> 1) // Max int
+
+	for _, item := range items {
+		if item.Container == nil {
+			continue
+		}
+		if len(item.Container.Contents) == 0 {
+			continue
+		}
+		// Check if contents are liquid (water)
+		if item.Container.Contents[0].Variety == nil ||
+			item.Container.Contents[0].Variety.ItemType != "liquid" {
+			continue
+		}
+
+		ipos := item.Pos()
+		dist := pos.DistanceTo(ipos)
+		if dist < nearestDist {
+			nearestDist = dist
+			nearest = item
+		}
+	}
+
+	return nearest
 }
 
 // findEmptyGroundVessel finds the nearest empty vessel on the ground.

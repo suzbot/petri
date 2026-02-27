@@ -498,7 +498,175 @@ func TestContinueIntent_FillVessel_Phase1_VesselTaken(t *testing.T) {
 	}
 }
 
-func TestFindFetchWaterIntent_SkipsVesselsWithContents(t *testing.T) {
+// =============================================================================
+// findGroundWaterVessel
+// =============================================================================
+
+func TestFindGroundWaterVessel_ReturnsNearestWaterVessel(t *testing.T) {
+	t.Parallel()
+	pos := types.Position{X: 5, Y: 5}
+
+	farVessel := createTestVessel()
+	farVessel.X = 15
+	farVessel.Y = 5
+	waterVariety := createWaterVariety()
+	AddLiquidToVessel(farVessel, waterVariety, 4)
+
+	nearVessel := createTestVessel()
+	nearVessel.X = 7
+	nearVessel.Y = 5
+	AddLiquidToVessel(nearVessel, waterVariety, 2)
+
+	items := []*entity.Item{farVessel, nearVessel}
+	result := findGroundWaterVessel(pos, items)
+
+	if result != nearVessel {
+		t.Error("Should return the nearest water vessel")
+	}
+}
+
+func TestFindGroundWaterVessel_SkipsEmptyVessels(t *testing.T) {
+	t.Parallel()
+	pos := types.Position{X: 5, Y: 5}
+
+	emptyVessel := createTestVessel()
+	emptyVessel.X = 6
+	emptyVessel.Y = 5
+
+	items := []*entity.Item{emptyVessel}
+	result := findGroundWaterVessel(pos, items)
+
+	if result != nil {
+		t.Error("Should skip empty vessels")
+	}
+}
+
+func TestFindGroundWaterVessel_SkipsFoodVessels(t *testing.T) {
+	t.Parallel()
+	pos := types.Position{X: 5, Y: 5}
+
+	foodVessel := createTestVessel()
+	foodVessel.X = 6
+	foodVessel.Y = 5
+	foodVessel.Container.Contents = []entity.Stack{{
+		Variety: &entity.ItemVariety{
+			ItemType: "berry",
+			Color:    types.ColorRed,
+			Edible:   &entity.EdibleProperties{},
+		},
+		Count: 3,
+	}}
+
+	items := []*entity.Item{foodVessel}
+	result := findGroundWaterVessel(pos, items)
+
+	if result != nil {
+		t.Error("Should skip vessels containing food (not water)")
+	}
+}
+
+func TestFindGroundWaterVessel_ReturnsNilWhenNoVessels(t *testing.T) {
+	t.Parallel()
+	pos := types.Position{X: 5, Y: 5}
+
+	// Non-vessel item
+	berry := entity.NewBerry(6, 5, types.ColorRed, false, false)
+	items := []*entity.Item{berry}
+	result := findGroundWaterVessel(pos, items)
+
+	if result != nil {
+		t.Error("Should return nil when no vessels on ground")
+	}
+}
+
+// =============================================================================
+// findFetchWaterIntent — ground water vessel support
+// =============================================================================
+
+func TestFindFetchWaterIntent_PicksUpGroundWaterVessel(t *testing.T) {
+	t.Parallel()
+	gameMap := game.NewMap(20, 20)
+	registry := game.GenerateVarieties()
+	gameMap.SetVarieties(registry)
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
+	}
+	char.X = 5
+	char.Y = 5
+
+	// Ground vessel with water
+	vessel := createTestVessel()
+	vessel.X = 7
+	vessel.Y = 5
+	vessel.ID = 100
+	waterVariety := createWaterVariety()
+	AddLiquidToVessel(vessel, waterVariety, 4)
+	gameMap.AddItemDirect(vessel)
+
+	gameMap.AddWater(types.Position{X: 15, Y: 5}, game.WaterPond)
+
+	intent := findFetchWaterIntent(char, char.Pos(), gameMap.Items(), gameMap, nil)
+	if intent == nil {
+		t.Fatal("Expected intent to pick up ground water vessel")
+	}
+	if intent.Action != entity.ActionFillVessel {
+		t.Errorf("Expected ActionFillVessel, got %d", intent.Action)
+	}
+	if intent.TargetItem != vessel {
+		t.Error("Expected intent to target the ground water vessel")
+	}
+	// Dest should be the vessel position (procurement phase)
+	if intent.Dest.X != 7 || intent.Dest.Y != 5 {
+		t.Errorf("Expected Dest at vessel position (7,5), got (%d,%d)", intent.Dest.X, intent.Dest.Y)
+	}
+}
+
+func TestFindFetchWaterIntent_PrefersGroundWaterOverGroundEmpty(t *testing.T) {
+	t.Parallel()
+	gameMap := game.NewMap(20, 20)
+	registry := game.GenerateVarieties()
+	gameMap.SetVarieties(registry)
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
+	}
+	char.X = 5
+	char.Y = 5
+
+	// Empty vessel closer
+	emptyVessel := createTestVessel()
+	emptyVessel.X = 6
+	emptyVessel.Y = 5
+	emptyVessel.ID = 100
+	gameMap.AddItemDirect(emptyVessel)
+
+	// Water vessel farther
+	waterVessel := createTestVessel()
+	waterVessel.X = 9
+	waterVessel.Y = 5
+	waterVessel.ID = 101
+	waterVariety := createWaterVariety()
+	AddLiquidToVessel(waterVessel, waterVariety, 4)
+	gameMap.AddItemDirect(waterVessel)
+
+	gameMap.AddWater(types.Position{X: 15, Y: 5}, game.WaterPond)
+
+	intent := findFetchWaterIntent(char, char.Pos(), gameMap.Items(), gameMap, nil)
+	if intent == nil {
+		t.Fatal("Expected intent, got nil")
+	}
+	if intent.TargetItem != waterVessel {
+		t.Error("Should prefer ground water vessel over ground empty vessel (skips fill phase)")
+	}
+}
+
+func TestFindFetchWaterIntent_SkipsFoodVessels(t *testing.T) {
+	t.Parallel()
 	gameMap := game.NewMap(20, 20)
 	registry := game.GenerateVarieties()
 	gameMap.SetVarieties(registry)
@@ -512,13 +680,19 @@ func TestFindFetchWaterIntent_SkipsVesselsWithContents(t *testing.T) {
 	char.X = 5
 	char.Y = 5
 
-	// Ground vessel with water contents (not empty)
+	// Ground vessel with food contents (not water, not empty)
 	vessel := createTestVessel()
 	vessel.X = 7
 	vessel.Y = 5
 	vessel.ID = 100
-	waterVariety := createWaterVariety()
-	AddLiquidToVessel(vessel, waterVariety, 4)
+	vessel.Container.Contents = []entity.Stack{{
+		Variety: &entity.ItemVariety{
+			ItemType: "berry",
+			Color:    types.ColorRed,
+			Edible:   &entity.EdibleProperties{},
+		},
+		Count: 3,
+	}}
 	gameMap.AddItemDirect(vessel)
 
 	// Water on the map
@@ -526,6 +700,6 @@ func TestFindFetchWaterIntent_SkipsVesselsWithContents(t *testing.T) {
 
 	intent := findFetchWaterIntent(char, char.Pos(), gameMap.Items(), gameMap, nil)
 	if intent != nil {
-		t.Error("Expected nil — only ground vessel has contents, should be skipped")
+		t.Error("Expected nil — only ground vessel has food contents, should be skipped")
 	}
 }

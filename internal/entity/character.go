@@ -110,6 +110,7 @@ const (
 	ActionForage      // Foraging food items, optionally picking up vessel first (self-managing, uses RunVesselProcurement)
 	ActionWaterGarden // Watering dry tilled planted tiles (self-managing, consumes vessel water)
 	ActionHelpFeed    // Delivering food to a character in crisis hunger (self-managing, idle override)
+	ActionHelpWater   // Delivering water to a character in crisis thirst (self-managing, idle override)
 )
 
 // NewCharacter creates a new character with the given preferences
