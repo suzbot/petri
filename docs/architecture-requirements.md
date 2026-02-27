@@ -48,7 +48,7 @@ The character's cognitive loop suggests natural boundaries:
 | **Evaluation** — what options exist for each need? | Food scoring, drink finding, sleep finding | intent.go (findFoodIntent, findDrinkIntent, findSleepIntent) |
 | **Selection** — which option wins? | Priority ordering, idle roll, order priority | intent.go + idle.go + order_execution.go |
 | **Spatial planning** — how do I get there? | Pathfinding, obstacle avoidance, displacement | movement.go (NextStepBFS) |
-| **Execution** — do the thing | Consume, pickup, craft, talk, till, plant | update.go (applyIntent) |
+| **Execution** — do the thing | Consume, pickup, craft, talk, till, plant | apply_actions.go (applyIntent + handler methods) |
 | **Body** — passive changes | Stat decay, sleep/wake, damage | survival.go |
 
 ### Encapsulated Workflows
@@ -74,11 +74,15 @@ The Intent struct is the handoff between deciding and doing. This works well and
 
 **What the game world suggests:** Motivation, evaluation, and locomotion are separate faculties. A character knows they're thirsty (motivation) separately from knowing where water is (evaluation) separately from knowing how to walk there (locomotion). Separating these would also naturally resolve the question of where need-driven evaluation lives — it would move to the domain-specific evaluator files where it conceptually belongs.
 
-### 2. applyIntent May Outgrow Its Current Shape
+### ✅ 3. applyIntent Extracted to apply_actions.go (Resolved)
 
-**The problem:** update.go's applyIntent function handles execution for every ActionType. Each new action adds another branch.
+**The problem:** `applyIntent` in update.go is a ~1000-line switch statement where each ActionType case is 15-130 lines of inline logic. Adding or modifying an action means navigating a wall of code. The function is correct but hard to read as a dispatch table — the cases obscure each other.
 
-**Current assessment:** At current scale this is manageable and grows linearly. It's worth revisiting after the movement.go separation — the right structure for execution dispatch may become clearer once the decision side is properly organized. Not a priority now.
+**Why it belongs in the `ui` package:** `applyIntent` is game loop execution, not decision logic. It advances an already-chosen intent by one tick's worth of progress — speed accumulation, movement, action timers, order completion. It operates on the `Model` receiver (needs `m.gameMap`, `m.actionLog`, etc.). Moving it to `system/` would require passing many `Model` fields as parameters or creating a new execution context struct for no functional gain.
+
+**What changes:** Extract each ActionType case into a named method on `Model`. The switch becomes a readable dispatch table. Extracted methods live in a new `apply_actions.go` in the same `ui` package, separating execution from orchestration and input handling. No logic changes — pure extraction.
+
+**Why now:** The decision side is properly organized (Priority 1 and 2 complete). The execution side is now the least readable part of the game loop. Each new action (helpFeed, helpWater, waterGarden) added 50-130 lines inline, and this will continue as features grow.
 
 ---
 
@@ -130,7 +134,7 @@ A pure extraction — no logic changes, no merging with other files. See [propos
 - [DOCS] via `/update-docs`
 - [RETRO] via `/retro`
 
-### Priority 2: Align Code to the Four-Bucket Decision Model
+### ✅ Priority 2: Align Code to the Four-Bucket Decision Model (Complete)
 
 The character's decision-making has four distinct motivational categories. The code should reflect these as separate concerns rather than nesting three of them inside a function named for the fourth.
 
@@ -183,7 +187,7 @@ This priority ordering should be explicit in the orchestrator, not buried inside
 
 #### Implementation Plan
 
-**Step 1: Extract bucket functions from idle.go**
+**✅ Step 1: Extract bucket functions from idle.go**
 
 *Anchor story:* A developer asks "where does crisis-helping logic get triggered?" After this step, they find `selectHelpingActivity` in helping.go and see it called explicitly from CalculateIntent — not buried inside an "idle" function alongside random leisure rolls. A developer asks "where is the discretionary activity roll?" and finds it in discretionary.go, clearly separated from order work and helping.
 
@@ -202,7 +206,7 @@ This step is a pure extraction — no logic changes except cooldown scoping (see
 - Verify: `go build ./...`, `go test ./...`, `gofmt ./...`
 - [TEST] Human spot-check: characters eat, drink, sleep, take orders, help crisis characters, do discretionary activities (look, talk, forage, fetch water). No behavior change expected. Verify that helping and order-taking still happen (cooldown scoping change means they should be at least as responsive as before).
 
-**Step 2: Restructure CalculateIntent's bucket routing**
+**✅ Step 2: Restructure CalculateIntent's bucket routing**
 
 *Anchor story:* A developer reads CalculateIntent and can follow the character's decision process as a clear priority list: "continue what I'm doing, handle urgent needs, handle mild needs while working, then evaluate orders → helping → discretionary." The three `selectIdleActivity` call sites collapse into one unified bucket-routing section that serves both the "no pressing needs" and "stuck" paths.
 
@@ -236,7 +240,7 @@ This step rewrites the orchestrator to call each bucket explicitly. Same intents
   - Characters that can't meet needs show "Stuck" label, not "Idle"
 - [RETRO]
 
-**Step 3: Update activity labels**
+**✅ Step 3: Update activity labels**
 
 *Anchor story:* A player watching a character who has Severe thirst but no water source sees "Stuck (can't meet needs)" instead of "Idle (no options)" — the label tells them the character is helpless, not content. In the action log, "No water source available" replaces "Idle (no water source)" — the message describes what happened, not a misleading state.
 
@@ -257,6 +261,59 @@ This step rewrites the orchestrator to call each bucket explicitly. Same intents
   - `docs/proposed-decision-flow.md`: Remove — transitional artifact from Priority 1, superseded by the updated flow-diagrams.md.
 - [RETRO] via `/retro`
 
+### ✅ Priority 3: Extract apply_actions.go from update.go (Complete)
+
+`applyIntent` is a ~1,000-line switch statement with 15 ActionType cases (15–130 lines each) plus execution-time helpers. It's correct but hard to navigate — the cases obscure each other, and each new action adds 50–130 lines inline. Meanwhile, update.go at 2,455 lines mixes three unrelated concerns: game loop orchestration, input handling, and intent execution.
+
+#### What Changes
+
+Extract each ActionType case into a named method on `Model`. The switch becomes a dispatch table. All extracted methods plus their execution-time helpers move to a new `apply_actions.go` in the same `ui` package.
+
+**apply_actions.go (new)** gets:
+- `applyIntent` — slim dispatch table (~30 lines)
+- 15 handler methods: `applyMove`, `applyDrink`, `applySleep`, `applyLook`, `applyTalk`, `applyPickup`, `applyConsume`, `applyCraft`, `applyTillSoil`, `applyPlant`, `applyForage`, `applyFillVessel`, `applyWaterGarden`, `applyHelpFeed`, `applyHelpWater`
+- Execution-time helpers: `moveWithCollision`, `findEmptyCardinalTile`, `takeDisplacementStep`, `initiateDisplacement`, `findAlternateStep`, `sign`, `getEatenItemType`
+
+**update.go (slimmed)** keeps orchestration + input handling:
+- `Update`, `updateGame`, `stepForward` (game loop)
+- `handleKey`, `handleWorldSelectKey`, `handleCharacterCreationKey`, `handleNameEditKey` (input)
+- `startGameRandom`, `startGameFromCreation`, `loadWorld`, `saveGame` (lifecycle)
+- UI helpers: `moveCursor`, `toggleFollow`, `characterAtCursor`, `cycleToNextCharacter`, `cycleToPreviousCharacter`, `applyOrdersConfirm`, `setOrderFlash`, `sweepCompletedOrders`, `getEdibleItemTypes`
+
+#### What Stays the Same
+
+- All handler logic — zero behavior changes, pure extraction
+- Same `package ui` — cross-file calls work with no changes
+- `updateGame` and `stepForward` call `m.applyIntent(char, delta)` exactly as before
+- No test files to reorganize (no update_test.go exists for applyIntent)
+
+#### Implementation Plan
+
+**✅ Step 1: Extract apply_actions.go from update.go**
+
+*Anchor story:* A developer asks "where does the ActionHelpWater handler live?" After this step, they find `applyHelpWater` in apply_actions.go — a named method they can navigate to directly — instead of scrolling through a 1,000-line switch statement in the input-handling file. A developer adding a new action sees the dispatch table in `applyIntent` and follows the pattern: add a case, write a method.
+
+- Create `internal/ui/apply_actions.go` with:
+  - `applyIntent` as dispatch table — early-exit guards (nil intent, dead, sleeping, energy collapse) followed by switch dispatching to named methods
+  - 15 handler methods, one per ActionType case, each receiving `(char *entity.Character, delta float64)`
+  - Execution-time helpers that only applyIntent handlers call: `moveWithCollision`, `findEmptyCardinalTile`, `takeDisplacementStep`, `initiateDisplacement`, `findAlternateStep`, `sign`, `getEatenItemType`
+- Remove all extracted functions from `update.go`
+- Same `package ui` — no import changes needed in either file
+- Pure cut-and-paste from update.go, zero logic changes
+- Architecture pattern: Same as Priority 1 — pure extraction, same package, separate file, separation by cognitive role (Execution layer). Mirrors the Cognitive Step table: Execution = "do the thing."
+- Values: Follow the Existing Shape — the switch cases already function as independent handlers; giving them names makes that structure explicit.
+- Anti-pattern to avoid: Do NOT refactor handler logic during extraction. No combining similar cases, no extracting sub-helpers, no changing control flow. Each method should be a direct lift of the switch case body.
+- Verify: `go build ./...`, `go test ./...`, `gofmt ./...`
+- [TEST] Human spot-check: characters eat, drink, sleep, forage, fetch water, craft, take orders (till, plant, water garden, harvest, gather), help crisis characters (helpFeed, helpWater), look, talk. No behavior change expected.
+- [RETRO] via `/retro`
+
+**✅ Step 2: Update docs**
+
+- `docs/architecture-requirements.md`: Mark Priority 3 / Gap 3 as complete
+- `docs/architecture.md`: Update "Adding New Actions" checklists — `applyIntent handler in update.go` → `handler method in apply_actions.go`; update Data Flow section if it references update.go for execution
+- `CLAUDE.md`: Update Key Files list — add `apply_actions.go` with description, update `update.go` description to reflect slimmed scope
+- [DOCS] via `/update-docs`
+
 ---
 
 ## Decisions
@@ -268,8 +325,8 @@ This step rewrites the orchestrator to call each bucket explicitly. Same intents
 - **"Stuck" replaces overloaded "idle."** When a character has needs but can't fulfill them, that's a "stuck" state, not an idle one. "Idle" was conflating contentment with helplessness.
 - **Discretionary, not idle.** The leisure activity bucket (look, talk, forage, fetch water) is "discretionary" — chosen freely when nothing is pressing. "Idle" implied the character has nothing to do; "discretionary" implies they're choosing what to do.
 - **Need-driven and discretionary paths for the same resource are separate motivations.** findFoodIntent and findForageIntent represent different reasons to seek food. Same for findDrinkIntent and findFetchWaterIntent. The paths should remain conceptually separate, but shared helpers and duplicate code between them can be evaluated further later.
+- **Execution logic lives in apply_actions.go, not update.go.** update.go is orchestration (game loop, input handling, lifecycle). apply_actions.go is execution (advancing intents one tick). Same `ui` package, separated by cognitive role — mirrors the intent.go / movement.go split on the decision side.
 
 ## Future Exploration
 
-- **Should need evaluators separate from the orchestrator?** intent.go currently houses both CalculateIntent (the cognitive loop) and the need-specific evaluators. Separating them would make the orchestrator easier to read but isn't blocking. Revisit once the four-bucket separation is done.
-- **applyIntent structure.** Worth revisiting once the decision side is properly organized.
+- **Should need evaluators separate from the orchestrator?** intent.go currently houses both CalculateIntent (the cognitive loop) and the need-specific evaluators. Separating them would make the orchestrator easier to read but isn't blocking. Trigger: adding a 5th stat type or scrolling past 400+ lines of need evaluators to find routing logic. See triggered-enhancements.md.

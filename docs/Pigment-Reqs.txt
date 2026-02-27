@@ -29,6 +29,7 @@ Story: Characterscan disover how to collect flowers in a vessel and turn them in
 	- Note: that other activities in the future will likely follow the same pattern of doing what is required to procure components before enagaging in the primary activity
 	- Note: pigments may have other recipes in the future, such as charcoal pigment or mineral pigment
 
+
 4. New Activity: Decorate Item
 	- Does this make more sense to be orderable, idle, or can it be both? 
 	- Discoverable
@@ -54,6 +55,11 @@ Story: Characterscan disover how to collect flowers in a vessel and turn them in
 		- the updated color and pattern of the item should influence mood consistent with existing logic
 		- if there is a preference around the shell color or the shell item then that should also contribute to the mood impact calculation
 	- Note: in future, many kinds of crafted items may be decoratable. There also may be other kinds of decorations (spikes, braids, tassels, feathers) that could be used to modify other attributes of items (texture, bangle)
+
+Alternate approach to 4:
+	Decorate is a category with:
+		Paint (changes color and/or pattern)
+		Adorn (add shells or other items to the natural language description of that particular item, increasing its value, giving ability to form opinion about "shell decoration")
 
 5. New Activity: Face Painting
 	- Does this make more sense to be orderable, idle, or can it be both?

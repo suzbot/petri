@@ -63,13 +63,13 @@ internal/
 
 **Core Systems**
 
-- `internal/system/intent.go` - Intent calculation, urgency tiers, stat fallback, need evaluators (findFoodIntent, findDrinkIntent, etc.), feasibility checks, carried-inventory checks
+- `internal/system/intent.go` - Intent calculation, four-bucket routing (Needs → Orders → Helping → Discretionary), urgency tiers, stat fallback, need evaluators (findFoodIntent, findDrinkIntent, etc.), feasibility checks, carried-inventory checks
 - `internal/system/movement.go` - Spatial mechanics only: NextStepBFS, pathfinding, tile queries, adjacency checks
 - `internal/system/survival.go` - Stat decay, damage, sleep/wake mechanics
 - `internal/system/consumption.go` - Eating, drinking, poison/healing effects
 - `internal/system/preference.go` - Preference formation on eat/look
 - `internal/system/talking.go` - Talking state, knowledge transmission (LearnKnowledgeWithEffects)
-- `internal/system/idle.go` - Idle activity selection, selectIdleActivity, isIdleAction (ActionType-based idle check)
+- `internal/system/discretionary.go` - Discretionary activity selection, selectDiscretionaryActivity, isDiscretionaryAction (ActionType-based discretionary check)
 - `internal/system/helping.go` - Crisis detection, findHelpFeedIntent/findHelpWaterIntent (food/water delivery to crisis characters)
 - `internal/system/order_execution.go` - Order assignment, intent finding, completion/abandonment
 - `internal/system/crafting.go` - CreateVessel, crafted item creation
@@ -84,7 +84,8 @@ internal/
 **Game Loop**
 
 - `internal/ui/model.go` - Game state, Bubble Tea model
-- `internal/ui/update.go` - Tick processing, intent application
+- `internal/ui/update.go` - Tick processing, game loop orchestration, input handling, lifecycle (startGame, loadWorld, saveGame)
+- `internal/ui/apply_actions.go` - Intent execution: applyIntent dispatch table + 15 handler methods (applyMove, applyDrink, applySleep, applyLook, applyTalk, applyPickup, applyConsume, applyCraft, applyTillSoil, applyPlant, applyForage, applyFillVessel, applyWaterGarden, applyHelpFeed, applyHelpWater) + execution helpers (moveWithCollision, findEmptyCardinalTile, etc.)
 
 **Save System**
 
@@ -96,16 +97,10 @@ internal/
 
 **Pause -> Skill -> Discussion → Tests -> Implementation → Human Testing → Documentation**
 
-- **Orient before acting**: After `/clear` or session start, when given an implementation task: load the relevant skill FIRST (usually `/refine-feature` or `/implement-feature`), then confirm approach before writing any code.
-- **Use project skills**: Check `.claude/skills/` before starting work. Use `/refine-feature` for design discussion, `/implement-feature` for execution, `/new-phase` for phases, `/retro` after completion. Do not default to generic plan mode workflows when project skills exist.
-- **Reference Documentation**: docs/architecture.md might point you in a quicker direction before you go into full explore mode. Don't forget to check there early when generating context.
-- **Planning docs live in `docs/`**: When a planning document already exists for the work (e.g., `docs/gardening-phase-plan.md`), update it directly. Do not create parallel ephemeral plan files.
-- **Discussion first**: Always discuss approach before writing code. Present options with trade-offs. This includes investigation findings — when an audit or exploration reveals something different from what the user expected (e.g., the original concern was unfounded, or a different issue was found instead), call that out explicitly and get agreement before treating it as an action item.
-- **Speak in functional terms**: When explaining or proposing changes, describe the player-visible or gameplay impact, not just the code mechanics. The user understands system structure but is not evaluating code — they're evaluating whether proposals stay aligned with functional intent. A proposal described only in implementation terms ("sort map keys," "add a lookup table") can't be reviewed for design alignment. Translate to what changes in the game: "discovery order becomes fixed instead of varied," "hunger reduction differs by food type."
-- **Complex design questions need conversation**: Present architectural tradeoff analysis as prose for discussion. Reserve structured multiple-choice for simple, bounded decisions (naming, library choice). Don't force complex design into a menu.
-- **TDD**: Write tests before implementation
-- **User testing required**: Do NOT mark features or fixes complete until user has manually tested.
-- **Keep docs current**: Update claude.md, README, game-mechanics, and architecture.md as part of feature work
+- **Before writing code**: Load the relevant skill, check architecture.md, discuss approach. Use project skills (`/refine-feature`, `/implement-feature`, `/new-phase`, `/retro`) — not generic plan mode. Plan docs live in `docs/`; update existing ones.
+- **Communication**: Functional terms, not code mechanics. Prose for tradeoffs, not multiple-choice. Recommend with options. Qualify claims precisely.
+- **When things go wrong**: Evidence before fixes. Second bug = step back and restate the flow. Surface when stuck.
+- **Quality gates**: TDD. User must test before marking complete. Keep docs current.
 
 ## Testing
 

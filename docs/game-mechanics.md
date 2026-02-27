@@ -147,7 +147,7 @@ Characters use greedy-first pathfinding: they move diagonally toward their targe
 
 ### Frustration
 
-When a character cannot fulfill urgent needs (Severe+) repeatedly, they become Frustrated. While frustrated they skip intent calculation, display "?" (orange), and have status "FRUSTRATED." Frustration clears after a timer expires.
+When a character has elevated needs but no resources available to meet them, their activity shows **"Stuck (can't meet needs)"** — waiting for the world to change. When a character cannot fulfill urgent needs (Severe+) repeatedly, they become Frustrated. While frustrated they skip intent calculation, display "?" (orange), and have status "FRUSTRATED." Frustration clears after a timer expires.
 
 ### Mood
 

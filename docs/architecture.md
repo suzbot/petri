@@ -1,9 +1,56 @@
 # Petri Architecture
 
+## Design Model
+
+The architecture mirrors what the game simulates (see Values.md: Isomorphism). These mental models explain *why* the code is structured the way it is.
+
+### The Character's Cognitive Loop
+
+Each tick, a character does something like:
+
+1. **What do I need?** — My body tells me I'm thirsty, hungry, tired. How urgent is it?
+2. **What are my options?** — I can see water over there, there's food nearby, I could ask for help.
+3. **Which option do I pick?** — I'm very thirsty and the water is close. I'll drink.
+4. **How do I get there?** — There's a rock in the way, I'll path around it.
+5. **Do the thing.** — Walk, pick up, eat, drink, craft, talk.
+
+Between ticks, the world acts on the character: hunger grows, energy drains, poison damages, sleep restores.
+
+### External Direction
+
+Orders from the player don't replace the cognitive loop — they insert into it. A character with an order still gets hungry, still evaluates urgency, and may pause the order to eat. The order adds an option (step 2) and gets prioritized when needs aren't pressing (step 3).
+
+### Social Awareness
+
+Characters notice when others are in crisis and may choose to help. This competes with discretionary activities — it's part of "what are my options?" when a character has no pressing needs.
+
+### Separation of Concerns by Cognitive Role
+
+The cognitive loop maps to code boundaries:
+
+| Cognitive Step | Responsibility | Location |
+|---|---|---|
+| **Motivation** — what do I need? | Urgency tiers, stat priority | intent.go (CalculateIntent) |
+| **Evaluation** — what options exist? | Food scoring, drink finding, sleep finding | intent.go (findFoodIntent, etc.) |
+| **Selection** — which option wins? | Priority ordering, bucket routing | intent.go + discretionary.go + order_execution.go |
+| **Spatial planning** — how do I get there? | Pathfinding, obstacle avoidance | movement.go (NextStepBFS) |
+| **Execution** — do the thing | Consume, pickup, craft, talk, till, plant | apply_actions.go (applyIntent) |
+| **Body** — passive changes | Stat decay, sleep/wake, damage | survival.go |
+
+### Encapsulated Workflows
+
+Some actions involve multi-phase workflows (fetch water: get vessel → fill → done). Once committed to a course of action, the sub-decisions (which vessel, which water source) are implementation details of that commitment, not top-level cognitive choices. The architecture preserves this encapsulation — see "Self-Managing Actions" below.
+
+### Intent as the Universal Contract
+
+The Intent struct is the handoff between deciding and doing. It remains the single interface between the decision phase and execution phase.
+
 ## Key Design Patterns
 
 - **MVU Architecture**: Bubble Tea handles rendering diffs automatically
 - **Intent System**: Characters calculate Intent, then intents applied atomically (enables future parallelization)
+- **Four-Bucket Decision Model**: `CalculateIntent` routes through explicit priority buckets — Needs → Orders → Helping → Discretionary. Each bucket has its own file: `intent.go` (needs), `order_execution.go` (orders), `helping.go` (helping), `discretionary.go` (discretionary). The orchestrator in `CalculateIntent` calls each bucket explicitly.
+- **"Stuck" vs "Idle" terminal states**: When `CalculateIntent` exhausts all buckets, the outcome depends on whether any needs were elevated: `maxTier > TierNone` → "Stuck (can't meet needs)" (has needs but nothing available); `maxTier == TierNone` → "Idle" (content, nothing to do). These are fundamentally different states.
 - **Multi-Stat Urgency**: Tiers 0-4, highest wins, tie-breaker: Thirst > Hunger > Energy
 - **Stat Fallback**: If intent can't be fulfilled, falls through to next urgent stat
 - **Sparse Grid + Indexed Slices**: O(1) character lookups, separate slices for characters/items/features
@@ -16,6 +63,8 @@
 3. `CalculateIntent()`: evaluate tiers, try each in priority, track failures
 4. `applyIntent()`: accumulate speed/progress, execute actions
 5. `View()`: render UI (Bubble Tea diffs automatically)
+
+See [docs/flow-diagrams.md](flow-diagrams.md) for visual call graphs, the intent priority hierarchy, and multi-phase action state machines.
 
 ## Item Model
 
@@ -171,8 +220,8 @@ Some idle activities are **self-managing** — they own their complete multi-pha
 
 **Ordered actions** (`ActionTillSoil`, `ActionPlant`, `ActionWaterGarden`, `ActionPickup` with order context, `ActionCraft`): Player-directed via orders. Handler completes one unit of work, then **clears intent**. Next tick, `CalculateIntent` re-evaluates via a tiered intercept:
 
-- **maxTier == TierNone**: `selectIdleActivity` → `selectOrderActivity` resumes the order (bypasses idle cooldown).
-- **maxTier == TierMild && AssignedOrderID != 0**: Inventory-only intercept — check carried inventory for water (if thirsty) or food (if hungry). If found, briefly pause order (`PauseOrder`) and consume. If not found, `selectIdleActivity` → `selectOrderActivity` continues working through Mild.
+- **maxTier == TierNone**: bucket routing → `selectOrderActivity` resumes the order (bypasses idle cooldown).
+- **maxTier == TierMild && AssignedOrderID != 0**: Inventory-only intercept — check carried inventory for water (if thirsty) or food (if hungry). If found, briefly pause order (`PauseOrder`) and consume. If not found, bucket routing → `selectOrderActivity` continues working through Mild.
 - **maxTier >= TierModerate**: Priority loop fires as normal; order is paused (`PauseOrder`) and character seeks a fulfillable need.
 
 **The one-tick idle window** between ordered work units is the key mechanism. It gives `CalculateIntent` a natural re-evaluation point, which is how needs interruption and the pause/resume system work. Without it, ordered actions would need their own interruption logic.
@@ -242,7 +291,7 @@ Action handler pseudocode:
 - **Uses the generic path if:** Your action's `TargetItem` stays on the map throughout, targets a character, targets a position, or has no `TargetItem`.
   - Examples: `ActionLook` (item stays on map), `ActionTalk` (targets character via Dest), `ActionTillSoil` (targets position), `ActionPickup` (item on map until picked up), `ActionConsume` targeting a ground food vessel (vessel stays on map; arrival detected in the handler)
 
-**Walk-then-act pattern:** Actions like `ActionLook` and `ActionTalk` set their final action type from the start (not `ActionMove`). The intent creator owns the action type; `continueIntent` just recalculates paths via the generic fallthrough. The handler in `update.go` has a walking phase (moves via `moveWithCollision` while not yet at target) and an acting phase (performs the action when arrived). This follows **Consistency Over Local Cleverness** (Values.md) — all walk-then-act actions share the same shape.
+**Walk-then-act pattern:** Actions like `ActionLook` and `ActionTalk` set their final action type from the start (not `ActionMove`). The intent creator owns the action type; `continueIntent` just recalculates paths via the generic fallthrough. The handler in `apply_actions.go` has a walking phase (moves via `moveWithCollision` while not yet at target) and an acting phase (performs the action when arrived). This follows **Consistency Over Local Cleverness** (Values.md) — all walk-then-act actions share the same shape.
 
 ### Adding New Actions
 
@@ -252,7 +301,7 @@ Three checklists organized by category. Each includes every touchpoint; see the 
 
 1. Action constant in `character.go`
 2. Intent finder in `intent.go` (driven by stat urgency tiers)
-3. `applyIntent` handler in `update.go` — performs the action, clears intent when stat satisfied or source exhausted
+3. Handler method in `apply_actions.go` — add a named `applyXxx` method on `Model` and a case in the `applyIntent` dispatch table; performs the action, clears intent when stat satisfied or source exhausted
 4. `continueIntent`: if `TargetItem` can be in inventory, add an early-return block. If `TargetItem` is always on the map, generic path handles it. (See `continueIntent` Rules above.)
 5. `simulation.go`: add handler if simulation tests exercise this action
 6. No activity registry entry needed (need-driven actions aren't idle activities)
@@ -262,9 +311,9 @@ Three checklists organized by category. Each includes every touchpoint; see the 
 1. Action constant in `character.go`
 2. Activity entry in `ActivityRegistry` (`entity/activity.go`) — omit if the activity is a pre-roll override (like `ActionHelpFeed`, `ActionHelpWater`) rather than a rolled idle activity
 3. Intent finder (location depends on context: `intent.go` for social/observation, `foraging.go` for food-seeking, `picking.go` for resource-seeking, `helping.go` for crisis response)
-4. Wire into `selectIdleActivity` in `idle.go` — either as a pre-roll override (checked before the roll) or as a rollable option
-5. Add action to `isIdleAction` in `idle.go` if the action should be treated as idle for talking availability (i.e., it is a true idle activity, not a helping/delivery action). `isIdleAction` checks `ActionType` enum — simpler and more robust than string matching.
-6. `applyIntent` handler in `update.go`
+4. Wire into `selectDiscretionaryActivity` in `discretionary.go` — either as a pre-roll override (checked before the roll) or as a rollable option. Crisis-response actions (helpFeed, helpWater) wire into `selectHelpingActivity` in `helping.go` instead.
+5. Add action to `isDiscretionaryAction` in `discretionary.go` if the action should be treated as discretionary for talking availability (i.e., it is a true leisure activity, not a helping/delivery action). `isDiscretionaryAction` checks `ActionType` enum — simpler and more robust than string matching.
+6. Handler method in `apply_actions.go` — add a named `applyXxx` method on `Model` and a case in the `applyIntent` dispatch table
 7. `continueIntent`: self-managing multi-phase actions (where `TargetItem` moves between ground and inventory) need an early-return block. Walk-then-act actions (Look, Talk) use the generic path. (See `continueIntent` Rules above.)
 8. `simulation.go`: add handler if simulation exercises this activity
 
@@ -274,7 +323,7 @@ Three checklists organized by category. Each includes every touchpoint; see the 
 2. Activity entry in `ActivityRegistry` (with `IntentOrderable` and appropriate `Category`)
 3. `findXxxIntent()` in `order_execution.go` — handles target selection on each resumption tick
 4. Wire into `findOrderIntent` switch, `isMultiStepOrderComplete`, `IsOrderFeasible`
-5. `applyIntent` handler in `update.go` — complete one work unit, clear intent, check order completion inline
+5. Handler method in `apply_actions.go` — add a named `applyXxx` method on `Model` and a case in the `applyIntent` dispatch table; complete one work unit, clear intent, check order completion inline
 6. `continueIntent`: multi-phase ordered actions with vessel procurement (e.g., WaterGarden) need an early-return block. Single-phase ordered actions (TillSoil, Plant) use the generic path. (See `continueIntent` Rules above.)
 7. `simulation.go`: add handler if simulation exercises this action
 8. If the action uses vessel procurement: use `RunVesselProcurement` tick helper
@@ -317,7 +366,7 @@ Orders are player-directed tasks. They share physical actions with idle activiti
 
 ### Order Execution
 
-- `idle.go` calls `selectOrderActivity()` first, giving orders priority over idle activities
+- `CalculateIntent` calls `selectOrderActivity()` before `selectDiscretionaryActivity`, giving orders priority over discretionary activities
 - Order eligibility checks activity's `Availability` against character's known activities
 - `IsOrderFeasible(order, items, gameMap)` is computed on demand at assignment and render time — returns `(feasible bool, noKnowHow bool)`. Unfeasible orders are skipped during `findAvailableOrder` and rendered dimmed with `[Unfulfillable]` or `[No one knows how]`.
 - `LockedVariety string` on Order: set when the first item is planted. After locking, the character only seeks items of that variety, keeping a single order focused.
@@ -420,7 +469,7 @@ Recipes define how to craft items from components.
 1. Add recipe to `RecipeRegistry` in `entity/recipe.go`
 2. Add activity to `ActivityRegistry` for the crafting activity (if new)
 3. Add creation function in `system/crafting.go` (e.g., `CreateHoe`)
-4. Add case to `applyIntent()` ActionCraft handler dispatch (by recipe ID)
+4. Add case to the `ActionCraft` handler in `apply_actions.go` dispatch (by recipe ID)
 
 ## World & Terrain
 

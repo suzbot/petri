@@ -12,7 +12,8 @@ Every cross-file dependency. If the code is spaghetti, this is the spaghetti.
 flowchart TD
     subgraph "Game Loop (ui/)"
         update["update.go
-        updateGame()
+        updateGame()"]
+        apply["apply_actions.go
         applyIntent()"]
     end
 
@@ -23,12 +24,13 @@ flowchart TD
         movement_spatial["movement.go
         NextStepBFS()
         Pathfinding"]
-        idle["idle.go
-        selectIdleActivity()"]
+        discretionary["discretionary.go
+        selectDiscretionaryActivity()"]
         orders["order_execution.go
         selectOrderActivity()
         findOrderIntent()"]
         helping["helping.go
+        selectHelpingActivity()
         findHelpFeedIntent()
         findHelpWaterIntent()"]
     end
@@ -71,40 +73,45 @@ flowchart TD
     %% Game Loop → Decision
     update --> intent
 
-    %% Game Loop → Action (execution via applyIntent)
+    %% Game Loop → Execution
+    update --> apply
     update --> survival
-    update --> consume
-    update --> pick
-    update --> craft
-    update --> talk
-    update --> forage
-    update --> orders
 
-    %% Game Loop → Data
-    update --> char
-    update --> item
-    update --> recipe
+    %% Execution (applyIntent) → Action
+    apply --> consume
+    apply --> pick
+    apply --> craft
+    apply --> talk
+    apply --> forage
+    apply --> orders
+
+    %% Execution → Data
+    apply --> char
+    apply --> item
+    apply --> recipe
 
     %% Decision: intent internals
     intent --> movement_spatial
-    intent --> idle
     intent --> talk
+
+    %% Decision: intent → bucket routing
+    intent --> orders
+    intent --> helping
+    intent --> discretionary
 
     %% Decision: intent → Data
     intent --> char
     intent --> item
 
-    %% Decision: idle dispatches
-    idle --> orders
-    idle --> helping
-    idle --> forage
-    idle --> fetch
-    idle --> talk
-    idle --> pick
+    %% Decision: discretionary dispatches
+    discretionary --> forage
+    discretionary --> fetch
+    discretionary --> talk
+    discretionary --> pick
 
-    %% Decision: idle → Data
-    idle --> activity
-    idle --> char
+    %% Decision: discretionary → Data
+    discretionary --> activity
+    discretionary --> char
 
     %% Decision: orders dispatches
     orders --> pick
@@ -175,14 +182,15 @@ flowchart TD
     findDrinkIntent()
     findSleepIntent()"]
 
-    idle["idle.go
-    selectIdleActivity()"]
     orders["order_execution.go
     selectOrderActivity()
     findOrderIntent()"]
     helping["helping.go
+    selectHelpingActivity()
     findHelpFeedIntent()
     findHelpWaterIntent()"]
+    discretionary["discretionary.go
+    selectDiscretionaryActivity()"]
     forage["foraging.go
     findForageIntent()"]
     fetch["fetch_water.go
@@ -204,21 +212,12 @@ flowchart TD
     recipe["recipe.go
     RecipeRegistry"]
 
-    %% Intent tree
-    intent -->|"Tier 0 (no needs)"| idle
-    intent -->|"Needs unfulfillable"| idle
+    %% Priority routing (Orders → Helping → Discretionary)
+    intent -->|"Priority routing"| orders
+    intent -->|"Priority routing"| helping
+    intent -->|"Priority routing"| discretionary
     intent --> char
     intent --> item
-
-    %% Idle dispatches
-    idle -->|"Has/claims order"| orders
-    idle -->|"Crisis nearby"| helping
-    idle -->|"Idle roll"| forage
-    idle -->|"Idle roll"| fetch
-    idle -->|"Idle roll"| talk
-    idle --> pick
-    idle --> activity
-    idle --> char
 
     %% Order evaluation
     orders --> activity
@@ -231,6 +230,14 @@ flowchart TD
     helping --> pick
     helping --> char
     helping --> item
+
+    %% Discretionary roll
+    discretionary -->|"Random roll"| forage
+    discretionary -->|"Random roll"| fetch
+    discretionary -->|"Random roll"| talk
+    discretionary --> pick
+    discretionary --> activity
+    discretionary --> char
 
     %% Forage/fetch evaluation
     forage --> pick
@@ -248,7 +255,7 @@ What happens during `applyIntent()` and `UpdateSurvival()` — carrying out deci
 
 ```mermaid
 flowchart TD
-    update["update.go
+    update["apply_actions.go
     applyIntent()"]
     survival["survival.go
     UpdateSurvival()"]
@@ -347,7 +354,7 @@ flowchart TD
     sprout timers, ground spawning"]
     items --> calc["CalculateIntent() — per character
     Evaluate needs, choose action"]
-    calc --> apply["applyIntent() — per character
+    calc --> apply["applyIntent() — per character (apply_actions.go)
     Execute movement, consumption,
     crafting, helping, etc."]
     apply --> cleanup["Sweep completed orders"]
@@ -383,12 +390,6 @@ flowchart TD
     existing -->|No existing| tier
 
     tier{{"Determine max<br/>urgency tier"}}
-    tier -->|"Tier 0 (None)<br/>All stats OK"| idle["selectIdleActivity()"]
-    tier -->|"Tier 1 (Mild)"| mild{Has assigned<br/>order?}
-    mild -->|Yes| invcheck{Food/water<br/>in inventory?}
-    invcheck -->|Yes| pause1["Pause order,<br/>consume from inventory"]
-    invcheck -->|No| idle
-    mild -->|No| idle
 
     tier -->|"Tier 2-4<br/>(Moderate–Crisis)"| priority["Build priority list
     Thirst > Hunger > Health > Energy
@@ -401,50 +402,47 @@ flowchart TD
     return intent"]
     found -->|No, Severe+| frustcheck["Track failure count
     → may trigger frustration"]
-    found -->|No, Moderate| idle
-    frustcheck --> idle
+    found -->|No| routing
+
+    tier -->|"Tier 1 (Mild)"| mild{Has assigned<br/>order?}
+    mild -->|Yes| invcheck{Food/water<br/>in inventory?}
+    invcheck -->|Yes| pause1["Pause order,<br/>consume from inventory"]
+    invcheck -->|No| routing
+    mild -->|No| mildloop["Priority loop
+    (same as Moderate)"]
+    mildloop --> mildresult{Intent<br/>found?}
+    mildresult -->|Yes| ret1([Return intent])
+    mildresult -->|No| routing
+
+    tier -->|"Tier 0 (None)<br/>All stats OK"| routing
+
+    frustcheck --> routing
+    routing["Priority routing:
+    selectOrderActivity()
+    → selectHelpingActivity()
+    → selectDiscretionaryActivity()"]
+    routing --> routeresult{Intent<br/>found?}
+    routeresult -->|Yes| ret2([Return intent])
+    routeresult -->|No, has needs| stuck(["Stuck
+    (can't meet needs)"])
+    routeresult -->|No, no needs| idle([Idle])
 ```
 
 ---
 
-## Idle Activity Selection
+## Discretionary Activity Selection
 
-`selectIdleActivity()` (`internal/system/idle.go`) — what happens when a character has no urgent needs.
+`selectDiscretionaryActivity()` (`internal/system/discretionary.go`) — leisure activities chosen when no needs, orders, or helping are active.
 
 ```mermaid
 flowchart TD
-    start([selectIdleActivity])
+    start([selectDiscretionaryActivity])
 
-    start --> hasorder{Has assigned<br/>order?}
-    hasorder -->|Yes| tryorder1["selectOrderActivity()
-    Resume/find order work"]
-    tryorder1 --> ordersuccess1{Found<br/>work?}
-    ordersuccess1 -->|Yes| ret1([Return order intent])
-    ordersuccess1 -->|No| cooldown
-
-    hasorder -->|No| cooldown{Idle cooldown<br/>expired?}
+    start --> cooldown{Cooldown<br/>expired?}
     cooldown -->|No| none([No intent — wait])
     cooldown -->|Yes| setcooldown["Set next cooldown"]
 
-    setcooldown --> neworder{Available<br/>order to claim?}
-    neworder -->|Yes| tryorder2["selectOrderActivity()
-    Assign + begin order"]
-    tryorder2 --> ret2([Return order intent])
-
-    neworder -->|No| crisis{Nearby character<br/>in crisis?}
-    crisis -->|Thirst crisis| helpw["findHelpWaterIntent()"]
-    crisis -->|Hunger crisis| helpf["findHelpFeedIntent()"]
-    crisis -->|Both| helpboth["Try helpWater first,
-    fall back to helpFeed"]
-    helpw --> helpok{Found<br/>solution?}
-    helpf --> helpok
-    helpboth --> helpok
-    helpok -->|Yes| ret3([Return helping intent])
-    helpok -->|No| roll
-
-    crisis -->|No crisis| roll
-
-    roll{{"Random roll (0-4)"}}
+    setcooldown --> roll{{"Random roll (0-4)"}}
     roll -->|0| r0["Look → Talk → Forage"]
     roll -->|1| r1["Talk → Look → Forage"]
     roll -->|2| r2["Forage → Look → Talk"]
@@ -488,9 +486,9 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
-    [*] --> GetVessel: No vessel in inventory
+    [*] --> ProcureVessel: No vessel in inventory
     [*] --> FillAtWater: Empty vessel in inventory
-    GetVessel --> FillAtWater: Picked up vessel
+    ProcureVessel --> FillAtWater: Picked up vessel
     FillAtWater --> [*]: Vessel filled, intent complete
 ```
 
@@ -498,10 +496,10 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
-    [*] --> FindVessel: No vessel
+    [*] --> ProcureVessel: No vessel
     [*] --> FillWater: Empty vessel
     [*] --> WaterTile: Full vessel
-    FindVessel --> FillWater: Vessel acquired
+    ProcureVessel --> FillWater: Vessel acquired
     FillWater --> WaterTile: Vessel filled
     WaterTile --> FillWater: Vessel empty,\nmore tiles to water
     WaterTile --> [*]: All tiles watered

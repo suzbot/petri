@@ -16,6 +16,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Wandering activity**                 | More idle activities needed; Looking feels repetitive; Want more organic movement |
 | **Activity enum**                      | Need to enumerate/filter activities; Activity-based game logic beyond display     |
 | **`continueIntent` early-return block consolidation** | 5+ action-specific early-return blocks in `continueIntent`; New multi-phase action needs early-return and the pattern feels repetitive |
+| **Need-evaluator split from intent.go** | Adding a 5th stat type to the priority loop; Scrolling past 400+ lines of need evaluators to find routing logic in intent.go |
 | **Feature capability derivation**      | Adding new feature types; DrinkSource/Bed bools become redundant                  |
 | **Action log retention policy**        | Implementing character memory; May need world time vs real time consideration     |
 | **UI color style map**                 | Adding new colors frequently; Switch statement maintenance becomes tedious        |

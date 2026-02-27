@@ -30,6 +30,8 @@ Present thinking in terms others can evaluate — functional language, cited evi
 
 **When presenting options:** Include pros, cons, relevant reasoning, and a recommendation. State which option you'd pick and why, so the decision can be approved, overridden, or discussed — not just handed back as an open question.
 
+**Adopt terminology deliberately:** When the user uses a term descriptively, don't promote it to a system name without confirming. "Bucket" as a category label is different from "bucket routing" as the feature name.
+
 **When claiming alignment:** Demonstrate specific evidence from docs or code. "This follows the ordered action pattern" is an assertion; tracing the path through CalculateIntent → selectIdleActivity → AssignedOrderID is a demonstration.
 If the difference between options is purely code-organizational with no functional impact, make the call and note it in passing.
 
@@ -42,6 +44,12 @@ When something fails, gather evidence first — run a diagnostic, add logging, a
 **Corollary — layer solutions:** When a problem might have multiple causes, test the simplest fix first and observe what remains. Each layer should have an observed reason to exist. (Greedy-first pathfinding was tested alone; displacement was re-added only after observing what it didn't solve.)
 
 Examples: WaterGarden tests failed — three rounds of reasoning about positioning produced wrong fixes. One `t.Logf` pass revealed the actual cause (`IsWet` adjacency). Gather orders — "characters aren't picking up vessels" prompted a hypothesis about stale intent, but asking "what are you seeing?" revealed they were skipping vessel procurement entirely.
+
+## Isomorphism
+
+The code structure should mirror what it represents. If the game has a concept, there should be a clear place in the code where that concept lives. Someone asking "how does a character decide what to eat?" should find the answer in a place that makes intuitive sense — not buried in the pathfinding file.
+
+This is the *why* behind many structural decisions: intent.go exists because decision-making is a distinct concept from locomotion. discretionary.go exists because leisure is a distinct motivation from orders. apply_actions.go exists because execution is a distinct concern from orchestration.
 
 ## Follow the Existing Shape
 

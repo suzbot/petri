@@ -1,23 +1,20 @@
 Construction-Reqs.txt
 
-This is a work in progress.
+Over-arching story: Characters can gather various materials and construct small buildings out of grass, sticks, or bricks. They will build them based on the resources available and their own preferences. This will support future work where they can store things inside buildings to protect them from other creatures, or sleep inside of buildings for better sleep. For now, they will provide diversion and something to look at and form preferences about.
+
+New Item grouping: Bundle
+	- Sticks can be carried or dropped as a stack
+	- A stack of sticks is called a bundle. A bundle of sticks can have up to 6 pieces in it.
+	- a picked up stack can be added to until it has max pieces
 
 New Item: Tall Grass
 	- Spawns at world creation (2x as many as other plant types)
 	- Pale Green
-	- Growing, reproduces like other plants
+	- Growing, reproduces like other plants, fast lifecycle
 	- Bears seeds in the same manner as flowers that can be picked up by foraging
 	- As a plant, should show up on the harvest list
 	- Harvested grass CANNOT be placed in a vessel (too large, may fit in future containers), but can be carried or dropped as a stack
 	- A stack of grass is called a bundle. A bundle of grass can have up to 6 pieces in it.
-	- a picked up stack can be added to until it has max pieces
-
-
-New Activity: Gather > Sticks
-	- Orderable
-	- Appears on order list by default, does not need discovery
-	- Gathered sticks CANNOT be placed in a vessel (too large, may fit in future containers), but can be carried or dropped as a stack
-	- A stack of sticks is called a bundle. A bundle of sticks can have up to 6 pieces in it.
 	- a picked up stack can be added to until it has max pieces
 
 New Feature: Clay
@@ -41,8 +38,6 @@ New Activity: Construct > Fence
 	Recipe: Stick Fence - 1 bundle of 6 per tile
 	Recipe: Brick Fence - 6 bricks per tile
 
-Material Durability
-
 Preference Formation:
  - Characters can look at Construction
  - Characters can form a like/dislike materials in the construction they look at
@@ -57,7 +52,9 @@ New Activity: Construct > Hut
 	Action - marked tiles for construction get all their supplies dropped on them and then each tile with all its supplies is worked for a duration before worker moves to start next tile
 	Outcome - 4x4 outline of tiles around 3x3 opening inside; tiles are not passable except one tile which is a door (only passable by chars)
 
-New Concept: Incomplete Order? Or Occupation? How do we handle supply chain issues when a construction task can't be finished? or is it assigned forever until done? but that blocks other orders they could do in the meanntime?
+	Implement similar to tilling where there are tiles marked for building, and you can review selected areas on that screen, and have more than one worker working on it. 
+
+	Make sure order is becomes unavailable or unfulfullable when materials run out, and then can be re-taken when materials come available again
 
 ---
 
