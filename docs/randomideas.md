@@ -11,14 +11,6 @@ then they can be removed from this list.
 
 ## Issues To resolve
 
-1. **Action log events appear in character order instead of tick order** — When stepping through ticks manually (pressing '.'), events from different ticks display in character ID order rather than chronological order. This happens because `GameTime` advances by wall-clock delta between ticks, and rapid keypresses produce deltas so small that events from separate ticks share effectively the same timestamp. The action log then sorts them by character ID.
-
-   **Existing diagnostic:** `update.go:521-525` logs a warning to `~/.petri/debug.log` when `delta <= 0.001s`, but the threshold is too tight to catch most occurrences — the delta from manual stepping is typically above 1ms but still too small for meaningful ordering.
-
-   **Root cause:** The action log relies on `GameTime` (a float64) for ordering, but `GameTime` advances by wall-clock delta which doesn't guarantee meaningful separation between ticks. This is a systemic issue, not specific to any feature. Primarily observed when stepping with '.' — the manual step path may not be incrementing game time correctly, or increments are too small to differentiate.
-
-   **Likely fix direction:** Monotonic sequence numbers on log entries (e.g., a tick counter) instead of or in addition to `GameTime` for ordering purposes. Also investigate whether the '.' step code path handles time advancement differently from the normal tick path.
-
 
 ## UI Improvements
 

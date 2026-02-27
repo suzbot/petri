@@ -1829,6 +1829,8 @@ func (m *Model) cycleToPreviousCharacter() {
 // One tick = 0.15s, which equals one move at speed 50
 func (m *Model) stepForward() {
 	delta := config.UpdateInterval.Seconds()
+	m.elapsedGameTime += delta
+	m.actionLog.SetGameTime(m.elapsedGameTime)
 
 	// Update flash timer for status symbol cycling
 	m.flashTimer += delta

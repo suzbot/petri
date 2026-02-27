@@ -3334,3 +3334,80 @@ func TestDisplacement_ClearsUsingBFS(t *testing.T) {
 		t.Error("Expected UsingBFS=false after displacement initiation")
 	}
 }
+
+// =============================================================================
+// stepForward Tests
+// =============================================================================
+
+func TestStepForward_AdvancesGameTime(t *testing.T) {
+	t.Parallel()
+
+	// Setup: a model with some elapsed game time
+	m := Model{
+		phase:           phasePlaying,
+		paused:          true,
+		actionLog:       system.NewActionLog(100),
+		elapsedGameTime: 100.0,
+		gameMap:         game.NewMap(20, 20),
+	}
+	m.actionLog.SetGameTime(100.0)
+
+	// Act: step forward three times
+	m.stepForward()
+	m.stepForward()
+	m.stepForward()
+
+	// Assert: game time should have advanced by 3 ticks
+	delta := config.UpdateInterval.Seconds()
+	if m.elapsedGameTime <= 100.0 {
+		t.Errorf("elapsedGameTime should have advanced from 100.0, got %.6f", m.elapsedGameTime)
+	}
+	if m.elapsedGameTime < 100.0+delta*2.9 || m.elapsedGameTime > 100.0+delta*3.1 {
+		t.Errorf("elapsedGameTime should be ~%.4f after 3 steps, got %.6f", 100.0+delta*3, m.elapsedGameTime)
+	}
+
+	// Assert: action log game time should match model
+	if m.actionLog.GameTime() != m.elapsedGameTime {
+		t.Errorf("actionLog GameTime (%.6f) should match elapsedGameTime (%.6f)",
+			m.actionLog.GameTime(), m.elapsedGameTime)
+	}
+}
+
+func TestStepForward_EventsFromDifferentTicksHaveDistinctTimes(t *testing.T) {
+	t.Parallel()
+
+	// Setup: model with no characters (we'll add events manually to control timing)
+	actionLog := system.NewActionLog(100)
+	actionLog.SetGameTime(100.0)
+
+	m := Model{
+		phase:           phasePlaying,
+		paused:          true,
+		actionLog:       actionLog,
+		elapsedGameTime: 100.0,
+		gameMap:         game.NewMap(20, 20),
+	}
+
+	// Step tick 1, then add events (higher CharID first to test ordering)
+	m.stepForward()
+	m.actionLog.Add(2, "Bob", "test", "Tick 1 from Bob")
+	m.actionLog.Add(1, "Alice", "test", "Tick 1 from Alice")
+
+	// Step tick 2, then add events
+	m.stepForward()
+	m.actionLog.Add(2, "Bob", "test", "Tick 2 from Bob")
+	m.actionLog.Add(1, "Alice", "test", "Tick 2 from Alice")
+
+	// Assert: AllEvents sorts by time, so tick 1 events appear before tick 2
+	events := actionLog.AllEvents(100)
+
+	if len(events) != 4 {
+		t.Fatalf("Expected 4 events, got %d", len(events))
+	}
+
+	// Tick 1 events should come before tick 2 events
+	if events[0].GameTime >= events[2].GameTime {
+		t.Errorf("Tick 1 events (time=%.4f) should have earlier GameTime than tick 2 (time=%.4f)",
+			events[0].GameTime, events[2].GameTime)
+	}
+}
