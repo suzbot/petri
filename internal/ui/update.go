@@ -628,13 +628,13 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 					char.ActionProgress += delta
 					if char.ActionProgress >= duration {
 						char.ActionProgress = 0
-						if item := m.gameMap.ItemAt(types.Position{X: cx, Y: cy}); item == targetItem {
+						if m.gameMap.HasItemOnMap(targetItem) {
 							if isVesselWithFood {
 								// Eat from vessel contents (vessel stays on map)
-								system.ConsumeFromVessel(char, item, m.gameMap, m.actionLog)
+								system.ConsumeFromVessel(char, targetItem, m.gameMap, m.actionLog)
 							} else {
 								// Eat the item directly (removes from map)
-								system.Consume(char, item, m.gameMap, m.actionLog)
+								system.Consume(char, targetItem, m.gameMap, m.actionLog)
 							}
 						}
 					}
@@ -735,9 +735,8 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 				})
 				if vessel == nil {
 					// Check ground
-					vessel = m.gameMap.ItemAt(char.Pos())
-					if vessel != char.Intent.TargetItem {
-						vessel = nil
+					if m.gameMap.HasItemOnMap(char.Intent.TargetItem) {
+						vessel = char.Intent.TargetItem
 					}
 				}
 				if vessel != nil {
@@ -951,7 +950,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 					// Eat the carried item directly
 					system.ConsumeFromInventory(char, targetItem, m.gameMap, m.actionLog)
 				}
-			} else if m.gameMap.ItemAt(char.Pos()) == targetItem &&
+			} else if m.gameMap.HasItemOnMap(targetItem) &&
 				targetItem.Container != nil && len(targetItem.Container.Contents) > 0 &&
 				targetItem.Container.Contents[0].Variety.IsEdible() {
 				// Ground food vessel: eat in place without picking up
@@ -1195,8 +1194,8 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 			char.ActionProgress += delta
 			if char.ActionProgress >= config.ActionDurationShort {
 				char.ActionProgress = 0
-				if item := m.gameMap.ItemAt(ipos); item == target {
-					system.Pickup(char, item, m.gameMap, m.actionLog, m.gameMap.Varieties())
+				if m.gameMap.HasItemOnMap(target) {
+					system.Pickup(char, target, m.gameMap, m.actionLog, m.gameMap.Varieties())
 				}
 				// Foraging completes after one food item — go idle
 				// (Pickup already clears intent and sets idle cooldown for PickupToInventory)
@@ -1264,7 +1263,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		vessel := char.Intent.TargetItem
 
 		// Phase 1: vessel procurement (if vessel is on the ground)
-		vesselOnGround := vessel != nil && m.gameMap.ItemAt(vessel.Pos()) == vessel
+		vesselOnGround := vessel != nil && m.gameMap.HasItemOnMap(vessel)
 		if vesselOnGround {
 			status := system.RunVesselProcurement(char, vessel, m.gameMap, m.actionLog, m.gameMap.Varieties(), delta)
 			switch status {
@@ -1370,7 +1369,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		// Phase 1: procurement — TargetItem is on the ground
 		if target != nil {
 			ipos := target.Pos()
-			if m.gameMap.ItemAt(ipos) == target {
+			if m.gameMap.HasItemOnMap(target) {
 				if cpos.X == ipos.X && cpos.Y == ipos.Y {
 					// At food/vessel — pick up
 					char.ActionProgress += delta
@@ -1490,7 +1489,7 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		}
 
 		// Phase 1: vessel procurement (if vessel is on the ground)
-		vesselOnGround := vessel != nil && m.gameMap.ItemAt(vessel.Pos()) == vessel
+		vesselOnGround := vessel != nil && m.gameMap.HasItemOnMap(vessel)
 		if vesselOnGround {
 			status := system.RunVesselProcurement(char, vessel, m.gameMap, m.actionLog, m.gameMap.Varieties(), delta)
 			switch status {

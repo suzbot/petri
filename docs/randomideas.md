@@ -19,18 +19,6 @@ then they can be removed from this list.
 
    **Likely fix direction:** Monotonic sequence numbers on log entries (e.g., a tick counter) instead of or in addition to `GameTime` for ordering purposes. Also investigate whether the '.' step code path handles time advancement differently from the normal tick path.
 
-2. **Characters target unreachable/invisible items** — Observed during playtesting: a character would target an item, move toward it, but the item wasn't visible on the map. The character would spam movement attempts until a higher-priority need interrupted.
-
-   **Root cause (suspected):** No reachability or validity check at targeting time. Characters select items by iterating all world items and scoring by distance + preference. Two likely scenarios:
-   - **Stale reference after pickup:** Character A targets item X. Character B picks it up first. A's intent still holds a reference to item X, now in B's inventory and no longer on the map. A chases an invisible item.
-   - **Stacked items:** `ItemAt()` returns the first item at a position for rendering, but scoring sees all items. A character could target a second item at the same tile — invisible on screen but present in data.
-
-   **Steps to resolve:**
-   - Add diagnostic logging: when pathfinding fails for a targeted item, log the item description, its position, whether it's still on the map (`gameMap.ItemAt()`), and whether any character is carrying it. This makes the invisible-item scenario observable during playtesting.
-   - Audit intent invalidation: trace what happens to Character A's intent when Character B picks up the targeted item. Confirm whether there's a stale-reference gap.
-   - Audit item stacking: check whether multiple items can end up at the same position, and whether only the top one renders.
-   - Fix: either invalidate intents when items are picked up by others, or add a validity check (item still on map, reachable) at targeting time.
-
 
 ## UI Improvements
 

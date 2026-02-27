@@ -3279,6 +3279,38 @@ func TestContinueIntent_GroundWaterVessel_DoesNotConvertToConsumeForHunger(t *te
 	}
 }
 
+// Regression: two items stacked at the same tile. Character targets the second one.
+// continueIntent should NOT abandon the intent — the target is still on the map.
+func TestContinueIntent_StackedItems_DoesNotAbandonTarget(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPos(types.Position{X: 0, Y: 0})
+
+	gameMap := game.NewMap(20, 20)
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	mushroom := entity.NewMushroom(5, 5, types.ColorBlack, "", "", false, false)
+	gameMap.AddItem(berry)    // first at (5,5) — ItemAt returns this one
+	gameMap.AddItem(mushroom) // second at (5,5) — character targets this one
+
+	char.Intent = &entity.Intent{
+		Target:      types.Position{X: 1, Y: 0},
+		Action:      entity.ActionMove,
+		TargetItem:  mushroom,
+		DrivingStat: types.StatHunger,
+		DrivingTier: entity.TierModerate,
+	}
+
+	intent := continueIntent(char, 0, 0, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Should NOT abandon intent — target mushroom is still on the map, just stacked under berry")
+	}
+	if intent.TargetItem != mushroom {
+		t.Error("Should continue targeting the mushroom")
+	}
+}
+
 // Full inventory character can eat from ground food vessel (eat-in-place, no pickup)
 func TestFindFoodTarget_FullInventory_GroundFoodVesselStillSelected(t *testing.T) {
 	t.Parallel()

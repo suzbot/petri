@@ -768,6 +768,40 @@ func TestHasItemOnMap_TwoItemsSamePosition(t *testing.T) {
 	}
 }
 
+func TestItemsAt_ReturnsAllItemsAtPosition(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	item1 := entity.NewStick(5, 5)
+	item2 := entity.NewNut(5, 5) // same position
+	item3 := entity.NewStick(6, 6) // different position
+	m.AddItem(item1)
+	m.AddItem(item2)
+	m.AddItem(item3)
+
+	got := m.ItemsAt(types.Position{X: 5, Y: 5})
+	if len(got) != 2 {
+		t.Fatalf("ItemsAt(5,5) should return 2 items, got %d", len(got))
+	}
+
+	// Both items should be present (order matches insertion)
+	if got[0] != item1 || got[1] != item2 {
+		t.Error("ItemsAt should return both items at position")
+	}
+
+	// Different position returns only the item there
+	got2 := m.ItemsAt(types.Position{X: 6, Y: 6})
+	if len(got2) != 1 || got2[0] != item3 {
+		t.Error("ItemsAt(6,6) should return only item3")
+	}
+
+	// Empty position returns empty slice
+	got3 := m.ItemsAt(types.Position{X: 0, Y: 0})
+	if len(got3) != 0 {
+		t.Error("ItemsAt(0,0) should return empty slice")
+	}
+}
+
 // =============================================================================
 // Wet Tile Tests
 // =============================================================================

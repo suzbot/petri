@@ -341,7 +341,7 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	if intent.Action == entity.ActionFillVessel {
 		if intent.TargetItem != nil {
 			ipos := intent.TargetItem.Pos()
-			if gameMap.ItemAt(ipos) == intent.TargetItem {
+			if gameMap.HasItemOnMap(intent.TargetItem) {
 				// Phase 1: vessel is on the ground — recalculate toward it
 				if cx == ipos.X && cy == ipos.Y {
 					return intent // At vessel, ready for pickup
@@ -385,7 +385,7 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	if intent.Action == entity.ActionWaterGarden {
 		if intent.TargetItem != nil {
 			ipos := intent.TargetItem.Pos()
-			if gameMap.ItemAt(ipos) == intent.TargetItem {
+			if gameMap.HasItemOnMap(intent.TargetItem) {
 				// Phase 1: vessel is on the ground — recalculate toward it
 				if cx == ipos.X && cy == ipos.Y {
 					return intent // At vessel, ready for pickup
@@ -428,7 +428,7 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	if intent.Action == entity.ActionHelpFeed {
 		if intent.TargetItem != nil {
 			ipos := intent.TargetItem.Pos()
-			if gameMap.ItemAt(ipos) == intent.TargetItem {
+			if gameMap.HasItemOnMap(intent.TargetItem) {
 				// Phase 1: food is on the ground — recalculate toward it
 				if cx == ipos.X && cy == ipos.Y {
 					return intent // At food, ready for pickup
@@ -476,7 +476,7 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	if intent.Action == entity.ActionHelpWater {
 		if intent.TargetItem != nil {
 			ipos := intent.TargetItem.Pos()
-			if gameMap.ItemAt(ipos) == intent.TargetItem {
+			if gameMap.HasItemOnMap(intent.TargetItem) {
 				// Phase 1: vessel is on the ground — recalculate toward it
 				if cx == ipos.X && cy == ipos.Y {
 					return intent // At vessel, ready for pickup
@@ -531,10 +531,10 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		return intent
 	}
 
-	// Check if target item still exists at expected position (O(1) instead of O(n))
+	// Check if target item still exists on the map
 	if intent.TargetItem != nil {
 		ipos := intent.TargetItem.Pos()
-		if gameMap.ItemAt(ipos) != intent.TargetItem {
+		if !gameMap.HasItemOnMap(intent.TargetItem) {
 			return nil // Target consumed by someone else
 		}
 

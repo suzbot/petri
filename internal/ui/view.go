@@ -706,7 +706,11 @@ func (m Model) renderDetails() string {
 	// Check for character first, then item, then feature
 	cursorPos := types.Position{X: m.cursorX, Y: m.cursorY}
 	e := m.gameMap.EntityAt(cursorPos)
-	item := m.gameMap.ItemAt(cursorPos)
+	allItems := m.gameMap.ItemsAt(cursorPos)
+	var item *entity.Item
+	if len(allItems) > 0 {
+		item = allItems[0]
+	}
 	feature := m.gameMap.FeatureAt(cursorPos)
 
 	waterType := m.gameMap.WaterAt(cursorPos)
@@ -833,6 +837,14 @@ func (m Model) renderDetails() string {
 		if !m.editingCharacterName {
 			lines = append(lines, " Press E to edit name")
 		}
+		// Show items on the same tile as the character
+		if len(allItems) > 0 {
+			lines = append(lines, "")
+			lines = append(lines, " On ground:")
+			for _, groundItem := range allItems {
+				lines = append(lines, "   "+groundItem.Description())
+			}
+		}
 
 	} else if item != nil {
 		if item.Plant != nil && item.Plant.IsSprout {
@@ -920,6 +932,14 @@ func (m Model) renderDetails() string {
 			lines = append(lines, " "+waterStyle.Render(label))
 		} else if m.gameMap.IsWet(cursorPos) {
 			lines = append(lines, " "+waterStyle.Render("Wet"))
+		}
+		// Show additional items stacked at this position
+		if len(allItems) > 1 {
+			lines = append(lines, "")
+			lines = append(lines, " Also here:")
+			for _, other := range allItems[1:] {
+				lines = append(lines, "   "+other.Description())
+			}
 		}
 	} else if waterType != game.WaterNone {
 		lines = append(lines, " Type: Water")

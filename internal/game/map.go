@@ -219,6 +219,17 @@ func (m *Map) ItemAt(pos types.Position) *entity.Item {
 	return nil
 }
 
+// ItemsAt returns all items at the given position.
+func (m *Map) ItemsAt(pos types.Position) []*entity.Item {
+	var result []*entity.Item
+	for _, item := range m.items {
+		if item.Pos() == pos {
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
 // HasItemOnMap returns true if the given item pointer is in the map's item list.
 func (m *Map) HasItemOnMap(item *entity.Item) bool {
 	for _, i := range m.items {
