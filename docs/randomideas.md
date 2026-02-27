@@ -49,23 +49,6 @@ then they can be removed from this list.
 ## Unallocated Features
 
 
-2. **Helping** — Characters help community members in crisis by finding and delivering items to address their needs. The community is helpful at baseline — this isn't a rare event, it's the default social response to crisis.
-
-   **Handoff:** Helper drops item adjacent to the needy character. The needy character's existing food/water scoring picks it up naturally — no direct "give" action needed.
-
-   **Trigger pattern (needs refinement — compare these during design):**
-   - **A. Order-like:** When a character hits crisis, a "help" order is implicitly created. First eligible character takes it.
-   - **B. Need-like:** Closest character treats the needy character's crisis as their own overriding need, interrupting whatever they're doing (idle or working).
-   - **C. Idle override:** Characters doing an idle roll are forced to choose helping as long as someone is in crisis. Multiple idle helpers may respond simultaneously.
-
-   Not limited to idle characters — working characters should be able to help too. Size based on largest option (B, which interrupts any activity).
-
-   **Item selection:** Helper chooses an item the way they'd choose food for themselves if they had the needy character's hunger level. Formula: `(Helper's Pref × Needer's severity weight) - (Helper's Distance × Needer's severity weight) - (Needer's Fit Delta)`. This naturally biases toward carried items (distance=0), incorporates the helper's poison/healing knowledge if they have it, and scales urgency against distance. Helper does not need to share knowledge — they just use their own knowledge when scoring.
-
-   **Multi-step flow:** Helper may need to go find an item (not just give what they're carrying). Existing patterns for multi-step idle activities and ordered actions handle this. Helper drops unhelpful items if inventory is full, picks up the selected item, navigates to needy character, drops it adjacent.
-
-   **Resumption:** Helper resumes their previous order if they had one assigned.
-
 3. **Activity Preferences** — Characters form opinions about order categories (Garden, Harvest, Craft) through experience, similar to how food preferences form from eating.
 
    **Formation:** Chance to form a preference for the order's activity category on order completion, based on mood (same trigger conditions as item preference formation — Joyful/Happy → like, Unhappy/Miserable → dislike). Same formation chance as item preferences initially; can be tuned separately later if needed.

@@ -99,11 +99,11 @@ _(Action pattern unification investigation moved to [post-gardening-cleanup.md](
 
 **`continueIntent` early-return block consolidation:**
 
-`continueIntent` (movement.go) has action-specific early-return blocks for actions whose `TargetItem` can be in different locations across phases (ground vs inventory). Current blocks: `ActionConsume`, `ActionDrink` (carried vessel), `ActionFillVessel`, `ActionWaterGarden`, `ActionHelpFeed`. These exist because the generic path's `ItemAt` check would nil the intent when the item moves to inventory.
+`continueIntent` (movement.go) has action-specific early-return blocks for actions whose `TargetItem` can be in different locations across phases (ground vs inventory). Current blocks: `ActionConsume`, `ActionDrink` (carried vessel), `ActionFillVessel`, `ActionWaterGarden`, `ActionHelpFeed`, `ActionHelpWater`. These exist because the generic path's `ItemAt` check would nil the intent when the item moves to inventory.
 
 The blocks share a common shape: check if item is in inventory → return unchanged (no movement needed) or recalculate toward `Dest`. If this grows to 5+ blocks, evaluate whether a general "multi-phase item tracking" pattern could replace per-action blocks — e.g., a helper that checks inventory-then-map for `TargetItem` and recalculates accordingly, called by each action's block or replacing them entirely.
 
-Don't consolidate prematurely — the current 4 blocks are manageable and each has slight phase-detection differences. The trigger is when adding a new block feels like copy-paste.
+Don't consolidate prematurely — each block has slight phase-detection differences. The trigger is when adding a new block feels like copy-paste. With 6 blocks now present, this trigger is met — evaluate on the next multi-phase action addition.
 
 ---
 

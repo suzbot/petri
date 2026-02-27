@@ -212,7 +212,7 @@ Characters help community members in crisis by finding and delivering items. Hel
 
 ---
 
-### Step 3: helpWater (Thirst Crisis Response)
+### ✅ Step 3: helpWater (Thirst Crisis Response)
 
 **Anchor story:** A character hits Crisis thirst. An idle character nearby finds an empty vessel on the ground, picks it up, fills it at the pond, walks to the thirsty character, and drops the water vessel next to them. The thirsty character's drink scoring finds the ground water vessel and drinks from it. If the helper was already carrying a water vessel, they skip procurement and fill, walking straight to the dehydrated character.
 
@@ -260,8 +260,11 @@ Characters help community members in crisis by finding and delivering items. Hel
 5. **`findHelpWaterIntent`** (new function, `system/helping.go`): Determines water delivery approach based on helper's current state:
    - Helper carrying full water vessel → create intent: `ActionHelpWater`, `Dest` = needer's position, `TargetCharacter` = needer, `TargetItem` = vessel. Skip to delivery.
    - Helper carrying empty vessel → create intent: `ActionHelpWater`, `TargetItem` = vessel, `TargetCharacter` = needer. Fill phase: `RunWaterFill` finds water and navigates.
-   - No vessel in inventory, has inventory space → find nearest empty ground vessel via `findEmptyGroundVessel` (fetch_water.go). Create intent: `ActionHelpWater`, `TargetItem` = ground vessel, `TargetCharacter` = needer. Procurement phase first.
+   - No vessel in inventory, has inventory space → find nearest ground water vessel via `findGroundWaterVessel` (fetch_water.go). If found, procurement intent (pick up, handler skips fill since vessel has water, goes straight to delivery).
+   - No ground water vessel → find nearest empty ground vessel via `findEmptyGroundVessel` (fetch_water.go). Procurement → fill → delivery.
    - No vessel available anywhere (no carried vessel, no ground vessel, no inventory space) → return nil (can't help).
+
+   **Ground water vessel support** (added during human testing): All three water-getting flows (`findHelpWaterIntent`, `findFetchWaterIntent`, `findWaterGardenIntent`) share the pattern "ensure I have a vessel with water." A shared `findGroundWaterVessel(pos, items)` helper (mirrors `findEmptyGroundVessel`) enables all three to pick up already-filled ground vessels. Each flow adds the check at its natural point — after inventory checks, before ground empty vessel fallback. No handler changes needed; existing phase detection works correctly once the water vessel is in inventory.
 
 6. **`ActionHelpWater` handler** (`ui/update.go`, `applyIntent`): Self-managing phases detected by world state. Follows ActionFillVessel's structure (update.go lines 1207-1241) for procurement and fill, then adds delivery.
 
@@ -303,11 +306,13 @@ Characters help community members in crisis by finding and delivering items. Hel
    - On intent creation: "[Helper] is fetching water for [Needer]"
    - On drop: "[Helper] brought water to [Needer]"
 
-[TEST] Create a test world with a character near Crisis thirst, an empty vessel, and a water source:
+✅ [TEST] Create a test world with a character near Crisis thirst, an empty vessel, and a water source:
 - Idle character notices crisis, picks up vessel, fills at pond, delivers to thirsty character
 - Thirsty character drinks from the delivered ground water vessel
 - Helper already carrying water skips procurement and fill, walks directly to needer
 - Helper carrying empty vessel fills it then delivers
+- Helper picks up ground water vessel (already filled) and delivers directly (skips fill)
+- Helper picks up ground empty vessel, fills at pond, delivers
 - No vessel available → helper does normal idle activity
 - No vessel available but needer also has Crisis hunger → helper brings food instead (fallback)
 - Two crisis characters at different distances → helper targets nearer one regardless of crisis type
@@ -321,6 +326,6 @@ Characters help community members in crisis by finding and delivering items. Hel
 ### Step 4: [DOCS] + [RETRO]
 
 After all three steps are human-tested and confirmed working:
-- [DOCS] Update game-mechanics.md, architecture.md, CLAUDE.md via `/update-docs`
+- ✅ [DOCS] Update game-mechanics.md, architecture.md, CLAUDE.md via `/update-docs`
 - [RETRO] Run `/retro` on the full helping feature
-- Update randomideas.md: move Helping from "Ready Ideas" to completed, keep deferred items (Option B trigger, health crisis, inventory management) as future enhancements
+- ✅ Update randomideas.md: remove Helping from "Unallocated Features"; deferred items (Option B trigger, health crisis, inventory management) remain as future enhancements

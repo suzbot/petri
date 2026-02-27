@@ -33,6 +33,7 @@ Based on the test description, determine:
 - If testing orderable activities, ensure characters have the required `known_activities` AND `known_recipes`. Check ActivityRegistry and RecipeRegistry for the activity's prerequisites.
 - What items/features are needed for supporting needs (water for thirst, leaf piles for sleep)?
 - What should be excluded to isolate the behavior?
+- **Observability:** For behavioral sequences (A does X before B does Y), ensure the world forces the intended sequence — use position and stat asymmetry so the behavior can't play out ambiguously. Prefer one item, one actor for the key narrative. Ask: "Could a race condition obscure what I'm testing?"
 
 ### Step 3: Create World Directory
 

@@ -194,6 +194,8 @@ Some actions manage their full lifecycle across multiple phases without returnin
 **Current self-managing actions:**
 - `ActionFillVessel` — Phase 1: procure empty vessel (if on ground). Phase 2: move to water and fill.
 - `ActionForage` — Phase 1: procure vessel (optional, based on scoring). Phase 2: move to food and pick up.
+- `ActionHelpFeed` — Phase 1: procure food (if not already carried). Phase 2: walk to needer. Phase 3: drop food cardinal-adjacent to needer.
+- `ActionHelpWater` — Phase 1: procure vessel (if not already carried). Phase 2: fill at water (if vessel empty). Phase 3: walk to needer. Phase 4: drop water vessel cardinal-adjacent to needer. Falls back to helpFeed if no vessel is available but needer also has Crisis hunger.
 
 **Shared tick helpers** (`picking.go`): Self-managing actions reuse shared helpers rather than duplicating logic:
 
@@ -216,6 +218,8 @@ Action handler pseudocode:
     // Main phase: do the real work
 ```
 
+**Critical: `char.Intent` is nil after `ProcureReady`.** `RunVesselProcurement` calls `Pickup()`, which nils `char.Intent`. If the handler falls through to a subsequent phase (rather than clearing intent and returning), it must rebuild `char.Intent` before calling `moveWithCollision` or accessing `char.Intent` fields. This applies even when the handler uses a captured `vessel` variable from the top of the case — the variable is still valid, but `char.Intent` is not. Handlers that clear intent and return on `ProcureReady` (e.g., `ActionWaterGarden`) avoid this because re-evaluation rebuilds intent next tick. Handlers that fall through (e.g., `ActionHelpWater`, `ActionFillVessel`) must check world state and rebuild intent for the correct next phase.
+
 **Phase detection:** Handlers detect their current phase by checking world state (e.g., "is my target vessel on the ground or in inventory?") rather than storing explicit phase numbers. This is stateless and survives save/load without additional serialization.
 
 **Why not centralize in ActionPickup?** An earlier design considered routing all post-pickup decisions through the `ActionPickup` handler. This was rejected because it creates a central dispatcher that must understand every context — the opposite of self-managing. It scales poorly as new multi-phase activities are added. Self-managing actions distribute that knowledge to the actions that need it.
@@ -233,7 +237,7 @@ Action handler pseudocode:
 **The decision rule for new actions:**
 
 - **Needs an early-return block if:** Your action's `TargetItem` can be in the character's inventory (not on the map) during any phase. The generic path's `ItemAt` check would nil the intent when the item moves to inventory.
-  - Examples: `ActionConsume` (food in inventory), `ActionDrink` (carried vessel), `ActionFillVessel` (vessel moves ground → inventory), `ActionWaterGarden` (vessel moves ground → inventory), `ActionHelpFeed` (food moves ground → inventory during procurement)
+  - Examples: `ActionConsume` (food in inventory), `ActionDrink` (carried vessel), `ActionFillVessel` (vessel moves ground → inventory), `ActionWaterGarden` (vessel moves ground → inventory), `ActionHelpFeed` (food moves ground → inventory during procurement), `ActionHelpWater` (vessel moves ground → inventory; three navigation targets across phases)
 
 - **Uses the generic path if:** Your action's `TargetItem` stays on the map throughout, targets a character, targets a position, or has no `TargetItem`.
   - Examples: `ActionLook` (item stays on map), `ActionTalk` (targets character via Dest), `ActionTillSoil` (targets position), `ActionPickup` (item on map until picked up), `ActionConsume` targeting a ground food vessel (vessel stays on map; arrival detected in the handler)
@@ -256,7 +260,7 @@ Three checklists organized by category. Each includes every touchpoint; see the 
 **Adding an Idle Activity** (e.g., ActionLook, ActionTalk, ActionForage, ActionFillVessel):
 
 1. Action constant in `character.go`
-2. Activity entry in `ActivityRegistry` (`entity/activity.go`) — omit if the activity is a pre-roll override (like `ActionHelpFeed`) rather than a rolled idle activity
+2. Activity entry in `ActivityRegistry` (`entity/activity.go`) — omit if the activity is a pre-roll override (like `ActionHelpFeed`, `ActionHelpWater`) rather than a rolled idle activity
 3. Intent finder (location depends on context: `movement.go` for social/observation, `foraging.go` for food-seeking, `picking.go` for resource-seeking, `helping.go` for crisis response)
 4. Wire into `selectIdleActivity` in `idle.go` — either as a pre-roll override (checked before the roll) or as a rollable option
 5. Add action to `isIdleAction` in `idle.go` if the action should be treated as idle for talking availability (i.e., it is a true idle activity, not a helping/delivery action). `isIdleAction` checks `ActionType` enum — simpler and more robust than string matching.

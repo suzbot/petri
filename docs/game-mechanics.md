@@ -315,23 +315,27 @@ Characters pick up edible items to carry:
 
 ### Fetch Water
 
-Characters fill empty vessels with water:
-- Seeks an empty vessel (carried or on ground), then moves to nearest water source
-- Fills vessel with water (liquid stack)
+Characters fill vessels with water to carry:
 - Skipped if already carrying water in a vessel
-- Characters with non-water vessel contents seek a different empty vessel
+- Prefers a ground vessel already filled with water (pick up and carry — no fill phase)
+- Otherwise seeks an empty vessel (carried or on ground), then moves to nearest water source and fills it
+- Characters with non-water vessel contents seek a different vessel
 
 ### Helping (Crisis Response)
 
-Before the idle roll, characters check if any community member is in Crisis hunger. If so, the idle character attempts to deliver food rather than doing a random idle activity.
+Before the idle roll, characters check if any community member is in Crisis hunger or thirst. If so, the idle character attempts to deliver food or water rather than doing a random idle activity.
 
-**Trigger:** Another character reaches Crisis hunger (see stat thresholds above). Multiple idle characters may respond to the same crisis simultaneously.
+**Trigger:** Another character reaches Crisis hunger or thirst (see stat thresholds above). The nearest character in crisis is targeted first — distance is the primary criterion. For equidistant characters, thirst takes priority over hunger. Multiple idle characters may respond to the same crisis simultaneously.
 
-**Food selection:** Helper scores available food using their own knowledge and preferences (poison avoidance, healing awareness, preference weights) with Severe-tier scoring weights — not the needer's Crisis-tier weights. This preserves the helper's judgment: they avoid known poisons and prefer more fitting food, while still prioritizing proximity. Satiation fit uses the needer's hunger level (100), so larger meals score better. Four candidate pools are scored: helper's carried loose food (distance 0), helper's carried food vessel (distance 0), ground loose food, and ground food vessels.
+**Food delivery (helpFeed):** Triggered when the nearest crisis character has Crisis hunger. Helper scores available food using their own knowledge and preferences (poison avoidance, healing awareness, preference weights) with Severe-tier scoring weights — not the needer's Crisis-tier weights. This preserves the helper's judgment: they avoid known poisons and prefer more fitting food, while still prioritizing proximity. Satiation fit uses the needer's hunger level (100), so larger meals score better. Four candidate pools are scored: helper's carried loose food (distance 0), helper's carried food vessel (distance 0), ground loose food, and ground food vessels.
 
-**Delivery flow:** If the helper already carries food, they walk directly to the needy character. Otherwise, they procure food first (walk to it, pick it up), then deliver. The helper drops food on a cardinal-adjacent empty tile next to the needy character and calls out — visible in the action log as a social event (e.g., "Ada called out to Kira"). The call causes the needy character to re-evaluate, so they notice the closer delivered food instead of continuing toward a distant source.
+If the helper already carries food, they walk directly to the needy character. Otherwise, they procure food first (walk to it, pick it up), then deliver. The helper drops food on a cardinal-adjacent empty tile next to the needy character and calls out — visible in the action log as a social event (e.g., "Ada called out to Kira"). The call causes the needy character to re-evaluate, so they notice the closer delivered food instead of continuing toward a distant source.
 
-**Limits:** Helpers with a full inventory and no food fall through to the normal idle roll. Helpers commit to delivery once started — no abandonment except when no food candidate can be found.
+**Water delivery (helpWater):** Triggered when the nearest crisis character has Crisis thirst. Helper procures a vessel with water and delivers it. The helper checks in order: carried water vessel (walk directly to needer), carried empty vessel (fill at water then deliver), ground water vessel (pick up and deliver, no fill needed), ground empty vessel (pick up, fill at water, deliver). If no vessel is available anywhere and the same crisis character also has Crisis hunger, the helper falls back to food delivery.
+
+**Delivery:** In both cases, the helper drops the item on a cardinal-adjacent empty tile next to the needy character. The needy character's existing food/water scoring finds the delivered item naturally — ground food vessels and ground water vessels are already candidate sources.
+
+**Limits:** Helpers with a full inventory and no usable food or vessel fall through to the normal idle roll. Helpers commit to delivery once started — no abandonment except when no candidate can be found.
 
 ## Knowledge & Know-how
 

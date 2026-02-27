@@ -18,7 +18,7 @@ Examples: Fetch Water tests validated ActionPickup returns while the actual requ
 
 Before working on a solution, confirm the problem. Is this actually a problem? What specifically is it? Is it worth solving now? Only after those questions have answers — from discussion, not assumed — should solution work begin.
 
-The failure mode is momentum: something looks wrong, so fixing begins immediately. A test fails, so debugging starts before asking whether the test is correct. Investigation is expected to produce action items, so it produces one even when the honest answer is "nothing needs to change." The cost of pausing is low; the cost of solving the wrong problem compounds across every phase that inherits the unexamined premise.
+The failure mode is momentum: something looks wrong, so fixing begins immediately. A test fails, so debugging starts before asking whether the test is correct. Investigation is expected to produce action items, so it produces one even when the honest answer is "nothing needs to change." This applies equally mid-implementation — when human testing surfaces a new gap, that's a new problem to scope and discuss, not a code defect to fix in place. The cost of pausing is low; the cost of solving the wrong problem compounds across every phase that inherits the unexamined premise.
 
 When the situation diverges from expectations, make that divergence visible and get agreement before acting on it.
 
@@ -52,6 +52,8 @@ When a new case resembles an existing pattern, give preference to that pattern �
 **Every piece of data should live in one place.** Don't reconstruct a field from surrounding context when the entity should carry it. "Where does this value rightfully live?" is a design question worth asking before writing code.
 
 **Don't duplicate logic across call sites.** When multiple actions need the same behavior, extract a shared helper rather than copying the logic. Duplication means bug fixes and behavior changes must be applied in multiple places — and they won't be. (EnsureHasVesselFor, FindNextVesselTarget, and the pickup helpers in picking.go all exist because multiple actions needed the same procurement/continuation logic.)
+
+**When fixing a gap, check sibling flows.** A gap in one flow likely exists in every flow with the same structure. Ground water vessel support was missing from helpWater — but fetchWater and waterGarden had the same gap because all three share the "ensure I have a vessel with water" pattern.
 
 Examples: Kind on ItemVariety mirrors Edible on ItemVariety. FindVesselContaining checked whether FindAvailableVessel could serve the need first — it couldn't, but the analysis confirmed the new utility should be a structural sibling. item.Kind belongs on ItemVariety, not reconstructed from order.targetType.
 
