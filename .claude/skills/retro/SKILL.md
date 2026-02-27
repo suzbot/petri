@@ -109,7 +109,12 @@ A. Assess whether Step 1 insights revealed **clear, recurring, or token/context-
     - Explain **why it is worth the cost**
     - Specify **what future context, effort, or friction it saves**
     - Keep recommendations minimal, concrete, and scoped
-    - **Prefer docs, skills, or agents over CLAUDE.md or Memories** — CLAUDE.md and Memories are always-loaded context and should stay lightweight. Place refinements where they'll be loaded contextually.
+    - **Route proposals to the right home:**
+      - **Design values** (how to think about the game/code/player) → `docs/Values.md`
+      - **Communication norms** (how to present, qualify, escalate) → CLAUDE.md Collaboration section. ≤15 words per bullet. Combine with thematically related existing bullets rather than adding new ones.
+      - **Workflow-specific guardrails** (when to stop, what to check) → the relevant skill in `.claude/skills/`
+      - **Technical notes** — broad patterns → `docs/architecture.md`; implementation-specific pitfalls → relevant skill or `memory/MEMORY.md`
+      - Avoid mixing categories: communication norms don't belong in Values.md; design values don't belong in CLAUDE.md.
     - **Build on what exists** — if Values.md or a skill already covers the topic, propose strengthening (new example, broader wording, better placement) rather than creating parallel content. Cite what you found in Step 1.5.
     - **Match the target file's format and density.** Skills are terse reference outlines, not prose. Proposals should edit existing bullets or add short ones — not insert paragraphs into a file that uses bullet points. Show the exact edit (old text → new text). Aim for ≤15 new words per change when strengthening existing text.
 

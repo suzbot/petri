@@ -49,6 +49,7 @@ model: sonnet
 **When to stop coding and invoke `/refine-feature`:**
 - You're proposing design alternatives, not just implementation details
 - You're re-deriving an approach you already considered (first: re-read architecture.md; second: `/refine-feature`; if circling on a test failure: run a diagnostic instead)
+- You've been stuck for several minutes without progress — surface what's blocking you instead of churning
 
 #### Test Patterns Reference
 

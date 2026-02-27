@@ -73,6 +73,7 @@ Start from the **recipe template** below, then customize for the test scenario.
 - All items need fields matching the `ItemSave` struct in `state.go`. See templates below for common examples.
 - **Position format**: Characters, items, features, and water tiles all use flat `"x": N, "y": N` fields (NOT nested `"position": {"x": N, "y": N}`)
 - **Vessel availability:** If testing a behavior that uses vessels, provide enough vessels to fill both inventory slots per character. Characters may autonomously pick up vessels for other idle activities (forage, fetch water) before the target behavior triggers — extra vessels prevent this from blocking the test.
+- **Order-item match:** If testing orders, verify test items match the order's target type (e.g., growing plants for harvest, not loose berries).
 
 #### Type Reference
 

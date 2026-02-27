@@ -42,4 +42,6 @@ Read `docs/architecture.md` for the complete reference and details on desired pa
 
 ---
 
+**Visual reference:** See [docs/flow-diagrams.md](docs/flow-diagrams.md) for call graphs, intent priority hierarchy, and multi-phase action state machines.
+
 **Next step:** Read the specific section of `docs/architecture.md` relevant to your task, then explore the code files listed there.
