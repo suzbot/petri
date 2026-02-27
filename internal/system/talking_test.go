@@ -215,14 +215,14 @@ func TestFindTalkIntent_SkipsCharactersWithActiveNeeds(t *testing.T) {
 }
 
 // =============================================================================
-// isIdleAction helper (tests moved to helping_test.go)
+// isDiscretionaryAction helper (tests moved to helping_test.go)
 // =============================================================================
 
 // =============================================================================
-// selectIdleActivity
+// selectDiscretionaryActivity
 // =============================================================================
 
-func TestSelectIdleActivity_ReturnsNilWhenCooldownActive(t *testing.T) {
+func TestSelectDiscretionaryActivity_ReturnsNilWhenCooldownActive(t *testing.T) {
 	t.Parallel()
 
 	char := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
@@ -235,14 +235,14 @@ func TestSelectIdleActivity_ReturnsNilWhenCooldownActive(t *testing.T) {
 	item := entity.NewFlower(6, 5, types.ColorPurple)
 	items := []*entity.Item{item}
 
-	intent := selectIdleActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil, nil)
+	intent := selectDiscretionaryActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil)
 
 	if intent != nil {
 		t.Error("Should return nil when cooldown is active")
 	}
 }
 
-func TestSelectIdleActivity_SetsCooldownWhenCalled(t *testing.T) {
+func TestSelectDiscretionaryActivity_SetsCooldownWhenCalled(t *testing.T) {
 	t.Parallel()
 
 	char := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
@@ -254,14 +254,14 @@ func TestSelectIdleActivity_SetsCooldownWhenCalled(t *testing.T) {
 	items := []*entity.Item{}
 
 	// Call multiple times - cooldown should be set
-	selectIdleActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil, nil)
+	selectDiscretionaryActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil)
 
 	if char.IdleCooldown <= 0 {
 		t.Error("Should set IdleCooldown after being called")
 	}
 }
 
-func TestSelectIdleActivity_ReturnsVariedIntents(t *testing.T) {
+func TestSelectDiscretionaryActivity_ReturnsVariedIntents(t *testing.T) {
 	t.Parallel()
 
 	// Run multiple times and track what we get
@@ -285,7 +285,7 @@ func TestSelectIdleActivity_ReturnsVariedIntents(t *testing.T) {
 		char.IdleCooldown = 0
 		gameMap.AddCharacter(char)
 
-		intent := selectIdleActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil, nil)
+		intent := selectDiscretionaryActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil)
 
 		if intent == nil {
 			idleCount++
@@ -309,7 +309,7 @@ func TestSelectIdleActivity_ReturnsVariedIntents(t *testing.T) {
 	}
 }
 
-func TestSelectIdleActivity_FallsBackWhenLookingNotPossible(t *testing.T) {
+func TestSelectDiscretionaryActivity_FallsBackWhenLookingNotPossible(t *testing.T) {
 	t.Parallel()
 
 	// No items - looking not possible
@@ -328,7 +328,7 @@ func TestSelectIdleActivity_FallsBackWhenLookingNotPossible(t *testing.T) {
 		char.IdleCooldown = 0
 		gameMap.AddCharacter(char)
 
-		intent := selectIdleActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil, nil)
+		intent := selectDiscretionaryActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil)
 
 		if intent != nil && intent.TargetItem != nil {
 			t.Error("Should not return looking intent when no items exist")
@@ -336,7 +336,7 @@ func TestSelectIdleActivity_FallsBackWhenLookingNotPossible(t *testing.T) {
 	}
 }
 
-func TestSelectIdleActivity_FallsBackWhenTalkingNotPossible(t *testing.T) {
+func TestSelectDiscretionaryActivity_FallsBackWhenTalkingNotPossible(t *testing.T) {
 	t.Parallel()
 
 	// Add an item for looking
@@ -353,7 +353,7 @@ func TestSelectIdleActivity_FallsBackWhenTalkingNotPossible(t *testing.T) {
 		char.IdleCooldown = 0
 		gameMap.AddCharacter(char)
 
-		intent := selectIdleActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil, nil)
+		intent := selectDiscretionaryActivity(char, types.Position{X: 5, Y: 5}, items, gameMap, nil)
 
 		if intent != nil && intent.TargetCharacter != nil {
 			t.Error("Should not return talking intent when no other characters exist")

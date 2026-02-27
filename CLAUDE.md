@@ -63,7 +63,8 @@ internal/
 
 **Core Systems**
 
-- `internal/system/intent.go` - Intent calculation, urgency tiers, stat fallback:
+- `internal/system/intent.go` - Intent calculation, urgency tiers, stat fallback, need evaluators (findFoodIntent, findDrinkIntent, etc.), feasibility checks, carried-inventory checks
+- `internal/system/movement.go` - Spatial mechanics only: NextStepBFS, pathfinding, tile queries, adjacency checks
 - `internal/system/survival.go` - Stat decay, damage, sleep/wake mechanics
 - `internal/system/consumption.go` - Eating, drinking, poison/healing effects
 - `internal/system/preference.go` - Preference formation on eat/look

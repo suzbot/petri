@@ -11,6 +11,7 @@ then they can be removed from this list.
 
 ## Issues To resolve
 
+1. **"Can't find bed" message spam** — Observed Mog spamming "can't find bed" messages. May be related to repeated sleep intent evaluation when no bed is available. Monitor for recurrence.
 
 ## UI Improvements
 

@@ -867,7 +867,7 @@ func TestOrderLifecycle_ResumesAfterTargetTaken(t *testing.T) {
 	char.Intent = intent // Character still has old intent
 
 	// On next tick, continueIntent should fail (target gone)
-	// Then selectIdleActivity -> selectOrderActivity should find berry2
+	// Then selectOrderActivity should find berry2
 	items = gameMap.Items()
 	intent2 := CalculateIntent(char, items, gameMap, nil, orders)
 

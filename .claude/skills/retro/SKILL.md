@@ -109,8 +109,9 @@ A. Assess whether Step 1 insights revealed **clear, recurring, or token/context-
     - Explain **why it is worth the cost**
     - Specify **what future context, effort, or friction it saves**
     - Keep recommendations minimal, concrete, and scoped
-    - **Prefer docs, skills, or agents over CLAUDE.md or Memories** — CLAUDE.md and Memories are always-loaded context and should stay lightweight and should only contain broadly applicable notes. Place refinements where they'll be loaded contextually.
+    - **Prefer docs, skills, or agents over CLAUDE.md or Memories** — CLAUDE.md and Memories are always-loaded context and should stay lightweight. Place refinements where they'll be loaded contextually.
     - **Build on what exists** — if Values.md or a skill already covers the topic, propose strengthening (new example, broader wording, better placement) rather than creating parallel content. Cite what you found in Step 1.5.
+    - **Match the target file's format and density.** Skills are terse reference outlines, not prose. Proposals should edit existing bullets or add short ones — not insert paragraphs into a file that uses bullet points. Show the exact edit (old text → new text). Aim for ≤15 new words per change when strengthening existing text.
 
 - If No: changes do not clearly pass the cost-benefit threshold
   - Did the user request the retro? If so, provide the analysis and the reasoning for no change.

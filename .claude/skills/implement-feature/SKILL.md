@@ -12,62 +12,70 @@ model: sonnet
 
 ### Step 1: Load the Plan
 - Read the **phase plan document** in `docs/` — find the step(s) to implement
-- Read the **relevant sections of `docs/architecture.md`** that the plan references — confirm you understand the patterns this step extends
-- Read **`docs/Values.md`** — these are the design principles that implementation must not drift from
-- Do NOT re-read the full requirements doc — the plan should capture what matters. Only consult requirements if the plan explicitly flags an open question.
+- Read the **relevant sections of `docs/architecture.md`** that the plan references
+- Read **`docs/Values.md`**
+- Do NOT re-read the full requirements doc unless the plan explicitly flags an open question
 
-### Step 2: Ready-for-Coding Checklist (REQUIRED)
-**Do NOT write code yet.** Run through this checklist before any implementation. The goal is to confirm the step is implementation-ready without relitigating design — check for presence and alignment, not correctness of decisions already made.
+### Step 2: Validate Readiness (REQUIRED)
+**Do NOT write code yet.** Confirm the step is implementation-ready — check for presence and alignment, not correctness of decisions already made.
 
 **Plan completeness — does the step have:**
-- [ ] Anchor story (1-2 sentence narrative of what the user/character experiences). This is what you derive anchor tests from — without it, tests validate code structure instead of user intent.
-- [ ] Detailed implementation breakdown (not "TBD", "high-level scope", or single-line bullets)
+- [ ] Anchor story (1-2 sentence narrative of what the user/character experiences — this is what you derive tests from)
+- [ ] Detailed implementation breakdown (not "TBD" or single-line bullets)
 - [ ] Architecture patterns named explicitly (e.g., "follows ordered action pattern" not just "follows existing pattern")
 - [ ] Tests listed before implementation tasks (TDD order)
-- [ ] [TEST] checkpoint with what to verify (or explicit note why human testing isn't possible at this step)
-- [ ] [RETRO] checkpoint (context is easily lost — retros should be frequent)
-- [ ] No unresolved design questions flagged in the plan
+- [ ] [TEST] checkpoint (or explicit note why human testing isn't possible)
+- [ ] [RETRO] checkpoint
 
-**If any box is unchecked: stop and invoke `/refine-feature` to complete the plan before proceeding.** Do not attempt to fill in gaps yourself — this model is not set up for design work. **After returning from `/refine-feature`, re-invoke `/implement-feature` from the top** — re-read the plan and re-run this checklist. Do not resume mid-skill. This is a hard rule, not a guideline — skipping the restart causes context drift and circular reasoning.
+**Pattern alignment:**
+- Cite the architecture.md section and state how it applies — don't just assert "follows existing pattern"
+- Verify patterns match current code (patterns may have evolved since planning)
+- When the plan changes a constant or behavior, grep all usage sites and verify the plan addresses each one
 
-**Pattern alignment — verify against code and docs:**
-- Confirm the architecture patterns referenced in the plan exist in `docs/architecture.md` and match current usage — show evidence of this check (cite section, state how it applies)
-- Verify the plan's pattern references match what's actually in the code (patterns may have evolved since planning)
-- Verify no code changes since planning invalidate the approach
-- When the plan changes a constant, threshold, or behavior, grep for all usage sites in the codebase and verify the plan addresses each one. A constant used in two handlers needs both updated — the plan may have identified only the primary one.
+**If any box is unchecked or alignment issues found:** invoke `/refine-feature`. After returning, re-invoke `/implement-feature` from the top — do not resume mid-skill.
 
-**If the plan is complete and aligned: say so and move on.** No need to generate discussion where none is needed. If genuine issues are found: present them and re-invoke `/refine-feature` to update the plan before proceeding.
+**Wait for explicit user confirmation before writing any code.**
 
-Get user confirmation to proceed.
+### Step 3: Implement (TDD)
 
-### Step 3: TDD Implementation
-Once approach is confirmed:
-- Write tests first
-  - **Anchor tests to requirements, not implementation.** The plan should include an anchor story per step (a 1-2 sentence narrative of what the user/character experiences). Restate that story in one sentence, then write at least one test that validates the end-to-end intent. Implementation-path tests are fine as supplements, but the anchor test should be: "does the user's described outcome happen?" A test like "returns ActionPickup" validates code structure; a test like "ground vessel ends up filled with water after action completes" validates intent. If the plan is missing its anchor story, that's a signal to invoke `/refine-feature` — you need the "why" before you can test the "what."
-  - **Don't assert on exact log/activity wording** (per CLAUDE.md brittle string matching guideline). If you encounter existing tests that assert on exact message text, remove the brittle assertions — don't update them to match new wording.
-- Implement minimum code to pass tests
-- Run tests to verify
-- Run `gofmt ./...` after edits to catch any whitespace/formatting drift
-- **Pause at each [TEST] checkpoint** for user to rebuild and manually test
-- **Design discussion trigger:** If you find yourself proposing and evaluating design alternatives (not just implementation details like variable names or helper placement), stop and invoke `/refine-feature`. Don't assess whether it's "needed enough" — the cost of a brief refine is always lower than the cost of an incorrect design baked into code.
-- **Circles trigger:** If you find yourself re-deriving or re-evaluating an approach you've already considered, stop. First: re-read architecture.md for the relevant pattern — the answer is likely already documented. Second: if the architecture doc doesn't resolve it, invoke `/refine-feature`. Third: if you're circling on a test failure rather than a design question, run a targeted diagnostic (add logging, run with `-v`) instead of reasoning further. Evidence first, then reasoning.
-- **Ordered-action integration tests:** When writing tests for ordered actions (ActionWaterGarden, ActionTillSoil, etc.) that span multiple ticks with movement, the test loop must mirror `continueIntent`: (1) recalculate `char.Intent.Target` each tick via `system.NextStepBFS(charPos, dest)`, and (2) rebuild intent via `findXxxIntentForTest` when intent is nil. Also note that `IsWet()` uses 8-directional adjacency — dry tiles in tests must be placed >1 tile from any water source.
-- **Flow-level anchor tests for ordered actions with supply procurement:** The UI handler (update.go ActionPickup) has post-pickup branching that decides which system function to call next — this is where bugs cluster (vessel guards, prerequisite skipping, continuation logic). Since the handler is UI-layer and not unit-tested, write flow-level anchor tests that **chain the system functions in the sequence the handler calls them**: `findXxxIntent` → `Pickup` → `FindNextVesselTarget`/`FindNextXxxTarget` → repeat → nil signals completion. This tests that the functions compose correctly for the intended flow without duplicating the UI handler. See `TestGatherOrder_VesselPath_EndToEnd` for the pattern.
-- **`continueIntent` and TargetItem rules:** When adding or modifying actions that involve items, read the "`continueIntent` Rules" and "Self-Managing Actions" sections in `docs/architecture.md`. These specify early-return blocks, handler fall-through after `ProcureReady`, and when intent needs rebuilding. When adding new procurement candidates or phases to an existing handler, trace the handler's full fall-through path for the new case — it may skip a phase that previously rebuilt state.
-- **Debugging during human testing (Evidence Before Reasoning):** When human testing surfaces a *gap* (missing behavior, not a bug), ask "does this gap affect sibling flows with the same structure?" and discuss scope before writing code. When a *bug* appears during human testing, gather evidence before reasoning about causes. Ask the user what they observe, check logs, add `t.Logf` or `-v` — don't propose fixes based on speculation. **Restate the user's observation in their words before offering a causal theory** — a theory built on a subtly reframed observation addresses the wrong problem and dismisses what was actually reported. If the observation and the theory don't match, ask rather than reframe. If a *second* bug appears in the same feature, stop patching and step back: restate the intended end-to-end flow and evaluate whether the design is sound before fixing further. Multiple bugs in the same workflow often signal a design problem, not an implementation problem (see Values.md: "Step Back on Cascading Bugs").
-- **Explain mechanism and visible output together:** When implementation adds both a behavior mechanism and a visible artifact (log line, UI change), name both in the explanation and tie them together. "I added the shout" is ambiguous — it could mean the log or the mechanism or both. Say: "The mechanism is X (line Y). It's made visible by Z."
-- After each [TEST] checkpoint passes, follow the [DOCS] and [RETRO] checkpoints in the plan doc
+**Core loop:**
+1. **Announce** what you're about to write — one sentence: "I'm about to write [these tests] and [this implementation]"
+2. **Write tests first** — anchor to the step's anchor story, not implementation paths. "Ground vessel ends up filled with water" validates intent; "returns ActionPickup" validates structure.
+3. **Implement** minimum code to pass tests
+4. **Verify** — run tests, run `gofmt ./...`
+5. **Pause at each [TEST] checkpoint** for user to rebuild and test
+6. After [TEST] passes, follow [DOCS] and [RETRO] checkpoints in the plan
+
+**When to stop coding and invoke `/refine-feature`:**
+- You're proposing design alternatives, not just implementation details
+- You're re-deriving an approach you already considered (first: re-read architecture.md; second: `/refine-feature`; if circling on a test failure: run a diagnostic instead)
+
+#### Test Patterns Reference
+
+- **No brittle string assertions** — don't assert on exact log/activity wording. Remove existing brittle assertions rather than updating them.
+- **Ordered-action integration tests:** Test loop must mirror `continueIntent`: (1) recalculate `char.Intent.Target` each tick via `NextStepBFS`, (2) rebuild intent when nil. `IsWet()` uses 8-directional adjacency — dry tiles must be >1 tile from water.
+- **Flow-level anchor tests for procurement chains:** Chain system functions in handler order: `findXxxIntent` → `Pickup` → `FindNextTarget` → repeat → nil. See `TestGatherOrder_VesselPath_EndToEnd`.
+- **`continueIntent` and TargetItem rules:** Read the "`continueIntent` Rules" and "Self-Managing Actions" sections in architecture.md when adding/modifying item-targeting actions. Trace the full fall-through path for new cases.
 
 ### Step 4: Human Testing ([TEST])
 **Do NOT mark feature complete until user has tested.**
-- If the plan's [TEST] checkpoint explicitly calls for `/test-world`, ask the user if they'd like you to create it before they test (saves a round-trip; they can decline to save context)
-- If the checkpoint doesn't mention `/test-world` but the scenario is complex, consider offering it
-- If testing surfaces a new gap (not a bug): pause and discuss scope, affected sibling flows, and approach before writing code (see Values.md: "Pause Before Solving")
+- Offer `/test-world` if the [TEST] checkpoint calls for it or the scenario is complex
 - Wait for explicit confirmation from user before continuing
+
+**When testing surfaces issues:**
+
+*Gap (missing behavior, not a bug):*
+- **Enumerate all sibling flows with the same structure** and ask "does this gap also exist in X, Y, Z?" Finding one is not enough.
+- Discuss scope before writing code (see Values.md: "Pause Before Solving")
+
+*Bug:*
+- **Evidence first** — ask what the user observes, check logs, add `t.Logf` or `-v`. Don't propose fixes from speculation.
+- **Restate the user's observation in their words** before offering a causal theory. If observation and theory don't match, ask rather than reframe.
+- **Second bug in same feature** → stop patching. Restate the intended end-to-end flow and evaluate whether the design is sound (Values.md: "Step Back on Cascading Bugs").
 
 ### Step 5: Update Documentation ([DOCS])
 Only after human testing confirms success:
-- Run /update-docs via the **Task tool** (general-purpose subagent, sonnet model). Read the skill file (`.claude/skills/update-docs/SKILL.md`) and pass its full instructions + arguments as the task prompt. Don't use Bash (requires too many approvals for file edits).
+- Run /update-docs via the **Task tool** (general-purpose subagent, sonnet model). Read `.claude/skills/update-docs/SKILL.md` and pass its full instructions + arguments as the task prompt.
 - Mark feature complete in phase plan
 
 ### Step 6: Retro ([RETRO])
@@ -75,7 +83,5 @@ After documentation is updated, run /retro
 
 ---
 
-**Collaboration Norms:**
-- TDD for bug fixes too — write regression tests
-- Small iterations — keep changes focused
-- Planning lives in `docs/`, not in ephemeral plan files
+**Communication rules:**
+- When explaining changes: name both the mechanism and the visible artifact. "I added the shout" is ambiguous — say "The mechanism is X. It's visible as Y."

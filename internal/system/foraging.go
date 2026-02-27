@@ -8,7 +8,7 @@ import (
 )
 
 // findForageIntent creates an intent to forage (pick up) an edible item.
-// Called by selectIdleActivity when foraging is selected.
+// Called by selectDiscretionaryActivity when foraging is selected.
 // Uses unified scoring of growing items vs vessels, with vessel value scaled by hunger.
 // Lower hunger = more willing to invest in vessel; higher hunger = grab immediate food.
 // If carrying a vessel with contents, only targets matching variety.

@@ -7,7 +7,7 @@ import (
 )
 
 // findFetchWaterIntent creates an intent to find an empty vessel and fill it with water.
-// Called by selectIdleActivity when fetch water is selected.
+// Called by selectDiscretionaryActivity when fetch water is selected.
 // Non-destructive: never dumps existing vessel contents.
 //
 // Returns ActionFillVessel which manages the full lifecycle:

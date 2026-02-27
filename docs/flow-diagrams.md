@@ -17,9 +17,11 @@ flowchart TD
     end
 
     subgraph "Decision Layer (system/)"
-        intent["movement.go
+        intent["intent.go
         CalculateIntent()
-        continueIntent()
+        continueIntent()"]
+        movement_spatial["movement.go
+        NextStepBFS()
         Pathfinding"]
         idle["idle.go
         selectIdleActivity()"]
@@ -84,6 +86,7 @@ flowchart TD
     update --> recipe
 
     %% Decision: intent internals
+    intent --> movement_spatial
     intent --> idle
     intent --> talk
 
@@ -165,7 +168,7 @@ What happens during `CalculateIntent()` — choosing what to do. No action execu
 
 ```mermaid
 flowchart TD
-    intent["movement.go
+    intent["intent.go
     CalculateIntent()
     continueIntent()
     findFoodIntent()
@@ -203,8 +206,7 @@ flowchart TD
 
     %% Intent tree
     intent -->|"Tier 0 (no needs)"| idle
-    intent -->|"Tier 1+ (needs)"| forage
-    intent -->|"Tier 1+ (needs)"| fetch
+    intent -->|"Needs unfulfillable"| idle
     intent --> char
     intent --> item
 
@@ -273,7 +275,7 @@ flowchart TD
     CompleteOrder()"]
     pref["preference.go
     TryFormPreference()"]
-    intent["movement.go
+    movement["movement.go
     NextStepBFS()"]
 
     char["character.go
@@ -293,7 +295,7 @@ flowchart TD
     update -->|"ActionCraft"| craft
     update -->|"ActionTalk"| talk
     update -->|"ActionForage"| forage
-    update -->|"ActionHelpFeed/Water"| intent
+    update -->|"ActionHelpFeed/Water"| movement
     update -->|"Order completion"| orders
     update --> char
     update --> item
@@ -360,7 +362,7 @@ flowchart TD
 
 ## Intent Priority Hierarchy
 
-The core decision tree in `CalculateIntent()` (`internal/system/movement.go`) — what a character decides to do each tick.
+The core decision tree in `CalculateIntent()` (`internal/system/intent.go`) — what a character decides to do each tick.
 
 ```mermaid
 flowchart TD

@@ -226,7 +226,7 @@ Action handler pseudocode:
 
 ### `continueIntent` Rules
 
-`continueIntent` (movement.go) runs every tick for characters with existing intents. It recalculates paths and handles arrival transitions. Understanding its structure is critical when adding new actions.
+`continueIntent` (intent.go) runs every tick for characters with existing intents. It recalculates paths and handles arrival transitions. Understanding its structure is critical when adding new actions.
 
 **Two layers:**
 
@@ -261,7 +261,7 @@ Three checklists organized by category. Each includes every touchpoint; see the 
 
 1. Action constant in `character.go`
 2. Activity entry in `ActivityRegistry` (`entity/activity.go`) — omit if the activity is a pre-roll override (like `ActionHelpFeed`, `ActionHelpWater`) rather than a rolled idle activity
-3. Intent finder (location depends on context: `movement.go` for social/observation, `foraging.go` for food-seeking, `picking.go` for resource-seeking, `helping.go` for crisis response)
+3. Intent finder (location depends on context: `intent.go` for social/observation, `foraging.go` for food-seeking, `picking.go` for resource-seeking, `helping.go` for crisis response)
 4. Wire into `selectIdleActivity` in `idle.go` — either as a pre-roll override (checked before the roll) or as a rollable option
 5. Add action to `isIdleAction` in `idle.go` if the action should be treated as idle for talking availability (i.e., it is a true idle activity, not a helping/delivery action). `isIdleAction` checks `ActionType` enum — simpler and more robust than string matching.
 6. `applyIntent` handler in `update.go`

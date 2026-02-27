@@ -36,8 +36,8 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 	energyTier := char.EnergyTier()
 	healthTier := char.HealthTier()
 
-	// Check if we should continue an idle activity (looking or talking)
-	// Idle activities can be interrupted by urgent needs (tier >= Moderate)
+	// Check if we should continue a non-need activity (discretionary, orders, or helping)
+	// Non-need activities can be interrupted by urgent needs (tier >= Moderate)
 	if char.Intent != nil && char.Intent.DrivingStat == "" {
 		maxTier := hungerTier
 		if thirstTier > maxTier {
@@ -72,7 +72,7 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 				}
 			}
 			// If approaching to talk, check target is still valid (idle activity, not dead/sleeping)
-			if !target.IsDead && !target.IsSleeping && isIdleAction(target) {
+			if !target.IsDead && !target.IsSleeping && isDiscretionaryAction(target) {
 				return continueIntent(char, cx, cy, gameMap, log)
 			}
 			// Target no longer valid, fall through to re-evaluate
@@ -181,23 +181,12 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 		maxTier = healthTier
 	}
 
-	// No urgent needs - try an idle activity (looking, talking, or staying idle)
-	if maxTier == entity.TierNone {
-		if intent := selectIdleActivity(char, cpos, items, gameMap, log, orders); intent != nil {
-			return intent
-		}
-		if char.CurrentActivity != "Idle" {
-			char.CurrentActivity = "Idle"
-			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Idle (no needs)")
-			}
-		}
-		return nil
-	}
+	// --- New intent from scratch ---
+	// Priority routing: Mild+order intercept → priority loop → bucket routing → terminal state
 
-	// Ordered work at Mild tier: try inventory-only consumption, else continue working.
+	// Mild needs + assigned order: try inventory-only consumption, then fall through to bucket routing.
 	// At Moderate+, the priority loop below fires as normal and interrupts the order.
-	if maxTier < entity.TierModerate && char.AssignedOrderID != 0 {
+	if maxTier > entity.TierNone && maxTier < entity.TierModerate && char.AssignedOrderID != 0 {
 		if thirstTier >= entity.TierMild {
 			if intent := findCarriedDrinkIntent(char, cpos, thirstTier, log); intent != nil {
 				order := findOrderByID(orders, char.AssignedOrderID)
@@ -218,97 +207,112 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 				return intent
 			}
 		}
-		// No carried food/water — continue working through Mild
-		if intent := selectIdleActivity(char, cpos, items, gameMap, log, orders); intent != nil {
-			return intent
+		// No carried food/water — fall through to bucket routing (continues order work)
+	} else if maxTier > entity.TierNone {
+		// Has needs (Moderate+, or Mild without order): try priority loop
+
+		// Build priority list: stats with needs, sorted by tier (desc), then tie-breaker (Thirst > Hunger > Health > Energy)
+		type statPriority struct {
+			stat types.StatType
+			tier int
 		}
-		return nil
-	}
+		var priorities []statPriority
 
-	// Build priority list: stats with needs, sorted by tier (desc), then tie-breaker (Thirst > Hunger > Health > Energy)
-	type statPriority struct {
-		stat types.StatType
-		tier int
-	}
-	var priorities []statPriority
-
-	// Add stats that have needs (tier > 0), in tie-breaker order within same tier
-	if thirstTier > 0 {
-		priorities = append(priorities, statPriority{types.StatThirst, thirstTier})
-	}
-	if hungerTier > 0 {
-		priorities = append(priorities, statPriority{types.StatHunger, hungerTier})
-	}
-	// Health only added if can be fulfilled (requires healing knowledge)
-	if healthTier > 0 && canFulfillHealth(char, items) {
-		priorities = append(priorities, statPriority{types.StatHealth, healthTier})
-	}
-	if energyTier > 0 {
-		priorities = append(priorities, statPriority{types.StatEnergy, energyTier})
-	}
-
-	// Sort by tier descending (higher tier = more urgent)
-	// Tie-breaker order is already correct since we added in Thirst > Hunger > Health > Energy order
-	for i := 0; i < len(priorities)-1; i++ {
-		for j := i + 1; j < len(priorities); j++ {
-			if priorities[j].tier > priorities[i].tier {
-				priorities[i], priorities[j] = priorities[j], priorities[i]
-			}
+		// Add stats that have needs (tier > 0), in tie-breaker order within same tier
+		if thirstTier > 0 {
+			priorities = append(priorities, statPriority{types.StatThirst, thirstTier})
 		}
-	}
-
-	// Try each stat in priority order, falling back if intent can't be fulfilled
-	for _, p := range priorities {
-		var intent *entity.Intent
-		switch p.stat {
-		case types.StatThirst:
-			intent = findDrinkIntent(char, cpos, gameMap, p.tier, log, items)
-		case types.StatHunger:
-			intent = findFoodIntent(char, cpos, items, p.tier, log, gameMap)
-		case types.StatHealth:
-			intent = findHealingIntent(char, cpos, items, p.tier, log, gameMap)
-		case types.StatEnergy:
-			intent = findSleepIntent(char, cpos, gameMap, p.tier, log)
+		if hungerTier > 0 {
+			priorities = append(priorities, statPriority{types.StatHunger, hungerTier})
 		}
-		if intent != nil {
-			// Check for order interruption - character has assigned order but pursuing a need
-			// (DrivingStat being set means this is a need-driven intent, not order work)
-			if char.AssignedOrderID != 0 && intent.DrivingStat != "" {
-				order := findOrderByID(orders, char.AssignedOrderID)
-				if order != nil {
-					PauseOrder(order, log, char.ID, char.Name)
+		// Health only added if can be fulfilled (requires healing knowledge)
+		if healthTier > 0 && canFulfillHealth(char, items) {
+			priorities = append(priorities, statPriority{types.StatHealth, healthTier})
+		}
+		if energyTier > 0 {
+			priorities = append(priorities, statPriority{types.StatEnergy, energyTier})
+		}
+
+		// Sort by tier descending (higher tier = more urgent)
+		// Tie-breaker order is already correct since we added in Thirst > Hunger > Health > Energy order
+		for i := 0; i < len(priorities)-1; i++ {
+			for j := i + 1; j < len(priorities); j++ {
+				if priorities[j].tier > priorities[i].tier {
+					priorities[i], priorities[j] = priorities[j], priorities[i]
 				}
 			}
-			// Successfully found an intent - reset failure counter
-			char.FailedIntentCount = 0
-			return intent
 		}
-	}
 
-	// No intent could be fulfilled - track failure only at Severe+ tier (prevents thrashing where it matters)
-	if maxTier >= entity.TierSevere {
-		char.FailedIntentCount++
-		if char.FailedIntentCount >= config.FrustrationThreshold {
-			char.IsFrustrated = true
-			char.FrustrationTimer = config.FrustrationDuration
-			char.FailedIntentCount = 0
-			char.CurrentActivity = "Frustrated"
-			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Frustrated (can't meet needs)")
+		// Try each stat in priority order, falling back if intent can't be fulfilled
+		for _, p := range priorities {
+			var intent *entity.Intent
+			switch p.stat {
+			case types.StatThirst:
+				intent = findDrinkIntent(char, cpos, gameMap, p.tier, log, items)
+			case types.StatHunger:
+				intent = findFoodIntent(char, cpos, items, p.tier, log, gameMap)
+			case types.StatHealth:
+				intent = findHealingIntent(char, cpos, items, p.tier, log, gameMap)
+			case types.StatEnergy:
+				intent = findSleepIntent(char, cpos, gameMap, p.tier, log)
 			}
-			return nil
+			if intent != nil {
+				// Check for order interruption - character has assigned order but pursuing a need
+				// (DrivingStat being set means this is a need-driven intent, not order work)
+				if char.AssignedOrderID != 0 && intent.DrivingStat != "" {
+					order := findOrderByID(orders, char.AssignedOrderID)
+					if order != nil {
+						PauseOrder(order, log, char.ID, char.Name)
+					}
+				}
+				// Successfully found an intent - reset failure counter
+				char.FailedIntentCount = 0
+				return intent
+			}
 		}
+
+		// No intent could be fulfilled - track failure only at Severe+ tier (prevents thrashing where it matters)
+		if maxTier >= entity.TierSevere {
+			char.FailedIntentCount++
+			if char.FailedIntentCount >= config.FrustrationThreshold {
+				char.IsFrustrated = true
+				char.FrustrationTimer = config.FrustrationDuration
+				char.FailedIntentCount = 0
+				char.CurrentActivity = "Frustrated"
+				if log != nil {
+					log.Add(char.ID, char.Name, "activity", "Frustrated (can't meet needs)")
+				}
+				return nil
+			}
+		}
+		// Fall through to bucket routing
 	}
 
-	// No needs could be fulfilled - try an idle activity
-	if intent := selectIdleActivity(char, cpos, items, gameMap, log, orders); intent != nil {
+	// Bucket routing: orders → helping → discretionary
+	if intent := selectOrderActivity(char, cpos, items, gameMap, orders, log); intent != nil {
+		return intent
+	}
+	if intent := selectHelpingActivity(char, cpos, items, gameMap, log); intent != nil {
+		return intent
+	}
+	if intent := selectDiscretionaryActivity(char, cpos, items, gameMap, log); intent != nil {
 		return intent
 	}
 
-	if char.CurrentActivity != "Idle" {
-		char.CurrentActivity = "Idle"
-		if log != nil {
-			log.Add(char.ID, char.Name, "activity", "Idle (no options)")
+	// Terminal state
+	if maxTier > entity.TierNone {
+		if char.CurrentActivity != "Idle" {
+			char.CurrentActivity = "Idle"
+			if log != nil {
+				log.Add(char.ID, char.Name, "activity", "Idle (no options)")
+			}
+		}
+	} else {
+		if char.CurrentActivity != "Idle" {
+			char.CurrentActivity = "Idle"
+			if log != nil {
+				log.Add(char.ID, char.Name, "activity", "Idle (no needs)")
+			}
 		}
 	}
 	return nil
@@ -318,8 +322,14 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *ActionLog) *entity.Intent {
 	intent := char.Intent
 
-	// For ActionConsume (eating from inventory), just continue - item is in inventory, not on map
+	// For ActionConsume (eating from inventory), verify item still exists in inventory
 	if intent.Action == entity.ActionConsume {
+		if intent.TargetItem != nil {
+			if char.FindInInventory(func(item *entity.Item) bool { return item == intent.TargetItem }) != nil {
+				return intent
+			}
+			return nil // Item consumed, re-evaluate
+		}
 		return intent
 	}
 
@@ -1309,7 +1319,7 @@ func canFulfillHealth(char *entity.Character, items []*entity.Item) bool {
 }
 
 // findLookIntent creates an intent to look at the nearest item.
-// Called by selectIdleActivity when looking is selected.
+// Called by selectDiscretionaryActivity when looking is selected.
 func findLookIntent(char *entity.Character, pos types.Position, items []*entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
 	// Find nearest item, excluding last looked item
 	target := findNearestItemExcluding(pos.X, pos.Y, items, char.LastLookedX, char.LastLookedY, char.HasLastLooked)

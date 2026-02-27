@@ -64,7 +64,7 @@ func findTalkIntent(char *entity.Character, pos types.Position, gameMap *game.Ma
 			continue
 		}
 		// Only target characters doing idle activities
-		if !isIdleAction(other) {
+		if !isDiscretionaryAction(other) {
 			continue
 		}
 		candidates = append(candidates, other)

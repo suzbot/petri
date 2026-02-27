@@ -10,19 +10,19 @@ import (
 )
 
 // =============================================================================
-// isIdleAction
+// isDiscretionaryAction
 // =============================================================================
 
-func TestIsIdleAction_NilIntent_ReturnsTrue(t *testing.T) {
+func TestIsDiscretionaryAction_NilIntent_ReturnsTrue(t *testing.T) {
 	t.Parallel()
 	char := newTestCharacter()
 	char.Intent = nil
-	if !isIdleAction(char) {
+	if !isDiscretionaryAction(char) {
 		t.Error("Character with nil intent should be idle")
 	}
 }
 
-func TestIsIdleAction_IdleActions_ReturnTrue(t *testing.T) {
+func TestIsDiscretionaryAction_IdleActions_ReturnTrue(t *testing.T) {
 	t.Parallel()
 	idleActions := []entity.ActionType{
 		entity.ActionNone,
@@ -34,13 +34,13 @@ func TestIsIdleAction_IdleActions_ReturnTrue(t *testing.T) {
 	for _, action := range idleActions {
 		char := newTestCharacter()
 		char.Intent = &entity.Intent{Action: action}
-		if !isIdleAction(char) {
+		if !isDiscretionaryAction(char) {
 			t.Errorf("ActionType %d should be idle", action)
 		}
 	}
 }
 
-func TestIsIdleAction_NonIdleActions_ReturnFalse(t *testing.T) {
+func TestIsDiscretionaryAction_NonIdleActions_ReturnFalse(t *testing.T) {
 	t.Parallel()
 	nonIdleActions := []entity.ActionType{
 		entity.ActionHelpFeed,
@@ -57,7 +57,7 @@ func TestIsIdleAction_NonIdleActions_ReturnFalse(t *testing.T) {
 	for _, action := range nonIdleActions {
 		char := newTestCharacter()
 		char.Intent = &entity.Intent{Action: action}
-		if isIdleAction(char) {
+		if isDiscretionaryAction(char) {
 			t.Errorf("ActionType %d should not be idle", action)
 		}
 	}

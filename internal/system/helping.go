@@ -7,6 +7,35 @@ import (
 	"petri/internal/types"
 )
 
+// selectHelpingActivity checks for nearby characters in crisis and creates an intent
+// to help them. Prioritizes thirst crisis over hunger crisis, with distance as the
+// primary selection criterion. Returns nil if no character is in crisis or helper
+// cannot assist.
+func selectHelpingActivity(char *entity.Character, pos types.Position, items []*entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
+	needer := findNearestCrisisCharacter(char, gameMap.Characters())
+	if needer == nil {
+		return nil
+	}
+
+	if needer.ThirstTier() == entity.TierCrisis {
+		if intent := findHelpWaterIntent(char, needer, pos, items, gameMap, log); intent != nil {
+			return intent
+		}
+		// Fallback: can't help with water, but needer also has Crisis hunger
+		if needer.HungerTier() == entity.TierCrisis {
+			if intent := findHelpFeedIntent(char, needer, pos, items, gameMap, log); intent != nil {
+				return intent
+			}
+		}
+	} else if needer.HungerTier() == entity.TierCrisis {
+		if intent := findHelpFeedIntent(char, needer, pos, items, gameMap, log); intent != nil {
+			return intent
+		}
+	}
+
+	return nil
+}
+
 // findNearestCrisisCharacter returns the nearest character with any Crisis stat
 // (hunger or thirst). Distance is the primary criterion. Stat tie-break (thirst > hunger)
 // applies only for equidistant characters. Skips the helper themselves, dead, and sleeping.

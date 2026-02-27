@@ -1407,6 +1407,35 @@ func TestContinueIntent_ActionConsume_PreservesIntent(t *testing.T) {
 	}
 }
 
+func TestContinueIntent_ActionConsume_ClearsWhenItemConsumed(t *testing.T) {
+	t.Parallel()
+
+	// When the carried item has been consumed (removed from inventory),
+	// continueIntent should return nil to force re-evaluation
+	char := newTestCharacter()
+	char.Hunger = 55 // Still Mild tier after eating (was 65, ate berry -10)
+	char.SetPos(types.Position{X: 5, Y: 5})
+
+	consumedItem := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	// Item is NOT in inventory (already consumed/removed)
+
+	char.Intent = &entity.Intent{
+		Target:      types.Position{X: 5, Y: 5},
+		Action:      entity.ActionConsume,
+		TargetItem:  consumedItem,
+		DrivingStat: types.StatHunger,
+		DrivingTier: entity.TierMild,
+	}
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+
+	result := continueIntent(char, 5, 5, gameMap, nil)
+
+	if result != nil {
+		t.Error("continueIntent should return nil when consumed item is no longer in inventory")
+	}
+}
+
 // =============================================================================
 // Foraging Filter - IsGrowing (Feature 3b)
 // =============================================================================
@@ -2884,7 +2913,7 @@ func TestCalculateIntent_OrderedWork_ThirstMild_NoCarriedWater_NoDrinkIntent(t *
 	intent := CalculateIntent(char, nil, gameMap, nil, orders)
 
 	// The ordered character should not walk away to the spring at Mild thirst.
-	// (No till targets exist so selectIdleActivity returns nil, but crucially no thirst intent.)
+	// (No till targets exist so selectOrderActivity returns nil, but crucially no thirst intent.)
 	if intent != nil && intent.DrivingStat == types.StatThirst {
 		t.Error("Ordered character at Mild thirst without carried water should not seek spring — should continue working or stay idle")
 	}
@@ -2967,6 +2996,183 @@ func TestCalculateIntent_OrderedWork_BothMild_ThirstPriority(t *testing.T) {
 	}
 	if intent.Action != entity.ActionDrink {
 		t.Errorf("Action: got %d, want ActionDrink (thirst priority)", intent.Action)
+	}
+}
+
+// =============================================================================
+// Priority Routing — Multi-step anchor tests
+// Verify that CalculateIntent correctly routes through the priority system
+// across multiple ticks (mild intercept → resume, priority ordering, need interrupts)
+// =============================================================================
+
+// Anchor: Character eats carried food via mild intercept, then resumes order on next evaluation.
+// Covers the full flow: ActionConsume created → item consumed (removed from inventory) →
+// continueIntent returns nil → CalculateIntent re-evaluates → order resumes via selectOrderActivity.
+func TestCalculateIntent_MildIntercept_EatThenResumeOrder(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.Hunger = 55 // TierMild
+	char.AssignedOrderID = 1
+	char.SetPos(types.Position{X: 5, Y: 5})
+
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.AddToInventory(berry)
+
+	// Growing berry plant on the map (harvest target)
+	plant := entity.NewBerry(10, 5, types.ColorRed, false, false)
+	plant.Plant = &entity.PlantProperties{IsGrowing: true}
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	gameMap.AddCharacter(char)
+	gameMap.AddItem(plant)
+	items := gameMap.Items()
+
+	order := entity.NewOrder(1, "harvest", "berry")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	orders := []*entity.Order{order}
+	char.KnownActivities = []string{"harvest"}
+
+	// Tick 1: Mild intercept fires — character eats carried berry
+	intent := CalculateIntent(char, items, gameMap, nil, orders)
+	if intent == nil || intent.Action != entity.ActionConsume {
+		t.Fatal("Tick 1: Expected ActionConsume from mild intercept")
+	}
+	if order.Status != entity.OrderPaused {
+		t.Error("Tick 1: Order should be paused during eating")
+	}
+
+	// Simulate: eating completes, berry is consumed and removed from inventory
+	char.Intent = intent
+	char.RemoveFromInventory(berry)
+
+	// Tick 2: continueIntent returns nil (item gone), CalculateIntent returns nil
+	intent2 := CalculateIntent(char, items, gameMap, nil, orders)
+	// Intent may be nil (one-tick gap) — that's fine
+
+	// Tick 3: No intent → fresh evaluation → mild intercept finds no food → bucket routing → order resumes
+	char.Intent = intent2
+	intent3 := CalculateIntent(char, items, gameMap, nil, orders)
+
+	if intent3 == nil {
+		t.Fatal("Tick 3: Expected intent — order should resume via priority routing")
+	}
+	if intent3.Action != entity.ActionPickup {
+		t.Errorf("Tick 3: Action: got %d, want ActionPickup (harvest)", intent3.Action)
+	}
+	if intent3.TargetItem != plant {
+		t.Error("Tick 3: TargetItem should be the growing berry plant")
+	}
+	if order.Status != entity.OrderAssigned {
+		t.Errorf("Tick 3: Order status: got %q, want assigned (resumed)", order.Status)
+	}
+}
+
+// Anchor: When a character has no needs, an assigned order wins over helping and discretionary.
+// When a different character has no needs and no order but a crisis character exists, helping wins.
+func TestCalculateIntent_PriorityOrdering_OrderBeatsHelping(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+
+	// Crisis character (triggers helping)
+	needer := entity.NewCharacter(2, 20, 5, "Needer", "berry", types.ColorRed)
+	needer.Hunger = 100 // Crisis
+	gameMap.AddCharacter(needer)
+
+	// Ground food near needer (so helpFeed can find a target)
+	food := entity.NewBerry(21, 5, types.ColorRed, false, false)
+	gameMap.AddItem(food)
+	items := gameMap.Items()
+
+	// Growing berry plant on the map (harvest target)
+	plant := entity.NewBerry(10, 5, types.ColorRed, false, false)
+	plant.Plant = &entity.PlantProperties{IsGrowing: true}
+	gameMap.AddItem(plant)
+	items = gameMap.Items()
+
+	// Character WITH order: should harvest (order beats helping)
+	ordered := entity.NewCharacter(1, 5, 5, "Worker", "berry", types.ColorRed)
+	ordered.AssignedOrderID = 1
+	ordered.KnownActivities = []string{"harvest"}
+	gameMap.AddCharacter(ordered)
+
+	order := entity.NewOrder(1, "harvest", "berry")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = ordered.ID
+	orders := []*entity.Order{order}
+
+	intentOrdered := CalculateIntent(ordered, items, gameMap, nil, orders)
+	if intentOrdered == nil {
+		t.Fatal("Ordered character: expected intent")
+	}
+	if intentOrdered.Action != entity.ActionPickup {
+		t.Errorf("Ordered character: got action %d, want ActionPickup (order work)", intentOrdered.Action)
+	}
+
+	// Character WITHOUT order: should help the crisis character (helping beats discretionary)
+	helper := entity.NewCharacter(3, 15, 5, "Helper", "berry", types.ColorRed)
+	helper.Hunger = 0
+	helper.Thirst = 0
+	gameMap.AddCharacter(helper)
+
+	intentHelper := CalculateIntent(helper, items, gameMap, nil, orders)
+	if intentHelper == nil {
+		t.Fatal("Unordered character: expected intent (helping or discretionary)")
+	}
+	if intentHelper.Action != entity.ActionHelpFeed {
+		t.Errorf("Unordered character: got action %d, want ActionHelpFeed (helping beats discretionary)", intentHelper.Action)
+	}
+}
+
+// Anchor: Character performing order work gets interrupted when a need reaches Moderate.
+// Multi-tick: tick 1 working order → tick 2 thirst rises to Moderate → order paused, seeks water.
+func TestCalculateIntent_ModerateNeed_InterruptsOrderWork(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	gameMap.AddWater(types.Position{X: 5, Y: 5}, game.WaterSpring)
+
+	char := entity.NewCharacter(1, 10, 5, "Worker", "berry", types.ColorRed)
+	char.AssignedOrderID = 1
+	char.KnownActivities = []string{"harvest"}
+	gameMap.AddCharacter(char)
+
+	// Growing berry plant (harvest target)
+	plant := entity.NewBerry(12, 5, types.ColorRed, false, false)
+	plant.Plant = &entity.PlantProperties{IsGrowing: true}
+	gameMap.AddItem(plant)
+	items := gameMap.Items()
+
+	order := entity.NewOrder(1, "harvest", "berry")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	orders := []*entity.Order{order}
+
+	// Tick 1: No needs — character works the order
+	intent1 := CalculateIntent(char, items, gameMap, nil, orders)
+	if intent1 == nil {
+		t.Fatal("Tick 1: Expected harvest intent")
+	}
+	if intent1.Action != entity.ActionPickup {
+		t.Errorf("Tick 1: Action: got %d, want ActionPickup (harvest work)", intent1.Action)
+	}
+
+	// Simulate: thirst rises to Moderate between ticks
+	char.Intent = intent1
+	char.Thirst = 80 // TierModerate
+
+	// Tick 2: Moderate thirst interrupts order work — character seeks water
+	intent2 := CalculateIntent(char, items, gameMap, nil, orders)
+	if intent2 == nil {
+		t.Fatal("Tick 2: Expected intent — Moderate thirst should find water")
+	}
+	if intent2.DrivingStat != types.StatThirst {
+		t.Errorf("Tick 2: DrivingStat: got %q, want StatThirst", intent2.DrivingStat)
+	}
+	if order.Status != entity.OrderPaused {
+		t.Errorf("Tick 2: Order status: got %q, want paused (interrupted by need)", order.Status)
 	}
 }
 
