@@ -301,17 +301,17 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 
 	// Terminal state
 	if maxTier > entity.TierNone {
-		if char.CurrentActivity != "Idle" {
-			char.CurrentActivity = "Idle"
+		if char.CurrentActivity != "Stuck" {
+			char.CurrentActivity = "Stuck"
 			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Idle (no options)")
+				log.Add(char.ID, char.Name, "activity", "Stuck (can't meet needs)")
 			}
 		}
 	} else {
 		if char.CurrentActivity != "Idle" {
 			char.CurrentActivity = "Idle"
 			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Idle (no needs)")
+				log.Add(char.ID, char.Name, "activity", "Idle")
 			}
 		}
 	}
@@ -816,11 +816,8 @@ func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.M
 
 	// No water source found
 	if best == nil {
-		if char.CurrentActivity != "Idle" {
-			char.CurrentActivity = "Idle"
-			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Idle (no water source)")
-			}
+		if log != nil {
+			log.Add(char.ID, char.Name, "activity", "No water source available")
 		}
 		return nil
 	}
@@ -931,11 +928,8 @@ func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.M
 func findFoodIntent(char *entity.Character, pos types.Position, items []*entity.Item, tier int, log *ActionLog, gameMap *game.Map) *entity.Intent {
 	result := FindFoodTarget(char, items)
 	if result.Item == nil {
-		if char.CurrentActivity != "Idle" {
-			char.CurrentActivity = "Idle"
-			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Idle (no suitable food)")
-			}
+		if log != nil {
+			log.Add(char.ID, char.Name, "activity", "No suitable food available")
 		}
 		return nil
 	}
@@ -994,11 +988,8 @@ func findHealingIntent(char *entity.Character, pos types.Position, items []*enti
 	// Get only items the character knows are healing
 	knownHealing := char.KnownHealingItems(items)
 	if len(knownHealing) == 0 {
-		if char.CurrentActivity != "Idle" {
-			char.CurrentActivity = "Idle"
-			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Idle (no known healing items)")
-			}
+		if log != nil {
+			log.Add(char.ID, char.Name, "activity", "No known healing items available")
 		}
 		return nil
 	}
@@ -1063,11 +1054,8 @@ func findSleepIntent(char *entity.Character, pos types.Position, gameMap *game.M
 			}
 		}
 		// Not tired enough for ground sleep, need a bed
-		if char.CurrentActivity != "Idle" {
-			char.CurrentActivity = "Idle"
-			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Idle (no bed nearby)")
-			}
+		if log != nil {
+			log.Add(char.ID, char.Name, "activity", "No bed available")
 		}
 		return nil
 	}

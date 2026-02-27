@@ -803,7 +803,7 @@ func (m Model) renderDetails() string {
 			}
 
 			if len(statusParts) == 0 {
-				statusLine = " Status: -"
+				statusLine = " Status: Normal"
 			} else {
 				statusLine = " Status: " + strings.Join(statusParts, ", ")
 			}
