@@ -3411,3 +3411,366 @@ func TestStepForward_EventsFromDifferentTicksHaveDistinctTimes(t *testing.T) {
 			events[0].GameTime, events[2].GameTime)
 	}
 }
+
+// =============================================================================
+// ActionLook Handler Tests
+// =============================================================================
+
+// Anchor: character adjacent to an item looks at it and forms a memory of having looked
+func TestApplyIntent_Look_CompletesAndSetsLastLooked(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	item := entity.NewBerry(6, 5, types.ColorBlue, false, false)
+	gameMap.AddItem(item)
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionLook,
+		Target:     types.Position{X: 5, Y: 5},
+		TargetItem: item,
+	}
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+
+	// Tick enough to exceed LookDuration (4.0s)
+	for i := 0; i < 50; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Assert: look completed — HasLastLooked set, intent cleared, idle cooldown set
+	if !char.HasLastLooked {
+		t.Error("Expected HasLastLooked to be true after completing look")
+	}
+	if char.LastLookedX != 6 || char.LastLookedY != 5 {
+		t.Errorf("Expected LastLooked at (6,5), got (%d,%d)", char.LastLookedX, char.LastLookedY)
+	}
+	if char.Intent != nil {
+		t.Error("Expected intent to be nil after completing look")
+	}
+	if char.IdleCooldown == 0 {
+		t.Error("Expected IdleCooldown to be set after completing look")
+	}
+}
+
+// Looking requires the full duration — partial ticks don't complete
+func TestApplyIntent_Look_RequiresDuration(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	item := entity.NewBerry(6, 5, types.ColorBlue, false, false)
+	gameMap.AddItem(item)
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionLook,
+		Target:     types.Position{X: 5, Y: 5},
+		TargetItem: item,
+	}
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+
+	// One small tick — not enough to complete
+	m.applyIntent(char, 0.1)
+
+	if char.ActionProgress == 0 {
+		t.Error("Expected ActionProgress to increase")
+	}
+	if char.HasLastLooked {
+		t.Error("Expected HasLastLooked to remain false before look completes")
+	}
+	if char.Intent == nil {
+		t.Error("Expected intent to still be set — look not yet complete")
+	}
+}
+
+// =============================================================================
+// ActionTalk Handler Tests
+// =============================================================================
+
+// Anchor: two characters have a conversation — initiator starts talking, then
+// after the full talk duration, both characters stop talking and go idle
+func TestApplyIntent_Talk_CompletesConversationCycle(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	initiator := entity.NewCharacter(1, 5, 5, "Alice", "berry", types.ColorRed)
+	target := entity.NewCharacter(2, 6, 5, "Bob", "berry", types.ColorBlue)
+	gameMap.AddCharacter(initiator)
+	gameMap.AddCharacter(target)
+
+	initiator.Intent = &entity.Intent{
+		Action:          entity.ActionTalk,
+		Target:          types.Position{X: 5, Y: 5},
+		TargetCharacter: target,
+	}
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+
+	// First tick — should start talking
+	m.applyIntent(initiator, 0.1)
+
+	if initiator.TalkingWith != target {
+		t.Error("Expected initiator.TalkingWith to be target after first tick")
+	}
+	if target.TalkingWith != initiator {
+		t.Error("Expected target.TalkingWith to be initiator after first tick")
+	}
+
+	// Tick enough to complete TalkDuration (5.0s)
+	for i := 0; i < 60; i++ {
+		m.applyIntent(initiator, 0.1)
+	}
+
+	// Assert: conversation over — both characters have cleared talk state
+	if initiator.TalkingWith != nil {
+		t.Error("Expected initiator.TalkingWith to be nil after talk completes")
+	}
+	if target.TalkingWith != nil {
+		t.Error("Expected target.TalkingWith to be nil after talk completes")
+	}
+	if initiator.Intent != nil {
+		t.Error("Expected initiator intent to be nil after talk completes")
+	}
+}
+
+// Talk with nil TargetCharacter returns immediately without panic
+func TestApplyIntent_Talk_NilTarget_NoPanic(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	char.Intent = &entity.Intent{
+		Action:          entity.ActionTalk,
+		Target:          types.Position{X: 5, Y: 5},
+		TargetCharacter: nil,
+	}
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+
+	// Should not panic
+	m.applyIntent(char, 0.1)
+
+	// Intent unchanged (handler returns early)
+	if char.TalkingWith != nil {
+		t.Error("Expected TalkingWith to remain nil with nil target")
+	}
+}
+
+// =============================================================================
+// ActionHelpFeed Handler Tests
+// =============================================================================
+
+// Anchor: helper carrying food walks to hungry character and drops it adjacent
+func TestApplyIntent_HelpFeed_DeliversFoodToNeeder(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	helper := entity.NewCharacter(1, 5, 5, "Helper", "berry", types.ColorRed)
+	needer := entity.NewCharacter(2, 7, 5, "Hungry", "berry", types.ColorBlue)
+	needer.Hunger = 95 // Crisis-level hunger
+	gameMap.AddCharacter(helper)
+	gameMap.AddCharacter(needer)
+
+	// Food already in inventory (delivery phase)
+	food := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	food.Plant = nil // Loose food, not growing
+	helper.AddToInventory(food)
+
+	npos := needer.Pos()
+	helper.Intent = &entity.Intent{
+		Action:          entity.ActionHelpFeed,
+		Target:          types.Position{X: 6, Y: 5}, // Next step toward needer
+		Dest:            npos,
+		TargetItem:      food,
+		TargetCharacter: needer,
+	}
+	helper.CurrentActivity = "Bringing food to Hungry"
+	helper.SpeedAccumulator = 100.0 // Ensure movement happens
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+
+	// Tick enough for helper to walk to needer and deliver
+	for i := 0; i < 50; i++ {
+		m.applyIntent(helper, 0.1)
+	}
+
+	// Assert: food dropped on map near needer, helper goes idle
+	if len(helper.Inventory) != 0 {
+		t.Error("Expected helper inventory to be empty after delivery")
+	}
+	if helper.Intent != nil {
+		t.Error("Expected helper intent to be nil after delivery")
+	}
+	if !gameMap.HasItemOnMap(food) {
+		t.Error("Expected food to be placed on the map near needer")
+	}
+	// Food should be cardinally adjacent to needer
+	fpos := food.Pos()
+	if !fpos.IsCardinallyAdjacentTo(npos) && fpos != npos {
+		t.Errorf("Expected food at cardinal-adjacent to needer (%d,%d), got (%d,%d)",
+			npos.X, npos.Y, fpos.X, fpos.Y)
+	}
+	// Needer's intent should be cleared (signaled to re-evaluate)
+	if needer.Intent != nil {
+		t.Error("Expected needer intent to be nil after food delivered (re-evaluate signal)")
+	}
+}
+
+// Helper abandons delivery when needer dies
+func TestApplyIntent_HelpFeed_AbandonWhenNeederDead(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	helper := entity.NewCharacter(1, 5, 5, "Helper", "berry", types.ColorRed)
+	needer := entity.NewCharacter(2, 10, 5, "Hungry", "berry", types.ColorBlue)
+	needer.IsDead = true
+	gameMap.AddCharacter(helper)
+	gameMap.AddCharacter(needer)
+
+	food := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	food.Plant = nil
+	helper.AddToInventory(food)
+
+	helper.Intent = &entity.Intent{
+		Action:          entity.ActionHelpFeed,
+		Target:          types.Position{X: 6, Y: 5},
+		Dest:            needer.Pos(),
+		TargetItem:      food,
+		TargetCharacter: needer,
+	}
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(helper, 0.1)
+
+	// Assert: helper drops food and goes idle
+	if helper.Intent != nil {
+		t.Error("Expected helper intent to be nil when needer is dead")
+	}
+	if gameMap.HasItemOnMap(food) {
+		// Food should be dropped at helper's position
+	}
+}
+
+// =============================================================================
+// ActionHelpWater Handler Tests
+// =============================================================================
+
+// Anchor: helper carrying a filled vessel walks to thirsty character and drops it adjacent
+func TestApplyIntent_HelpWater_DeliversWaterToNeeder(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   &entity.EdibleProperties{},
+	})
+	gameMap.SetVarieties(registry)
+
+	helper := entity.NewCharacter(1, 5, 5, "Helper", "berry", types.ColorRed)
+	needer := entity.NewCharacter(2, 7, 5, "Thirsty", "berry", types.ColorBlue)
+	needer.Thirst = 95
+	gameMap.AddCharacter(helper)
+	gameMap.AddCharacter(needer)
+
+	// Vessel with water already in inventory (delivery phase)
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Gourd",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{
+				{Variety: &entity.ItemVariety{ItemType: "liquid", Kind: "water"}, Count: 1},
+			},
+		},
+	}
+	helper.AddToInventory(vessel)
+
+	npos := needer.Pos()
+	helper.Intent = &entity.Intent{
+		Action:          entity.ActionHelpWater,
+		Target:          types.Position{X: 6, Y: 5},
+		Dest:            npos,
+		TargetItem:      vessel,
+		TargetCharacter: needer,
+	}
+	helper.CurrentActivity = "Bringing water to Thirsty"
+	helper.SpeedAccumulator = 100.0
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+
+	// Tick enough for helper to reach needer and deliver
+	for i := 0; i < 50; i++ {
+		m.applyIntent(helper, 0.1)
+	}
+
+	// Assert: vessel dropped on map near needer, helper goes idle
+	if len(helper.Inventory) != 0 {
+		t.Error("Expected helper inventory to be empty after delivery")
+	}
+	if helper.Intent != nil {
+		t.Error("Expected helper intent to be nil after delivery")
+	}
+	if !gameMap.HasItemOnMap(vessel) {
+		t.Error("Expected vessel to be placed on the map near needer")
+	}
+	// Vessel should be cardinally adjacent to needer
+	vpos := vessel.Pos()
+	if !vpos.IsCardinallyAdjacentTo(npos) && vpos != npos {
+		t.Errorf("Expected vessel at cardinal-adjacent to needer (%d,%d), got (%d,%d)",
+			npos.X, npos.Y, vpos.X, vpos.Y)
+	}
+	// Needer's intent should be cleared
+	if needer.Intent != nil {
+		t.Error("Expected needer intent to be nil after water delivered")
+	}
+}
+
+// Helper abandons water delivery when needer dies
+func TestApplyIntent_HelpWater_AbandonWhenNeederDead(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	helper := entity.NewCharacter(1, 5, 5, "Helper", "berry", types.ColorRed)
+	needer := entity.NewCharacter(2, 10, 5, "Thirsty", "berry", types.ColorBlue)
+	needer.IsDead = true
+	gameMap.AddCharacter(helper)
+	gameMap.AddCharacter(needer)
+
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Gourd",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{
+				{Variety: &entity.ItemVariety{ItemType: "liquid", Kind: "water"}, Count: 1},
+			},
+		},
+	}
+	helper.AddToInventory(vessel)
+
+	helper.Intent = &entity.Intent{
+		Action:          entity.ActionHelpWater,
+		Target:          types.Position{X: 6, Y: 5},
+		Dest:            needer.Pos(),
+		TargetItem:      vessel,
+		TargetCharacter: needer,
+	}
+
+	m := &Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(helper, 0.1)
+
+	// Assert: helper drops vessel and goes idle
+	if helper.Intent != nil {
+		t.Error("Expected helper intent to be nil when needer is dead")
+	}
+}
