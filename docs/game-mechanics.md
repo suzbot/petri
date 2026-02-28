@@ -147,7 +147,11 @@ Characters use greedy-first pathfinding: they move diagonally toward their targe
 
 ### Frustration
 
-When a character has elevated needs but no resources available to meet them, their activity shows **"Stuck (can't meet needs)"** — waiting for the world to change. When a character cannot fulfill urgent needs (Severe+) repeatedly, they become Frustrated. While frustrated they skip intent calculation, display "?" (orange), and have status "FRUSTRATED." Frustration clears after a timer expires.
+When a character's need is at **Mild tier** and no resource is available, they fall through silently to a lower-priority need or discretionary activity — Mild needs do not interrupt idle activities.
+
+When a need is at **Moderate+ tier** and no resource is available, the character's activity shows the specific blocker (e.g., "No bed available", "No suitable food available", "No water source available") and they wait for the world to change. The lower-priority needs and the discretionary bucket are still tried — the character is not stuck entirely, just blocked on that specific need. When a resource appears, the character acts on it immediately.
+
+When a character's most urgent unfulfilled need remains unavailable and no other activity is possible, their activity shows **"Stuck (can't meet needs)"** — this is a safety-net fallback that should rarely appear. When urgent needs (Severe+) go unmet repeatedly, they become Frustrated. While frustrated they skip intent calculation, display "?" (orange), and have status "FRUSTRATED." Frustration clears after a timer expires.
 
 ### Mood
 
@@ -283,7 +287,7 @@ Poisonous items deal damage and reduce speed. Healing items restore health. Both
 
 ## Idle Activities
 
-When characters have no urgent needs (all stats below Moderate tier), they select from idle activities. Idle activities are interruptible by any Moderate+ need that can be fulfilled.
+When characters have no urgent needs (all stats below Moderate tier), they select from idle activities. Idle activities are interruptible by any Moderate+ need that can be fulfilled. Mild needs do not interrupt idle activities.
 
 ### Activity Selection
 

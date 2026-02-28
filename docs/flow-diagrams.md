@@ -423,9 +423,9 @@ flowchart TD
     → selectDiscretionaryActivity()"]
     routing --> routeresult{Intent<br/>found?}
     routeresult -->|Yes| ret2([Return intent])
-    routeresult -->|No, has needs| stuck(["Stuck
+    routeresult -->|"No, Moderate+ needs"| stuck(["Stuck
     (can't meet needs)"])
-    routeresult -->|No, no needs| idle([Idle])
+    routeresult -->|"No, Mild or no needs"| idle([Idle])
 ```
 
 ---

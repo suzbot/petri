@@ -116,6 +116,12 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 			shouldReEval = true
 		}
 
+		// Re-evaluate if the driving stat worsened to a new tier
+		// (new tier may enable different solutions, e.g. ground sleep at Severe energy)
+		if !shouldReEval && currentStatTier > currentDrivingTier {
+			shouldReEval = true
+		}
+
 		// Re-evaluate if a different stat has reached a higher tier AND can be fulfilled
 		// This prevents thrashing between an unfulfillable higher-tier stat and a fulfillable lower-tier stat
 		if !shouldReEval {
@@ -182,6 +188,7 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 	}
 
 	// --- New intent from scratch ---
+
 	// Priority routing: Mild+order intercept → priority loop → bucket routing → terminal state
 
 	// Mild needs + assigned order: try inventory-only consumption, then fall through to bucket routing.
@@ -299,12 +306,19 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 		return intent
 	}
 
-	// Terminal state
-	if maxTier > entity.TierNone {
-		if char.CurrentActivity != "Stuck" {
-			char.CurrentActivity = "Stuck"
-			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Stuck (can't meet needs)")
+	// Terminal state — Mild needs aren't urgent enough to be "stuck"
+	// Need-failure activities (e.g. "No bed available") are set by find*Intent functions
+	// with their own guards. Don't overwrite them with generic "Stuck".
+	needFailureActivity := char.CurrentActivity == "No bed available" ||
+		char.CurrentActivity == "No water source available" ||
+		char.CurrentActivity == "No suitable food available"
+	if maxTier >= entity.TierModerate {
+		if !needFailureActivity {
+			if char.CurrentActivity != "Stuck" {
+				char.CurrentActivity = "Stuck"
+				if log != nil {
+					log.Add(char.ID, char.Name, "activity", "Stuck (can't meet needs)")
+				}
 			}
 		}
 	} else {
@@ -816,8 +830,14 @@ func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.M
 
 	// No water source found
 	if best == nil {
-		if log != nil {
-			log.Add(char.ID, char.Name, "activity", "No water source available")
+		if tier >= entity.TierModerate {
+			newActivity := "No water source available"
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+				if log != nil {
+					log.Add(char.ID, char.Name, "activity", "No water source available")
+				}
+			}
 		}
 		return nil
 	}
@@ -928,8 +948,14 @@ func findDrinkIntent(char *entity.Character, pos types.Position, gameMap *game.M
 func findFoodIntent(char *entity.Character, pos types.Position, items []*entity.Item, tier int, log *ActionLog, gameMap *game.Map) *entity.Intent {
 	result := FindFoodTarget(char, items)
 	if result.Item == nil {
-		if log != nil {
-			log.Add(char.ID, char.Name, "activity", "No suitable food available")
+		if tier >= entity.TierModerate {
+			newActivity := "No suitable food available"
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+				if log != nil {
+					log.Add(char.ID, char.Name, "activity", "No suitable food available")
+				}
+			}
 		}
 		return nil
 	}
@@ -1054,8 +1080,15 @@ func findSleepIntent(char *entity.Character, pos types.Position, gameMap *game.M
 			}
 		}
 		// Not tired enough for ground sleep, need a bed
-		if log != nil {
-			log.Add(char.ID, char.Name, "activity", "No bed available")
+		if tier >= entity.TierModerate {
+			// Moderate+ — too tired for idle activities, wait for a bed
+			newActivity := "No bed available"
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+				if log != nil {
+					log.Add(char.ID, char.Name, "activity", "No bed available")
+				}
+			}
 		}
 		return nil
 	}
