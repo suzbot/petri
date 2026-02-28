@@ -202,6 +202,23 @@ To put a vessel in a character's inventory, add it to the character's `"inventor
 }
 ```
 
+**Order template** (pre-assign to a character by setting `assigned_to` and matching `assigned_order_id` on the character):
+```json
+{
+  "id": 1,
+  "activity_id": "gather",
+  "target_type": "stick",
+  "status": "assigned",
+  "assigned_to": 1
+}
+```
+
+**Order status values (IMPORTANT — must use exact strings):**
+- `"open"` — available to be taken by any character
+- `"assigned"` — currently being worked on (use this when pre-assigning to a character)
+- `"paused"` — interrupted by character needs
+- `"completed"` — finished (swept up by game loop)
+
 **Variety template:**
 ```json
 {
