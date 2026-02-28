@@ -9,10 +9,6 @@ then they can be removed from this list.
 
 # Ready Ideas
 
-## Issues To resolve
-
-1. **Duplicate message when starting conversation** — Every time someone starts talking they get a duplicate message.
-
 ## UI Improvements
 
 1. **Capitalization** consistency clean-up (not quick - lots of strings to sweep through)

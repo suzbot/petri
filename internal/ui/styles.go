@@ -47,6 +47,7 @@ var (
 	silverStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("188")).Bold(true)
 	grayStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("250")).Bold(true)
 	lavenderStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("183")).Bold(true)
+	paleGreenStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("108")).Bold(true) // sage
 
 	// Feature colors
 	waterStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true)  // bright blue

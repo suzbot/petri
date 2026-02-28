@@ -81,7 +81,7 @@ The current world day is displayed in the status bar.
 
 See `config.GroundSpawnInterval` for intervals.
 
-**Death timers:** Items with a death interval are removed when their timer expires. Currently only flowers have death timers; edibles are immortal until eaten. See `config.ItemLifecycle`.
+**Death timers:** Items with a death interval are removed when their timer expires. Flowers and grass have death timers; edibles are immortal until eaten. See `config.ItemLifecycle`.
 
 ## Items
 
@@ -94,6 +94,7 @@ See `config.GroundSpawnInterval` for intervals.
 - **Nuts**: Brown `o`; edible, not poisonous/healing. Falls from canopy periodically.
 - **Sticks**: Brown `/`; non-edible, crafting material. Falls from canopy periodically.
 - **Shells**: Colored `<`; non-edible, crafting material. Multiple color variants. Washes up adjacent to ponds.
+- **Grass**: Pale green `W`; non-edible, construction material. Grows and spreads across the world; fastest lifecycle (fast maturation and reproduction). Has a death timer so it doesn't take over the map. Harvested into bundles.
 - **Seeds**: Dot `.` in parent gourd's color; not edible, plantable. Inherits parent's full variety. Auto-dropped when a gourd is consumed.
 
 ### Varieties
@@ -481,9 +482,9 @@ Characters drop items when working an order that requires picking up a different
 
 ### Bundles
 
-Some item types (currently sticks) stack as bundles when picked up. Each successive pickup of the same bundleable type merges into the carried bundle, incrementing its count. A bundle occupies one inventory slot. When a bundle reaches max size (see `config.MaxBundleSize`), no more items can merge into it — the slot is full.
+Some item types (sticks, grass) stack as bundles when picked up. Each successive pickup of the same bundleable type merges into the carried bundle, incrementing its count. A bundle occupies one inventory slot. When a bundle reaches max size (see `config.MaxBundleSize`), no more items can merge into it — the slot is full.
 
-Bundleable items cannot be placed in vessels. A completed bundle on the ground shows as `X` on the map and as "bundle of sticks (N)" in descriptions.
+Bundleable items cannot be placed in vessels. A bundle with count ≥ 2 on the ground shows as `X` on the map and as "bundle of sticks (N)" in descriptions. A single bundleable item (count 1) shows its normal item name.
 
 ### Vessels
 
@@ -539,8 +540,8 @@ Planted items are consumed and replaced with a sprout. Sprouts render as `𖧧` 
 
 | | Fast | Medium | Slow |
 |--|------|--------|------|
-| **Maturation** (sprout → plant) | Mushroom | Berry, Flower | Gourd |
-| **Reproduction** (parent → new sprout) | Berry | Mushroom, Flower | Gourd |
+| **Maturation** (sprout → plant) | Mushroom, Grass | Berry, Flower | Gourd |
+| **Reproduction** (parent → new sprout) | Berry, Grass | Mushroom, Flower | Gourd |
 
 Tilled and wet tile multipliers apply to both timers (see `config.TilledGrowthMultiplier`, `config.WetGrowthMultiplier`).
 

@@ -411,6 +411,7 @@ func TestMatureSymbol_ReturnsCorrectSymbols(t *testing.T) {
 		{"mushroom", config.CharMushroom},
 		{"flower", config.CharFlower},
 		{"gourd", config.CharGourd},
+		{"grass", config.CharGrass},
 	}
 
 	for _, tt := range tests {
@@ -474,6 +475,7 @@ func TestUpdateSproutTimers_MatureSproutHasCorrectSymbol(t *testing.T) {
 		{"gourd", func() *entity.Item {
 			return entity.NewGourd(5, 5, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
 		}, config.CharGourd},
+		{"grass", func() *entity.Item { return entity.NewGrass(5, 5) }, config.CharGrass},
 	}
 
 	for _, tt := range tests {
@@ -489,6 +491,44 @@ func TestUpdateSproutTimers_MatureSproutHasCorrectSymbol(t *testing.T) {
 		if sprout.Sym != tt.wantSym {
 			t.Errorf("MatureSymbol(%s): got %c, want %c", tt.itemType, sprout.Sym, tt.wantSym)
 		}
+	}
+}
+
+func TestUpdateSproutTimers_MatureGrassSproutHasBundleCount(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	// Simulate a grass sprout (created by spawnItem, which doesn't set BundleCount)
+	sprout := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 5, Y: 5, Sym: config.CharSprout, EType: entity.TypeItem},
+		ItemType:   "grass",
+		Color:      types.ColorPaleGreen,
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true, SproutTimer: 1.0},
+		// BundleCount intentionally 0 (zero value, as spawnItem creates it)
+	}
+	gameMap.AddItem(sprout)
+
+	UpdateSproutTimers(gameMap, 40, 2.0)
+
+	if sprout.BundleCount != 1 {
+		t.Errorf("Matured grass BundleCount: got %d, want 1", sprout.BundleCount)
+	}
+}
+
+func TestUpdateSproutTimers_MatureNonBundleableSproutHasNoBundleCount(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	sprout := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	sprout.Sym = config.CharSprout
+	sprout.Plant.IsSprout = true
+	sprout.Plant.SproutTimer = 1.0
+	gameMap.AddItem(sprout)
+
+	UpdateSproutTimers(gameMap, 40, 2.0)
+
+	if sprout.BundleCount != 0 {
+		t.Errorf("Matured berry BundleCount: got %d, want 0", sprout.BundleCount)
 	}
 }
 

@@ -23,10 +23,11 @@ const (
 	ColorSilver     Color = "silver"
 	ColorGray       Color = "gray"
 	ColorLavender   Color = "lavender"
+	ColorPaleGreen  Color = "pale green"
 )
 
 // AllColors returns all valid colors
-var AllColors = []Color{ColorRed, ColorBlue, ColorBrown, ColorWhite, ColorOrange, ColorYellow, ColorPurple, ColorTan, ColorPink, ColorBlack, ColorGreen, ColorPalePink, ColorPaleYellow, ColorSilver, ColorGray, ColorLavender}
+var AllColors = []Color{ColorRed, ColorBlue, ColorBrown, ColorWhite, ColorOrange, ColorYellow, ColorPurple, ColorTan, ColorPink, ColorBlack, ColorGreen, ColorPalePink, ColorPaleYellow, ColorSilver, ColorGray, ColorLavender, ColorPaleGreen}
 
 // BerryColors returns valid colors for berries
 var BerryColors = []Color{ColorRed, ColorBlue, ColorPink, ColorPurple, ColorWhite, ColorYellow, ColorOrange, ColorBlack}

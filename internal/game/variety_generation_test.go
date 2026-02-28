@@ -286,6 +286,54 @@ func TestGetGatherableTypes_Deduplicated(t *testing.T) {
 	}
 }
 
+func TestGetItemTypeConfigs_IncludesGrass(t *testing.T) {
+	configs := GetItemTypeConfigs()
+
+	grassCfg, ok := configs["grass"]
+	if !ok {
+		t.Fatal("Expected grass config to exist in GetItemTypeConfigs")
+	}
+	if grassCfg.Edible {
+		t.Error("Grass should not be edible")
+	}
+	if grassCfg.Plantable {
+		t.Error("Grass should not be plantable (grass seeds are, not grass material)")
+	}
+	if grassCfg.Sym != config.CharGrass {
+		t.Errorf("Grass Sym: got %c, want %c", grassCfg.Sym, config.CharGrass)
+	}
+	if len(grassCfg.Colors) != 1 || grassCfg.Colors[0] != types.ColorPaleGreen {
+		t.Errorf("Grass Colors: got %v, want [%s]", grassCfg.Colors, types.ColorPaleGreen)
+	}
+}
+
+func TestGenerateVarieties_GrassVarietyRegistered(t *testing.T) {
+	registry := GenerateVarieties()
+
+	grasses := registry.VarietiesOfType("grass")
+	if len(grasses) == 0 {
+		t.Fatal("Expected grass varieties to be registered, got 0")
+	}
+
+	// Single variety: pale green, no pattern, no texture
+	g := grasses[0]
+	if g.Color != types.ColorPaleGreen {
+		t.Errorf("Grass variety Color: got %q, want %q", g.Color, types.ColorPaleGreen)
+	}
+	if g.Pattern != types.PatternNone {
+		t.Errorf("Grass variety Pattern: got %q, want %q", g.Pattern, types.PatternNone)
+	}
+	if g.Texture != types.TextureNone {
+		t.Errorf("Grass variety Texture: got %q, want %q", g.Texture, types.TextureNone)
+	}
+	if g.IsEdible() {
+		t.Error("Grass variety should not be edible")
+	}
+	if g.Sym != config.CharGrass {
+		t.Errorf("Grass variety Sym: got %c, want %c", g.Sym, config.CharGrass)
+	}
+}
+
 func TestGenerateVarieties_CorrectSymbols(t *testing.T) {
 	registry := GenerateVarieties()
 

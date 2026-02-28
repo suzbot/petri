@@ -113,7 +113,7 @@ internal/
 
 **Up Next:**
 
-- Construction Phase in progress: Step 1a (bundle mechanics) complete. See [docs/construction-phase-plan.md](docs/construction-phase-plan.md).
+- Construction Phase in progress: Steps 1a–1b (bundles + tall grass) complete. See [docs/construction-phase-plan.md](docs/construction-phase-plan.md).
 
 ## Reference and Planning Documents
 

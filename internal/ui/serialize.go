@@ -666,6 +666,8 @@ func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item
 		item.Sym = config.CharHoe
 	case "seed":
 		item.Sym = config.CharSeed
+	case "grass":
+		item.Sym = config.CharGrass
 	}
 
 	// Override symbol for sprouts (must come after type-based switch)

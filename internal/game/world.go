@@ -80,6 +80,8 @@ func createItemFromVariety(v *entity.ItemVariety, x, y int) *entity.Item {
 		return entity.NewGourd(x, y, v.Color, v.Pattern, v.Texture, v.IsPoisonous(), v.IsHealing())
 	case "flower":
 		return entity.NewFlower(x, y, v.Color)
+	case "grass":
+		return entity.NewGrass(x, y)
 	case "shell":
 		return entity.NewShell(x, y, v.Color)
 	default:

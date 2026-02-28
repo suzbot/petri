@@ -20,6 +20,8 @@ func MatureSymbol(itemType string) rune {
 		return config.CharFlower
 	case "gourd":
 		return config.CharGourd
+	case "grass":
+		return config.CharGrass
 	default:
 		return config.CharSprout // fallback
 	}
@@ -55,6 +57,11 @@ func UpdateSproutTimers(gameMap *game.Map, initialItemCount int, delta float64) 
 			item.Sym = MatureSymbol(item.ItemType)
 			item.Plant.SpawnTimer = CalculateSpawnInterval(item.ItemType, initialItemCount)
 			item.DeathTimer = CalculateDeathInterval(item.ItemType, initialItemCount)
+
+			// Restore BundleCount for bundleable types (sprouts start at 0, mature items need 1)
+			if _, bundleable := config.MaxBundleSize[item.ItemType]; bundleable {
+				item.BundleCount = 1
+			}
 
 			// Restore variety attributes from registry (sprouts from seeds may have nil Edible)
 			if registry := gameMap.Varieties(); registry != nil {

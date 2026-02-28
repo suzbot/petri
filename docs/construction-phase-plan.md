@@ -125,7 +125,7 @@ Bugs found during testing:
 
 ---
 
-#### Step 1b: Tall Grass Plant Type
+#### ✅ Step 1b: Tall Grass Plant Type
 
 **Anchor story:** The player starts a new world and sees pale green `W` characters scattered across the map — tall grass. Over time, sprouts appear adjacent to grass and mature into new grass. Grass is everywhere.
 
@@ -159,9 +159,15 @@ Bugs found during testing:
 
 [TEST] Start new world. See pale green W characters (grass). Over time, grass sprouts appear and mature. Grass spreads naturally via the lifecycle system. Details panel shows grass description correctly.
 
-[DOCS]
+Bugs found during testing:
+- Grass rendered without color — `ColorPaleGreen` missing from render switch in view.go. Added `paleGreenStyle` (sage, ANSI 108) and wired into the item color switch.
+- Grass vanished on save/load — `serialize.go` symbol restoration switch missing `case "grass"`. Added.
+- Grass sprouts matured without `BundleCount` — `spawnItem` doesn't copy BundleCount, and `UpdateSproutTimers` didn't restore it. Added BundleCount restoration for bundleable types on maturation.
+- Grass population unchecked — no death timer. Added `DeathInterval: 48.0` (same as flowers). Observation tests show stable ~51 avg (down from ~65 immortal).
 
-[RETRO]
+[DOCS] ✅
+
+[RETRO] ✅
 
 ---
 

@@ -34,6 +34,7 @@ const (
 	CharHoe        = 'L'
 	CharSeed       = '.'
 	CharTilledSoil = '═'
+	CharGrass      = 'W'
 	CharSprout     = '𖧧'
 	CharSleeping   = 'z'
 
@@ -171,6 +172,7 @@ var ItemLifecycle = map[string]LifecycleConfig{
 	"mushroom": {SpawnInterval: ReproductionMedium, DeathInterval: 0},    // ~3 world days between spawns, immortal until eaten
 	"flower":   {SpawnInterval: ReproductionMedium, DeathInterval: 48.0}, // ~3 world days between spawns, dies after ~8 world days
 	"gourd":    {SpawnInterval: ReproductionSlow, DeathInterval: 0},      // ~5 world days between spawns, immortal until eaten
+	"grass":    {SpawnInterval: ReproductionFast, DeathInterval: 48.0},   // ~2 world days between spawns, dies after ~8 world days
 }
 
 // StackSize maps item types to how many fit in one stack (for vessel storage)
@@ -252,6 +254,7 @@ var SproutDurationTier = map[string]float64{
 	"berry":    SproutDurationMedium,
 	"flower":   SproutDurationMedium,
 	"gourd":    SproutDurationSlow,
+	"grass":    SproutDurationFast,
 }
 
 // GetSproutDuration returns the sprout maturation duration for an item type, defaulting to Medium tier

@@ -66,6 +66,15 @@ func GetItemTypeConfigs() map[string]ItemTypeConfig {
 			Sym:                  config.CharGourd,
 			SpawnCount:           config.ItemSpawnCount,
 		},
+		"grass": {
+			Colors:               []types.Color{types.ColorPaleGreen},
+			Patterns:             nil,
+			Textures:             nil,
+			Edible:               false,
+			CanBePoisonOrHealing: false,
+			Sym:                  config.CharGrass,
+			SpawnCount:           config.ItemSpawnCount,
+		},
 		"shell": {
 			Colors:               types.ShellColors,
 			Patterns:             nil,

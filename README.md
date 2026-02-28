@@ -37,6 +37,7 @@ Core process innovations developed over the course of this project:
 
 ## Latest Updates
 
+- **Tall grass**: Pale green grass grows and spreads across the world, the fastest-growing plant.
 - **Gather bundles**: Characters gathering sticks stack them into bundles; a completed bundle is dropped on the ground and the order finishes.
 - **Helping:** Characters bring food or water to other character in crisis
 - **Food Mechanics:** Characters find food in containers, select food based on how filling it is and how long it takes to eat

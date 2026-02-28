@@ -27,6 +27,7 @@ model: sonnet
 - [ ] At least one test traces the anchor story end-to-end (not just unit-level checks of individual functions)
 - [ ] [TEST] checkpoint (or explicit note why human testing isn't possible)
 - [ ] [RETRO] checkpoint
+- [ ] If plan references an architecture.md "Adding New X" checklist, verify plan covers every item on that checklist
 
 **Pattern alignment:**
 - Cite the architecture.md section and state how it applies — don't just assert "follows existing pattern"
@@ -54,7 +55,7 @@ model: sonnet
 
 #### Test Patterns Reference
 
-- **No brittle string assertions** — don't assert on exact log/activity wording. Remove existing brittle assertions rather than updating them.
+- **No brittle string assertions** — don't assert on exact display text: log messages, activity wording, item descriptions, names, or UI strings. Remove existing brittle assertions rather than updating them.
 - **Ordered-action integration tests:** Test loop must mirror `continueIntent`: (1) recalculate `char.Intent.Target` each tick via `NextStepBFS`, (2) rebuild intent when nil. `IsWet()` uses 8-directional adjacency — dry tiles must be >1 tile from water.
 - **Flow-level anchor tests for procurement chains:** Chain system functions in handler order: `findXxxIntent` → `Pickup` → `FindNextTarget` → repeat → nil. See `TestGatherOrder_VesselPath_EndToEnd`.
 - **`continueIntent` and TargetItem rules:** Read the "`continueIntent` Rules" and "Self-Managing Actions" sections in architecture.md when adding/modifying item-targeting actions. Trace the full fall-through path for new cases.

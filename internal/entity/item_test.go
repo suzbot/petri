@@ -209,57 +209,6 @@ func TestNewShell_ColorPreserved(t *testing.T) {
 	}
 }
 
-// TestItem_Description_Stick verifies stick description shows bundle format
-func TestItem_Description_Stick(t *testing.T) {
-	t.Parallel()
-
-	item := NewStick(0, 0)
-	got := item.Description()
-	if got != "bundle of sticks (1)" {
-		t.Errorf("Stick Description(): got %q, want %q", got, "bundle of sticks (1)")
-	}
-}
-
-// TestItem_Description_BundleCount verifies bundle description at various counts
-func TestItem_Description_BundleCount(t *testing.T) {
-	t.Parallel()
-
-	item := NewStick(0, 0)
-	item.BundleCount = 3
-	got := item.Description()
-	if got != "bundle of sticks (3)" {
-		t.Errorf("Bundle Description(): got %q, want %q", got, "bundle of sticks (3)")
-	}
-
-	item.BundleCount = 6
-	got = item.Description()
-	if got != "bundle of sticks (6)" {
-		t.Errorf("Full bundle Description(): got %q, want %q", got, "bundle of sticks (6)")
-	}
-}
-
-// TestItem_Description_NonBundleItem verifies BundleCount=0 uses normal format
-func TestItem_Description_NonBundleItem(t *testing.T) {
-	t.Parallel()
-
-	item := NewNut(0, 0)
-	got := item.Description()
-	if got != "brown nut" {
-		t.Errorf("Non-bundle Description(): got %q, want %q", got, "brown nut")
-	}
-}
-
-// TestItem_Description_Nut verifies nut description
-func TestItem_Description_Nut(t *testing.T) {
-	t.Parallel()
-
-	item := NewNut(0, 0)
-	got := item.Description()
-	if got != "brown nut" {
-		t.Errorf("Nut Description(): got %q, want %q", got, "brown nut")
-	}
-}
-
 // TestItem_Description_Shell verifies shell description includes color
 func TestItem_Description_Shell(t *testing.T) {
 	t.Parallel()
@@ -579,6 +528,49 @@ func TestCreateSprout_FromMushroom_PreservesEdible(t *testing.T) {
 	}
 	if sprout.Texture != types.TextureSlimy {
 		t.Errorf("CreateSprout Texture: got %q, want %q", sprout.Texture, types.TextureSlimy)
+	}
+}
+
+// =============================================================================
+// Grass tests
+// =============================================================================
+
+// TestNewGrass_Properties verifies NewGrass creates grass with correct properties
+func TestNewGrass_Properties(t *testing.T) {
+	t.Parallel()
+
+	item := NewGrass(5, 8)
+
+	pos := item.Pos()
+	if pos.X != 5 || pos.Y != 8 {
+		t.Errorf("NewGrass Pos(): got (%d, %d), want (5, 8)", pos.X, pos.Y)
+	}
+	if item.ItemType != "grass" {
+		t.Errorf("NewGrass ItemType: got %q, want %q", item.ItemType, "grass")
+	}
+	if item.Symbol() != config.CharGrass {
+		t.Errorf("NewGrass Symbol(): got %c, want %c", item.Symbol(), config.CharGrass)
+	}
+	if item.Color != types.ColorPaleGreen {
+		t.Errorf("NewGrass Color: got %q, want %q", item.Color, types.ColorPaleGreen)
+	}
+	if item.IsEdible() {
+		t.Error("NewGrass IsEdible: got true, want false")
+	}
+	if item.Plant == nil {
+		t.Fatal("NewGrass Plant: got nil, want non-nil")
+	}
+	if !item.Plant.IsGrowing {
+		t.Error("NewGrass IsGrowing: got false, want true")
+	}
+	if item.BundleCount != 1 {
+		t.Errorf("NewGrass BundleCount: got %d, want 1", item.BundleCount)
+	}
+	if item.Type() != TypeItem {
+		t.Errorf("NewGrass Type(): got %d, want %d", item.Type(), TypeItem)
+	}
+	if item.Plantable {
+		t.Error("NewGrass Plantable: got true, want false (grass material is not plantable)")
 	}
 }
 

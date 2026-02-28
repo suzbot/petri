@@ -24,7 +24,7 @@ func TestObserveBalanceMetrics(t *testing.T) {
 
 	var totalDeaths, totalSurvivors int
 	var totalEdibleEnd, totalFlowerEnd int
-	var totalSticksEnd, totalNutsEnd, totalShellsEnd, totalSproutsEnd int
+	var totalSticksEnd, totalNutsEnd, totalShellsEnd, totalSproutsEnd, totalGrassEnd int
 	var totalPreferences int
 	deathCauses := make(map[string]int)
 	moodAtEnd := make(map[string]int)
@@ -68,8 +68,8 @@ func TestObserveBalanceMetrics(t *testing.T) {
 		endCounts := countItemsByType(world)
 
 		fmt.Printf("End: %d alive, %d dead\n", alive, deaths)
-		fmt.Printf("Items: %d edible, %d flowers, %d sticks, %d nuts, %d shells, %d sprouts\n",
-			endCounts.edible, endCounts.flowers, endCounts.sticks, endCounts.nuts, endCounts.shells, endCounts.sprouts)
+		fmt.Printf("Items: %d edible, %d flowers, %d grass, %d sticks, %d nuts, %d shells, %d sprouts\n",
+			endCounts.edible, endCounts.flowers, endCounts.grass, endCounts.sticks, endCounts.nuts, endCounts.shells, endCounts.sprouts)
 		fmt.Printf("Item trend - Edible: %d→%d, Flowers: %d→%d\n",
 			edibleCounts[0], endCounts.edible, flowerCounts[0], endCounts.flowers)
 
@@ -77,6 +77,7 @@ func TestObserveBalanceMetrics(t *testing.T) {
 		totalSurvivors += alive
 		totalEdibleEnd += endCounts.edible
 		totalFlowerEnd += endCounts.flowers
+		totalGrassEnd += endCounts.grass
 		totalSticksEnd += endCounts.sticks
 		totalNutsEnd += endCounts.nuts
 		totalShellsEnd += endCounts.shells
@@ -87,8 +88,9 @@ func TestObserveBalanceMetrics(t *testing.T) {
 	fmt.Printf("Total characters: %d (%d survived, %d died)\n",
 		totalSurvivors+totalDeaths, totalSurvivors, totalDeaths)
 	fmt.Printf("Survival rate: %.1f%%\n", float64(totalSurvivors)/float64(totalSurvivors+totalDeaths)*100)
-	fmt.Printf("Avg end items: %.1f edible, %.1f flowers, %.1f sticks, %.1f nuts, %.1f shells, %.1f sprouts\n",
+	fmt.Printf("Avg end items: %.1f edible, %.1f flowers, %.1f grass, %.1f sticks, %.1f nuts, %.1f shells, %.1f sprouts\n",
 		float64(totalEdibleEnd)/float64(numRuns), float64(totalFlowerEnd)/float64(numRuns),
+		float64(totalGrassEnd)/float64(numRuns),
 		float64(totalSticksEnd)/float64(numRuns), float64(totalNutsEnd)/float64(numRuns),
 		float64(totalShellsEnd)/float64(numRuns), float64(totalSproutsEnd)/float64(numRuns))
 	fmt.Printf("Avg preferences formed per survivor: %.1f\n",
@@ -144,8 +146,8 @@ func TestObserveFoodScarcity(t *testing.T) {
 			counts := countItemsByType(world)
 			aliveCount := countAliveChars(world)
 			worldDays := float64(tick) * delta / 120
-			fmt.Printf("Day %.0f (tick %d): %d edible, %d flowers, %d sprouts, %d alive\n",
-				worldDays, tick, counts.edible, counts.flowers, counts.sprouts, aliveCount)
+			fmt.Printf("Day %.0f (tick %d): %d edible, %d flowers, %d grass, %d sprouts, %d alive\n",
+				worldDays, tick, counts.edible, counts.flowers, counts.grass, counts.sprouts, aliveCount)
 			checkIdx++
 		}
 	}
@@ -221,6 +223,7 @@ func TestObserveFlowerGrowth(t *testing.T) {
 type itemCounts struct {
 	edible  int // edible items (berries, mushrooms, gourds, nuts)
 	flowers int
+	grass   int
 	sticks  int
 	nuts    int
 	shells  int
@@ -236,6 +239,8 @@ func countItemsByType(world *TestWorld) itemCounts {
 		switch item.ItemType {
 		case "flower":
 			c.flowers++
+		case "grass":
+			c.grass++
 		case "stick":
 			c.sticks++
 		case "nut":
@@ -595,8 +600,8 @@ func TestObserveDeathProgression(t *testing.T) {
 		if checkIdx < len(checkpoints) && tick == checkpoints[checkIdx] {
 			alive := countAliveChars(world)
 			counts := countItemsByType(world)
-			fmt.Printf("  [Checkpoint tick %d: %d/%d alive, %d edible, %d flowers, %d sprouts]\n",
-				tick, alive, initialChars, counts.edible, counts.flowers, counts.sprouts)
+			fmt.Printf("  [Checkpoint tick %d: %d/%d alive, %d edible, %d flowers, %d grass, %d sprouts]\n",
+				tick, alive, initialChars, counts.edible, counts.flowers, counts.grass, counts.sprouts)
 			checkIdx++
 		}
 

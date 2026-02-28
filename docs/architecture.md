@@ -91,7 +91,7 @@ Functional attributes live in optional property structs (`EdibleProperties`, `Pl
 
 **EdibleProperties** marks items as edible with optional effects. Items with `Edible != nil` can be eaten; Poisonous/Healing determine effects.
 
-**BundleCount** (`int` field on Item, default 0 for non-bundleable items, 1 for bundleable items): tracks how many units are in this bundle slot. Constructors for bundleable types (e.g., `NewStick()`) set `BundleCount: 1`. `Pickup()` increments BundleCount when merging. `Description()` uses BundleCount to produce "bundle of sticks (N)" display text. Items with `BundleCount >= 2` render as `X` on the map. `config.IsBundleable(itemType)` and `config.MaxBundleSize` drive bundle eligibility and capacity. Bundleable types are also listed in `config.VesselExcludedTypes` — they cannot go in vessels. This is an explicit config check, replacing the prior implicit exclusion (variety absence) for sticks.
+**BundleCount** (`int` field on Item, default 0 for non-bundleable items, 1 for bundleable items): tracks how many units are in this bundle slot. Constructors for bundleable types (e.g., `NewStick()`, `NewGrass()`) set `BundleCount: 1`. `Pickup()` increments BundleCount when merging. `Description()` uses BundleCount to produce "bundle of sticks (N)" display text. Items with `BundleCount >= 2` render as `X` on the map. `config.IsBundleable(itemType)` and `config.MaxBundleSize` drive bundle eligibility and capacity. Bundleable types are also listed in `config.VesselExcludedTypes` — they cannot go in vessels. This is an explicit config check, replacing the prior implicit exclusion (variety absence) for sticks.
 
 ### Kind Pattern for Subtypes
 
@@ -119,8 +119,9 @@ Crafted items (like vessels) differ from natural items:
 2. `config/config.go` — Add to `ItemLifecycle` map (spawn/death intervals); if edible, add to `ItemMealSize` map (use `GetMealSize` to look up satiation and eating duration); add to `SproutDurationTier` map (maturation speed tier)
 3. `game/variety_generation.go` — Add variety generation logic
 4. `game/world.go` — Add to `GetItemTypeConfigs()` for UI/character creation. Set `Plantable: true` if items of this type can be planted directly; set `CanProduceSeeds: true` if consuming produces seeds.
-
-Note: `spawnItem()` in `lifecycle.go` is generic — copies parent properties, no changes needed.
+5. `system/lifecycle.go` — Add case to `MatureSymbol()` for the mature plant symbol. Verify that any constructor-set fields are restored on maturation in `UpdateSproutTimers`. `spawnItem()` only copies descriptive attributes (Color, Pattern, Texture) — functional fields set by the constructor (e.g., `BundleCount`, `Edible`) must be restored when the sprout matures, since they won't survive the sprout→mature transition otherwise.
+6. `game/world.go` — Add case to `createItemFromVariety()` to call the constructor. Without this, the type falls through to the default (currently `NewFlower`).
+7. `ui/serialize.go` — Add case to the symbol restoration switch in `itemFromSave()`. Symbols are not serialized — they're restored from ItemType on load.
 
 ### Future Extensions
 

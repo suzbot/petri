@@ -11,7 +11,12 @@ import (
 // bundlePluralName maps bundleable item types to their plural form for display
 var bundlePluralName = map[string]string{
 	"stick": "sticks",
-	"grass": "grass",
+	"grass": "tall grass",
+}
+
+// itemDisplayName maps internal item types to their display names (singular)
+var itemDisplayName = map[string]string{
+	"grass": "tall grass",
 }
 
 // PlantProperties contains properties specific to growing plants
@@ -157,6 +162,22 @@ func NewGourd(x, y int, color types.Color, pattern types.Pattern, texture types.
 	}
 }
 
+// NewGrass creates a new tall grass item (plant, non-edible, bundleable)
+func NewGrass(x, y int) *Item {
+	return &Item{
+		BaseEntity: BaseEntity{
+			X:     x,
+			Y:     y,
+			Sym:   config.CharGrass,
+			EType: TypeItem,
+		},
+		ItemType:    "grass",
+		Color:       types.ColorPaleGreen,
+		Plant:       &PlantProperties{IsGrowing: true},
+		BundleCount: 1,
+	}
+}
+
 // NewStick creates a new stick item (non-edible, non-plant, bundleable)
 func NewStick(x, y int) *Item {
 	return &Item{
@@ -244,7 +265,7 @@ func (i *Item) Description() string {
 		return i.Name
 	}
 
-	if i.BundleCount > 0 {
+	if i.BundleCount >= 2 {
 		plural := bundlePluralName[i.ItemType]
 		if plural == "" {
 			plural = i.ItemType + "s"
@@ -265,6 +286,8 @@ func (i *Item) Description() string {
 	}
 	if i.Kind != "" {
 		parts = append(parts, i.Kind)
+	} else if displayName, ok := itemDisplayName[i.ItemType]; ok {
+		parts = append(parts, displayName)
 	} else {
 		parts = append(parts, i.ItemType)
 	}
