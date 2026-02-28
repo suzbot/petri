@@ -52,6 +52,10 @@ Use Bash to create: `~/.petri/worlds/world-test-<feature>/`
 }
 ```
 
+### Step 4.5: Remind User to Close Game (REQUIRED)
+
+Before writing any files, remind the user: **"Close the game if it's running — auto-save on quit will overwrite the test world."** Wait for acknowledgment before proceeding to Step 5.
+
 ### Step 5: Write state.json
 
 Start from the **recipe template** below, then customize for the test scenario.
@@ -141,7 +145,7 @@ Use this as the starting structure. Add/remove characters, items, features, and 
 }
 ```
 
-**Growing plant template** (add `plant` field):
+**Growing plant template** (mature, can reproduce):
 ```json
 {
   "id": 2,
@@ -156,6 +160,24 @@ Use this as the starting structure. Add/remove characters, items, features, and 
   "healing": false,
   "death_timer": 0,
   "plant": {"is_growing": true, "spawn_timer": 0}
+}
+```
+
+**Sprout template** (still maturing, NOT yet edible — `edible` must be `false`):
+```json
+{
+  "id": 3,
+  "x": 33,
+  "y": 30,
+  "item_type": "berry",
+  "color": "red",
+  "pattern": "",
+  "texture": "",
+  "edible": false,
+  "poisonous": false,
+  "healing": false,
+  "death_timer": 0,
+  "plant": {"is_growing": true, "spawn_timer": 0, "is_sprout": true, "sprout_timer": 120.0}
 }
 ```
 

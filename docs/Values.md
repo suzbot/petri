@@ -20,6 +20,8 @@ Before working on a solution, confirm the problem. Is this actually a problem? W
 
 The failure mode is momentum: something looks wrong, so fixing begins immediately. A test fails, so debugging starts before asking whether the test is correct. Investigation is expected to produce action items, so it produces one even when the honest answer is "nothing needs to change." This applies equally mid-implementation — when human testing surfaces a new gap, that's a new problem to scope and discuss, not a code defect to fix in place. The cost of pausing is low; the cost of solving the wrong problem compounds across every phase that inherits the unexamined premise.
 
+**Frame the problem:** Specify both current state and desired state in functional terms, and confirm alignment before changing behavior. Consider the impact of changes on the larger system. (Need spam fix went four rounds because each patch addressed one symptom without a complete picture of desired behavior across all relevant states.)
+
 When the situation diverges from expectations, make that divergence visible and get agreement before acting on it.
 
 ## Make Reasoning Evaluable

@@ -98,6 +98,7 @@ internal/
 **Pause -> Skill -> Discussion → Tests -> Implementation → Human Testing → Documentation**
 
 - **Before writing code**: Load the relevant skill, check architecture.md, discuss approach. Use project skills (`/refine-feature`, `/implement-feature`, `/new-phase`, `/retro`) — not generic plan mode. Plan docs live in `docs/`; update existing ones.
+- **Frame the problem first**: Specify current state and desired state in functional terms before proposing changes. Consider impact on the larger system. Confirm alignment before implementing.
 - **Communication**: Functional terms, not code mechanics. Prose for tradeoffs, not multiple-choice. Recommend with options. Qualify claims precisely.
 - **When things go wrong**: Evidence before fixes. Second bug = step back and restate the flow. Surface when stuck.
 - **Quality gates**: TDD. User must test before marking complete. Keep docs current.
