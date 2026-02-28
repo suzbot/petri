@@ -95,14 +95,8 @@ func findTalkIntent(char *entity.Character, pos types.Position, gameMap *game.Ma
 	tx, ty := cpos.X, cpos.Y
 
 	// If adjacent, start talking immediately
+	// Note: logging and CurrentActivity are handled by StartTalking in applyTalk
 	if isAdjacent(pos.X, pos.Y, tx, ty) {
-		newActivity := "Talking with " + closest.Name
-		if char.CurrentActivity != newActivity {
-			char.CurrentActivity = newActivity
-			if log != nil {
-				log.Add(char.ID, char.Name, "activity", "Started talking with "+closest.Name)
-			}
-		}
 		return &entity.Intent{
 			Target:          pos, // Stay in place
 			Dest:            pos, // Already at destination (adjacent to character)
