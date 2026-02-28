@@ -90,6 +90,8 @@ Functional attributes live in optional property structs (`EdibleProperties`, `Pl
 
 **EdibleProperties** marks items as edible with optional effects. Items with `Edible != nil` can be eaten; Poisonous/Healing determine effects.
 
+**BundleCount** (`int` field on Item, default 0 for non-bundleable items, 1 for bundleable items): tracks how many units are in this bundle slot. Constructors for bundleable types (e.g., `NewStick()`) set `BundleCount: 1`. `Pickup()` increments BundleCount when merging. `Description()` uses BundleCount to produce "bundle of sticks (N)" display text. Items with `BundleCount >= 2` render as `X` on the map. `config.IsBundleable(itemType)` and `config.MaxBundleSize` drive bundle eligibility and capacity. Bundleable types are also listed in `config.VesselExcludedTypes` — they cannot go in vessels. This is an explicit config check, replacing the prior implicit exclusion (variety absence) for sticks.
+
 ### Kind Pattern for Subtypes
 
 Some item types use a `Kind` subtype field for hierarchical identity:
@@ -370,6 +372,7 @@ Orders are player-directed tasks. They share physical actions with idle activiti
 - Order eligibility checks activity's `Availability` against character's known activities
 - `IsOrderFeasible(order, items, gameMap)` is computed on demand at assignment and render time — returns `(feasible bool, noKnowHow bool)`. Unfeasible orders are skipped during `findAvailableOrder` and rendered dimmed with `[Unfulfillable]` or `[No one knows how]`.
 - `LockedVariety string` on Order: set when the first item is planted. After locking, the character only seeks items of that variety, keeping a single order focused.
+- **Full bundle exclusion from gather targeting**: `FindNextGatherTarget` skips items that would merge into a bundle that's already at max size — the same way full vessels are skipped during harvest targeting. This prevents continuation past bundle capacity.
 
 ### Unified Order Completion
 
@@ -397,7 +400,10 @@ Pool is serialized in `SaveState.MarkedForTillingPositions`.
 `Pickup()` returns a `PickupResult` to distinguish outcomes:
 - `PickupToInventory` — item picked up directly (inventory was empty)
 - `PickupToVessel` — item added to carried vessel's stack
+- `PickupToBundle` — item merged into carried bundle (count incremented)
 - `PickupFailed` — could not pick up (variety mismatch with vessel)
+
+`PickupToBundle` and `PickupToVessel` share the same continuation semantics: the caller (gather/harvest handler) continues working rather than clearing intent. Both also skip intent clearing — the action keeps going. Callers that need to check for bundle completion (gather orders) additionally call `CanPickUpMore()` after the merge; if the bundle is full, they drop the bundle and complete the order.
 
 Callers handle continuation differently based on result and context (foraging vs harvesting).
 
@@ -573,6 +579,8 @@ When adding fields to saved structs:
 Constructor-set fields won't be populated when deserializing directly into structs — must be explicitly restored based on type.
 
 **PlantProperties serialization**: `IsSprout` and `SproutTimer` must round-trip correctly to preserve sprout state across save/load.
+
+**BundleCount serialization**: `BundleCount` is stored as `bundle_count` in `ItemSave`. Backward compatibility: old saves without the field default to `BundleCount=0`; on load, bundleable types with `BundleCount=0` are migrated to `BundleCount=1` (a single item is a bundle of 1).
 
 **Save compatibility when changing entity storage**: When changing how entities are stored (e.g., moving data between fields, maps, or types), verify save/load round-trip in the same step. Check: (1) new state serializes, (2) old saves migrate, (3) serialize tests updated.
 

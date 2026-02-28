@@ -425,7 +425,7 @@ When a character becomes idle-eligible:
 
 **Harvest orders:** Character seeks growing items of the target type, picks them up into a vessel (or inventory). Continues until vessel is full or no matching items remain.
 
-**Gather orders:** Character picks up loose (non-growing, non-container, non-tool) items from the ground. For items with registered varieties (seeds, nuts, shells), uses vessel procurement. For items without varieties (sticks), picks up directly to inventory. No know-how required — all characters can gather.
+**Gather orders:** Character picks up loose (non-growing, non-container, non-tool) items from the ground. For items with registered varieties (seeds, nuts, shells), uses vessel procurement. For bundleable items (sticks), successive pickups merge into a bundle in inventory. When the bundle reaches max size (see `config.MaxBundleSize`), the character drops the completed bundle on the ground and the order completes — one bundle per order. No know-how required — all characters can gather.
 
 ### Order Interruption and Resumption
 
@@ -467,13 +467,19 @@ Discovery chance depends on mood (same as other know-how discovery — see [Know
 
 ### Inventory
 
-Characters carry items in a 2-slot inventory. Each slot holds one item or one vessel (with contents). Press `I` in select mode to view.
+Characters carry items in a 2-slot inventory. Each slot holds one item, one vessel (with contents), or one bundle. Press `I` in select mode to view.
 
 When an item is picked up:
 - Removed from the map, no longer grows or has spawn/death timers
 - Berries and mushrooms become Plantable
 
 Characters drop items when working an order that requires picking up a different item, or when inventory is full and they need something else.
+
+### Bundles
+
+Some item types (currently sticks) stack as bundles when picked up. Each successive pickup of the same bundleable type merges into the carried bundle, incrementing its count. A bundle occupies one inventory slot. When a bundle reaches max size (see `config.MaxBundleSize`), no more items can merge into it — the slot is full.
+
+Bundleable items cannot be placed in vessels. A completed bundle on the ground shows as `X` on the map and as "bundle of sticks (N)" in descriptions.
 
 ### Vessels
 

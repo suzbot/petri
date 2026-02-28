@@ -31,6 +31,8 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Interactive inventory details panel** | Items gain enough attributes that parenthetical summary in inventory list isn't sufficient; Want to inspect individual inventory items with full details view |
 | **Drinkable bool on ItemVariety**      | Non-drinkable liquid introduced (lamp oil, dye); Need to distinguish consumable vs non-consumable liquids |
 | **Watertight bool on ContainerData**   | Non-watertight container introduced (basket, sack); Need to prevent liquid storage in permeable containers |
+| **Vessel-excluded vs bundleable split** | An item needs vessel exclusion without being bundleable, or vice versa; Currently `config.MaxBundleSize` membership serves both purposes |
+| **Item property registry migration** | Adding new item type requires touching config.go for non-tunable structural mappings; Confusion about what belongs in config vs entity registries |
 | **Idle activity registry refactor**    | Idle activity needs discovery/know-how gating; Idle activities need data-driven selection (weighted probabilities, personality); Adding 7th+ hardcoded idle option feels unwieldy |
 | **Snacking threshold** | Characters walk past nearby berries because hunger isn't high enough to trigger foraging, then starve later; Snack-tier food feels useless because characters only eat when already quite hungry |
 | **Terrain-aware Look + discovery**     | Adding activity discovered from terrain interaction; Characters feel artificially limited to item-only observation; Want richer idle contemplation behaviors |
@@ -182,6 +184,22 @@ Currently, the helper "shout" that alerts a needy character to dropped food is i
 - Observable event flow for debugging and action log richness
 
 The current approach (direct intent clearing + action log entry) works well for the helping use case. Formalize when character relationships are introduced and signals need to carry metadata (who helped, what they provided, how the recipient feels about it).
+
+---
+
+**Vessel-excluded vs bundleable split:**
+
+Currently `config.MaxBundleSize` map membership means both "this item type stacks into bundles" and "this item type can't go in vessels." The sets happen to be identical (sticks, grass). If a future item needs vessel exclusion without bundling (e.g., a large tool) or bundling without vessel exclusion (unlikely but possible), split into `MaxBundleSize` (bundling) and a separate `VesselExcludedTypes` set (vessel exclusion).
+
+---
+
+**Item property registry migration:**
+
+`config.go` currently mixes two concerns: tunable values (rates, durations, thresholds) and structural item-type registries (which items have which capabilities). The tunable values belong in config. The structural mappings — `StackSize`, `ItemMealSize`, `ItemLifecycle`, `SproutDurationTier`, `GroundSpawnCount`, `MaxBundleSize` — are game rules, not balance knobs.
+
+Long-term design: tunable values stay in config as named constants (e.g., `DefaultMaxBundleSize = 6`, `BerryStackSize = 20`). Structural mappings move to entity as registries that reference those constants (e.g., `MaxBundleSize = map[string]int{"stick": config.DefaultMaxBundleSize}`). This separates "what can I tune?" from "which items have which properties?"
+
+Deferred because: the current pattern works and all existing code references config. Migrate when adding a new item type and the config-vs-registry confusion causes a real problem.
 
 ---
 

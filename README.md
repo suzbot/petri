@@ -24,10 +24,8 @@ each practice here was designed and iterated on during development.
 
 Core process innovations developed over the course of this project:
 
-- **Skill-driven workflows**: Custom AI skill definitions support iterative development, TDD, human testing checkpoints, and requirement traceability at each step —
-  preventing drift with agile spirit
-- **Recursive retrospectives**: After each feature, a structured retro reviews collaboration friction, then updates its own skill definitions and design values —
-  compounding institutional knowledge across sessions
+- **Skill-driven workflows**: Custom AI skill definitions support agile iterative development, TDD, human testing checkpoints, and requirement traceability at each step
+- **Recursive retrospectives**: After each feature, an automated retro reviews collaboration friction, then updates its own skill definitions and notes design values, compounding institutional knowledge across sessions
 - **Inferred design values**: Patterns observed during retros are captured as explicit principles that guide future implementation decisions
 
 **See it in action:**
@@ -39,21 +37,11 @@ Core process innovations developed over the course of this project:
 
 ## Latest Updates
 
-- **Crisis water delivery**: idle characters notice dehydrated community members and deliver a filled water vessel to them.
-- **Crisis food delivery**: idle characters notice starving community members and autonomously bring them food; helper calls out on delivery.
-- **Ground vessel eating**: hungry characters eat from food vessels on the ground without picking them up; multiple characters can share a communal vessel.
-- **Satiation-aware food selection**: characters choose food that fits their current hunger — filling meals at severe hunger, snacks when foraging at low hunger, nearest food at crisis.
-- **Eating duration**: berries and nuts are quick snacks; mushrooms are a proper meal; gourds are a lengthy feast.
+- **Gather bundles**: Characters gathering sticks stack them into bundles; a completed bundle is dropped on the ground and the order finishes.
+- **Helping:** Characters bring food or water to other character in crisis
+- **Food Mechanics:** Characters find food in containers, select food based on how filling it is and how long it takes to eat
+- **Gardening:** Characters can gather seeds, till soil, water the garden, and watch food grow
 
-### Gardening
-
-- **Gourd Seeds**: Eating a gourd drops a seed on the ground. Seeds are plantable and stack in vessels.
-- **Gather Orders**: Players can order characters to gather loose items like sticks, nuts, shells, and seeds from the ground.
-- **Fetch Water**: Idle characters can fill a vessel with water to keep with them to drink from while they work.
-- **Till Soil**: Players can mark rectangular areas for tilling using an area selection tool. Characters with till know-how procure a hoe and till the marked tiles.
-- **Plant Orders**: Players can order characters to plant on tilled soil.
-- **Water Garden Orders**: Players can order characters to water planted tiles.
-- **Growth Speed Tiers**: Plants grow and spread at different rates, faster when on tilled and/or wet soil.
 
 ## How It Works
 

@@ -4,7 +4,7 @@ Guidance for Claude Code when working with code in this repo.
 
 Petri is a Dwarf Fortress-inspired simulation exploring emergent culture development.
 
-**Current features:** Character creation, procedural world generation (terrain, items, water), multi-stat survival with urgency-based AI, dynamic preferences and knowledge systems, social behavior, inventory and crafting, player-directed orders (including gardening, gather, and provisioned-worker inventory consumption at Mild tier), crisis food and water delivery (helpFeed, helpWater), and action logging.
+**Current features:** Procedural world generation, multi-stat survival with urgency-based AI, preferences and knowledge, social behavior, inventory with vessels and bundles, crafting, player-directed orders (gardening, gathering, construction), crisis helping, and action logging.
 
 **Vision:** Complex roguelike simulation world with complex interactions between characters, items, and attributes. History exists only in character memories and created artifacts. As characters die, their knowledge dies with them except what they've communicated or created. See [docs/VISION.txt](docs/VISION.txt).
 
@@ -46,7 +46,7 @@ internal/
 
 **Configuration & Types**
 
-- `internal/config/config.go` - All game constants, rates, thresholds, spawn counts
+- `internal/config/config.go` - Tunable game constants (rates, thresholds, durations). Also contains legacy item property maps (`StackSize`, `ItemMealSize`, etc.) that should migrate to entity registries — see triggered-enhancements.md
 - `internal/types/types.go` - Core enums: Color, Pattern, Texture, StatType
 - `internal/types/position.go` - Position struct with distance/adjacency methods
 
@@ -112,8 +112,7 @@ internal/
 
 **Up Next:**
 
-- Helping feature complete (ground vessel eating, helpFeed, helpWater). See [docs/helping-phase-plan.md](docs/helping-phase-plan.md).
-- Next: TBD
+- Construction Phase in progress: Step 1a (bundle mechanics) complete. See [docs/construction-phase-plan.md](docs/construction-phase-plan.md).
 
 ## Reference and Planning Documents
 
