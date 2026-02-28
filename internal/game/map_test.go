@@ -773,7 +773,7 @@ func TestItemsAt_ReturnsAllItemsAtPosition(t *testing.T) {
 
 	m := NewMap(20, 20)
 	item1 := entity.NewStick(5, 5)
-	item2 := entity.NewNut(5, 5) // same position
+	item2 := entity.NewNut(5, 5)   // same position
 	item3 := entity.NewStick(6, 6) // different position
 	m.AddItem(item1)
 	m.AddItem(item2)

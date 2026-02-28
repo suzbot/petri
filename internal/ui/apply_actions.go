@@ -301,7 +301,9 @@ func (m *Model) applyPickup(char *entity.Character, delta float64) {
 					carriedVessel := char.GetCarriedVessel()
 					canAddToVessel := carriedVessel != nil &&
 						!system.IsVesselFull(carriedVessel, m.gameMap.Varieties())
-					if !canAddToVessel {
+					// Check if target can merge into existing bundle - don't drop
+					canMergeBundle := system.CanMergeIntoBundle(char, item)
+					if !canAddToVessel && !canMergeBundle {
 						system.Drop(char, m.gameMap, m.actionLog)
 					}
 				}
@@ -329,6 +331,25 @@ func (m *Model) applyPickup(char *entity.Character, delta float64) {
 						}
 					}
 					// Order complete or no continuation target - go idle
+					char.Intent = nil
+					char.IdleCooldown = config.IdleCooldown
+					char.CurrentActivity = "Idle"
+					return
+				}
+
+				// Handle bundle merge continuation (vessel-excluded items like sticks)
+				if result == system.PickupToBundle {
+					if char.AssignedOrderID != 0 {
+						if order := m.findOrderByID(char.AssignedOrderID); order != nil && order.ActivityID == "gather" {
+							if nextIntent := system.FindNextGatherTarget(char, cx, cy, m.gameMap.Items(), order.TargetType, m.gameMap); nextIntent != nil {
+								char.Intent = nextIntent
+								return
+							}
+							// Bundle full or no more targets — drop completed bundle and finish
+							system.DropCompletedBundle(char, order, m.gameMap, m.actionLog)
+							system.CompleteOrder(char, order, m.actionLog)
+						}
+					}
 					char.Intent = nil
 					char.IdleCooldown = config.IdleCooldown
 					char.CurrentActivity = "Idle"
@@ -366,6 +387,7 @@ func (m *Model) applyPickup(char *entity.Character, delta float64) {
 								char.Intent = nextIntent
 								return
 							}
+							system.DropCompletedBundle(char, order, m.gameMap, m.actionLog)
 							system.CompleteOrder(char, order, m.actionLog)
 						}
 					}

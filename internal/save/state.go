@@ -170,6 +170,8 @@ type ItemSave struct {
 
 	Plantable bool `json:"plantable,omitempty"`
 
+	BundleCount int `json:"bundle_count,omitempty"`
+
 	DeathTimer float64 `json:"death_timer"`
 }
 

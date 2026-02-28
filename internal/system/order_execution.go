@@ -3,6 +3,7 @@ package system
 import (
 	"fmt"
 
+	"petri/internal/config"
 	"petri/internal/entity"
 	"petri/internal/game"
 	"petri/internal/types"
@@ -30,8 +31,9 @@ func selectOrderActivity(char *entity.Character, pos types.Position, items []*en
 			if intent := findOrderIntent(char, pos, items, order, log, gameMap); intent != nil {
 				return intent
 			}
-			// Check if this is a tillSoil completion (pool empty) vs failure
-			if isMultiStepOrderComplete(order, gameMap) {
+			// Check if order goal is achieved vs failure
+			if isMultiStepOrderComplete(char, order, gameMap) {
+				DropCompletedBundle(char, order, gameMap, log)
 				CompleteOrder(char, order, log)
 				return nil
 			}
@@ -62,8 +64,9 @@ func selectOrderActivity(char *entity.Character, pos types.Position, items []*en
 		return intent
 	}
 
-	// Check if this is a tillSoil completion (pool empty) vs failure
-	if isMultiStepOrderComplete(order, gameMap) {
+	// Check if order goal is achieved vs failure
+	if isMultiStepOrderComplete(char, order, gameMap) {
+		DropCompletedBundle(char, order, gameMap, log)
 		CompleteOrder(char, order, log)
 		return nil
 	}
@@ -303,8 +306,8 @@ func findPlantIntent(char *entity.Character, pos types.Position, items []*entity
 }
 
 // isMultiStepOrderComplete checks if a multi-step order should be considered complete
-// (vs abandoned due to failure). Returns true when the work pool is exhausted.
-func isMultiStepOrderComplete(order *entity.Order, gameMap *game.Map) bool {
+// (vs abandoned due to failure). Returns true when the order's goal is achieved.
+func isMultiStepOrderComplete(char *entity.Character, order *entity.Order, gameMap *game.Map) bool {
 	switch order.ActivityID {
 	case "tillSoil":
 		for _, pos := range gameMap.MarkedForTillingPositions() {
@@ -320,8 +323,44 @@ func isMultiStepOrderComplete(order *entity.Order, gameMap *game.Map) bool {
 	case "waterGarden":
 		// Complete when no dry tilled planted tiles remain
 		return !DryTilledPlantedTileExists(gameMap.Items(), gameMap)
+	case "gather":
+		// One bundle per order — complete when character has a full bundle of the target type
+		return hasFullBundle(char, order.TargetType)
 	default:
 		return false
+	}
+}
+
+// hasFullBundle returns true if the character is carrying a full bundle of the given type.
+func hasFullBundle(char *entity.Character, targetType string) bool {
+	maxSize := config.MaxBundleSize[targetType]
+	if maxSize == 0 {
+		return false
+	}
+	for _, item := range char.Inventory {
+		if item != nil && item.ItemType == targetType && item.BundleCount >= maxSize {
+			return true
+		}
+	}
+	return false
+}
+
+// DropCompletedBundle drops a full bundle of the order's target type when a gather
+// order completes. Called from selectOrderActivity before CompleteOrder.
+// No-op for non-gather orders or when no full bundle exists.
+func DropCompletedBundle(char *entity.Character, order *entity.Order, gameMap *game.Map, log *ActionLog) {
+	if order.ActivityID != "gather" {
+		return
+	}
+	maxSize := config.MaxBundleSize[order.TargetType]
+	if maxSize == 0 {
+		return
+	}
+	for _, item := range char.Inventory {
+		if item != nil && item.ItemType == order.TargetType && item.BundleCount >= maxSize {
+			DropItem(char, item, gameMap, log)
+			return
+		}
 	}
 }
 
@@ -811,6 +850,11 @@ func DryTilledPlantedTileExists(items []*entity.Item, gameMap *game.Map) bool {
 //   - Checks variety registry: items with a variety use vessel procurement; items without (sticks)
 //     check inventory space directly.
 func findGatherIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	// One bundle per order — if character already has a full bundle, order goal is achieved
+	if hasFullBundle(char, order.TargetType) {
+		return nil
+	}
+
 	// Find nearest item matching the order's target type (growingOnly=false)
 	target := findNearestItemByType(pos.X, pos.Y, items, order.TargetType, false)
 	if target == nil {
@@ -827,8 +871,10 @@ func findGatherIntent(char *entity.Character, pos types.Position, items []*entit
 			return intent
 		}
 	} else {
-		// No variety (e.g., sticks) — must have inventory space to pick up
-		if !char.HasInventorySpace() {
+		// No variety (e.g., sticks) — must have room to pick up (inventory slot or non-full bundle).
+		// Orders can drop items on arrival (applyPickup handles this), so only check capacity
+		// when the character actually has stick bundles that are all full.
+		if !canGatherMore(char, order.TargetType) && !hasNonTargetToDrop(char, order.TargetType) {
 			return nil
 		}
 	}
@@ -868,10 +914,19 @@ func FindGatherIntentForTest(char *entity.Character, pos types.Position, items [
 	return findGatherIntent(char, pos, items, order, log, gameMap)
 }
 
+// IsMultiStepOrderCompleteForTest is an exported wrapper for tests.
+func IsMultiStepOrderCompleteForTest(char *entity.Character, order *entity.Order, gameMap *game.Map) bool {
+	return isMultiStepOrderComplete(char, order, gameMap)
+}
+
 // FindNextGatherTarget finds the next item to gather for order continuation.
-// Returns nil if inventory is full or no matching targets exist.
+// Returns nil if no capacity (inventory slot or non-full bundle of target type) or no matching targets exist.
 func FindNextGatherTarget(char *entity.Character, cx, cy int, items []*entity.Item, targetType string, gameMap *game.Map) *entity.Intent {
-	if !char.HasInventorySpace() {
+	// One bundle per order — stop continuation when a full bundle exists
+	if hasFullBundle(char, targetType) {
+		return nil
+	}
+	if !canGatherMore(char, targetType) {
 		return nil
 	}
 
@@ -901,12 +956,56 @@ func FindNextGatherTarget(char *entity.Character, cx, cy int, items []*entity.It
 	}
 }
 
-// groundItemOfTypeExists checks if any item of the given type exists on the ground.
-func groundItemOfTypeExists(items []*entity.Item, itemType string) bool {
-	for _, item := range items {
-		if item.ItemType == itemType {
+// canGatherMore returns true if the character can pick up more items of the given type.
+// Checks inventory space first, then checks for non-full bundles of the target type.
+// This is target-type-aware unlike CanPickUpMore (which counts vessel space that
+// vessel-excluded items like sticks can't use).
+func canGatherMore(char *entity.Character, targetType string) bool {
+	if char.HasInventorySpace() {
+		return true
+	}
+	maxSize := config.MaxBundleSize[targetType]
+	if maxSize > 0 {
+		for _, item := range char.Inventory {
+			if item == nil {
+				continue
+			}
+			if item.ItemType == targetType && item.BundleCount > 0 && item.BundleCount < maxSize {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// hasNonTargetToDrop returns true if the character has an inventory item that isn't
+// the target type (and could be dropped to make room for the target).
+// Used by findGatherIntent to allow order-assigned characters to proceed even with
+// full inventory — applyPickup handles the drop when they arrive.
+func hasNonTargetToDrop(char *entity.Character, targetType string) bool {
+	for _, item := range char.Inventory {
+		if item == nil {
+			continue
+		}
+		if item.ItemType != targetType {
 			return true
 		}
+	}
+	return false
+}
+
+// groundItemOfTypeExists checks if any gatherable item of the given type exists on the ground.
+// Full bundles are excluded — they're finished products, not raw material.
+func groundItemOfTypeExists(items []*entity.Item, itemType string) bool {
+	for _, item := range items {
+		if item.ItemType != itemType {
+			continue
+		}
+		// Skip full bundles
+		if maxBundle := config.MaxBundleSize[item.ItemType]; maxBundle > 0 && item.BundleCount >= maxBundle {
+			continue
+		}
+		return true
 	}
 	return false
 }

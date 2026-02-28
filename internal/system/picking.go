@@ -347,6 +347,10 @@ func findNearestItemByType(cx, cy int, items []*entity.Item, itemType string, gr
 				continue
 			}
 		}
+		// Skip full bundles — finished products, not raw material for gathering
+		if maxBundle := config.MaxBundleSize[item.ItemType]; maxBundle > 0 && item.BundleCount >= maxBundle {
+			continue
+		}
 
 		ipos := item.Pos()
 		dist := pos.DistanceTo(ipos)
@@ -357,6 +361,11 @@ func findNearestItemByType(cx, cy int, items []*entity.Item, itemType string, gr
 	}
 
 	return nearest
+}
+
+// FindNearestItemByTypeForTest is an exported wrapper for tests.
+func FindNearestItemByTypeForTest(cx, cy int, items []*entity.Item, itemType string, growingOnly bool) *entity.Item {
+	return findNearestItemByType(cx, cy, items, itemType, growingOnly)
 }
 
 // =============================================================================
@@ -551,6 +560,11 @@ func AddToVessel(vessel, item *entity.Item, registry *game.VarietyRegistry) bool
 		return false
 	}
 
+	// Vessel-excluded items cannot go in vessels
+	if config.MaxBundleSize[item.ItemType] > 0 {
+		return false
+	}
+
 	// Look up the item's variety in the registry
 	variety := registry.GetByAttributes(item.ItemType, item.Color, item.Pattern, item.Texture)
 	if variety == nil {
@@ -654,6 +668,11 @@ func CanVesselAccept(vessel, item *entity.Item, registry *game.VarietyRegistry) 
 		return false
 	}
 
+	// Vessel-excluded items cannot go in vessels
+	if config.MaxBundleSize[item.ItemType] > 0 {
+		return false
+	}
+
 	// Empty vessel can accept anything
 	if len(vessel.Container.Contents) == 0 {
 		return true
@@ -739,15 +758,26 @@ func FindAvailableVessel(cx, cy int, items []*entity.Item, targetItem *entity.It
 // =============================================================================
 
 // CanPickUpMore returns true if the character can pick up more items.
-// True if: has empty inventory slot, OR carrying a vessel with space.
+// True if: has empty inventory slot, OR carrying a vessel with space,
+// OR carrying a non-full bundle of a bundleable type.
 func CanPickUpMore(char *entity.Character, registry *game.VarietyRegistry) bool {
 	if char.HasInventorySpace() {
 		return true
 	}
-	// Inventory is full, but check if any vessel has space
+	// Inventory is full — check if any vessel has space
 	vessel := char.GetCarriedVessel()
-	if vessel != nil {
-		return !IsVesselFull(vessel, registry)
+	if vessel != nil && !IsVesselFull(vessel, registry) {
+		return true
+	}
+	// Check if any bundle has room
+	for _, item := range char.Inventory {
+		if item == nil {
+			continue
+		}
+		maxSize := config.MaxBundleSize[item.ItemType]
+		if maxSize > 0 && item.BundleCount > 0 && item.BundleCount < maxSize {
+			return true
+		}
 	}
 	return false
 }
@@ -978,9 +1008,27 @@ const (
 	PickupToInventory PickupResult = iota
 	// PickupToVessel - item was added to a carried vessel
 	PickupToVessel
+	// PickupToBundle - item was merged into an existing bundle in inventory
+	PickupToBundle
 	// PickupFailed - could not pick up (vessel variety mismatch or full)
 	PickupFailed
 )
+
+// CanMergeIntoBundle returns true if the target item is bundleable and the character
+// already carries a non-full bundle of the same type. Used to skip the drop-before-pickup
+// logic — bundle merges don't need a free inventory slot.
+func CanMergeIntoBundle(char *entity.Character, target *entity.Item) bool {
+	maxSize := config.MaxBundleSize[target.ItemType]
+	if maxSize == 0 {
+		return false
+	}
+	for _, carried := range char.Inventory {
+		if carried != nil && carried.ItemType == target.ItemType && carried.BundleCount > 0 && carried.BundleCount < maxSize {
+			return true
+		}
+	}
+	return false
+}
 
 // Pickup handles a character picking up an item (foraging/harvesting).
 // If carrying a vessel with space, adds item to vessel and returns PickupToVessel.
@@ -990,54 +1038,80 @@ const (
 func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *ActionLog, registry *game.VarietyRegistry) PickupResult {
 	itemName := item.Description()
 
-	// Try to add to any vessel that can accept the item
-	for _, vessel := range char.Inventory {
-		if vessel == nil || vessel.Container == nil {
-			continue
-		}
-		if AddToVessel(vessel, item, registry) {
-			// Successfully added to vessel
-			gameMap.RemoveItem(item)
-
-			// Mark as no longer growing
-			if item.Plant != nil {
-				item.Plant.IsGrowing = false
-				item.Plant.SpawnTimer = 0
+	// Vessel-excluded types skip the vessel path entirely
+	if config.MaxBundleSize[item.ItemType] == 0 {
+		// Try to add to any vessel that can accept the item
+		for _, vessel := range char.Inventory {
+			if vessel == nil || vessel.Container == nil {
+				continue
 			}
-			item.DeathTimer = 0
+			if AddToVessel(vessel, item, registry) {
+				// Successfully added to vessel
+				gameMap.RemoveItem(item)
 
-			// Berries and mushrooms become plantable when picked
-			if item.ItemType == "berry" || item.ItemType == "mushroom" {
-				item.Plantable = true
+				// Mark as no longer growing
+				if item.Plant != nil {
+					item.Plant.IsGrowing = false
+					item.Plant.SpawnTimer = 0
+				}
+				item.DeathTimer = 0
+
+				// Berries and mushrooms become plantable when picked
+				if item.ItemType == "berry" || item.ItemType == "mushroom" {
+					item.Plantable = true
+				}
+
+				// Log the addition
+				if log != nil {
+					count := vessel.Container.Contents[0].Count
+					log.Add(char.ID, char.Name, "activity",
+						fmt.Sprintf("Added %s to vessel (%d)", itemName, count))
+				}
+
+				// Try to discover know-how
+				TryDiscoverKnowHow(char, entity.ActionPickup, item, log, GetDiscoveryChance(char))
+
+				// DON'T clear intent - caller will decide if foraging continues
+				return PickupToVessel
 			}
-
-			// Log the addition
-			if log != nil {
-				count := vessel.Container.Contents[0].Count
-				log.Add(char.ID, char.Name, "activity",
-					fmt.Sprintf("Added %s to vessel (%d)", itemName, count))
-			}
-
-			// Try to discover know-how
-			TryDiscoverKnowHow(char, entity.ActionPickup, item, log, GetDiscoveryChance(char))
-
-			// DON'T clear intent - caller will decide if foraging continues
-			return PickupToVessel
 		}
 	}
 
-	// No vessel could accept - check if there's inventory space for loose pickup
-	if !char.HasInventorySpace() {
-		// No space - return failure so caller can decide
-		return PickupFailed
-	}
+	// Bundle merge path: find existing non-full bundle of same type
+	maxSize := config.MaxBundleSize[item.ItemType]
+	if maxSize > 0 {
+		for _, carried := range char.Inventory {
+			if carried == nil {
+				continue
+			}
+			if carried.ItemType == item.ItemType && carried.BundleCount > 0 && carried.BundleCount < maxSize {
+				carried.BundleCount++
+				gameMap.RemoveItem(item)
 
-	// Check if inventory has space
-	if !char.HasInventorySpace() {
-		return PickupFailed
+				if item.Plant != nil {
+					item.Plant.IsGrowing = false
+					item.Plant.SpawnTimer = 0
+				}
+				item.DeathTimer = 0
+
+				if log != nil {
+					log.Add(char.ID, char.Name, "activity",
+						fmt.Sprintf("Added to %s", carried.Description()))
+				}
+
+				TryDiscoverKnowHow(char, entity.ActionPickup, item, log, GetDiscoveryChance(char))
+
+				// DON'T clear intent — caller decides continuation
+				return PickupToBundle
+			}
+		}
 	}
 
 	// Standard pickup to inventory
+	if !char.HasInventorySpace() {
+		return PickupFailed
+	}
+
 	gameMap.RemoveItem(item)
 
 	// Mark as no longer growing (won't respawn if dropped)

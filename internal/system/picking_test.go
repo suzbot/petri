@@ -1468,3 +1468,215 @@ func TestNutVariety_AddToVessel(t *testing.T) {
 		t.Errorf("Vessel stack count: got %d, want 1", vessel.Container.Contents[0].Count)
 	}
 }
+
+// =============================================================================
+// Bundle Mechanics Tests
+// =============================================================================
+
+// Anchor: character picks up a second stick — it merges into the carried bundle
+func TestPickup_Bundle_MergesIntoExistingBundle(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	// Stick on the ground
+	groundStick := entity.NewStick(3, 3)
+	gameMap.AddItem(groundStick)
+
+	// Character carrying a bundle of 2 sticks
+	carriedStick := entity.NewStick(0, 0)
+	carriedStick.BundleCount = 2
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{carriedStick},
+	}
+	char.X = 3
+	char.Y = 3
+
+	result := Pickup(char, groundStick, gameMap, nil, registry)
+	if result != PickupToBundle {
+		t.Fatalf("Expected PickupToBundle, got %d", result)
+	}
+	if carriedStick.BundleCount != 3 {
+		t.Errorf("Bundle count after merge: got %d, want 3", carriedStick.BundleCount)
+	}
+	// Ground stick should be removed from map
+	if gameMap.ItemAt(types.Position{X: 3, Y: 3}) == groundStick {
+		t.Error("Ground stick should be removed from map after bundle merge")
+	}
+	// Inventory should still have 1 item (the bundle)
+	if len(char.Inventory) != 1 {
+		t.Errorf("Inventory size: got %d, want 1", len(char.Inventory))
+	}
+}
+
+// Anchor: character picks up first stick — starts a new bundle of 1 in inventory
+func TestPickup_Bundle_StartsNewBundleWhenNoneCarried(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	stick := entity.NewStick(3, 3)
+	gameMap.AddItem(stick)
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{},
+	}
+	char.X = 3
+	char.Y = 3
+
+	result := Pickup(char, stick, gameMap, nil, registry)
+	if result != PickupToInventory {
+		t.Fatalf("Expected PickupToInventory for first stick, got %d", result)
+	}
+	if len(char.Inventory) != 1 {
+		t.Fatalf("Inventory size: got %d, want 1", len(char.Inventory))
+	}
+	if char.Inventory[0].BundleCount != 1 {
+		t.Errorf("New bundle count: got %d, want 1", char.Inventory[0].BundleCount)
+	}
+}
+
+// Anchor: bundle is at max (6) and inventory has no space — pickup fails
+func TestPickup_Bundle_FailsWhenFullAndNoInventorySpace(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	groundStick := entity.NewStick(3, 3)
+	gameMap.AddItem(groundStick)
+
+	// Full bundle in slot 1, berry in slot 2 — inventory full, bundle full
+	fullBundle := entity.NewStick(0, 0)
+	fullBundle.BundleCount = 6
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{fullBundle, berry},
+	}
+	char.X = 3
+	char.Y = 3
+
+	result := Pickup(char, groundStick, gameMap, nil, registry)
+	if result != PickupFailed {
+		t.Fatalf("Expected PickupFailed when bundle full and no space, got %d", result)
+	}
+	// Ground stick should still be on map
+	if gameMap.ItemAt(types.Position{X: 3, Y: 3}) != groundStick {
+		t.Error("Ground stick should remain on map after failed pickup")
+	}
+}
+
+// Anchor: sticks bypass the vessel path entirely — even with an empty vessel
+func TestPickup_Bundle_SkipsVesselPath(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	stick := entity.NewStick(3, 3)
+	gameMap.AddItem(stick)
+
+	// Character has empty vessel AND empty inventory slot
+	vessel := createTestVessel()
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{vessel},
+	}
+	char.X = 3
+	char.Y = 3
+
+	result := Pickup(char, stick, gameMap, nil, registry)
+	// Should go to inventory (new bundle), NOT to vessel
+	if result != PickupToInventory {
+		t.Fatalf("Expected PickupToInventory (not vessel), got %d", result)
+	}
+	// Vessel should remain empty
+	if len(vessel.Container.Contents) != 0 {
+		t.Error("Vessel should remain empty — sticks skip vessel path")
+	}
+}
+
+// =============================================================================
+// AddToVessel / CanVesselAccept Vessel-Excluded Tests
+// =============================================================================
+
+func TestAddToVessel_VesselExcluded_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	vessel := createTestVessel()
+	stick := entity.NewStick(0, 0)
+
+	if AddToVessel(vessel, stick, registry) {
+		t.Error("AddToVessel should return false for vessel-excluded item (stick)")
+	}
+}
+
+func TestCanVesselAccept_VesselExcluded_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	vessel := createTestVessel()
+	stick := entity.NewStick(0, 0)
+
+	if CanVesselAccept(vessel, stick, registry) {
+		t.Error("CanVesselAccept should return false for vessel-excluded item (stick)")
+	}
+}
+
+// =============================================================================
+// CanPickUpMore Bundle Tests
+// =============================================================================
+
+func TestCanPickUpMore_BundleHasRoom_ReturnsTrue(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+
+	// Full inventory: slot 1 = non-full bundle, slot 2 = berry
+	bundle := entity.NewStick(0, 0)
+	bundle.BundleCount = 3
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{bundle, berry},
+	}
+
+	if !CanPickUpMore(char, registry) {
+		t.Error("CanPickUpMore should return true when carrying non-full bundle")
+	}
+}
+
+func TestCanPickUpMore_BundleFull_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+
+	// Full inventory: slot 1 = full bundle, slot 2 = berry
+	bundle := entity.NewStick(0, 0)
+	bundle.BundleCount = 6
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{bundle, berry},
+	}
+
+	if CanPickUpMore(char, registry) {
+		t.Error("CanPickUpMore should return false when bundle is full and no inventory space")
+	}
+}

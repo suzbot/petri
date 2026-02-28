@@ -698,6 +698,52 @@ func TestFromSaveState_OldSaveWithoutKind_LoadsEmpty(t *testing.T) {
 	}
 }
 
+func TestBundleCountSerialization_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	m := createTestModel()
+	chars := m.gameMap.Characters()
+
+	// Add a bundle of sticks on the ground
+	stick := entity.NewStick(18, 18)
+	stick.BundleCount = 4
+	m.gameMap.AddItem(stick)
+
+	// Add a bundle in character inventory
+	carriedStick := entity.NewStick(0, 0)
+	carriedStick.BundleCount = 6
+	chars[0].AddToInventory(carriedStick)
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Verify ground bundle
+	groundStick := restored.gameMap.ItemAt(types.Position{X: 18, Y: 18})
+	if groundStick == nil {
+		t.Fatal("Expected stick at (18,18)")
+	}
+	if groundStick.BundleCount != 4 {
+		t.Errorf("Expected ground BundleCount 4, got %d", groundStick.BundleCount)
+	}
+
+	// Verify carried bundle
+	restoredChar := restored.gameMap.Characters()[0]
+	var foundBundle *entity.Item
+	for _, item := range restoredChar.Inventory {
+		if item != nil && item.ItemType == "stick" {
+			foundBundle = item
+			break
+		}
+	}
+	if foundBundle == nil {
+		t.Fatal("Expected stick in character inventory")
+	}
+	if foundBundle.BundleCount != 6 {
+		t.Errorf("Expected carried BundleCount 6, got %d", foundBundle.BundleCount)
+	}
+}
+
 // createTestModel creates a Model with basic game state for testing
 func createTestModel() Model {
 	m := Model{

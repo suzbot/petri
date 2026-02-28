@@ -2772,9 +2772,9 @@ func TestFindGatherIntent_StickSkipsVessel(t *testing.T) {
 	}
 }
 
-// TestFindGatherIntent_StickNilWhenInventoryFull verifies that when gathering sticks
-// (no variety) with a full inventory, findGatherIntent returns nil.
-func TestFindGatherIntent_StickNilWhenInventoryFull(t *testing.T) {
+// TestFindGatherIntent_StickNilWhenBundlesFull verifies that when gathering sticks
+// with full bundles and no inventory space, findGatherIntent returns nil.
+func TestFindGatherIntent_StickNilWhenBundlesFull(t *testing.T) {
 	t.Parallel()
 
 	registry := game.GenerateVarieties()
@@ -2782,7 +2782,11 @@ func TestFindGatherIntent_StickNilWhenInventoryFull(t *testing.T) {
 	gameMap.SetVarieties(registry)
 
 	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
-	char.Inventory = []*entity.Item{entity.NewStick(0, 0), entity.NewStick(0, 0)}
+	fullBundle1 := entity.NewStick(0, 0)
+	fullBundle1.BundleCount = 6
+	fullBundle2 := entity.NewStick(0, 0)
+	fullBundle2.BundleCount = 6
+	char.Inventory = []*entity.Item{fullBundle1, fullBundle2}
 	gameMap.AddCharacter(char)
 
 	stick := entity.NewStick(7, 5)
@@ -2797,7 +2801,131 @@ func TestFindGatherIntent_StickNilWhenInventoryFull(t *testing.T) {
 	intent := FindGatherIntentForTest(char, char.Pos(), items, order, nil, gameMap)
 
 	if intent != nil {
-		t.Errorf("Expected nil intent when inventory full and no variety (stick), got %v", intent)
+		t.Errorf("Expected nil intent when bundles full and no inventory space, got %v", intent)
+	}
+}
+
+// TestFindGatherIntent_StickAllowedWhenFullWithNonSticks verifies that a character
+// with full inventory of non-stick items can still take a gather sticks order.
+// The order handler (applyPickup) will drop an item on arrival.
+func TestFindGatherIntent_StickAllowedWhenFullWithNonSticks(t *testing.T) {
+	t.Parallel()
+
+	registry := game.GenerateVarieties()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	// Full inventory with non-stick items (seeds)
+	seed1 := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	seed1.Plantable = true
+	seed2 := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	seed2.Plantable = true
+	char.Inventory = []*entity.Item{seed1, seed2}
+	gameMap.AddCharacter(char)
+
+	stick := entity.NewStick(7, 5)
+	gameMap.AddItem(stick)
+
+	order := entity.NewOrder(1, "gather", "stick")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	items := gameMap.Items()
+	intent := FindGatherIntentForTest(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected intent (character can drop non-stick item), got nil")
+	}
+	if intent.TargetItem != stick {
+		t.Errorf("Expected target to be the stick, got %v", intent.TargetItem)
+	}
+}
+
+// TestFindGatherIntent_NilWhenFullBundle verifies one-bundle-per-order: if the character
+// already has a full bundle of the target type, findGatherIntent returns nil even with
+// more sticks on the map.
+func TestFindGatherIntent_NilWhenFullBundle(t *testing.T) {
+	t.Parallel()
+
+	registry := game.GenerateVarieties()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	fullBundle := entity.NewStick(0, 0)
+	fullBundle.BundleCount = 6
+	char.Inventory = []*entity.Item{fullBundle, nil} // full bundle + empty slot
+	gameMap.AddCharacter(char)
+
+	// More sticks exist on the map
+	gameMap.AddItem(entity.NewStick(7, 5))
+	gameMap.AddItem(entity.NewStick(8, 5))
+
+	order := entity.NewOrder(1, "gather", "stick")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	intent := FindGatherIntentForTest(char, char.Pos(), gameMap.Items(), order, nil, gameMap)
+	if intent != nil {
+		t.Errorf("Expected nil (one bundle per order), got intent targeting %v", intent.TargetItem)
+	}
+}
+
+// TestIsMultiStepOrderComplete_GatherWithFullBundle verifies that a gather order
+// is considered complete when the character has a full bundle of the target type.
+func TestIsMultiStepOrderComplete_GatherWithFullBundle(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	fullBundle := entity.NewStick(0, 0)
+	fullBundle.BundleCount = 6
+	char.Inventory = []*entity.Item{fullBundle, nil}
+	gameMap.AddCharacter(char)
+
+	order := entity.NewOrder(1, "gather", "stick")
+
+	if !IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Error("Expected gather order to be complete with full bundle")
+	}
+
+	// Partial bundle should NOT be complete
+	char.Inventory[0].BundleCount = 3
+	if IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Error("Expected gather order to NOT be complete with partial bundle")
+	}
+}
+
+// TestFindNearestItemByType_SkipsFullBundles verifies that full bundles on the ground
+// are not valid gather targets — they're finished products, not raw material.
+func TestFindNearestItemByType_SkipsFullBundles(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+
+	// Full bundle on the ground (closer)
+	fullBundle := entity.NewStick(6, 5)
+	fullBundle.BundleCount = 6
+	gameMap.AddItem(fullBundle)
+
+	// Loose stick on the ground (further)
+	looseStick := entity.NewStick(9, 5)
+	gameMap.AddItem(looseStick)
+
+	items := gameMap.Items()
+	target := FindNearestItemByTypeForTest(5, 5, items, "stick", false)
+
+	if target == nil {
+		t.Fatal("Expected to find the loose stick, got nil")
+	}
+	if target == fullBundle {
+		t.Error("Should skip full bundle, got the full bundle instead of the loose stick")
+	}
+	if target != looseStick {
+		t.Errorf("Expected loose stick, got %v", target)
 	}
 }
 
@@ -3053,22 +3181,25 @@ func TestGatherOrder_InventoryPath_EndToEnd(t *testing.T) {
 		t.Fatal("Phase 3: Expected second stick as target")
 	}
 
-	// --- Phase 4: Pick up second stick ---
+	// --- Phase 4: Pick up second stick — merges into existing bundle ---
 	result = Pickup(char, stick2, gameMap, nil, registry)
-	if result != PickupToInventory {
-		t.Fatalf("Phase 4: Expected PickupToInventory, got %d", result)
+	if result != PickupToBundle {
+		t.Fatalf("Phase 4: Expected PickupToBundle, got %d", result)
 	}
 
-	// --- Phase 5: Continuation — inventory full, signals completion ---
+	// --- Phase 5: Continuation — no more sticks on map, signals completion ---
 	items = gameMap.Items()
 	nextIntent = FindNextGatherTarget(char, cpos.X, cpos.Y, items, "stick", gameMap)
 	if nextIntent != nil {
-		t.Error("Phase 5: Expected nil (inventory full) — signals order completion")
+		t.Error("Phase 5: Expected nil (no more sticks on map) — signals order completion")
 	}
 
-	// Verify final state
-	if len(char.Inventory) != 2 {
-		t.Errorf("Final: Expected 2 sticks in inventory, got %d", len(char.Inventory))
+	// Verify final state: 1 bundle of 2 sticks
+	if len(char.Inventory) != 1 {
+		t.Errorf("Final: Expected 1 item in inventory (bundle), got %d", len(char.Inventory))
+	}
+	if char.Inventory[0].BundleCount != 2 {
+		t.Errorf("Final: Expected bundle count 2, got %d", char.Inventory[0].BundleCount)
 	}
 }
 
@@ -3083,20 +3214,21 @@ func TestFindNextGatherTarget_FindsNextStickWithVesselInInventory(t *testing.T) 
 	gameMap := game.NewMap(10, 10)
 	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
 
-	// Character has a vessel and a stick already gathered
+	// Character has a vessel and a full stick bundle
 	vessel := createTestVessel()
-	stick := entity.NewStick(0, 0)
-	char.Inventory = []*entity.Item{vessel, stick}
+	fullBundle := entity.NewStick(0, 0)
+	fullBundle.BundleCount = 6
+	char.Inventory = []*entity.Item{vessel, fullBundle}
 	gameMap.AddCharacter(char)
 
 	// Another stick on the ground
 	nextStick := entity.NewStick(7, 5)
 	gameMap.AddItem(nextStick)
 
-	// Should NOT find next — inventory is full (2 items)
+	// Should NOT find next — inventory full and bundle at max
 	intent := FindNextGatherTarget(char, 5, 5, gameMap.Items(), "stick", gameMap)
 	if intent != nil {
-		t.Error("Expected nil when inventory full (vessel + stick = 2 slots)")
+		t.Error("Expected nil when inventory full and bundle at max size")
 	}
 
 	// Now with only the vessel (one slot free) — should find next stick
@@ -3107,5 +3239,208 @@ func TestFindNextGatherTarget_FindsNextStickWithVesselInInventory(t *testing.T) 
 	}
 	if intent.TargetItem != nextStick {
 		t.Error("Intent should target the next stick on the ground")
+	}
+}
+
+// Regression: FindNextGatherTarget must return nil when character has a full bundle,
+// even if more sticks exist on the map and inventory has space. Without this check,
+// the PickupToBundle handler would send the character to pick up more sticks after
+// the bundle hit max size, delaying order completion.
+func TestFindNextGatherTarget_NilWhenFullBundle(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+
+	// Character has a full bundle AND an empty inventory slot
+	fullBundle := entity.NewStick(0, 0)
+	fullBundle.BundleCount = 6
+	char.Inventory = []*entity.Item{fullBundle, nil}
+	gameMap.AddCharacter(char)
+
+	// More sticks on the ground
+	nextStick := entity.NewStick(7, 5)
+	gameMap.AddItem(nextStick)
+
+	intent := FindNextGatherTarget(char, 5, 5, gameMap.Items(), "stick", gameMap)
+	if intent != nil {
+		t.Error("Expected nil when character has full bundle (one bundle per order)")
+	}
+}
+
+// Regression: CanMergeIntoBundle returns true when target can merge into an existing
+// non-full bundle. Used to skip drop-before-pickup logic — bundle merges don't need
+// a free inventory slot.
+func TestCanMergeIntoBundle(t *testing.T) {
+	t.Parallel()
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+
+	// Character has a non-full stick bundle and a berry (full inventory)
+	stickBundle := entity.NewStick(0, 0)
+	stickBundle.BundleCount = 3
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.Inventory = []*entity.Item{stickBundle, berry}
+
+	// Stick target should merge
+	targetStick := entity.NewStick(6, 5)
+	if !CanMergeIntoBundle(char, targetStick) {
+		t.Error("Expected true — stick can merge into existing non-full bundle")
+	}
+
+	// Berry target should NOT merge (not bundleable)
+	targetBerry := entity.NewBerry(6, 5, types.ColorRed, false, false)
+	if CanMergeIntoBundle(char, targetBerry) {
+		t.Error("Expected false — berry is not bundleable")
+	}
+
+	// Full bundle should NOT merge
+	stickBundle.BundleCount = 6
+	if CanMergeIntoBundle(char, targetStick) {
+		t.Error("Expected false — bundle is already full")
+	}
+}
+
+// Regression: DropCompletedBundle drops a full bundle when a gather order completes.
+// Without this, the character would keep the full bundle in inventory after completion.
+func TestDropCompletedBundle(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	fullBundle := entity.NewStick(0, 0)
+	fullBundle.BundleCount = 6
+	char.Inventory = []*entity.Item{fullBundle, nil}
+
+	order := entity.NewOrder(1, "gather", "stick")
+
+	log := NewActionLog(100)
+	DropCompletedBundle(char, order, gameMap, log)
+
+	// Bundle should be removed from inventory
+	if char.Inventory[0] != nil {
+		t.Error("Expected full bundle to be removed from inventory")
+	}
+
+	// Bundle should appear on the map
+	found := false
+	for _, item := range gameMap.Items() {
+		if item.ItemType == "stick" && item.BundleCount == 6 {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected full bundle to appear on the map")
+	}
+}
+
+// Anchor test: Full gather-order flow through one complete bundle (6 sticks).
+// Exercises the chain from first pickup through bundle merges to completion with
+// bundle drop. Catches regressions in: CanMergeIntoBundle (skip unnecessary drops),
+// FindNextGatherTarget (full-bundle check), DropCompletedBundle (drop on complete).
+func TestGatherOrder_InventoryPath_FullBundle_EndToEnd(t *testing.T) {
+	t.Parallel()
+
+	registry := game.GenerateVarieties()
+	gameMap := game.NewMap(20, 20)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	// Start with full inventory of non-stick items
+	berry1 := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	berry2 := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.Inventory = []*entity.Item{berry1, berry2}
+	gameMap.AddCharacter(char)
+
+	// Place 6 sticks at character position (simplify by co-locating)
+	sticks := make([]*entity.Item, 6)
+	for i := range sticks {
+		sticks[i] = entity.NewStick(5, 5)
+		gameMap.AddItem(sticks[i])
+	}
+
+	order := entity.NewOrder(1, "gather", "stick")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	log := NewActionLog(100)
+
+	// --- Phase 1: Intent should target first stick (needs to drop a berry) ---
+	intent := FindGatherIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+	if intent == nil {
+		t.Fatal("Phase 1: Expected gather intent despite full inventory")
+	}
+
+	// Simulate the drop-before-pickup that applyPickup does for order characters
+	Drop(char, gameMap, log)
+
+	// --- Phase 2: Pick up first stick into empty slot ---
+	result := Pickup(char, sticks[0], gameMap, log, registry)
+	if result != PickupToInventory {
+		t.Fatalf("Phase 2: Expected PickupToInventory, got %d", result)
+	}
+
+	// --- Phase 3-6: Pick up sticks 2-6, each should merge into bundle ---
+	for i := 1; i < 6; i++ {
+		// CanMergeIntoBundle should be true — no need to drop the remaining berry
+		if !CanMergeIntoBundle(char, sticks[i]) {
+			t.Fatalf("Phase %d: Expected CanMergeIntoBundle=true", i+2)
+		}
+
+		result = Pickup(char, sticks[i], gameMap, log, registry)
+		if result != PickupToBundle {
+			t.Fatalf("Phase %d: Expected PickupToBundle, got %d", i+2, result)
+		}
+
+		if i < 5 {
+			// Not full yet — continuation should find next stick
+			nextIntent := FindNextGatherTarget(char, 5, 5, gameMap.Items(), "stick", gameMap)
+			if nextIntent == nil {
+				t.Fatalf("Phase %d: Expected continuation intent (bundle at %d/6)", i+2, i+1)
+			}
+		}
+	}
+
+	// --- Phase 7: Bundle at 6/6 — FindNextGatherTarget should return nil ---
+	nextIntent := FindNextGatherTarget(char, 5, 5, gameMap.Items(), "stick", gameMap)
+	if nextIntent != nil {
+		t.Error("Phase 7: Expected nil — full bundle, one bundle per order")
+	}
+
+	// --- Phase 8: Drop completed bundle and complete order ---
+	DropCompletedBundle(char, order, gameMap, log)
+	CompleteOrder(char, order, log)
+
+	// Verify: bundle on ground, berry still in inventory, order completed
+	bundleOnGround := false
+	for _, item := range gameMap.Items() {
+		if item.ItemType == "stick" && item.BundleCount == 6 {
+			bundleOnGround = true
+			break
+		}
+	}
+	if !bundleOnGround {
+		t.Error("Final: Expected full bundle on the ground")
+	}
+
+	hasBerry := false
+	for _, item := range char.Inventory {
+		if item != nil && item.ItemType == "berry" {
+			hasBerry = true
+		}
+	}
+	if !hasBerry {
+		t.Error("Final: Expected berry still in inventory (only one was dropped)")
+	}
+
+	if order.Status != entity.OrderCompleted {
+		t.Errorf("Final: Expected order completed, got %s", order.Status)
+	}
+	if char.AssignedOrderID != 0 {
+		t.Error("Final: Expected character unassigned from order")
 	}
 }

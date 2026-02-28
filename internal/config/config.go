@@ -129,6 +129,9 @@ const (
 	// Ground spawning (sticks, nuts, shells)
 	GroundSpawnInterval = 600.0 // ~5 world days between spawns per item type (±LifecycleIntervalVariance)
 
+	// Bundle defaults
+	DefaultMaxBundleSize = 6
+
 	// Auto-save
 	AutoSaveInterval = 60.0 // seconds of game time between auto-saves
 
@@ -188,6 +191,14 @@ func GetStackSize(itemType string) int {
 		return size
 	}
 	return 1
+}
+
+// MaxBundleSize maps bundleable item types to their max bundle count.
+// Items in this map are also vessel-excluded (too large for vessels).
+// If these concepts diverge, split into separate sets — see triggered-enhancements.md.
+var MaxBundleSize = map[string]int{
+	"stick": 6,
+	"grass": 6,
 }
 
 // GroundSpawnCount maps ground-spawned item types to their initial world-gen count.

@@ -131,6 +131,9 @@ func TestNewStick_Properties(t *testing.T) {
 	if item.Type() != TypeItem {
 		t.Errorf("NewStick Type(): got %d, want %d", item.Type(), TypeItem)
 	}
+	if item.BundleCount != 1 {
+		t.Errorf("NewStick BundleCount: got %d, want 1", item.BundleCount)
+	}
 }
 
 // TestNewNut_Properties verifies NewNut creates nut with correct properties
@@ -206,14 +209,43 @@ func TestNewShell_ColorPreserved(t *testing.T) {
 	}
 }
 
-// TestItem_Description_Stick verifies stick description
+// TestItem_Description_Stick verifies stick description shows bundle format
 func TestItem_Description_Stick(t *testing.T) {
 	t.Parallel()
 
 	item := NewStick(0, 0)
 	got := item.Description()
-	if got != "brown stick" {
-		t.Errorf("Stick Description(): got %q, want %q", got, "brown stick")
+	if got != "bundle of sticks (1)" {
+		t.Errorf("Stick Description(): got %q, want %q", got, "bundle of sticks (1)")
+	}
+}
+
+// TestItem_Description_BundleCount verifies bundle description at various counts
+func TestItem_Description_BundleCount(t *testing.T) {
+	t.Parallel()
+
+	item := NewStick(0, 0)
+	item.BundleCount = 3
+	got := item.Description()
+	if got != "bundle of sticks (3)" {
+		t.Errorf("Bundle Description(): got %q, want %q", got, "bundle of sticks (3)")
+	}
+
+	item.BundleCount = 6
+	got = item.Description()
+	if got != "bundle of sticks (6)" {
+		t.Errorf("Full bundle Description(): got %q, want %q", got, "bundle of sticks (6)")
+	}
+}
+
+// TestItem_Description_NonBundleItem verifies BundleCount=0 uses normal format
+func TestItem_Description_NonBundleItem(t *testing.T) {
+	t.Parallel()
+
+	item := NewNut(0, 0)
+	got := item.Description()
+	if got != "brown nut" {
+		t.Errorf("Non-bundle Description(): got %q, want %q", got, "brown nut")
 	}
 }
 

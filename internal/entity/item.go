@@ -1,11 +1,18 @@
 package entity
 
 import (
+	"fmt"
 	"strings"
 
 	"petri/internal/config"
 	"petri/internal/types"
 )
+
+// bundlePluralName maps bundleable item types to their plural form for display
+var bundlePluralName = map[string]string{
+	"stick": "sticks",
+	"grass": "grass",
+}
 
 // PlantProperties contains properties specific to growing plants
 type PlantProperties struct {
@@ -59,6 +66,9 @@ type Item struct {
 
 	// Plantable - set when berries/mushrooms are picked, or for seeds
 	Plantable bool
+
+	// Bundle count for stackable materials (sticks, grass). 0 = not a bundle.
+	BundleCount int
 
 	// Lifecycle
 	DeathTimer float64 // countdown until death (0 = immortal)
@@ -147,7 +157,7 @@ func NewGourd(x, y int, color types.Color, pattern types.Pattern, texture types.
 	}
 }
 
-// NewStick creates a new stick item (non-edible, non-plant)
+// NewStick creates a new stick item (non-edible, non-plant, bundleable)
 func NewStick(x, y int) *Item {
 	return &Item{
 		BaseEntity: BaseEntity{
@@ -156,8 +166,9 @@ func NewStick(x, y int) *Item {
 			Sym:   config.CharStick,
 			EType: TypeItem,
 		},
-		ItemType: "stick",
-		Color:    types.ColorBrown,
+		ItemType:    "stick",
+		Color:       types.ColorBrown,
+		BundleCount: 1,
 	}
 }
 
@@ -231,6 +242,14 @@ func NewHoe(x, y int, color types.Color) *Item {
 func (i *Item) Description() string {
 	if i.Name != "" {
 		return i.Name
+	}
+
+	if i.BundleCount > 0 {
+		plural := bundlePluralName[i.ItemType]
+		if plural == "" {
+			plural = i.ItemType + "s"
+		}
+		return fmt.Sprintf("bundle of %s (%d)", plural, i.BundleCount)
 	}
 
 	var parts []string
