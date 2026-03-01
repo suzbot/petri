@@ -548,6 +548,9 @@ func TestNewGrass_Properties(t *testing.T) {
 	if item.ItemType != "grass" {
 		t.Errorf("NewGrass ItemType: got %q, want %q", item.ItemType, "grass")
 	}
+	if item.Kind != "tall grass" {
+		t.Errorf("NewGrass Kind: got %q, want %q", item.Kind, "tall grass")
+	}
 	if item.Symbol() != config.CharGrass {
 		t.Errorf("NewGrass Symbol(): got %c, want %c", item.Symbol(), config.CharGrass)
 	}

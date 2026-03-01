@@ -155,5 +155,12 @@ func triggerMatches(trigger entity.DiscoveryTrigger, action entity.ActionType, i
 		}
 	}
 
+	// Check harvestable requirement (growing non-sprout plant)
+	if trigger.RequiresHarvestable {
+		if item == nil || item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout {
+			return false
+		}
+	}
+
 	return true
 }

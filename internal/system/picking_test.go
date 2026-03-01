@@ -1680,3 +1680,99 @@ func TestCanPickUpMore_BundleFull_ReturnsFalse(t *testing.T) {
 		t.Error("CanPickUpMore should return false when bundle is full and no inventory space")
 	}
 }
+
+// =============================================================================
+// harvestItem Tests
+// =============================================================================
+
+func TestHarvestItem_ClearsGrowingState(t *testing.T) {
+	t.Parallel()
+
+	item := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	item.Plant.SpawnTimer = 10.0
+	item.DeathTimer = 20.0
+
+	harvestItem(item)
+
+	if item.Plant.IsGrowing {
+		t.Error("harvestItem should set IsGrowing to false")
+	}
+	if item.Plant.SpawnTimer != 0 {
+		t.Errorf("harvestItem should clear SpawnTimer, got %f", item.Plant.SpawnTimer)
+	}
+	if item.DeathTimer != 0 {
+		t.Errorf("harvestItem should clear DeathTimer, got %f", item.DeathTimer)
+	}
+}
+
+func TestHarvestItem_ChangesGrassColorToPaleYellow(t *testing.T) {
+	t.Parallel()
+
+	item := entity.NewGrass(5, 5)
+
+	if item.Color != types.ColorPaleGreen {
+		t.Fatalf("precondition: grass should start pale green, got %q", item.Color)
+	}
+
+	harvestItem(item)
+
+	if item.Color != types.ColorPaleYellow {
+		t.Errorf("harvestItem should change grass to pale yellow, got %q", item.Color)
+	}
+}
+
+func TestHarvestItem_DoesNotChangeNonGrassColor(t *testing.T) {
+	t.Parallel()
+
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	harvestItem(berry)
+
+	if berry.Color != types.ColorRed {
+		t.Errorf("harvestItem should not change berry color, got %q", berry.Color)
+	}
+
+	stick := entity.NewStick(5, 5)
+	harvestItem(stick)
+
+	if stick.Color != types.ColorBrown {
+		t.Errorf("harvestItem should not change stick color, got %q", stick.Color)
+	}
+}
+
+func TestHarvestItem_NilPlantDoesNotPanic(t *testing.T) {
+	t.Parallel()
+
+	// Sticks have nil Plant — harvestItem should handle gracefully
+	item := entity.NewStick(5, 5)
+	harvestItem(item) // should not panic
+}
+
+func TestPickup_GrassChangesPaleYellow(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	registry := createTestRegistry()
+	gameMap.SetVarieties(registry)
+
+	grass := entity.NewGrass(5, 5)
+	gameMap.AddItem(grass)
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: make([]*entity.Item, 0, 2),
+	}
+	char.X = 5
+	char.Y = 5
+
+	Pickup(char, grass, gameMap, nil, registry)
+
+	// The grass in inventory should now be pale yellow
+	carried := char.FindInInventory(func(i *entity.Item) bool { return i.ItemType == "grass" })
+	if carried == nil {
+		t.Fatal("Expected grass in inventory after pickup")
+	}
+	if carried.Color != types.ColorPaleYellow {
+		t.Errorf("Picked up grass should be pale yellow, got %q", carried.Color)
+	}
+}

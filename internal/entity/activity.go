@@ -22,10 +22,11 @@ const (
 
 // DiscoveryTrigger defines when a know-how activity can be discovered
 type DiscoveryTrigger struct {
-	Action            ActionType // The action that can trigger discovery
-	ItemType          string     // Specific item type required (empty = any)
-	RequiresEdible    bool       // Only trigger if item is edible
-	RequiresPlantable bool       // Only trigger if item is plantable
+	Action              ActionType // The action that can trigger discovery
+	ItemType            string     // Specific item type required (empty = any)
+	RequiresEdible      bool       // Only trigger if item is edible
+	RequiresPlantable   bool       // Only trigger if item is plantable
+	RequiresHarvestable bool       // Only trigger if item is a growing non-sprout plant
 }
 
 // Activity defines a type of activity characters can perform
@@ -76,9 +77,9 @@ var ActivityRegistry = map[string]Activity{
 		IntentFormation: IntentOrderable,
 		Availability:    AvailabilityKnowHow,
 		DiscoveryTriggers: []DiscoveryTrigger{
-			{Action: ActionPickup, RequiresEdible: true},  // foraging
-			{Action: ActionConsume, RequiresEdible: true}, // eating
-			{Action: ActionLook, RequiresEdible: true},    // looking
+			{Action: ActionPickup, RequiresHarvestable: true}, // foraging / picking up any plant
+			{Action: ActionConsume, RequiresEdible: true},     // eating
+			{Action: ActionLook, RequiresHarvestable: true},   // looking at any plant
 		},
 	},
 	"craftVessel": {

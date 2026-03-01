@@ -3444,3 +3444,431 @@ func TestGatherOrder_InventoryPath_FullBundle_EndToEnd(t *testing.T) {
 		t.Error("Final: Expected character unassigned from order")
 	}
 }
+
+// =============================================================================
+// Step 1c-ii: Harvest + Gather Bundle Integration
+// =============================================================================
+
+// TestFindHarvestIntent_SkipsVesselForVesselExcluded verifies that harvesting a
+// vessel-excluded type (grass) skips vessel procurement and targets the grass directly.
+func TestFindHarvestIntent_SkipsVesselForVesselExcluded(t *testing.T) {
+	t.Parallel()
+
+	registry := game.GenerateVarieties()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Grass plant on the map (growing, non-sprout)
+	grass := entity.NewGrass(7, 5)
+	gameMap.AddItem(grass)
+
+	// Vessel on the ground — should NOT be targeted for grass harvest
+	vessel := createTestVessel()
+	vessel.X = 3
+	vessel.Y = 5
+	gameMap.AddItem(vessel)
+
+	order := entity.NewOrder(1, "harvest", "grass")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	items := gameMap.Items()
+	intent := FindHarvestIntentForTest(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected pickup intent for grass, got nil")
+	}
+	if intent.TargetItem != grass {
+		t.Errorf("Intent should target grass directly (not vessel), got %v", intent.TargetItem)
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Intent.Action: got %v, want ActionPickup", intent.Action)
+	}
+}
+
+// TestFindHarvestIntent_NilWhenFullBundle verifies that findHarvestIntent returns nil
+// when the character already has a full bundle of the target type (safety net).
+func TestFindHarvestIntent_NilWhenFullBundle(t *testing.T) {
+	t.Parallel()
+
+	registry := game.GenerateVarieties()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	fullBundle := entity.NewGrass(0, 0)
+	fullBundle.Plant = nil // In inventory, not growing
+	fullBundle.BundleCount = 6
+	char.Inventory = []*entity.Item{fullBundle, nil}
+	gameMap.AddCharacter(char)
+
+	// More grass on the map
+	gameMap.AddItem(entity.NewGrass(7, 5))
+
+	order := entity.NewOrder(1, "harvest", "grass")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	intent := FindHarvestIntentForTest(char, char.Pos(), gameMap.Items(), order, nil, gameMap)
+	if intent != nil {
+		t.Errorf("Expected nil (full bundle safety net), got intent targeting %v", intent.TargetItem)
+	}
+}
+
+// TestFindHarvestIntent_UsesVesselForNonExcluded verifies that non-vessel-excluded
+// types (berry) still use vessel procurement during harvest.
+func TestFindHarvestIntent_UsesVesselForNonExcluded(t *testing.T) {
+	t.Parallel()
+
+	// Use explicit registry with known red berry variety (GenerateVarieties is random)
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Berry plant on the map
+	berry := entity.NewBerry(7, 5, types.ColorRed, false, false)
+	berry.Plant = &entity.PlantProperties{IsGrowing: true}
+	gameMap.AddItem(berry)
+
+	// Vessel on the ground — should be targeted for berry harvest (vessel procurement)
+	vessel := createTestVessel()
+	vessel.X = 3
+	vessel.Y = 5
+	gameMap.AddItem(vessel)
+
+	order := entity.NewOrder(1, "harvest", "berry")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	items := gameMap.Items()
+	intent := FindHarvestIntentForTest(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected intent for berry harvest, got nil")
+	}
+	// Should target the vessel (procurement), not the berry directly
+	if intent.TargetItem != vessel {
+		t.Errorf("Expected vessel procurement intent, got target %v", intent.TargetItem)
+	}
+}
+
+// TestFindGatherIntent_VesselExcludedWithVariety_SkipsVessel verifies that
+// vessel-excluded types skip vessel procurement even when they have a registered variety.
+func TestFindGatherIntent_VesselExcludedWithVariety_SkipsVessel(t *testing.T) {
+	t.Parallel()
+
+	registry := game.GenerateVarieties()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Grass on the ground (non-growing, gatherable) — grass has a variety in the registry
+	grass := entity.NewGrass(7, 5)
+	grass.Plant = nil // Not growing — it's a loose item for gathering
+	gameMap.AddItem(grass)
+
+	// Vessel on the ground — should NOT be targeted for grass gathering
+	vessel := createTestVessel()
+	vessel.X = 3
+	vessel.Y = 5
+	gameMap.AddItem(vessel)
+
+	order := entity.NewOrder(1, "gather", "grass")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	items := gameMap.Items()
+	intent := FindGatherIntentForTest(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected pickup intent for grass, got nil")
+	}
+	if intent.TargetItem != grass {
+		t.Errorf("Intent should target grass directly (not vessel), got %v", intent.TargetItem)
+	}
+}
+
+// TestFindNextHarvestTarget_ReturnsIntentWhenBundleHasRoom verifies that
+// FindNextHarvestTarget returns a continuation intent when the character's
+// bundle has room for more items.
+func TestFindNextHarvestTarget_ReturnsIntentWhenBundleHasRoom(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+
+	// Non-full grass bundle in inventory (fills both slots with bundle + other item)
+	grassBundle := entity.NewGrass(0, 0)
+	grassBundle.Plant = nil
+	grassBundle.BundleCount = 3
+	otherItem := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.Inventory = []*entity.Item{grassBundle, otherItem}
+	gameMap.AddCharacter(char)
+
+	// More grass on the map (growing)
+	nextGrass := entity.NewGrass(7, 5)
+	gameMap.AddItem(nextGrass)
+
+	intent := FindNextHarvestTarget(char, 5, 5, gameMap.Items(), "grass", gameMap)
+	if intent == nil {
+		t.Fatal("Expected continuation intent — bundle has room")
+	}
+	if intent.TargetItem != nextGrass {
+		t.Error("Intent should target the next grass on the map")
+	}
+}
+
+// TestFindNextHarvestTarget_NilWhenBundleFull verifies that FindNextHarvestTarget
+// returns nil when the character's bundle is full, even with more targets on the map.
+func TestFindNextHarvestTarget_NilWhenBundleFull(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+
+	// Full grass bundle
+	fullBundle := entity.NewGrass(0, 0)
+	fullBundle.Plant = nil
+	fullBundle.BundleCount = 6
+	char.Inventory = []*entity.Item{fullBundle, nil}
+	gameMap.AddCharacter(char)
+
+	// More grass on the map
+	gameMap.AddItem(entity.NewGrass(7, 5))
+
+	intent := FindNextHarvestTarget(char, 5, 5, gameMap.Items(), "grass", gameMap)
+	if intent != nil {
+		t.Error("Expected nil — bundle is full")
+	}
+}
+
+// TestIsMultiStepOrderComplete_HarvestWithFullBundle verifies that a harvest order
+// is considered complete when the character has a full bundle of the target type.
+func TestIsMultiStepOrderComplete_HarvestWithFullBundle(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+
+	fullBundle := entity.NewGrass(0, 0)
+	fullBundle.Plant = nil
+	fullBundle.BundleCount = 6
+	char.Inventory = []*entity.Item{fullBundle, nil}
+	gameMap.AddCharacter(char)
+
+	order := entity.NewOrder(1, "harvest", "grass")
+
+	if !IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Error("Expected harvest order complete when character has full bundle")
+	}
+
+	// Non-full bundle should NOT be complete
+	fullBundle.BundleCount = 3
+	if IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Error("Expected harvest order NOT complete with non-full bundle")
+	}
+}
+
+// TestDropCompletedBundle_HandlesHarvestOrder verifies that DropCompletedBundle
+// drops a full bundle for harvest orders (not just gather orders).
+func TestDropCompletedBundle_HandlesHarvestOrder(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	fullBundle := entity.NewGrass(0, 0)
+	fullBundle.Plant = nil
+	fullBundle.BundleCount = 6
+	char.Inventory = []*entity.Item{fullBundle, nil}
+
+	order := entity.NewOrder(1, "harvest", "grass")
+
+	log := NewActionLog(100)
+	DropCompletedBundle(char, order, gameMap, log)
+
+	// Bundle should be removed from inventory
+	if char.Inventory[0] != nil {
+		t.Error("Expected full bundle to be removed from inventory")
+	}
+
+	// Bundle should appear on the map
+	found := false
+	for _, item := range gameMap.Items() {
+		if item.ItemType == "grass" && item.BundleCount == 6 {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected full bundle to appear on the map")
+	}
+}
+
+// Anchor test: Full harvest-grass-to-bundle flow. Character harvests grass plants
+// into a bundle, continues until full (6), drops bundle, order completes.
+func TestHarvestGrass_Bundle_EndToEnd(t *testing.T) {
+	t.Parallel()
+
+	registry := game.GenerateVarieties()
+	gameMap := game.NewMap(20, 20)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Place 6 grass plants at character position
+	grasses := make([]*entity.Item, 6)
+	for i := range grasses {
+		grasses[i] = entity.NewGrass(5, 5)
+		gameMap.AddItem(grasses[i])
+	}
+
+	order := entity.NewOrder(1, "harvest", "grass")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	log := NewActionLog(100)
+
+	// --- Phase 1: findHarvestIntent targets nearest grass (no vessel procurement) ---
+	intent := FindHarvestIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+	if intent == nil {
+		t.Fatal("Phase 1: Expected grass harvest intent")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Fatalf("Phase 1: Expected ActionPickup, got %v", intent.Action)
+	}
+
+	// --- Phase 2: Pick up first grass → PickupToInventory (new bundle of 1) ---
+	result := Pickup(char, grasses[0], gameMap, log, registry)
+	if result != PickupToInventory {
+		t.Fatalf("Phase 2: Expected PickupToInventory, got %d", result)
+	}
+	if char.Inventory[0].BundleCount != 1 {
+		t.Fatalf("Phase 2: Expected bundle count 1, got %d", char.Inventory[0].BundleCount)
+	}
+
+	// --- Phase 3: Continuation — FindNextHarvestTarget finds next grass ---
+	cpos := char.Pos()
+	nextIntent := FindNextHarvestTarget(char, cpos.X, cpos.Y, gameMap.Items(), "grass", gameMap)
+	if nextIntent == nil {
+		t.Fatal("Phase 3: Expected continuation intent for next grass")
+	}
+
+	// --- Phase 4-7: Pick up grasses 2-6, each merges into bundle ---
+	for i := 1; i < 6; i++ {
+		result = Pickup(char, grasses[i], gameMap, log, registry)
+		if result != PickupToBundle {
+			t.Fatalf("Phase %d: Expected PickupToBundle, got %d", i+3, result)
+		}
+
+		if i < 5 {
+			// Not full yet — continuation should find next grass
+			nextIntent = FindNextHarvestTarget(char, cpos.X, cpos.Y, gameMap.Items(), "grass", gameMap)
+			if nextIntent == nil {
+				t.Fatalf("Phase %d: Expected continuation (bundle at %d/6)", i+3, i+1)
+			}
+		}
+	}
+
+	// --- Phase 8: Bundle at 6/6 — FindNextHarvestTarget should return nil ---
+	nextIntent = FindNextHarvestTarget(char, cpos.X, cpos.Y, gameMap.Items(), "grass", gameMap)
+	if nextIntent != nil {
+		t.Error("Phase 8: Expected nil — full bundle")
+	}
+
+	// --- Phase 9: Drop completed bundle and complete order ---
+	DropCompletedBundle(char, order, gameMap, log)
+	CompleteOrder(char, order, log)
+
+	// Verify: bundle on ground, order completed
+	bundleOnGround := false
+	for _, item := range gameMap.Items() {
+		if item.ItemType == "grass" && item.BundleCount == 6 {
+			bundleOnGround = true
+			break
+		}
+	}
+	if !bundleOnGround {
+		t.Error("Final: Expected full grass bundle on the ground")
+	}
+	if order.Status != entity.OrderCompleted {
+		t.Errorf("Final: Expected order completed, got %s", order.Status)
+	}
+	if char.AssignedOrderID != 0 {
+		t.Error("Final: Expected character unassigned from order")
+	}
+}
+
+// Regression: harvest berry still uses vessel path (bundle changes don't affect it).
+func TestHarvestBerry_VesselPath_Unchanged(t *testing.T) {
+	t.Parallel()
+
+	// Use explicit registry with known red berry variety (GenerateVarieties is random)
+	registry := createTestRegistry()
+	gameMap := game.NewMap(20, 20)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Berry plant and vessel on map
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	gameMap.AddItem(berry)
+
+	vessel := createTestVessel()
+	vessel.X = 7
+	vessel.Y = 5
+	gameMap.AddItem(vessel)
+
+	order := entity.NewOrder(1, "harvest", "berry")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	// Phase 1: Intent should target vessel (procurement)
+	items := gameMap.Items()
+	intent := FindHarvestIntentForTest(char, char.Pos(), items, order, nil, gameMap)
+	if intent == nil {
+		t.Fatal("Expected vessel procurement intent")
+	}
+	if intent.TargetItem != vessel {
+		t.Fatalf("Expected vessel target, got %v", intent.TargetItem)
+	}
+
+	// Phase 2: Pick up vessel
+	result := Pickup(char, vessel, gameMap, nil, registry)
+	if result != PickupToInventory {
+		t.Fatalf("Expected PickupToInventory for vessel, got %d", result)
+	}
+
+	// Phase 3: With vessel in inventory, intent should target berry
+	items = gameMap.Items()
+	intent = FindHarvestIntentForTest(char, char.Pos(), items, order, nil, gameMap)
+	if intent == nil {
+		t.Fatal("Expected berry harvest intent")
+	}
+	if intent.TargetItem != berry {
+		t.Fatalf("Expected berry target, got %v", intent.TargetItem)
+	}
+
+	// Phase 4: Pick up berry → goes into vessel
+	result = Pickup(char, berry, gameMap, nil, registry)
+	if result != PickupToVessel {
+		t.Fatalf("Expected PickupToVessel for berry, got %d", result)
+	}
+}

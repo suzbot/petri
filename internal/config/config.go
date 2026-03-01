@@ -35,6 +35,7 @@ const (
 	CharSeed       = '.'
 	CharTilledSoil = '═'
 	CharGrass      = 'W'
+	CharBundle     = 'X'
 	CharSprout     = '𖧧'
 	CharSleeping   = 'z'
 

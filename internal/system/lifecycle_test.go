@@ -827,6 +827,30 @@ func TestSpawnItem_SproutHasNoSpawnOrDeathTimer(t *testing.T) {
 	}
 }
 
+func TestSpawnItem_CopiesKindFromParent(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	parent := entity.NewGrass(5, 5)
+	gameMap.AddItem(parent)
+
+	spawnItem(gameMap, parent, 6, 5, 40)
+
+	var spawned *entity.Item
+	for _, item := range gameMap.Items() {
+		if item != parent {
+			spawned = item
+			break
+		}
+	}
+	if spawned == nil {
+		t.Fatal("Expected spawned item")
+	}
+	if spawned.Kind != "tall grass" {
+		t.Errorf("Spawned Kind: got %q, want %q", spawned.Kind, "tall grass")
+	}
+}
+
 // =============================================================================
 // UpdateSpawnTimers skips sprouts + growth multipliers
 // =============================================================================

@@ -12,10 +12,8 @@ func TestTryDiscoverKnowHow_DiscoverHarvestOnPickup(t *testing.T) {
 		Name:            "Test",
 		KnownActivities: []string{},
 	}
-	item := &entity.Item{
-		ItemType: "berry",
-		Edible:   &entity.EdibleProperties{},
-	}
+	// Use full berry with Plant — ActionPickup harvest trigger requires harvestable (growing plant)
+	item := entity.NewBerry(0, 0, types.ColorRed, false, false)
 
 	// With 100% chance, should always discover
 	discovered := TryDiscoverKnowHow(char, entity.ActionPickup, item, nil, 1.0)
@@ -53,10 +51,8 @@ func TestTryDiscoverKnowHow_DiscoverHarvestOnLook(t *testing.T) {
 		Name:            "Test",
 		KnownActivities: []string{},
 	}
-	item := &entity.Item{
-		ItemType: "gourd",
-		Edible:   &entity.EdibleProperties{},
-	}
+	// Use full gourd with Plant — ActionLook harvest trigger requires harvestable (growing plant)
+	item := entity.NewGourd(0, 0, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
 
 	discovered := TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
 
@@ -201,11 +197,8 @@ func TestTryDiscoverKnowHow_LogsDiscovery(t *testing.T) {
 		Name:            "Alice",
 		KnownActivities: []string{},
 	}
-	item := &entity.Item{
-		ItemType: "berry",
-		Edible:   &entity.EdibleProperties{},
-		Color:    types.ColorRed,
-	}
+	// Use a full berry with Plant — ActionPickup harvest trigger requires harvestable (growing plant)
+	item := entity.NewBerry(0, 0, types.ColorRed, false, false)
 	log := NewActionLog(100)
 
 	TryDiscoverKnowHow(char, entity.ActionPickup, item, log, 1.0)
@@ -393,10 +386,8 @@ func TestTryDiscoverKnowHow_NoRecipeDiscoverOnNonGourd(t *testing.T) {
 		KnownActivities: []string{},
 		KnownRecipes:    []string{},
 	}
-	item := &entity.Item{
-		ItemType: "berry", // not a gourd
-		Edible:   &entity.EdibleProperties{},
-	}
+	// Use full berry with Plant — ActionLook harvest trigger requires harvestable (growing plant)
+	item := entity.NewBerry(0, 0, types.ColorRed, false, false)
 
 	// Looking at a berry should discover harvest, not craftVessel
 	TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
@@ -565,4 +556,85 @@ func TestTryDiscoverKnowHow_DiscoverWaterGardenOnLookAtSprout(t *testing.T) {
 		t.Error("Expected character to eventually discover waterGarden from looking at plantable item")
 	}
 	_ = discovered // first call may discover plant or harvest instead
+}
+
+// =============================================================================
+// RequiresHarvestable trigger tests
+// =============================================================================
+
+func TestTriggerMatches_RequiresHarvestable_GrowingNonSprout(t *testing.T) {
+	t.Parallel()
+
+	trigger := entity.DiscoveryTrigger{
+		Action:              entity.ActionPickup,
+		RequiresHarvestable: true,
+	}
+
+	grass := entity.NewGrass(0, 0)
+	if !triggerMatches(trigger, entity.ActionPickup, grass) {
+		t.Error("RequiresHarvestable should match growing non-sprout plant")
+	}
+}
+
+func TestTriggerMatches_RequiresHarvestable_Sprout(t *testing.T) {
+	t.Parallel()
+
+	trigger := entity.DiscoveryTrigger{
+		Action:              entity.ActionPickup,
+		RequiresHarvestable: true,
+	}
+
+	sprout := entity.NewGrass(0, 0)
+	sprout.Plant.IsSprout = true
+	if triggerMatches(trigger, entity.ActionPickup, sprout) {
+		t.Error("RequiresHarvestable should NOT match sprout")
+	}
+}
+
+func TestTriggerMatches_RequiresHarvestable_NonPlant(t *testing.T) {
+	t.Parallel()
+
+	trigger := entity.DiscoveryTrigger{
+		Action:              entity.ActionPickup,
+		RequiresHarvestable: true,
+	}
+
+	stick := entity.NewStick(0, 0)
+	if triggerMatches(trigger, entity.ActionPickup, stick) {
+		t.Error("RequiresHarvestable should NOT match non-plant item")
+	}
+}
+
+func TestDiscoverHarvest_FromPickingUpGrass(t *testing.T) {
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{},
+	}
+	grass := entity.NewGrass(0, 0)
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionPickup, grass, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected discovery from picking up grass")
+	}
+	if !char.KnowsActivity("harvest") {
+		t.Error("Expected character to know harvest after picking up grass")
+	}
+}
+
+func TestDiscoverHarvest_FromLookingAtFlower(t *testing.T) {
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{},
+	}
+	flower := entity.NewFlower(0, 0, types.ColorBlue)
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionLook, flower, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected discovery from looking at flower")
+	}
+	if !char.KnowsActivity("harvest") {
+		t.Error("Expected character to know harvest after looking at flower")
+	}
 }

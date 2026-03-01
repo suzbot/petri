@@ -142,18 +142,26 @@ func findOrderIntent(char *entity.Character, pos types.Position, items []*entity
 
 // findHarvestIntent creates an intent to harvest (pick up) a specific item type per order.
 // Returns nil if no matching items exist on the map.
-// Uses EnsureHasVesselFor to handle vessel acquisition with drop-when-blocked logic.
+// Vessel-excluded types (grass) skip vessel procurement and go straight to pickup.
+// Non-excluded types (berry) use EnsureHasVesselFor for vessel acquisition.
 func findHarvestIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	// Full-bundle safety net: if character already has a full bundle, signal completion
+	if hasFullBundle(char, order.TargetType) {
+		return nil
+	}
+
 	// Find nearest item matching the order's target type
 	target := findNearestItemByType(pos.X, pos.Y, items, order.TargetType, true)
 	if target == nil {
 		return nil // No matching items - will trigger abandonment
 	}
 
-	// Ensure we have a compatible vessel (or get one if available)
-	// dropConflict=true: orders take priority, drop incompatible vessels
-	if intent := EnsureHasVesselFor(char, target, items, gameMap, log, true, "order"); intent != nil {
-		return intent
+	// Only do vessel procurement for non-vessel-excluded types
+	if config.MaxBundleSize[target.ItemType] == 0 {
+		// dropConflict=true: orders take priority, drop incompatible vessels
+		if intent := EnsureHasVesselFor(char, target, items, gameMap, log, true, "order"); intent != nil {
+			return intent
+		}
 	}
 
 	// Ready to harvest - either have compatible vessel or will harvest directly
@@ -323,6 +331,9 @@ func isMultiStepOrderComplete(char *entity.Character, order *entity.Order, gameM
 	case "waterGarden":
 		// Complete when no dry tilled planted tiles remain
 		return !DryTilledPlantedTileExists(gameMap.Items(), gameMap)
+	case "harvest":
+		// Bundleable harvest (grass) — complete when character has a full bundle
+		return hasFullBundle(char, order.TargetType)
 	case "gather":
 		// One bundle per order — complete when character has a full bundle of the target type
 		return hasFullBundle(char, order.TargetType)
@@ -345,11 +356,11 @@ func hasFullBundle(char *entity.Character, targetType string) bool {
 	return false
 }
 
-// DropCompletedBundle drops a full bundle of the order's target type when a gather
-// order completes. Called from selectOrderActivity before CompleteOrder.
-// No-op for non-gather orders or when no full bundle exists.
+// DropCompletedBundle drops a full bundle of the order's target type when a
+// harvest or gather order completes. Called from selectOrderActivity before
+// CompleteOrder. No-op for other order types or when no full bundle exists.
 func DropCompletedBundle(char *entity.Character, order *entity.Order, gameMap *game.Map, log *ActionLog) {
-	if order.ActivityID != "gather" {
+	if order.ActivityID != "gather" && order.ActivityID != "harvest" {
 		return
 	}
 	maxSize := config.MaxBundleSize[order.TargetType]
@@ -473,10 +484,17 @@ func CompleteOrder(char *entity.Character, order *entity.Order, log *ActionLog) 
 }
 
 // FindNextHarvestTarget finds the next item to harvest for order continuation.
-// Returns nil if inventory is full or no matching targets exist.
+// Bundle-aware: for bundleable types, uses canGatherMore (non-full bundle check)
+// instead of HasInventorySpace. Returns nil if no capacity or no matching targets.
 func FindNextHarvestTarget(char *entity.Character, cx, cy int, items []*entity.Item, targetType string, gameMap *game.Map) *entity.Intent {
-	if !char.HasInventorySpace() {
-		return nil
+	if config.MaxBundleSize[targetType] > 0 {
+		if !canGatherMore(char, targetType) {
+			return nil
+		}
+	} else {
+		if !char.HasInventorySpace() {
+			return nil
+		}
 	}
 
 	// Find nearest item matching the target type
@@ -861,21 +879,27 @@ func findGatherIntent(char *entity.Character, pos types.Position, items []*entit
 		return nil // No matching items - will trigger abandonment
 	}
 
-	// Check if item has a registered variety (determines vessel vs. direct inventory path)
-	registry := gameMap.Varieties()
-	variety := registry.GetByAttributes(target.ItemType, target.Color, target.Pattern, target.Texture)
-
-	if variety != nil {
-		// Item has variety — use vessel procurement (same as harvest)
-		if intent := EnsureHasVesselFor(char, target, items, gameMap, log, true, "order"); intent != nil {
-			return intent
-		}
-	} else {
-		// No variety (e.g., sticks) — must have room to pick up (inventory slot or non-full bundle).
-		// Orders can drop items on arrival (applyPickup handles this), so only check capacity
-		// when the character actually has stick bundles that are all full.
+	// Vessel-excluded types skip vessel procurement regardless of variety
+	if config.MaxBundleSize[target.ItemType] > 0 {
+		// Bundleable — direct pickup, check capacity
 		if !canGatherMore(char, order.TargetType) && !hasNonTargetToDrop(char, order.TargetType) {
 			return nil
+		}
+	} else {
+		// Check if item has a registered variety (determines vessel vs. direct inventory path)
+		registry := gameMap.Varieties()
+		variety := registry.GetByAttributes(target.ItemType, target.Color, target.Pattern, target.Texture)
+
+		if variety != nil {
+			// Item has variety — use vessel procurement (same as harvest)
+			if intent := EnsureHasVesselFor(char, target, items, gameMap, log, true, "order"); intent != nil {
+				return intent
+			}
+		} else {
+			// No variety — must have room to pick up (inventory slot or non-full bundle).
+			if !canGatherMore(char, order.TargetType) && !hasNonTargetToDrop(char, order.TargetType) {
+				return nil
+			}
 		}
 	}
 
@@ -912,6 +936,11 @@ func findGatherIntent(char *entity.Character, pos types.Position, items []*entit
 // FindGatherIntentForTest is an exported wrapper for integration tests in other packages.
 func FindGatherIntentForTest(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
 	return findGatherIntent(char, pos, items, order, log, gameMap)
+}
+
+// FindHarvestIntentForTest is an exported wrapper for integration tests in other packages.
+func FindHarvestIntentForTest(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	return findHarvestIntent(char, pos, items, order, log, gameMap)
 }
 
 // IsMultiStepOrderCompleteForTest is an exported wrapper for tests.

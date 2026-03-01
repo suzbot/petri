@@ -997,6 +997,27 @@ func RunWaterFill(char *entity.Character, vessel *entity.Item, actionType entity
 }
 
 // =============================================================================
+// Harvest Helper
+// =============================================================================
+
+// harvestItem applies the harvest transition to a picked-up item:
+// stops growing, clears timers, and applies material transformations (grass dries to pale yellow).
+// Called from all three Pickup() paths (vessel, bundle, inventory).
+// Does NOT handle the Plantable mutation — that's a separate concern (pickup activation for berries/mushrooms).
+func harvestItem(item *entity.Item) {
+	if item.Plant != nil {
+		item.Plant.IsGrowing = false
+		item.Plant.SpawnTimer = 0
+	}
+	item.DeathTimer = 0
+
+	// Grass changes from pale green (living) to pale yellow (dried) on harvest
+	if item.ItemType == "grass" {
+		item.Color = types.ColorPaleYellow
+	}
+}
+
+// =============================================================================
 // Pickup Actions
 // =============================================================================
 
@@ -1049,12 +1070,7 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 				// Successfully added to vessel
 				gameMap.RemoveItem(item)
 
-				// Mark as no longer growing
-				if item.Plant != nil {
-					item.Plant.IsGrowing = false
-					item.Plant.SpawnTimer = 0
-				}
-				item.DeathTimer = 0
+				harvestItem(item)
 
 				// Berries and mushrooms become plantable when picked
 				if item.ItemType == "berry" || item.ItemType == "mushroom" {
@@ -1088,11 +1104,7 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 				carried.BundleCount++
 				gameMap.RemoveItem(item)
 
-				if item.Plant != nil {
-					item.Plant.IsGrowing = false
-					item.Plant.SpawnTimer = 0
-				}
-				item.DeathTimer = 0
+				harvestItem(item)
 
 				if log != nil {
 					log.Add(char.ID, char.Name, "activity",
@@ -1114,13 +1126,7 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 
 	gameMap.RemoveItem(item)
 
-	// Mark as no longer growing (won't respawn if dropped)
-	if item.Plant != nil {
-		item.Plant.IsGrowing = false
-		item.Plant.SpawnTimer = 0
-	}
-	// Clear death timer - carried items don't decay
-	item.DeathTimer = 0
+	harvestItem(item)
 
 	// Berries and mushrooms become plantable when picked
 	if item.ItemType == "berry" || item.ItemType == "mushroom" {

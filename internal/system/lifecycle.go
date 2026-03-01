@@ -236,6 +236,7 @@ func spawnItem(gameMap *game.Map, parent *entity.Item, x, y int, initialItemCoun
 			EType: entity.TypeItem,
 		},
 		ItemType: parent.ItemType,
+		Kind:     parent.Kind,
 		Color:    parent.Color,
 		Pattern:  parent.Pattern,
 		Texture:  parent.Texture,

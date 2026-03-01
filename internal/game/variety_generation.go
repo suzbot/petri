@@ -15,6 +15,7 @@ type ItemTypeConfig struct {
 	Colors               []types.Color
 	Patterns             []types.Pattern // nil if patterns don't apply
 	Textures             []types.Texture // nil if textures don't apply
+	Kind                 string          // subtype identity for varieties (empty for most types; "tall grass" for grass)
 	Edible               bool
 	CanBePoisonOrHealing bool // if false, never assigned poison/healing (e.g., gourds)
 	Plantable            bool // if true, picked items of this type become plantable
@@ -70,6 +71,7 @@ func GetItemTypeConfigs() map[string]ItemTypeConfig {
 			Colors:               []types.Color{types.ColorPaleGreen},
 			Patterns:             nil,
 			Textures:             nil,
+			Kind:                 "tall grass",
 			Edible:               false,
 			CanBePoisonOrHealing: false,
 			Sym:                  config.CharGrass,
@@ -176,6 +178,28 @@ func GetGatherableTypes(items []*entity.Item) []GatherableTypeEntry {
 	return entries
 }
 
+// GetHarvestableItemTypes returns a sorted, deduplicated list of item type names
+// that can be harvested — growing, non-sprout plants currently on the map.
+// This is the source of truth for the harvest order target list.
+func GetHarvestableItemTypes(items []*entity.Item) []string {
+	seen := make(map[string]bool)
+	var result []string
+
+	for _, item := range items {
+		if item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout {
+			continue
+		}
+		if seen[item.ItemType] {
+			continue
+		}
+		seen[item.ItemType] = true
+		result = append(result, item.ItemType)
+	}
+
+	sort.Strings(result)
+	return result
+}
+
 // capitalize returns s with the first letter uppercased.
 func capitalize(s string) string {
 	if s == "" {
@@ -274,6 +298,7 @@ func generateVarietiesForType(itemType string, cfg ItemTypeConfig) []*entity.Ite
 		variety := &entity.ItemVariety{
 			ID:        id,
 			ItemType:  itemType,
+			Kind:      cfg.Kind,
 			Color:     color,
 			Pattern:   pattern,
 			Texture:   texture,

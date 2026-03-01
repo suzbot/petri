@@ -220,6 +220,8 @@ func Pluralize(itemType string) string {
 		return "mushrooms"
 	case "flower":
 		return "flowers"
+	case "tall grass":
+		return "tall grass"
 	default:
 		return itemType + "s"
 	}

@@ -8,15 +8,10 @@ import (
 	"petri/internal/types"
 )
 
-// bundlePluralName maps bundleable item types to their plural form for display
+// bundlePluralName maps bundleable item types to their plural form for display.
+// Only needed for types without Kind set — types with Kind use Pluralize(Kind) instead.
 var bundlePluralName = map[string]string{
 	"stick": "sticks",
-	"grass": "tall grass",
-}
-
-// itemDisplayName maps internal item types to their display names (singular)
-var itemDisplayName = map[string]string{
-	"grass": "tall grass",
 }
 
 // PlantProperties contains properties specific to growing plants
@@ -172,6 +167,7 @@ func NewGrass(x, y int) *Item {
 			EType: TypeItem,
 		},
 		ItemType:    "grass",
+		Kind:        "tall grass",
 		Color:       types.ColorPaleGreen,
 		Plant:       &PlantProperties{IsGrowing: true},
 		BundleCount: 1,
@@ -266,9 +262,14 @@ func (i *Item) Description() string {
 	}
 
 	if i.BundleCount >= 2 {
-		plural := bundlePluralName[i.ItemType]
-		if plural == "" {
-			plural = i.ItemType + "s"
+		var plural string
+		if i.Kind != "" {
+			plural = Pluralize(i.Kind)
+		} else {
+			plural = bundlePluralName[i.ItemType]
+			if plural == "" {
+				plural = i.ItemType + "s"
+			}
 		}
 		return fmt.Sprintf("bundle of %s (%d)", plural, i.BundleCount)
 	}
@@ -286,8 +287,6 @@ func (i *Item) Description() string {
 	}
 	if i.Kind != "" {
 		parts = append(parts, i.Kind)
-	} else if displayName, ok := itemDisplayName[i.ItemType]; ok {
-		parts = append(parts, displayName)
 	} else {
 		parts = append(parts, i.ItemType)
 	}

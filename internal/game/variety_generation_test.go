@@ -315,7 +315,7 @@ func TestGenerateVarieties_GrassVarietyRegistered(t *testing.T) {
 		t.Fatal("Expected grass varieties to be registered, got 0")
 	}
 
-	// Single variety: pale green, no pattern, no texture
+	// Single variety: pale green, no pattern, no texture, Kind="tall grass"
 	g := grasses[0]
 	if g.Color != types.ColorPaleGreen {
 		t.Errorf("Grass variety Color: got %q, want %q", g.Color, types.ColorPaleGreen)
@@ -325,6 +325,9 @@ func TestGenerateVarieties_GrassVarietyRegistered(t *testing.T) {
 	}
 	if g.Texture != types.TextureNone {
 		t.Errorf("Grass variety Texture: got %q, want %q", g.Texture, types.TextureNone)
+	}
+	if g.Kind != "tall grass" {
+		t.Errorf("Grass variety Kind: got %q, want %q", g.Kind, "tall grass")
 	}
 	if g.IsEdible() {
 		t.Error("Grass variety should not be edible")
@@ -353,5 +356,103 @@ func TestGenerateVarieties_CorrectSymbols(t *testing.T) {
 		if v.Sym != config.CharFlower {
 			t.Errorf("Flower variety %q has wrong symbol %c, want %c", v.ID, v.Sym, config.CharFlower)
 		}
+	}
+}
+
+// TestGetHarvestableItemTypes_ReturnsGrowingNonSprout verifies that growing, non-sprout
+// plants appear in the harvestable list.
+func TestGetHarvestableItemTypes_ReturnsGrowingNonSprout(t *testing.T) {
+	items := []*entity.Item{
+		entity.NewBerry(1, 1, types.ColorRed, false, false),
+		entity.NewGrass(2, 2),
+	}
+
+	types_ := GetHarvestableItemTypes(items)
+
+	found := map[string]bool{}
+	for _, tp := range types_ {
+		found[tp] = true
+	}
+	if !found["berry"] {
+		t.Error("Expected berry in harvestable types")
+	}
+	if !found["grass"] {
+		t.Error("Expected grass in harvestable types")
+	}
+}
+
+// TestGetHarvestableItemTypes_ExcludesSprouts verifies that sprouts are not harvestable.
+func TestGetHarvestableItemTypes_ExcludesSprouts(t *testing.T) {
+	sprout := entity.NewGrass(1, 1)
+	sprout.Plant.IsSprout = true
+
+	types_ := GetHarvestableItemTypes([]*entity.Item{sprout})
+
+	for _, tp := range types_ {
+		if tp == "grass" {
+			t.Error("Sprouts should not appear in harvestable types")
+		}
+	}
+}
+
+// TestGetHarvestableItemTypes_ReturnsEmptyWhenNoPlants verifies empty result when no growing plants exist.
+func TestGetHarvestableItemTypes_ReturnsEmptyWhenNoPlants(t *testing.T) {
+	items := []*entity.Item{
+		entity.NewStick(1, 1),
+		entity.NewNut(2, 2),
+	}
+
+	types_ := GetHarvestableItemTypes(items)
+
+	if len(types_) != 0 {
+		t.Errorf("Expected empty harvestable types with no plants, got %v", types_)
+	}
+}
+
+// TestGetHarvestableItemTypes_IncludesNonEdible verifies that non-edible growing plants
+// (grass, flower) appear alongside edible ones (berry, mushroom).
+func TestGetHarvestableItemTypes_IncludesNonEdible(t *testing.T) {
+	items := []*entity.Item{
+		entity.NewBerry(1, 1, types.ColorRed, false, false),
+		entity.NewFlower(2, 2, types.ColorYellow),
+		entity.NewGrass(3, 3),
+	}
+
+	types_ := GetHarvestableItemTypes(items)
+
+	found := map[string]bool{}
+	for _, tp := range types_ {
+		found[tp] = true
+	}
+	if !found["berry"] {
+		t.Error("Expected berry (edible plant) in harvestable types")
+	}
+	if !found["flower"] {
+		t.Error("Expected flower (non-edible plant) in harvestable types")
+	}
+	if !found["grass"] {
+		t.Error("Expected grass (non-edible plant) in harvestable types")
+	}
+}
+
+// TestGetHarvestableItemTypes_Deduplicated verifies that multiple instances of the same
+// plant type produce a single entry.
+func TestGetHarvestableItemTypes_Deduplicated(t *testing.T) {
+	items := []*entity.Item{
+		entity.NewGrass(1, 1),
+		entity.NewGrass(2, 2),
+		entity.NewGrass(3, 3),
+	}
+
+	types_ := GetHarvestableItemTypes(items)
+
+	count := 0
+	for _, tp := range types_ {
+		if tp == "grass" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("Expected 1 entry for 3 grass plants, got %d", count)
 	}
 }
