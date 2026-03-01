@@ -46,3 +46,4 @@ then they can be removed from this list.
 - Streams and Bridges (requires Construction)
 - Use moss, feathers, and leaves to make beds (requires Construction)
 - Baskets, Bags, and Bins (consider after Gardening)
+- When 9 mushrooms of the same variety grow together in a 3x3 patch they become a mega mushroom that can be converted into a mushroom hut

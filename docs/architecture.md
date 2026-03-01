@@ -91,7 +91,7 @@ Functional attributes live in optional property structs (`EdibleProperties`, `Pl
 
 **EdibleProperties** marks items as edible with optional effects. Items with `Edible != nil` can be eaten; Poisonous/Healing determine effects.
 
-**BundleCount** (`int` field on Item, default 0 for non-bundleable items, 1 for bundleable items): tracks how many units are in this bundle slot. Constructors for bundleable types (e.g., `NewStick()`, `NewGrass()`) set `BundleCount: 1`. `Pickup()` increments BundleCount when merging. `Description()` uses BundleCount to produce "bundle of sticks (N)" display text. Items with `BundleCount >= 2` render as `X` on the map. `config.IsBundleable(itemType)` and `config.MaxBundleSize` drive bundle eligibility and capacity. Bundleable types are also listed in `config.VesselExcludedTypes` — they cannot go in vessels. This is an explicit config check, replacing the prior implicit exclusion (variety absence) for sticks.
+**BundleCount** (`int` field on Item, default 0 for non-bundleable items, 1 for bundleable items): tracks how many units are in this bundle slot. Constructors for bundleable types (e.g., `NewStick()`, `NewGrass()`) set `BundleCount: 1`. `Pickup()` increments BundleCount when merging. `Description()` uses BundleCount to produce "bundle of sticks (N)" display text; when Kind is set, uses `Pluralize(Kind)` for the bundle name (e.g., "bundle of tall grass (N)"). The bundle format shows for `BundleCount >= 2` (single items use their normal description); growing plants also keep their normal description. Items with `BundleCount >= 2` render as `X` on the map (`config.CharBundle`). `config.IsBundleable(itemType)` and `config.MaxBundleSize` drive bundle eligibility and capacity. Bundleable types are also listed in `config.VesselExcludedTypes` — they cannot go in vessels. This is an explicit config check, replacing the prior implicit exclusion (variety absence) for sticks.
 
 ### Kind Pattern for Subtypes
 
@@ -104,6 +104,8 @@ Some item types use a `Kind` subtype field for hierarchical identity:
 This follows **Design Types for Future Siblings** (Values.md) — `ItemType: "liquid", Kind: "water"` accommodates future beverages (mead, beer, wine) as Kind variants with no structural changes needed.
 
 `ItemVariety` also carries a `Kind` field (mirrors `Item.Kind`) so vessel contents can restore the correct Kind when items are extracted. See "Variety Restoration on Extraction" below.
+
+**Kind and plant reproduction:** `spawnItem()` copies `Kind` from the parent alongside `Color`, `Pattern`, and `Texture`. Grass is the first plant type with a Kind value that reproduces via `spawnItem` — without this copy, reproduced plants would lose their Kind. When adding a new plant type with Kind, verify that `spawnItem` copies it (it does, generically) and that the kind survives the sprout→mature transition in `UpdateSproutTimers`.
 
 ### Crafted Items
 
@@ -119,7 +121,7 @@ Crafted items (like vessels) differ from natural items:
 2. `config/config.go` — Add to `ItemLifecycle` map (spawn/death intervals); if edible, add to `ItemMealSize` map (use `GetMealSize` to look up satiation and eating duration); add to `SproutDurationTier` map (maturation speed tier)
 3. `game/variety_generation.go` — Add variety generation logic
 4. `game/world.go` — Add to `GetItemTypeConfigs()` for UI/character creation. Set `Plantable: true` if items of this type can be planted directly; set `CanProduceSeeds: true` if consuming produces seeds.
-5. `system/lifecycle.go` — Add case to `MatureSymbol()` for the mature plant symbol. Verify that any constructor-set fields are restored on maturation in `UpdateSproutTimers`. `spawnItem()` only copies descriptive attributes (Color, Pattern, Texture) — functional fields set by the constructor (e.g., `BundleCount`, `Edible`) must be restored when the sprout matures, since they won't survive the sprout→mature transition otherwise.
+5. `system/lifecycle.go` — Add case to `MatureSymbol()` for the mature plant symbol. Verify that any constructor-set fields are restored on maturation in `UpdateSproutTimers`. `spawnItem()` copies descriptive attributes (Color, Pattern, Texture, Kind) — functional fields set by the constructor (e.g., `BundleCount`, `Edible`) must be restored when the sprout matures, since they won't survive the sprout→mature transition otherwise.
 6. `game/world.go` — Add case to `createItemFromVariety()` to call the constructor. Without this, the type falls through to the default (currently `NewFlower`).
 7. `ui/serialize.go` — Add case to the symbol restoration switch in `itemFromSave()`. Symbols are not serialized — they're restored from ItemType on load.
 
@@ -351,9 +353,11 @@ Activities are the named behaviors that characters learn and perform. The regist
 
 ### Discovery Triggers
 
-Know-how activities are discovered through experience. Each trigger specifies an action, optional item type, and optional requirements (`RequiresEdible`, `RequiresPlantable`).
+Know-how activities are discovered through experience. Each trigger specifies an action, optional item type, and optional requirements (`RequiresEdible`, `RequiresPlantable`, `RequiresHarvestable`).
 
-Example: Harvest is discovered by picking up, eating, or looking at edible items. Plant is discovered by picking up or looking at plantable items.
+`RequiresHarvestable` gates discovery on any growing non-sprout plant (`Plant != nil && Plant.IsGrowing && !Plant.IsSprout`). This enables non-edible plants like grass and flowers to trigger harvest know-how. `RequiresEdible` and `RequiresPlantable` follow the same bool-gate pattern.
+
+Example: Harvest is discovered by foraging/eating edible items, or by picking up or looking at any harvestable plant (including non-edible plants like grass and flowers). Plant is discovered by picking up or looking at plantable items.
 
 ### Adding a New Activity
 
@@ -583,6 +587,8 @@ Constructor-set fields won't be populated when deserializing directly into struc
 **PlantProperties serialization**: `IsSprout` and `SproutTimer` must round-trip correctly to preserve sprout state across save/load.
 
 **BundleCount serialization**: `BundleCount` is stored as `bundle_count` in `ItemSave`. Backward compatibility: old saves without the field default to `BundleCount=0`; on load, bundleable types with `BundleCount=0` are migrated to `BundleCount=1` (a single item is a bundle of 1).
+
+**Kind migration**: When a new Kind value is added to an existing item type, old saves that pre-date the Kind field have `Kind=""` for those items. Migration in `FromSaveState` (`serialize.go`) restores the expected Kind (e.g., grass items without Kind get `Kind="tall grass"` on load). Follow this pattern for any future item type that gains a Kind retroactively.
 
 **Save compatibility when changing entity storage**: When changing how entities are stored (e.g., moving data between fields, maps, or types), verify save/load round-trip in the same step. Check: (1) new state serializes, (2) old saves migrate, (3) serialize tests updated.
 

@@ -94,7 +94,7 @@ See `config.GroundSpawnInterval` for intervals.
 - **Nuts**: Brown `o`; edible, not poisonous/healing. Falls from canopy periodically.
 - **Sticks**: Brown `/`; non-edible, crafting material. Falls from canopy periodically.
 - **Shells**: Colored `<`; non-edible, crafting material. Multiple color variants. Washes up adjacent to ponds.
-- **Grass**: Pale green `W`; non-edible, construction material. Grows and spreads across the world; fastest lifecycle (fast maturation and reproduction). Has a death timer so it doesn't take over the map. Harvested into bundles.
+- **Grass**: Pale green `W`; non-edible, construction material. Kind "tall grass". Grows and spreads across the world; fastest lifecycle (fast maturation and reproduction). Has a death timer so it doesn't take over the map. Harvested into bundles; color changes to pale yellow on harvest, representing drying.
 - **Seeds**: Dot `.` in parent gourd's color; not edible, plantable. Inherits parent's full variety. Auto-dropped when a gourd is consumed.
 
 ### Varieties
@@ -371,7 +371,7 @@ Characters share knowledge through conversation:
 Know-how represents activity skills discovered through experience. Unlike facts, know-how cannot be transmitted through talking.
 
 **Discovery triggers:**
-- **Harvest**: Discovered when foraging, eating edible items, or looking at edible items
+- **Harvest**: Discovered when foraging, eating edible items, or picking up or looking at any harvestable plant (growing non-sprout plants, including grass and flowers)
 - **Plant**: Discovered when picking up or looking at plantable items (berries, mushrooms, gourd seeds)
 - **Crafting know-how**: See [Crafting Discovery](#discovery)
 
@@ -484,7 +484,7 @@ Characters drop items when working an order that requires picking up a different
 
 Some item types (sticks, grass) stack as bundles when picked up. Each successive pickup of the same bundleable type merges into the carried bundle, incrementing its count. A bundle occupies one inventory slot. When a bundle reaches max size (see `config.MaxBundleSize`), no more items can merge into it — the slot is full.
 
-Bundleable items cannot be placed in vessels. A bundle with count ≥ 2 on the ground shows as `X` on the map and as "bundle of sticks (N)" in descriptions. A single bundleable item (count 1) shows its normal item name.
+Bundleable items cannot be placed in vessels. A bundle with count ≥ 2 on the ground shows as `X` on the map and as "bundle of sticks (N)" or "bundle of tall grass (N)" in descriptions. A single picked-up bundleable item (count 1) also shows bundle format — "bundle of sticks (1)" — since it has been removed from its growing state. Growing plants on the map keep their normal description regardless of BundleCount. The details panel shows "Bundle: N/M" capacity when selecting a bundle item.
 
 ### Vessels
 

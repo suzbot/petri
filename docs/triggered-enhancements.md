@@ -37,6 +37,8 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Snacking threshold** | Characters walk past nearby berries because hunger isn't high enough to trigger foraging, then starve later; Snack-tier food feels useless because characters only eat when already quite hungry |
 | **Terrain-aware Look + discovery**     | Adding activity discovered from terrain interaction; Characters feel artificially limited to item-only observation; Want richer idle contemplation behaviors |
 | **Character event/signal system**      | Helping needs richer reactions (gratitude, relationship changes); Multiple systems need to signal between characters; Current intent-clearing is too coarse for nuanced responses |
+| **Harvest PickupToInventory handler clarity** | A second vessel-excluded harvestable type is added; The `GetCarriedVessel() == nil` check in applyPickup's harvest PickupToInventory path becomes confusing during debugging |
+| **Dried grass color reassessment** | A new color in the gold/wheat range (ANSI 178, 179, or 186) is added to styles.go for any purpose; Pale yellow (ANSI 229) feels too washed out for dried grass/thatch in practice. Currently using ColorPaleYellow for harvested grass — reassess whether gold/wheat would better represent dried grass material. |
 
 ### Future Enhancement Details
 
@@ -110,20 +112,25 @@ Don't consolidate prematurely — each block has slight phase-detection differen
 
 ---
 
-**Preference-weighted component procurement → unified item-seeking in picking.go:**
+**Preference-weighted target selection → unified item-seeking in picking.go:**
 
-When gathering recipe inputs (e.g., shells for Craft Hoe), characters currently pick the nearest available component by distance. With shell color variety (7 colors), characters could instead score components by preference and distance, similar to food seeking's gradient scoring in foraging.go.
+Multiple systems currently pick targets by nearest-distance alone. With item variety (7 shell colors, 4+ flower colors, berry varieties), characters could instead score targets by preference and distance, similar to food seeking's gradient scoring in foraging.go. This affects three areas:
 
-picking.go is the shared home for "how characters acquire items." Currently, foraging.go has the most mature item-seeking logic (`scoreForageItems`, `createPickupIntent` — preference + distance scoring), while recipe procurement in picking.go uses simpler nearest-distance via `findNearestItemByType`. These should converge: characters' item-seeking behavior should be consistent whether they're foraging, gathering craft components, or fulfilling orders. Preference shapes material culture — a character who prefers silver shells will craft silver shell hoes, developing a personal aesthetic.
+1. **Order target selection** (`findHarvestIntent`, `findGatherIntent` in order_execution.go): Characters harvest/gather the nearest matching item regardless of variety. This produces surprising behavior — e.g., a character carrying a vessel of red flowers walks past more red flowers to harvest the nearest blue flower, then drops the red vessel to get an empty one for the blue. A preference-aware selector would favor targets matching the carried vessel's variety (or the character's color preference), reducing wasteful vessel swaps and creating more intentional-looking behavior.
+
+2. **Component procurement** (`EnsureHasRecipeInputs` in picking.go): When gathering recipe inputs (e.g., shells for Craft Hoe), characters pick the nearest available component. With shell color variety, characters could score components by preference and distance — a character who prefers silver shells would craft silver shell hoes, developing a personal aesthetic.
+
+3. **Recipe selection by preference**: `findCraftIntent` currently picks the first feasible recipe for an activity. When multiple recipes produce the same product (e.g., shell hoe, metal hoe, wooden hoe), the character could score each feasible recipe by net preference for its inputs. The `findCraftIntent` structure (get feasible recipes → pick one → gather inputs) has the selection point built in at step 3.
+
+picking.go is the shared home for "how characters acquire items." Currently, foraging.go has the most mature item-seeking logic (`scoreForageItems`, `createPickupIntent` — preference + distance scoring), while order execution and recipe procurement use simpler nearest-distance. These should converge: characters' item-seeking behavior should be consistent whether they're foraging, fulfilling orders, or gathering craft components. Preference shapes material culture — a character who prefers red flowers harvests red flowers, creating a personal aesthetic across all activities.
 
 Candidates to generalize into picking.go when this triggers:
 - `scoreForageItems` (foraging.go) → generic `scoreItemsByPreference` in picking.go
 - `createPickupIntent` (foraging.go) → generic intent builder in picking.go (currently duplicated across foraging.go, order_execution.go, picking.go with different logging)
+- Order target finders (`FindNextHarvestTarget`, `FindNextGatherTarget`) → use preference-weighted scoring
 - `EnsureHasRecipeInputs` component seeking → use preference-weighted scoring instead of nearest-distance
 
-**Recipe selection by preference** is a natural extension of this same system. `findCraftIntent` currently picks the first feasible recipe for an activity. When multiple recipes produce the same product (e.g., shell hoe, metal hoe, wooden hoe), the character could score each feasible recipe by net preference for its inputs — a character who likes silver shells would prefer the shell-hoe recipe and then prefer silver shells as input. The `findCraftIntent` structure (get feasible recipes → pick one → gather inputs) has the selection point built in at step 3.
-
-Deferred because: Craft Hoe is the first multi-component recipe, and there's only one recipe per activity. Nearest-distance works fine. Revisit when multiple recipes per activity create enough variety that "character ignores preferred recipe/material" feels wrong.
+Deferred because: Nearest-distance works functionally. The vessel-swap behavior (dropping a partially-filled vessel for a different variety) is correct but feels unintentional. Revisit when character behavior needs to feel more purposeful, or when multiple recipes per activity create enough variety that "character ignores preferred material" feels wrong. **Note:** Construction phase adds multiple craft recipes with varied inputs — if this hasn't triggered organically by end of Construction, implement it then, as the recipe variety meets the trigger condition.
 
 ---
 
@@ -189,7 +196,9 @@ The current approach (direct intent clearing + action log entry) works well for 
 
 **Vessel-excluded vs bundleable split:**
 
-Currently `config.MaxBundleSize` map membership means both "this item type stacks into bundles" and "this item type can't go in vessels." The sets happen to be identical (sticks, grass). If a future item needs vessel exclusion without bundling (e.g., a large tool) or bundling without vessel exclusion (unlikely but possible), split into `MaxBundleSize` (bundling) and a separate `VesselExcludedTypes` set (vessel exclusion).
+Currently `config.MaxBundleSize` map membership means both "this item type stacks into bundles" and "this item type can't go in vessels." The sets happen to be identical (sticks, grass). The check `config.MaxBundleSize[itemType] > 0` is used inline at 5 sites as a vessel-exclusion test: `Pickup()` (picking.go), `AddToVessel()` (picking.go), `findHarvestIntent()` and `findGatherIntent()` (order_execution.go), and `FindNextHarvestTarget()` (order_execution.go). There is no `IsVesselExcluded()` helper — the inline check is sufficient while the two concepts are identical.
+
+If a future item needs vessel exclusion without bundling (e.g., a large tool) or bundling without vessel exclusion (unlikely but possible), split into `MaxBundleSize` (bundling) and a separate `VesselExcludedTypes` set (vessel exclusion), and introduce an `IsVesselExcluded()` helper to replace the inline checks.
 
 ---
 
@@ -212,4 +221,12 @@ However, water vessels may not warrant full preference formation since:
 - The vessel itself already has preference-forming attributes
 
 Evaluate whether characters should form preferences about "drinking from vessel" vs "drinking from spring" or defer until actual beverage variety exists (juice, tea, etc.).
+
+---
+
+**Harvest PickupToInventory handler clarity:**
+
+In `applyPickup` (apply_actions.go), the PickupToInventory handler for harvest orders continues work when `char.GetCarriedVessel() == nil`. This check's original intent was "did I just pick up a vessel prerequisite (don't continue harvesting) or actual harvest work (continue)?" For vessel-excluded types like grass, the check accidentally produces correct behavior: grass never has a vessel, so "no vessel" always means "this was actual work — continue." The coincidence is that the original two cases (picked up vessel = don't continue, picked up harvest target without vessel = continue) and the new case (picked up bundle-target that never uses vessels = continue) share the same condition.
+
+Rework when: a second vessel-excluded harvestable type arrives and the shared condition becomes non-obvious, or when debugging this handler and the intent/coincidence distinction wastes time. The fix would be to make the check explicit: `isVesselExcluded(targetType) || carriedVessel == nil`.
 

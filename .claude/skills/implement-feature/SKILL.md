@@ -42,7 +42,7 @@ model: sonnet
 
 **Core loop:**
 1. **Announce** what you're about to write — one sentence: "I'm about to write [these tests] and [this implementation]"
-2. **Write tests first** — anchor to the step's anchor story, not implementation paths. "Ground vessel ends up filled with water" validates intent; "returns ActionPickup" validates structure. When modifying a shared function (Pickup, CanPickUpMore, FindNextTarget, etc.), trace all callers before writing code — new return values and behavior changes must be handled at every call site.
+2. **Write each sub-step's tests immediately before that sub-step's code** — do not batch tests for multiple sub-steps. Anchor to the step's anchor story, not implementation paths. "Ground vessel ends up filled with water" validates intent; "returns ActionPickup" validates structure. When modifying a shared function (Pickup, CanPickUpMore, FindNextTarget, etc.), trace all callers before writing code — new return values and behavior changes must be handled at every call site.
 3. **Implement** minimum code to pass tests
 4. **Verify** — run tests, run `gofmt ./...`
 5. **Pause at each [TEST] checkpoint** for user to rebuild and test
@@ -62,6 +62,7 @@ model: sonnet
 
 ### Step 4: Human Testing ([TEST])
 **Do NOT mark feature complete until user has tested.**
+- Before relaying [TEST] items to user: verify each item matches the step's implemented behavior (thresholds, rules). Surface contradictions rather than forwarding verbatim.
 - Offer `/test-world` if the [TEST] checkpoint calls for it or the scenario is complex
 - Wait for explicit confirmation from user before continuing
 
@@ -72,8 +73,8 @@ model: sonnet
 - Discuss scope before writing code (see Values.md: "Pause Before Solving")
 
 *Bug:*
-- **Evidence first** — ask what the user observes, check logs, add `t.Logf` or `-v`. Don't propose fixes from speculation.
-- **Restate the user's observation in their words** before offering a causal theory. If observation and theory don't match, ask rather than reframe.
+- **Always gather direct evidence first** — examine the most recently modified save file (`ls -t ~/.petri/worlds/*/state.json | head -1`), check logs, add `t.Logf` or `-v`. Do this before forming any hypothesis about the cause. Never guess what the game state is; read it.
+- **Restate the user's observation in their words** before offering a causal theory. If evidence doesn't match the report, ask clarifying questions — don't assume the user is misreporting. Ambiguity in what they observed is more likely than a wrong report.
 - **After fixing any human-caught bug:** write a regression test that reproduces the scenario before moving to the next testing round. Don't wait for the user to ask.
 - **Second bug in same feature** → stop patching. Restate the intended end-to-end flow and evaluate whether the design is sound (Values.md: "Step Back on Cascading Bugs"). Also check: does an automated end-to-end test exist for this flow? If not, write one before fixing — it catches remaining bugs in the same pass.
 

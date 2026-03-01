@@ -115,14 +115,14 @@ A. Assess whether Step 1 insights revealed **clear, recurring, or token/context-
       - **Workflow-specific guardrails** (when to stop, what to check) → the relevant skill in `.claude/skills/`
       - **Technical notes** — broad patterns → `docs/architecture.md`; implementation-specific pitfalls → relevant skill or `memory/MEMORY.md`
       - Avoid mixing categories: communication norms don't belong in Values.md; design values don't belong in CLAUDE.md.
-    - **Build on what exists** — if Values.md or a skill already covers the topic, propose strengthening (new example, broader wording, better placement) rather than creating parallel content. Cite what you found in Step 1.5.
+    - **Build on what exists** — if Values.md or a skill already covers the topic, propose strengthening (new example, broader wording, better placement) rather than creating parallel content. Cite what you found in Step 1.5. But if the actionable norm already exists where it's in context (CLAUDE.md, a skill), don't propose adding redundant examples to files that aren't in context during the relevant workflow.
     - **Match the target file's format and density.** Skills are terse reference outlines, not prose. Proposals should edit existing bullets or add short ones — not insert paragraphs into a file that uses bullet points. Show the exact edit (old text → new text). Aim for ≤15 new words per change when strengthening existing text.
 
 - If No: changes do not clearly pass the cost-benefit threshold
   - Did the user request the retro? If so, provide the analysis and the reasoning for no change.
   - Was the retro automatic? No output is needed, do not solicit user response.
 
-B. Take what you learned about user values, and propose additions to docs/Values.md. Check existing values first — a new example on an existing value is often more valuable than a new value.
+B. If the session revealed a genuinely new design value not yet captured in Values.md, propose it. Don't propose adding examples to existing values unless the current wording is misleading or incomplete — examples that merely reinforce an already-clear value are fluff.
 
 ---
 
@@ -145,40 +145,41 @@ When the user opts in to history search before a retro, follow this process:
 
 Read `memory/last-retro.txt` for the last retro timestamp. Search sessions modified after that timestamp. If no timestamp file exists, fall back to the last 3 sessions.
 
-### 2. Find session files
+### 2. Find and scan sessions (single command)
+
+Run one command that finds recent sessions and extracts friction signals. This avoids multiple approval prompts.
 
 ```bash
-# List recent session JSONL files by filesystem mtime
-ls -lt ~/.claude/projects/-Users-suzanneerin-projects-petri/*.jsonl | head -N
-```
-
-Filter to files modified after the last-retro timestamp (or take last 3 if no timestamp).
-
-### 3. Extract user messages and scan for friction
-
-```bash
-# For each session file, extract user messages and look for friction signals
 python3 -c "
-import json, sys
-with open(sys.argv[1]) as f:
-    for line in f:
-        try:
-            obj = json.loads(line)
-            if obj.get('type') == 'user':
-                content = obj.get('message', {}).get('content', '')
-                if isinstance(content, str) and len(content) > 10:
-                    print(content[:300])
-                    print('---')
-        except: pass
-" <session-file>
+import json, glob, os, sys
+project_dir = os.path.expanduser('~/.claude/projects/-Users-suzanneerin-projects-petri')
+cutoff = sys.argv[1] if len(sys.argv) > 1 else None
+files = sorted(glob.glob(os.path.join(project_dir, '*.jsonl')), key=os.path.getmtime, reverse=True)
+if cutoff:
+    from datetime import datetime
+    files = [f for f in files if datetime.fromtimestamp(os.path.getmtime(f)).isoformat() > cutoff]
+else:
+    files = files[:3]
+friction_words = ['no, ', 'not what', 'already', 'don\\'t forget', 'we discussed', 'did we', 'does the skill', 'friction', 'missed', 'should have', 'too strong', 'too weak', 'that\\'s not', 'I meant']
+for fpath in files:
+    signals = []
+    with open(fpath) as f:
+        for line in f:
+            try:
+                obj = json.loads(line)
+                if obj.get('type') == 'user':
+                    content = obj.get('message', {}).get('content', '')
+                    if isinstance(content, str) and any(w in content.lower() for w in friction_words):
+                        signals.append(content[:300])
+            except: pass
+    if signals:
+        print(f'\n=== {os.path.basename(fpath)} ===')
+        for s in signals:
+            print(s); print('---')
+" "$(cat memory/last-retro.txt 2>/dev/null || echo '')"
 ```
 
-Scan user messages for friction signals:
-- Corrections ("no, I meant...", "that's not what I...")
-- Reminders ("don't forget", "we already discussed", "did we", "does the skill say")
-- Process observations ("friction", "missed", "should have", "too strong", "too weak")
-
-### 4. Pass findings to retro
+### 3. Pass findings to retro
 
 Include a summary of friction signals found (with direct quotes) in the retro skill arguments.
 
