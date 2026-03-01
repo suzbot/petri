@@ -973,3 +973,99 @@ func TestWateredTileSerialization_RoundTrip(t *testing.T) {
 		t.Error("unwatered tile should not be wet")
 	}
 }
+
+func TestGrassSerialization_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	m := createTestModel()
+	chars := m.gameMap.Characters()
+
+	// Add living grass on the ground
+	livingGrass := entity.NewGrass(30, 30)
+	m.gameMap.AddItem(livingGrass)
+
+	// Add harvested grass bundle in inventory (pale yellow, not growing, BundleCount > 1)
+	harvestedGrass := entity.NewGrass(0, 0)
+	harvestedGrass.Plant.IsGrowing = false
+	harvestedGrass.Plant.SpawnTimer = 0
+	harvestedGrass.DeathTimer = 0
+	harvestedGrass.Color = types.ColorPaleYellow
+	harvestedGrass.BundleCount = 3
+	chars[0].AddToInventory(harvestedGrass)
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Verify living grass on ground
+	restoredLiving := restored.gameMap.ItemAt(types.Position{X: 30, Y: 30})
+	if restoredLiving == nil {
+		t.Fatal("Expected living grass at (30,30)")
+	}
+	if restoredLiving.Kind != "tall grass" {
+		t.Errorf("Expected Kind 'tall grass', got %q", restoredLiving.Kind)
+	}
+	if restoredLiving.Color != types.ColorPaleGreen {
+		t.Errorf("Expected living grass color pale green, got %s", restoredLiving.Color)
+	}
+	if restoredLiving.Plant == nil || !restoredLiving.Plant.IsGrowing {
+		t.Error("Expected living grass to be growing")
+	}
+
+	// Verify harvested grass bundle in inventory
+	restoredChar := restored.gameMap.Characters()[0]
+	var restoredBundle *entity.Item
+	for _, item := range restoredChar.Inventory {
+		if item != nil && item.ItemType == "grass" {
+			restoredBundle = item
+			break
+		}
+	}
+	if restoredBundle == nil {
+		t.Fatal("Expected grass bundle in inventory")
+	}
+	if restoredBundle.Kind != "tall grass" {
+		t.Errorf("Expected Kind 'tall grass', got %q", restoredBundle.Kind)
+	}
+	if restoredBundle.Color != types.ColorPaleYellow {
+		t.Errorf("Expected harvested grass color pale yellow, got %s", restoredBundle.Color)
+	}
+	if restoredBundle.BundleCount != 3 {
+		t.Errorf("Expected BundleCount 3, got %d", restoredBundle.BundleCount)
+	}
+	if restoredBundle.Plant == nil || restoredBundle.Plant.IsGrowing {
+		t.Error("Expected harvested grass to not be growing")
+	}
+}
+
+func TestGrassMigration_OldSaveWithoutKind(t *testing.T) {
+	t.Parallel()
+
+	m := createTestModel()
+
+	// Simulate an old-save grass item: ItemType="grass" but Kind="" (no Kind field in old format)
+	oldGrass := entity.NewGrass(35, 35)
+	oldGrass.Kind = "" // Clear Kind to simulate old save
+	m.gameMap.AddItem(oldGrass)
+
+	// Round trip
+	state := m.ToSaveState()
+
+	// Verify the saved state has empty Kind (simulating old save)
+	for i := range state.Items {
+		if state.Items[i].ItemType == "grass" && state.Items[i].Position.X == 35 {
+			state.Items[i].Kind = "" // Force empty Kind as old save would have
+		}
+	}
+
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Verify Kind was migrated
+	restoredGrass := restored.gameMap.ItemAt(types.Position{X: 35, Y: 35})
+	if restoredGrass == nil {
+		t.Fatal("Expected grass at (35,35)")
+	}
+	if restoredGrass.Kind != "tall grass" {
+		t.Errorf("Expected Kind migrated to 'tall grass', got %q", restoredGrass.Kind)
+	}
+}

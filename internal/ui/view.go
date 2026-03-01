@@ -647,6 +647,10 @@ func (m Model) styledSymbol(e entity.Entity) string {
 		return allSymbols[idx].style.Render(allSymbols[idx].symbol)
 
 	case *entity.Item:
+		// Bundle rendering: items with BundleCount >= 2 render as X
+		if v.BundleCount >= 2 {
+			sym = string(config.CharBundle)
+		}
 		// Sprout rendering: sage for most, green on wet ground, variety color for mushrooms
 		if v.Plant != nil && v.Plant.IsSprout && v.ItemType != "mushroom" {
 			if m.gameMap.IsWet(v.Pos()) {
@@ -862,6 +866,9 @@ func (m Model) renderDetails() string {
 			lines = append(lines, fmt.Sprintf(" Name: %s", item.Name))
 		}
 		kindLabel := item.ItemType
+		if item.Kind != "" {
+			kindLabel = item.Kind
+		}
 		if item.Plant != nil && item.Plant.IsSprout {
 			kindLabel += " sprout"
 		}
@@ -869,6 +876,13 @@ func (m Model) renderDetails() string {
 			fmt.Sprintf(" Kind: %s", kindLabel),
 			fmt.Sprintf(" Color: %s", item.Color),
 		)
+		// Show bundle count for non-growing bundled items
+		if item.BundleCount > 0 && (item.Plant == nil || !item.Plant.IsGrowing) {
+			maxSize := config.MaxBundleSize[item.ItemType]
+			if maxSize > 0 {
+				lines = append(lines, fmt.Sprintf(" Bundle: %d/%d", item.BundleCount, maxSize))
+			}
+		}
 		// Show Pattern/Texture if item has them (works for both natural and crafted items)
 		if item.Pattern != "" {
 			lines = append(lines, fmt.Sprintf(" Pattern: %s", item.Pattern))
@@ -1523,9 +1537,9 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 				}
 			} else {
 				// Harvest selected - show item types
-				edibleTypes := m.getEdibleItemTypes()
+				harvestableTypes := m.getHarvestableItemTypes()
 				lines = append(lines, indent+"Select item type:", "")
-				for i, itemType := range edibleTypes {
+				for i, itemType := range harvestableTypes {
 					prefix := selectIndent
 					if i == m.selectedTargetIndex {
 						prefix = selectPrefix
@@ -1737,18 +1751,10 @@ func (m Model) getCategoryActivities(category string) []entity.Activity {
 	return result
 }
 
-// getEdibleItemTypes returns a list of edible item type names
-func (m Model) getEdibleItemTypes() []string {
-	configs := game.GetItemTypeConfigs()
-	var result []string
-	for itemType, cfg := range configs {
-		if cfg.Edible {
-			result = append(result, itemType)
-		}
-	}
-	// Sort for consistent ordering
-	sort.Strings(result)
-	return result
+// getHarvestableItemTypes returns a sorted list of item types that can be harvested —
+// growing, non-sprout plants currently on the map.
+func (m Model) getHarvestableItemTypes() []string {
+	return game.GetHarvestableItemTypes(m.gameMap.Items())
 }
 
 // findOrderByID returns the order with the given ID, or nil if not found

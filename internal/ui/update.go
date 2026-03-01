@@ -393,7 +393,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 							activities[m.selectedActivityIndex].ID == "gather" {
 							maxIndex = len(game.GetGatherableTypes(m.gameMap.Items())) - 1
 						} else {
-							maxIndex = len(m.getEdibleItemTypes()) - 1
+							maxIndex = len(m.getHarvestableItemTypes()) - 1
 						}
 						if m.selectedTargetIndex < maxIndex {
 							m.selectedTargetIndex++
@@ -1101,7 +1101,7 @@ func (m *Model) applyOrdersConfirm() {
 						m.selectedActivityIndex = 0
 					}
 				} else {
-					types := m.getEdibleItemTypes()
+					types := m.getHarvestableItemTypes()
 					if m.selectedTargetIndex < len(types) {
 						targetType := types[m.selectedTargetIndex]
 						order := entity.NewOrder(m.nextOrderID, selectedActivity.ID, targetType)

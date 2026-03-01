@@ -680,6 +680,11 @@ func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item
 		item.BundleCount = 1
 	}
 
+	// Backward compat: old saves don't have Kind on grass items
+	if item.ItemType == "grass" && item.Kind == "" {
+		item.Kind = "tall grass"
+	}
+
 	return item
 }
 

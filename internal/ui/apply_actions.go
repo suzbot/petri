@@ -337,11 +337,18 @@ func (m *Model) applyPickup(char *entity.Character, delta float64) {
 					return
 				}
 
-				// Handle bundle merge continuation (vessel-excluded items like sticks)
+				// Handle bundle merge continuation (vessel-excluded items like sticks, grass)
 				if result == system.PickupToBundle {
 					if char.AssignedOrderID != 0 {
-						if order := m.findOrderByID(char.AssignedOrderID); order != nil && order.ActivityID == "gather" {
-							if nextIntent := system.FindNextGatherTarget(char, cx, cy, m.gameMap.Items(), order.TargetType, m.gameMap); nextIntent != nil {
+						if order := m.findOrderByID(char.AssignedOrderID); order != nil {
+							var nextIntent *entity.Intent
+							switch order.ActivityID {
+							case "harvest":
+								nextIntent = system.FindNextHarvestTarget(char, cx, cy, m.gameMap.Items(), order.TargetType, m.gameMap)
+							case "gather":
+								nextIntent = system.FindNextGatherTarget(char, cx, cy, m.gameMap.Items(), order.TargetType, m.gameMap)
+							}
+							if nextIntent != nil {
 								char.Intent = nextIntent
 								return
 							}
