@@ -27,7 +27,8 @@ Read each of these files, then apply only the changes warranted by the summary:
 | `docs/game-mechanics.md` | **Behavioral reference** | See game-mechanics rules below. |
 | `docs/architecture.md` | **AI developer reference** | Design patterns, decision rationale, and "adding new X" checklists. **Include:** new patterns/categories, decision rules (e.g., when to use self-managing vs ordered), `continueIntent` interaction rules for new actions, new checklists for recurring tasks. **Exclude:** API reference (function tables, parameter lists, file-to-function maps) — these belong in code comments and are discoverable via code navigation. The test is: does this capture a *design decision or rule* that can't be inferred from reading the code? If yes, it belongs. If it's just documenting what functions exist, it doesn't. |
 | `docs/flow-diagrams.md` | **AI developer reference** | Visual call graphs, intent priority hierarchy, and multi-phase action state machines. Update when decision-layer routing changes (new buckets, new multi-phase actions, changed priority order). Don't update for pure implementation changes that don't alter call structure. |
-| `docs/*-phase-plan.md` | **Planning artifact** | Mark completed steps with ✅. Add notes about bugs found/fixed during testing. Do not modify future steps. |
+| `docs/*-design.md` | **Phase design doc** | Update the relevant step's **Status** to "Complete". Do not modify other steps' content. Do not add implementation details — the design doc stays brief and declarative. |
+| `docs/step-spec.md` | **Current step spec** | No changes during [DOCS] — `/implement-feature` handles clearing this file on completion. |
 | `docs/randomideas.md`| **Small Feature Planning**` | Remove items that have been moved into plans or that have been completed.|
 | `docs/triggered-enhancements.md` | **Deferred Feature Planning** | Remove items that have been completed. Update items where intended approaches have changed.|
 

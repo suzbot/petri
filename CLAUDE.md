@@ -97,7 +97,7 @@ internal/
 
 **Pause -> Skill -> Discussion → Tests -> Implementation → Human Testing → Documentation**
 
-- **Before writing code**: Load the relevant skill, check architecture.md, discuss approach. Use project skills (`/refine-feature`, `/implement-feature`, `/new-phase`, `/retro`) — not generic plan mode. Plan docs live in `docs/`; update existing ones.
+- **Before writing code**: Load the relevant skill, check architecture.md, discuss approach. Use project skills (`/refine-feature`, `/implement-feature`, `/new-phase`, `/retro`) — not generic plan mode. Phase design docs and step specs live in `docs/`.
 - **Frame the problem first**: Specify current state and desired state in functional terms before proposing changes. Consider impact on the larger system. Confirm alignment before implementing.
 - **Communication**: Functional terms, not code mechanics. Prose for tradeoffs, not multiple-choice. Recommend with options. Qualify claims precisely.
 - **When things go wrong**: Always examine the save file or gather other direct evidence before hypothesizing about a human-reported issue. Second bug = step back and restate the flow. Surface when stuck.
@@ -113,7 +113,7 @@ internal/
 
 **Up Next:**
 
-- Construction Phase in progress: Steps 1a–1d and 2a (bundles, tall grass, extract activity) complete. See [docs/construction-phase-plan.md](docs/construction-phase-plan.md).
+- Construction Phase in progress: Steps 1–2a complete (bundles, tall grass, extract activity). Step 2b next. See [docs/construction-design.md](docs/construction-design.md) for design and [docs/step-spec.md](docs/step-spec.md) for current step.
 
 ## Reference and Planning Documents
 
@@ -123,4 +123,6 @@ internal/
 | [docs/architecture.md](docs/architecture.md)                     | Design patterns, decision rationale, "adding new X" checklists |
 | [docs/game-mechanics.md](docs/game-mechanics.md)                 | Detailed stat thresholds, rates, systems      |
 | [docs/triggered-enhancements.md](docs/triggered-enhancements.md) | Deferred items with triggers, balance tuning  |
+| [docs/construction-design.md](docs/construction-design.md)       | Construction phase design: steps, decisions, scope |
+| [docs/step-spec.md](docs/step-spec.md)                           | Current step implementation spec (replaced each step) |
 | [docs/post-gardening-cleanup.md](docs/post-gardening-cleanup.md) | Small improvements to bundle after Gardening  |

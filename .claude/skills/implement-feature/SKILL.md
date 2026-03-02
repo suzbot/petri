@@ -2,24 +2,25 @@
 name: implement-feature
 description: "Implement an already-planned feature, step, or task. Validates the plan against architecture patterns, then executes with TDD and human testing checkpoints. Trigger phrases: 'implement the next step', 'build the next feature', 'start development' or similar."
 user-invocable: true
-argument-hint: Feature or step to implement (e.g., "Slice 6 Step 3" or "sprout maturation")
+argument-hint: Feature or step to implement (e.g., "Step 3" or "clay terrain")
 model: sonnet
 ---
 
 ## Implementing a Planned Feature
 
-**Do NOT enter plan mode.** The plan doc in `docs/` is the source of truth — it was produced by `/refine-feature` or `/new-phase` and contains the design decisions, pattern references, and step breakdown.
+**Do NOT enter plan mode.** The step spec and design doc are the sources of truth — produced by `/refine-feature` or `/new-phase`.
 
 ### Step 1: Load the Plan
-- Read the **phase plan document** in `docs/` — find the step(s) to implement
-- Read the **relevant sections of `docs/architecture.md`** that the plan references
+- Read **`docs/step-spec.md`** — the implementation plan for the current step
+- Read the **phase design doc** in `docs/` (linked at top of step spec) — for design decisions and broader context. Focus on the DD entries that affect this step.
+- Read the **relevant sections of `docs/architecture.md`** that the step spec references
 - Read **`docs/Values.md`**
-- Do NOT re-read the full requirements doc unless the plan explicitly flags an open question
+- Do NOT re-read the full requirements doc unless the step spec explicitly flags an open question
 
 ### Step 2: Validate Readiness (REQUIRED)
 **Do NOT write code yet.** Confirm the step is implementation-ready — check for presence and alignment, not correctness of decisions already made.
 
-**Plan completeness — does the step have:**
+**Step spec completeness — does the step have:**
 - [ ] Anchor story (1-2 sentence narrative of what the user/character experiences — this is what you derive tests from)
 - [ ] Detailed implementation breakdown (not "TBD" or single-line bullets)
 - [ ] Architecture patterns named explicitly (e.g., "follows ordered action pattern" not just "follows existing pattern")
@@ -27,12 +28,12 @@ model: sonnet
 - [ ] At least one test traces the anchor story end-to-end (not just unit-level checks of individual functions)
 - [ ] [TEST] checkpoint (or explicit note why human testing isn't possible)
 - [ ] [RETRO] checkpoint
-- [ ] If plan references an architecture.md "Adding New X" checklist, verify plan covers every item on that checklist
+- [ ] If step spec references an architecture.md "Adding New X" checklist, verify spec covers every item on that checklist
 
 **Pattern alignment:**
 - Cite the architecture.md section and state how it applies — don't just assert "follows existing pattern"
 - Verify patterns match current code (patterns may have evolved since planning)
-- When the plan changes a constant or behavior, grep all usage sites and verify the plan addresses each one
+- When the step spec changes a constant or behavior, grep all usage sites and verify the spec addresses each one
 
 **If any box is unchecked or alignment issues found:** invoke `/refine-feature`. After returning, re-invoke `/implement-feature` from the top — do not resume mid-skill.
 
@@ -42,12 +43,12 @@ model: sonnet
 
 **Core loop:**
 1. **Announce** what you're about to write — one sentence: "I'm about to write [these tests] and [this implementation]"
-2. **Only implement behavior specified in the plan, which has been reconciled to requirements.** If a detail isn't specified, surface the gap, make a recommendation, and seek confirmation from the user.
+2. **Only implement behavior specified in the step spec, which has been reconciled to requirements.** If a detail isn't specified, surface the gap, make a recommendation, and seek confirmation from the user.
 3. **Write each sub-step's tests immediately before that sub-step's code** — do not batch tests for multiple sub-steps. Anchor to the step's anchor story, not implementation paths. "Ground vessel ends up filled with water" validates intent; "returns ActionPickup" validates structure. When modifying a shared function (Pickup, CanPickUpMore, FindNextTarget, etc.), trace all callers before writing code — new return values and behavior changes must be handled at every call site.
 4. **Implement** minimum code to pass tests
 5. **Verify** — run tests, run `gofmt ./...`
 6. **Pause at each [TEST] checkpoint** for user to rebuild and test
-7. After [TEST] passes, follow [DOCS] and [RETRO] checkpoints in the plan
+7. After [TEST] passes, follow [DOCS] and [RETRO] checkpoints in the step spec
 
 **When to stop coding and invoke `/refine-feature`:**
 - You're proposing design alternatives, not just implementation details
@@ -82,7 +83,8 @@ model: sonnet
 ### Step 5: Update Documentation ([DOCS])
 Only after human testing confirms success:
 - Launch an **Agent tool** subagent (general-purpose, sonnet model) to run update-docs autonomously. Read `.claude/skills/update-docs/SKILL.md` and pass its full instructions + the change summary as the agent prompt. Do NOT use the Skill tool — that requires per-edit approval.
-- Mark feature complete in phase plan
+- Update the step's **Status** in the phase design doc to "Complete"
+- Replace `docs/step-spec.md` content with: `Step N complete. Next: Step M — run /refine-feature.`
 
 ### Step 6: Retro ([RETRO])
 After documentation is updated, run /retro
