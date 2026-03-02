@@ -20,6 +20,7 @@ type PlantProperties struct {
 	SpawnTimer  float64 // Countdown until next spawn opportunity
 	IsSprout    bool    // True if this is a newly planted sprout (not yet mature)
 	SproutTimer float64 // Countdown until sprout matures into full plant
+	SeedTimer   float64 // Cooldown after seed extraction (0 = seeds available)
 }
 
 // Stack represents a quantity of items of a single variety in a container

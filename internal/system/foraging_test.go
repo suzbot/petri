@@ -25,19 +25,19 @@ func createTestVessel() *entity.Item {
 func createTestRegistry() *game.VarietyRegistry {
 	reg := game.NewVarietyRegistry()
 	reg.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
 		Edible:   &entity.EdibleProperties{},
 	})
 	reg.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("berry", types.ColorBlue, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("berry", "", types.ColorBlue, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorBlue,
 		Edible:   &entity.EdibleProperties{},
 	})
 	reg.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("mushroom", types.ColorBrown, types.PatternSpotted, types.TextureSlimy),
+		ID:       entity.GenerateVarietyID("mushroom", "", types.ColorBrown, types.PatternSpotted, types.TextureSlimy),
 		ItemType: "mushroom",
 		Color:    types.ColorBrown,
 		Pattern:  types.PatternSpotted,
@@ -45,7 +45,7 @@ func createTestRegistry() *game.VarietyRegistry {
 		Edible:   &entity.EdibleProperties{},
 	})
 	reg.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("gourd", types.ColorGreen, types.PatternStriped, types.TextureWarty),
+		ID:       entity.GenerateVarietyID("gourd", "", types.ColorGreen, types.PatternStriped, types.TextureWarty),
 		ItemType: "gourd",
 		Color:    types.ColorGreen,
 		Pattern:  types.PatternStriped,

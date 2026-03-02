@@ -176,6 +176,12 @@ var ItemLifecycle = map[string]LifecycleConfig{
 	"grass":    {SpawnInterval: ReproductionFast, DeathInterval: 48.0},   // ~2 world days between spawns, dies after ~8 world days
 }
 
+// ExtractableTypes defines which plant types yield seeds via extraction
+var ExtractableTypes = map[string]bool{
+	"flower": true,
+	"grass":  true,
+}
+
 // StackSize maps item types to how many fit in one stack (for vessel storage)
 var StackSize = map[string]int{
 	"berry":    20,

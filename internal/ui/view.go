@@ -1535,6 +1535,21 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 					}
 					lines = append(lines, fmt.Sprintf("%s%d. %s", prefix, i+1, gt.DisplayName))
 				}
+			} else if m.selectedActivityIndex < len(orderableActivities) &&
+				orderableActivities[m.selectedActivityIndex].ID == "extract" {
+				// Extract selected - show extractable plant types
+				extractTypes := game.GetExtractableItemTypes(m.gameMap.Items())
+				lines = append(lines, indent+"Select type to extract:", "")
+				if len(extractTypes) == 0 {
+					lines = append(lines, selectIndent+"(no extractable plants)")
+				}
+				for i, et := range extractTypes {
+					prefix := selectIndent
+					if i == m.selectedTargetIndex {
+						prefix = selectPrefix
+					}
+					lines = append(lines, fmt.Sprintf("%s%d. %s", prefix, i+1, et.DisplayName))
+				}
 			} else {
 				// Harvest selected - show item types
 				harvestableTypes := m.getHarvestableItemTypes()

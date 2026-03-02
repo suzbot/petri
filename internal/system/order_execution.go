@@ -134,6 +134,8 @@ func findOrderIntent(char *entity.Character, pos types.Position, items []*entity
 		return findWaterGardenIntent(char, pos, items, order, log, gameMap)
 	case "gather":
 		return findGatherIntent(char, pos, items, order, log, gameMap)
+	case "extract":
+		return findExtractIntent(char, pos, items, order, log, gameMap)
 	default:
 		// Unknown activity type - cannot create intent
 		return nil
@@ -337,6 +339,9 @@ func isMultiStepOrderComplete(char *entity.Character, order *entity.Order, gameM
 	case "gather":
 		// One bundle per order — complete when character has a full bundle of the target type
 		return hasFullBundle(char, order.TargetType)
+	case "extract":
+		// Complete when locked to a variety and no more extractable plants of that variety exist
+		return order.LockedVariety != "" && !extractableItemExists(gameMap.Items(), order.TargetType, order.LockedVariety)
 	default:
 		return false
 	}
@@ -570,6 +575,8 @@ func IsOrderFeasible(order *entity.Order, items []*entity.Item, gameMap *game.Ma
 		return waterGardenFeasible(chars, items, gameMap), false
 	case "gather":
 		return groundItemOfTypeExists(items, order.TargetType), false
+	case "extract":
+		return extractableItemExists(items, order.TargetType, ""), false
 	default:
 		return true, false // Unknown activity type, assume feasible
 	}
@@ -648,6 +655,25 @@ func growingItemExists(items []*entity.Item, itemType string) bool {
 		if item.ItemType == itemType && item.Plant != nil && item.Plant.IsGrowing && !item.Plant.IsSprout {
 			return true
 		}
+	}
+	return false
+}
+
+// extractableItemExists checks if any growing non-sprout plant of the given type
+// has seeds available (SeedTimer <= 0).
+// If lockedVariety is non-empty, only plants matching that variety ID are considered.
+func extractableItemExists(items []*entity.Item, itemType string, lockedVariety string) bool {
+	for _, item := range items {
+		if item.ItemType != itemType || item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout || item.Plant.SeedTimer > 0 {
+			continue
+		}
+		if lockedVariety != "" {
+			vid := entity.GenerateVarietyID(item.ItemType, item.Kind, item.Color, item.Pattern, item.Texture)
+			if vid != lockedVariety {
+				continue
+			}
+		}
+		return true
 	}
 	return false
 }
@@ -888,7 +914,7 @@ func findGatherIntent(char *entity.Character, pos types.Position, items []*entit
 	} else {
 		// Check if item has a registered variety (determines vessel vs. direct inventory path)
 		registry := gameMap.Varieties()
-		variety := registry.GetByAttributes(target.ItemType, target.Color, target.Pattern, target.Texture)
+		variety := registry.GetByAttributes(target.ItemType, target.Kind, target.Color, target.Pattern, target.Texture)
 
 		if variety != nil {
 			// Item has variety — use vessel procurement (same as harvest)
@@ -1047,4 +1073,90 @@ func PauseOrder(order *entity.Order, log *ActionLog, charID int, charName string
 			log.Add(charID, charName, "order", fmt.Sprintf("Pausing order: %s (needs attention)", order.DisplayName()))
 		}
 	}
+}
+
+// findExtractIntent creates an intent to extract seeds from a living plant.
+// Follows the walk-then-act pattern with vessel procurement.
+// Returns nil if no extractable targets are available.
+func findExtractIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	// Find nearest extractable plant: growing, non-sprout, matching target type, SeedTimer <= 0
+	target := findNearestExtractable(pos.X, pos.Y, items, order.TargetType, order.LockedVariety)
+	if target == nil {
+		return nil
+	}
+
+	// Vessel procurement: create synthetic seed for compatibility checking
+	syntheticSeed := entity.NewSeed(0, 0, target.ItemType, target.Color, target.Pattern, target.Texture)
+	if intent := EnsureHasVesselFor(char, syntheticSeed, items, gameMap, log, true, "extract"); intent != nil {
+		return intent
+	}
+
+	// Ready to extract — walk-then-act pattern
+	tpos := target.Pos()
+	tx, ty := tpos.X, tpos.Y
+
+	// Check if already at target
+	if pos == tpos {
+		newActivity := fmt.Sprintf("Extracting %s seeds", target.ItemType)
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+		}
+		return &entity.Intent{
+			Target:     pos,
+			Dest:       tpos,
+			Action:     entity.ActionExtract,
+			TargetItem: target,
+		}
+	}
+
+	// Move toward target — calculate BFS step
+	nx, ny := NextStepBFS(pos.X, pos.Y, tx, ty, gameMap)
+
+	newActivity := fmt.Sprintf("Moving to extract from %s", target.Description())
+	if char.CurrentActivity != newActivity {
+		char.CurrentActivity = newActivity
+	}
+
+	return &entity.Intent{
+		Target:     types.Position{X: nx, Y: ny},
+		Dest:       tpos,
+		Action:     entity.ActionExtract,
+		TargetItem: target,
+	}
+}
+
+// findNearestExtractable finds the nearest growing non-sprout plant of the given type
+// with SeedTimer <= 0 (seeds available for extraction).
+// If lockedVariety is non-empty, only plants matching that variety ID are considered.
+func findNearestExtractable(cx, cy int, items []*entity.Item, itemType string, lockedVariety string) *entity.Item {
+	pos := types.Position{X: cx, Y: cy}
+	var nearest *entity.Item
+	nearestDist := int(^uint(0) >> 1) // Max int
+
+	for _, item := range items {
+		if item.ItemType != itemType {
+			continue
+		}
+		if item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout {
+			continue
+		}
+		if item.Plant.SeedTimer > 0 {
+			continue
+		}
+		if lockedVariety != "" {
+			vid := entity.GenerateVarietyID(item.ItemType, item.Kind, item.Color, item.Pattern, item.Texture)
+			if vid != lockedVariety {
+				continue
+			}
+		}
+
+		ipos := item.Pos()
+		dist := pos.DistanceTo(ipos)
+		if dist < nearestDist {
+			nearestDist = dist
+			nearest = item
+		}
+	}
+
+	return nearest
 }

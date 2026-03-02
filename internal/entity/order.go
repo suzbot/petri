@@ -48,6 +48,9 @@ func (o *Order) DisplayName() string {
 		}
 		return activity.Name
 	default:
+		if o.ActivityID == "extract" && o.TargetType != "" {
+			return activity.Name + " " + ItemDisplayName(o.TargetType) + " seeds"
+		}
 		return activity.Name + " " + Pluralize(o.TargetType)
 	}
 }

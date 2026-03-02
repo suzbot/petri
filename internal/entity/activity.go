@@ -137,6 +137,18 @@ var ActivityRegistry = map[string]Activity{
 		IntentFormation: IntentOrderable,
 		Availability:    AvailabilityDefault,
 	},
+	"extract": {
+		ID:              "extract",
+		Name:            "Extract",
+		IntentFormation: IntentOrderable,
+		Availability:    AvailabilityKnowHow,
+		DiscoveryTriggers: []DiscoveryTrigger{
+			{Action: ActionLook, ItemType: "flower"},
+			{Action: ActionLook, ItemType: "grass"},
+			{Action: ActionPickup, ItemType: "seed"},
+			{Action: ActionLook, ItemType: "seed"},
+		},
+	},
 }
 
 // GetDiscoverableActivities returns all activities that require know-how

@@ -99,6 +99,7 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 						SpawnTimer:  item.Plant.SpawnTimer,
 						IsSprout:    item.Plant.IsSprout,
 						SproutTimer: item.Plant.SproutTimer,
+						SeedTimer:   item.Plant.SeedTimer,
 					}
 				}
 				inventory[idx] = save.ItemSave{
@@ -211,6 +212,7 @@ func containerToSave(container *entity.ContainerData) *save.ContainerDataSave {
 	for i, stack := range container.Contents {
 		contents[i] = save.StackSave{
 			ItemType: stack.Variety.ItemType,
+			Kind:     stack.Variety.Kind,
 			Color:    string(stack.Variety.Color),
 			Pattern:  string(stack.Variety.Pattern),
 			Texture:  string(stack.Variety.Texture),
@@ -234,6 +236,7 @@ func itemsToSave(items []*entity.Item) []save.ItemSave {
 				SpawnTimer:  item.Plant.SpawnTimer,
 				IsSprout:    item.Plant.IsSprout,
 				SproutTimer: item.Plant.SproutTimer,
+				SeedTimer:   item.Plant.SeedTimer,
 			}
 		}
 		result[i] = save.ItemSave{
@@ -464,7 +467,7 @@ func varietiesFromSave(varieties []save.VarietySave) *game.VarietyRegistry {
 			sym = []rune(vs.Sym)[0]
 		}
 		v := &entity.ItemVariety{
-			ID:        entity.GenerateVarietyID(vs.ItemType, types.Color(vs.Color), types.Pattern(vs.Pattern), types.Texture(vs.Texture)),
+			ID:        entity.GenerateVarietyID(vs.ItemType, vs.Kind, types.Color(vs.Color), types.Pattern(vs.Pattern), types.Texture(vs.Texture)),
 			ItemType:  vs.ItemType,
 			Kind:      vs.Kind,
 			Color:     types.Color(vs.Color),
@@ -587,6 +590,7 @@ func containerFromSave(cs *save.ContainerDataSave, registry *game.VarietyRegistr
 		if registry != nil {
 			varietyID := entity.GenerateVarietyID(
 				ss.ItemType,
+				ss.Kind,
 				types.Color(ss.Color),
 				types.Pattern(ss.Pattern),
 				types.Texture(ss.Texture),
@@ -614,6 +618,7 @@ func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item
 			SpawnTimer:  is.Plant.SpawnTimer,
 			IsSprout:    is.Plant.IsSprout,
 			SproutTimer: is.Plant.SproutTimer,
+			SeedTimer:   is.Plant.SeedTimer,
 		}
 	}
 

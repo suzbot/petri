@@ -54,6 +54,8 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		m.applyHelpFeed(char, delta)
 	case entity.ActionHelpWater:
 		m.applyHelpWater(char, delta)
+	case entity.ActionExtract:
+		m.applyExtract(char, delta)
 	}
 }
 
@@ -384,6 +386,11 @@ func (m *Model) applyPickup(char *entity.Character, delta float64) {
 								return
 							}
 							system.CompleteOrder(char, order, m.actionLog)
+						} else if order.ActivityID == "extract" {
+							// Extract: vessel pickup is a prerequisite — clear intent
+							// so findExtractIntent re-evaluates with vessel in hand
+							char.Intent = nil
+							return
 						} else if order.ActivityID == "gather" {
 							// If we just picked up a vessel, that's a prerequisite — not gather work
 							if item.Container != nil {
@@ -635,7 +642,7 @@ func (m *Model) applyPlant(char *entity.Character, delta float64) {
 		// Lock the variety on the order (subsequent plants use same variety)
 		if order.LockedVariety == "" {
 			order.LockedVariety = entity.GenerateVarietyID(
-				plantedItem.ItemType, plantedItem.Color, plantedItem.Pattern, plantedItem.Texture,
+				plantedItem.ItemType, plantedItem.Kind, plantedItem.Color, plantedItem.Pattern, plantedItem.Texture,
 			)
 		}
 
@@ -1379,4 +1386,85 @@ func getEatenItemType(item *entity.Item) string {
 		return item.Container.Contents[0].Variety.ItemType
 	}
 	return item.ItemType
+}
+
+// applyExtract handles ActionExtract: walk to a living plant, then extract seeds.
+// Walk-then-act pattern with ActionDurationShort. Seeds are routed directly to vessel
+// or inventory — never placed on the ground.
+func (m *Model) applyExtract(char *entity.Character, delta float64) {
+	plant := char.Intent.TargetItem
+	if plant == nil || plant.Plant == nil {
+		char.Intent = nil
+		return
+	}
+
+	cpos := char.Pos()
+	ppos := plant.Pos()
+
+	// Walking phase: not at target plant
+	if cpos != ppos {
+		m.moveWithCollision(char, cpos, delta)
+		return
+	}
+
+	// Working phase: at plant, accumulate progress
+	char.ActionProgress += delta
+	if char.ActionProgress < config.ActionDurationShort {
+		return
+	}
+
+	// Extraction complete
+	char.ActionProgress = 0
+
+	// Create seed from the plant's attributes
+	seed := entity.NewSeed(char.X, char.Y, plant.ItemType, plant.Color, plant.Pattern, plant.Texture)
+
+	// Route seed: vessel first, then inventory
+	registry := m.gameMap.Varieties()
+	vessel := char.GetCarriedVessel()
+	routed := false
+
+	if vessel != nil && system.CanVesselAccept(vessel, seed, registry) {
+		if system.AddToVessel(vessel, seed, registry) {
+			routed = true
+		}
+	}
+
+	if !routed {
+		if char.HasInventorySpace() {
+			char.AddToInventory(seed)
+			routed = true
+		}
+	}
+
+	if !routed {
+		// No room for seeds — log and pause
+		if m.actionLog != nil {
+			m.actionLog.Add(char.ID, char.Name, "extract", "No room for seeds")
+		}
+		char.Intent = nil
+		return
+	}
+
+	// Set seed timer on the plant
+	if cfg, ok := config.ItemLifecycle[plant.ItemType]; ok {
+		plant.Plant.SeedTimer = cfg.SpawnInterval * float64(len(m.gameMap.Items()))
+	}
+
+	// Lock the variety on the order (subsequent extractions target same variety)
+	if char.AssignedOrderID != 0 {
+		if order := m.findOrderByID(char.AssignedOrderID); order != nil && order.LockedVariety == "" {
+			order.LockedVariety = entity.GenerateVarietyID(
+				plant.ItemType, plant.Kind, plant.Color, plant.Pattern, plant.Texture,
+			)
+		}
+	}
+
+	if m.actionLog != nil {
+		m.actionLog.Add(char.ID, char.Name, "activity",
+			fmt.Sprintf("Extracted %s from %s", seed.Kind, plant.Description()))
+	}
+
+	// Clear intent — ordered action pattern: next tick re-evaluates via findExtractIntent
+	char.Intent = nil
 }

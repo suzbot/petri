@@ -129,12 +129,14 @@ type PlantPropertiesSave struct {
 	SpawnTimer  float64 `json:"spawn_timer"`
 	IsSprout    bool    `json:"is_sprout,omitempty"`
 	SproutTimer float64 `json:"sprout_timer,omitempty"`
+	SeedTimer   float64 `json:"seed_timer,omitempty"`
 }
 
 // StackSave represents a stack in a container for serialization
 type StackSave struct {
 	// Variety attributes (serialized by value, not pointer)
 	ItemType string `json:"item_type"`
+	Kind     string `json:"kind,omitempty"`
 	Color    string `json:"color"`
 	Pattern  string `json:"pattern"`
 	Texture  string `json:"texture"`

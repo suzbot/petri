@@ -154,13 +154,21 @@ func TestGenerateVarieties_SeedVarietiesForGourds(t *testing.T) {
 	if len(seeds) == 0 {
 		t.Fatal("Expected seed varieties to be registered")
 	}
-	if len(seeds) != len(gourds) {
-		t.Errorf("Expected %d seed varieties (one per gourd), got %d", len(gourds), len(seeds))
+	// Filter to gourd seeds only (flower and grass seeds also exist now)
+	var gourdSeeds []*entity.ItemVariety
+	for _, s := range seeds {
+		if s.Kind == "gourd seed" {
+			gourdSeeds = append(gourdSeeds, s)
+		}
+	}
+
+	if len(gourdSeeds) != len(gourds) {
+		t.Errorf("Expected %d gourd seed varieties (one per gourd), got %d", len(gourds), len(gourdSeeds))
 	}
 
 	// Each gourd variety should have a corresponding seed variety
 	for _, g := range gourds {
-		seedVariety := registry.GetByAttributes("seed", g.Color, g.Pattern, g.Texture)
+		seedVariety := registry.GetByAttributes("seed", "gourd seed", g.Color, g.Pattern, g.Texture)
 		if seedVariety == nil {
 			t.Errorf("Expected seed variety for gourd %q, got nil", g.ID)
 			continue
@@ -359,6 +367,77 @@ func TestGenerateVarieties_CorrectSymbols(t *testing.T) {
 	}
 }
 
+func TestGenerateVarieties_FlowerSeedVarietiesRegistered(t *testing.T) {
+	registry := GenerateVarieties()
+
+	flowers := registry.VarietiesOfType("flower")
+	seeds := registry.VarietiesOfType("seed")
+
+	// Count flower seeds (Kind = "flower seed")
+	var flowerSeeds []*entity.ItemVariety
+	for _, s := range seeds {
+		if s.Kind == "flower seed" {
+			flowerSeeds = append(flowerSeeds, s)
+		}
+	}
+
+	if len(flowerSeeds) != len(flowers) {
+		t.Errorf("Expected %d flower seed varieties (one per flower), got %d", len(flowers), len(flowerSeeds))
+	}
+
+	// Each flower variety should have a corresponding seed variety with matching color
+	for _, f := range flowers {
+		seedVariety := registry.GetByAttributes("seed", "flower seed", f.Color, f.Pattern, f.Texture)
+		if seedVariety == nil || seedVariety.Kind != "flower seed" {
+			t.Errorf("Expected flower seed variety for flower color %q", f.Color)
+			continue
+		}
+		if !seedVariety.Plantable {
+			t.Errorf("Flower seed variety %q should be plantable", seedVariety.ID)
+		}
+		if seedVariety.Sym != config.CharSeed {
+			t.Errorf("Flower seed variety Sym: got %c, want %c", seedVariety.Sym, config.CharSeed)
+		}
+		if seedVariety.IsEdible() {
+			t.Errorf("Flower seed variety %q should not be edible", seedVariety.ID)
+		}
+	}
+}
+
+func TestGenerateVarieties_GrassSeedVarietyRegistered(t *testing.T) {
+	registry := GenerateVarieties()
+
+	grasses := registry.VarietiesOfType("grass")
+
+	// Count grass seeds (Kind = "grass seed")
+	seeds := registry.VarietiesOfType("seed")
+	var grassSeeds []*entity.ItemVariety
+	for _, s := range seeds {
+		if s.Kind == "grass seed" {
+			grassSeeds = append(grassSeeds, s)
+		}
+	}
+
+	if len(grassSeeds) != len(grasses) {
+		t.Errorf("Expected %d grass seed varieties (one per grass), got %d", len(grasses), len(grassSeeds))
+	}
+
+	// Verify the seed has correct attributes
+	for _, g := range grasses {
+		seedVariety := registry.GetByAttributes("seed", "grass seed", g.Color, g.Pattern, g.Texture)
+		if seedVariety == nil || seedVariety.Kind != "grass seed" {
+			t.Errorf("Expected grass seed variety for grass color %q", g.Color)
+			continue
+		}
+		if !seedVariety.Plantable {
+			t.Errorf("Grass seed variety %q should be plantable", seedVariety.ID)
+		}
+		if seedVariety.Sym != config.CharSeed {
+			t.Errorf("Grass seed variety Sym: got %c, want %c", seedVariety.Sym, config.CharSeed)
+		}
+	}
+}
+
 // TestGetHarvestableItemTypes_ReturnsGrowingNonSprout verifies that growing, non-sprout
 // plants appear in the harvestable list.
 func TestGetHarvestableItemTypes_ReturnsGrowingNonSprout(t *testing.T) {
@@ -454,5 +533,82 @@ func TestGetHarvestableItemTypes_Deduplicated(t *testing.T) {
 	}
 	if count != 1 {
 		t.Errorf("Expected 1 entry for 3 grass plants, got %d", count)
+	}
+}
+
+// =============================================================================
+// GetExtractableItemTypes
+// =============================================================================
+
+func TestGetExtractableItemTypes_ReturnsExtractablePlantTypes(t *testing.T) {
+	t.Parallel()
+
+	items := []*entity.Item{
+		{
+			BaseEntity: entity.BaseEntity{X: 1, Y: 1, Sym: config.CharFlower, EType: entity.TypeItem},
+			ItemType:   "flower",
+			Plant:      &entity.PlantProperties{IsGrowing: true},
+		},
+		{
+			BaseEntity: entity.BaseEntity{X: 2, Y: 2, Sym: config.CharGrass, EType: entity.TypeItem},
+			ItemType:   "grass",
+			Plant:      &entity.PlantProperties{IsGrowing: true},
+		},
+	}
+
+	result := GetExtractableItemTypes(items)
+	if len(result) != 2 {
+		t.Fatalf("Expected 2 extractable types, got %d", len(result))
+	}
+	// Sorted alphabetically by TargetType
+	if result[0].TargetType != "flower" {
+		t.Errorf("Expected first type 'flower', got %q", result[0].TargetType)
+	}
+	if result[1].TargetType != "grass" {
+		t.Errorf("Expected second type 'grass', got %q", result[1].TargetType)
+	}
+}
+
+func TestGetExtractableItemTypes_ExcludesNonExtractable(t *testing.T) {
+	t.Parallel()
+
+	items := []*entity.Item{
+		// Berry is a growing plant but not extractable
+		{
+			BaseEntity: entity.BaseEntity{X: 1, Y: 1, Sym: config.CharBerry, EType: entity.TypeItem},
+			ItemType:   "berry",
+			Plant:      &entity.PlantProperties{IsGrowing: true},
+		},
+		// Flower is extractable
+		{
+			BaseEntity: entity.BaseEntity{X: 2, Y: 2, Sym: config.CharFlower, EType: entity.TypeItem},
+			ItemType:   "flower",
+			Plant:      &entity.PlantProperties{IsGrowing: true},
+		},
+	}
+
+	result := GetExtractableItemTypes(items)
+	if len(result) != 1 {
+		t.Fatalf("Expected 1 extractable type, got %d", len(result))
+	}
+	if result[0].TargetType != "flower" {
+		t.Errorf("Expected 'flower', got %q", result[0].TargetType)
+	}
+}
+
+func TestGetExtractableItemTypes_ExcludesSprouts(t *testing.T) {
+	t.Parallel()
+
+	items := []*entity.Item{
+		{
+			BaseEntity: entity.BaseEntity{X: 1, Y: 1, Sym: config.CharSprout, EType: entity.TypeItem},
+			ItemType:   "flower",
+			Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true},
+		},
+	}
+
+	result := GetExtractableItemTypes(items)
+	if len(result) != 0 {
+		t.Errorf("Expected 0 extractable types for sprouts, got %d", len(result))
 	}
 }

@@ -1299,7 +1299,7 @@ func createTestVesselWithContents(itemType string, color types.Color, count int,
 
 	// Create a variety for the contents
 	variety := &entity.ItemVariety{
-		ID:       entity.GenerateVarietyID(itemType, color, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID(itemType, "", color, types.PatternNone, types.TextureNone),
 		ItemType: itemType,
 		Color:    color,
 		Edible:   &entity.EdibleProperties{Poisonous: poisonous, Healing: healing},

@@ -458,13 +458,7 @@ func matchesPlantTarget(itemType, kind string, color types.Color, pattern types.
 		return false
 	}
 	if lockedVariety != "" {
-		// Match against the item's variety ID
-		varItemType := itemType
-		if kind != "" && kind == targetType {
-			// For seeds, use seed as the variety item type
-			varItemType = itemType
-		}
-		vid := entity.GenerateVarietyID(varItemType, color, pattern, texture)
+		vid := entity.GenerateVarietyID(itemType, kind, color, pattern, texture)
 		if vid != lockedVariety {
 			return false
 		}
@@ -566,7 +560,7 @@ func AddToVessel(vessel, item *entity.Item, registry *game.VarietyRegistry) bool
 	}
 
 	// Look up the item's variety in the registry
-	variety := registry.GetByAttributes(item.ItemType, item.Color, item.Pattern, item.Texture)
+	variety := registry.GetByAttributes(item.ItemType, item.Kind, item.Color, item.Pattern, item.Texture)
 	if variety == nil {
 		return false
 	}

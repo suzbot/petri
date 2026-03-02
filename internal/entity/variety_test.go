@@ -71,6 +71,7 @@ func TestGenerateVarietyID(t *testing.T) {
 	tests := []struct {
 		name     string
 		itemType string
+		kind     string
 		color    types.Color
 		pattern  types.Pattern
 		texture  types.Texture
@@ -96,11 +97,27 @@ func TestGenerateVarietyID(t *testing.T) {
 			color:    types.ColorWhite,
 			expected: "mushroom-white",
 		},
+		{
+			name:     "seed with kind uses kind instead of item type",
+			itemType: "seed",
+			kind:     "gourd seed",
+			color:    types.ColorGreen,
+			pattern:  types.PatternSpotted,
+			texture:  types.TextureWarty,
+			expected: "gourd seed-green-spotted-warty",
+		},
+		{
+			name:     "seed with kind and color only",
+			itemType: "seed",
+			kind:     "flower seed",
+			color:    types.ColorYellow,
+			expected: "flower seed-yellow",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := GenerateVarietyID(tt.itemType, tt.color, tt.pattern, tt.texture)
+			got := GenerateVarietyID(tt.itemType, tt.kind, tt.color, tt.pattern, tt.texture)
 			if got != tt.expected {
 				t.Errorf("GenerateVarietyID() = %q, want %q", got, tt.expected)
 			}

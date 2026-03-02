@@ -302,7 +302,7 @@ func TestApplyIntent_ActionConsume_VesselUsesContentsFoodTier(t *testing.T) {
 	recipe := entity.RecipeRegistry["hollow-gourd"]
 	vessel := system.CreateVessel(gourd, recipe)
 	variety := &entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
 		Edible:   &entity.EdibleProperties{},
@@ -410,7 +410,7 @@ func TestApplyIntent_CraftConsumesGourdFromVessel(t *testing.T) {
 	// Create variety registry with gourd
 	registry := game.NewVarietyRegistry()
 	registry.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("gourd", types.ColorGreen, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("gourd", "", types.ColorGreen, types.PatternNone, types.TextureNone),
 		ItemType: "gourd",
 		Color:    types.ColorGreen,
 	})
@@ -426,7 +426,7 @@ func TestApplyIntent_CraftConsumesGourdFromVessel(t *testing.T) {
 		},
 	}
 	// Second vessel contains a gourd
-	gourdVariety := registry.GetByAttributes("gourd", types.ColorGreen, types.PatternNone, types.TextureNone)
+	gourdVariety := registry.GetByAttributes("gourd", "", types.ColorGreen, types.PatternNone, types.TextureNone)
 	vessel2 := &entity.Item{
 		ItemType: "vessel",
 		Name:     "Vessel 2",
@@ -516,13 +516,13 @@ func TestApplyIntent_CraftConsumesGourdFromVessel(t *testing.T) {
 func createTestVesselWithRegistry() (*entity.Item, *game.VarietyRegistry) {
 	registry := game.NewVarietyRegistry()
 	registry.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
 		Edible:   &entity.EdibleProperties{},
 	})
 	registry.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("berry", types.ColorBlue, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("berry", "", types.ColorBlue, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorBlue,
 		Edible:   &entity.EdibleProperties{},
@@ -610,7 +610,7 @@ func TestApplyIntent_HarvestOrderWithVessel_CompletesWhenFull(t *testing.T) {
 	gameMap := game.NewMap(20, 20)
 	registry := game.NewVarietyRegistry()
 	registry.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("gourd", types.ColorGreen, types.PatternStriped, types.TextureWarty),
+		ID:       entity.GenerateVarietyID("gourd", "", types.ColorGreen, types.PatternStriped, types.TextureWarty),
 		ItemType: "gourd",
 		Color:    types.ColorGreen,
 		Pattern:  types.PatternStriped,
@@ -679,7 +679,7 @@ func TestApplyIntent_HarvestOrderWithoutVessel_CompletesAfterOneItem(t *testing.
 	gameMap := game.NewMap(20, 20)
 	registry := game.NewVarietyRegistry()
 	registry.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
 		Edible:   &entity.EdibleProperties{},
@@ -738,7 +738,7 @@ func TestApplyIntent_HarvestOrderWithoutVessel_ContinuesUntilInventoryFull(t *te
 	gameMap := game.NewMap(20, 20)
 	registry := game.NewVarietyRegistry()
 	registry.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
 		Edible:   &entity.EdibleProperties{},
@@ -1851,7 +1851,7 @@ func TestApplyIntent_Plant_SetsLockedVarietyOnOrder(t *testing.T) {
 	}
 
 	// LockedVariety should now be set to the berry's variety ID
-	expectedVariety := entity.GenerateVarietyID("berry", types.ColorBlue, types.PatternNone, types.TextureNone)
+	expectedVariety := entity.GenerateVarietyID("berry", "", types.ColorBlue, types.PatternNone, types.TextureNone)
 	if order.LockedVariety != expectedVariety {
 		t.Errorf("Expected LockedVariety %q, got %q", expectedVariety, order.LockedVariety)
 	}
@@ -1915,7 +1915,7 @@ func TestApplyIntent_Plant_ExtractsFromVessel(t *testing.T) {
 	// Create variety registry with a plantable berry variety
 	registry := game.NewVarietyRegistry()
 	berryVariety := &entity.ItemVariety{
-		ID:        entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ID:        entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType:  "berry",
 		Color:     types.ColorRed,
 		Plantable: true,
@@ -2250,7 +2250,7 @@ func TestApplyIntent_Forage_VesselThenFood_ContinuousAction(t *testing.T) {
 	// Registry must include a red berry variety so AddToVessel can look it up
 	registry := game.NewVarietyRegistry()
 	registry.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
 		Edible:   &entity.EdibleProperties{},
@@ -3669,7 +3669,7 @@ func TestApplyIntent_HelpWater_DeliversWaterToNeeder(t *testing.T) {
 	gameMap := game.NewMap(20, 20)
 	registry := game.NewVarietyRegistry()
 	registry.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
 		Edible:   &entity.EdibleProperties{},
@@ -3772,5 +3772,109 @@ func TestApplyIntent_HelpWater_AbandonWhenNeederDead(t *testing.T) {
 	// Assert: helper drops vessel and goes idle
 	if helper.Intent != nil {
 		t.Error("Expected helper intent to be nil when needer is dead")
+	}
+}
+
+// =============================================================================
+// Extract order tests
+// =============================================================================
+
+func TestApplyExtract_FullFlow_ExtractsSeedToVessel(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+
+	// Register seed variety
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:        "flower seed-yellow",
+		ItemType:  "seed",
+		Kind:      "flower seed",
+		Color:     types.ColorYellow,
+		Plantable: true,
+		Sym:       '·',
+	})
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"extract"}
+	gameMap.AddCharacter(char)
+
+	// Give character an empty vessel
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Name:     "Test Vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	char.AddToInventory(vessel)
+
+	// Place a flower on character's tile
+	flower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 5, Y: 5, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	gameMap.AddItem(flower)
+
+	// Assign an extract order to the character
+	order := entity.NewOrder(1, "extract", "flower")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	// Set extract intent targeting the flower
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionExtract,
+		Target:     types.Position{X: 5, Y: 5},
+		Dest:       types.Position{X: 5, Y: 5},
+		TargetItem: flower,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	// Apply intent with enough delta to complete extraction
+	m.applyIntent(char, config.ActionDurationShort+0.1)
+
+	// Seed should be in vessel
+	if len(vessel.Container.Contents) == 0 {
+		t.Fatal("Expected seed in vessel after extraction")
+	}
+	stack := vessel.Container.Contents[0]
+	if stack.Variety.Kind != "flower seed" {
+		t.Errorf("Expected flower seed in vessel, got kind %q", stack.Variety.Kind)
+	}
+
+	// Plant's SeedTimer should be set
+	if flower.Plant.SeedTimer <= 0 {
+		t.Error("Expected positive SeedTimer on plant after extraction")
+	}
+
+	// Intent should be cleared
+	if char.Intent != nil {
+		t.Error("Expected intent cleared after extraction")
+	}
+
+	// Flower should still be on the map (not destroyed)
+	if !gameMap.HasItemOnMap(flower) {
+		t.Error("Expected flower to still be on map after extraction")
+	}
+
+	// Order should be locked to yellow flower variety
+	updatedOrder := m.findOrderByID(char.AssignedOrderID)
+	if updatedOrder == nil {
+		t.Fatal("Expected character to have assigned order")
+	}
+	expectedVariety := entity.GenerateVarietyID("flower", "", types.ColorYellow, "", "")
+	if updatedOrder.LockedVariety != expectedVariety {
+		t.Errorf("Expected order locked to %q, got %q", expectedVariety, updatedOrder.LockedVariety)
 	}
 }

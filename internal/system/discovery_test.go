@@ -64,7 +64,7 @@ func TestTryDiscoverKnowHow_DiscoverHarvestOnLook(t *testing.T) {
 	}
 }
 
-func TestTryDiscoverKnowHow_NoDiscoverOnNonEdible(t *testing.T) {
+func TestTryDiscoverKnowHow_NoHarvestFromNonEdible(t *testing.T) {
 	char := &entity.Character{
 		Name:            "Test",
 		KnownActivities: []string{},
@@ -74,14 +74,12 @@ func TestTryDiscoverKnowHow_NoDiscoverOnNonEdible(t *testing.T) {
 		// Edible is nil - flowers are not edible
 	}
 
-	// Even with 100% chance, should not discover because item is not edible
-	discovered := TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
+	// Looking at a non-edible flower should not discover harvest
+	// (though it may discover extract, since flowers are extractable)
+	TryDiscoverKnowHow(char, entity.ActionLook, item, nil, 1.0)
 
-	if discovered {
-		t.Error("Should not discover from non-edible item")
-	}
 	if char.KnowsActivity("harvest") {
-		t.Error("Character should not know harvest")
+		t.Error("Character should not know harvest from non-edible item")
 	}
 }
 
@@ -629,11 +627,11 @@ func TestDiscoverHarvest_FromLookingAtFlower(t *testing.T) {
 	}
 	flower := entity.NewFlower(0, 0, types.ColorBlue)
 
-	discovered := TryDiscoverKnowHow(char, entity.ActionLook, flower, nil, 1.0)
+	// Looking at a flower can discover both harvest and extract (map iteration order varies).
+	// Call twice to ensure both are discovered with chance 1.0.
+	TryDiscoverKnowHow(char, entity.ActionLook, flower, nil, 1.0)
+	TryDiscoverKnowHow(char, entity.ActionLook, flower, nil, 1.0)
 
-	if !discovered {
-		t.Error("Expected discovery from looking at flower")
-	}
 	if !char.KnowsActivity("harvest") {
 		t.Error("Expected character to know harvest after looking at flower")
 	}

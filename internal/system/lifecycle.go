@@ -65,7 +65,7 @@ func UpdateSproutTimers(gameMap *game.Map, initialItemCount int, delta float64) 
 
 			// Restore variety attributes from registry (sprouts from seeds may have nil Edible)
 			if registry := gameMap.Varieties(); registry != nil {
-				variety := registry.GetByAttributes(item.ItemType, item.Color, item.Pattern, item.Texture)
+				variety := registry.GetByAttributes(item.ItemType, item.Kind, item.Color, item.Pattern, item.Texture)
 				if variety != nil && variety.Edible != nil {
 					item.Edible = &entity.EdibleProperties{
 						Poisonous: variety.Edible.Poisonous,
@@ -160,6 +160,21 @@ func UpdateDeathTimers(gameMap *game.Map, delta float64) {
 	// Remove dead items
 	for _, item := range toRemove {
 		gameMap.RemoveItem(item)
+	}
+}
+
+// UpdateSeedTimers decrements seed timers for growing plants.
+// SeedTimer tracks cooldown after seed extraction — plants with SeedTimer > 0 can't yield seeds.
+// This runs independently of spawn timers and is not gated by population count.
+func UpdateSeedTimers(gameMap *game.Map, delta float64) {
+	for _, item := range gameMap.Items() {
+		if item.Plant == nil || item.Plant.IsSprout || item.Plant.SeedTimer <= 0 {
+			continue
+		}
+		item.Plant.SeedTimer -= delta
+		if item.Plant.SeedTimer < 0 {
+			item.Plant.SeedTimer = 0
+		}
 	}
 }
 

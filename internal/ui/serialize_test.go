@@ -396,7 +396,7 @@ func TestFromSaveState_RestoresVesselWithContents(t *testing.T) {
 
 	// Create a variety for the contents and register it
 	berryVariety := &entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
 		Pattern:  types.PatternNone,
@@ -552,7 +552,7 @@ func TestFromSaveState_RestoresCarriedVesselWithContents(t *testing.T) {
 
 	// Create a variety for the contents
 	mushroomVariety := &entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("mushroom", types.ColorBlue, types.PatternSpotted, types.TextureSlimy),
+		ID:       entity.GenerateVarietyID("mushroom", "", types.ColorBlue, types.PatternSpotted, types.TextureSlimy),
 		ItemType: "mushroom",
 		Color:    types.ColorBlue,
 		Pattern:  types.PatternSpotted,
@@ -828,7 +828,7 @@ func TestVarietySerialization_PreservesPlantableAndKind(t *testing.T) {
 	// Register a seed variety with Kind and Plantable
 	registry := m.gameMap.Varieties()
 	seedVariety := &entity.ItemVariety{
-		ID:        entity.GenerateVarietyID("seed", types.ColorGreen, types.PatternSpotted, types.TextureWarty),
+		ID:        entity.GenerateVarietyID("seed", "gourd seed", types.ColorGreen, types.PatternSpotted, types.TextureWarty),
 		ItemType:  "seed",
 		Kind:      "gourd seed",
 		Color:     types.ColorGreen,

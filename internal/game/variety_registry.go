@@ -67,7 +67,7 @@ func (r *VarietyRegistry) Count() int {
 
 // GetByAttributes looks up a variety by item attributes.
 // Returns nil if no matching variety is registered.
-func (r *VarietyRegistry) GetByAttributes(itemType string, color types.Color, pattern types.Pattern, texture types.Texture) *entity.ItemVariety {
-	id := entity.GenerateVarietyID(itemType, color, pattern, texture)
+func (r *VarietyRegistry) GetByAttributes(itemType, kind string, color types.Color, pattern types.Pattern, texture types.Texture) *entity.ItemVariety {
+	id := entity.GenerateVarietyID(itemType, kind, color, pattern, texture)
 	return r.varieties[id]
 }

@@ -77,10 +77,15 @@ type Character struct {
 	Intent *Intent
 }
 
-// Intent represents what a character wants to do next tick
+// Intent represents what a character wants to do next tick.
+//
+// Target is the NEXT SINGLE STEP (distance ≤ 1 from current position).
+// Always compute it via NextStepBFS — never set it to the destination directly.
+// Dest is the final destination. continueIntent recalculates Target each tick
+// from Dest, but the first tick executes Target before continueIntent runs.
 type Intent struct {
-	Target          types.Position // Next step position (immediate move)
-	Dest            types.Position // Destination position (where we need to stand to interact)
+	Target          types.Position // Next step (must be ≤ 1 tile from character). Use NextStepBFS.
+	Dest            types.Position // Final destination (where we need to stand to interact)
 	Action          ActionType
 	TargetItem      *Item           // The specific item being pursued (nil if none)
 	TargetFeature   *Feature        // The specific feature being pursued (nil if none)
@@ -111,6 +116,7 @@ const (
 	ActionWaterGarden // Watering dry tilled planted tiles (self-managing, consumes vessel water)
 	ActionHelpFeed    // Delivering food to a character in crisis hunger (self-managing, idle override)
 	ActionHelpWater   // Delivering water to a character in crisis thirst (self-managing, idle override)
+	ActionExtract     // Extracting seeds from a living plant (ordered, walk-then-act)
 )
 
 // NewCharacter creates a new character with the given preferences

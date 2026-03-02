@@ -473,7 +473,7 @@ func TestEnsureHasRecipeInputs_InputAccessibleInContainer(t *testing.T) {
 	registry := createTestRegistry()
 	// Register shell variety so HasAccessibleItem can find it in vessel
 	registry.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("shell", types.ColorSilver, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("shell", "", types.ColorSilver, types.PatternNone, types.TextureNone),
 		ItemType: "shell",
 		Color:    types.ColorSilver,
 	})
@@ -899,7 +899,7 @@ func TestFindVesselContaining_ReturnsVesselWithMatchingContents(t *testing.T) {
 	vessel.Y = 3
 	vessel.Container.Contents = []entity.Stack{
 		{Variety: &entity.ItemVariety{
-			ID:        entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+			ID:        entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
 			ItemType:  "berry",
 			Color:     types.ColorRed,
 			Plantable: true,
@@ -924,7 +924,7 @@ func TestFindVesselContaining_ReturnsNil_WrongType(t *testing.T) {
 	vessel.Y = 3
 	vessel.Container.Contents = []entity.Stack{
 		{Variety: &entity.ItemVariety{
-			ID:        entity.GenerateVarietyID("mushroom", types.ColorRed, types.PatternNone, types.TextureNone),
+			ID:        entity.GenerateVarietyID("mushroom", "", types.ColorRed, types.PatternNone, types.TextureNone),
 			ItemType:  "mushroom",
 			Color:     types.ColorRed,
 			Plantable: true,
@@ -953,8 +953,8 @@ func TestFindVesselContaining_ReturnsNil_NoVessels(t *testing.T) {
 func TestFindVesselContaining_RespectsLockedVariety(t *testing.T) {
 	t.Parallel()
 
-	redID := entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone)
-	blueID := entity.GenerateVarietyID("berry", types.ColorBlue, types.PatternNone, types.TextureNone)
+	redID := entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone)
+	blueID := entity.GenerateVarietyID("berry", "", types.ColorBlue, types.PatternNone, types.TextureNone)
 
 	// Vessel with blue berries
 	vessel := createTestVessel()

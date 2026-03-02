@@ -392,6 +392,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						} else if m.selectedActivityIndex < len(activities) &&
 							activities[m.selectedActivityIndex].ID == "gather" {
 							maxIndex = len(game.GetGatherableTypes(m.gameMap.Items())) - 1
+						} else if m.selectedActivityIndex < len(activities) &&
+							activities[m.selectedActivityIndex].ID == "extract" {
+							maxIndex = len(game.GetExtractableItemTypes(m.gameMap.Items())) - 1
 						} else {
 							maxIndex = len(m.getHarvestableItemTypes()) - 1
 						}
@@ -552,6 +555,9 @@ func (m Model) updateGame(now time.Time) (Model, tea.Cmd) {
 
 	// Update item death timers (flowers die regardless of no-food mode)
 	system.UpdateDeathTimers(m.gameMap, delta)
+
+	// Update seed extraction cooldown timers
+	system.UpdateSeedTimers(m.gameMap, delta)
 
 	// Update manually watered tile timers
 	m.gameMap.UpdateWateredTimers(delta)
@@ -775,6 +781,9 @@ func (m *Model) stepForward() {
 
 	// Update item death timers (flowers die regardless of no-food mode)
 	system.UpdateDeathTimers(m.gameMap, delta)
+
+	// Update seed extraction cooldown timers
+	system.UpdateSeedTimers(m.gameMap, delta)
 
 	// Update manually watered tile timers
 	m.gameMap.UpdateWateredTimers(delta)
@@ -1094,6 +1103,17 @@ func (m *Model) applyOrdersConfirm() {
 					if m.selectedTargetIndex < len(gatherTypes) {
 						targetType := gatherTypes[m.selectedTargetIndex].TargetType
 						order := entity.NewOrder(m.nextOrderID, "gather", targetType)
+						m.nextOrderID++
+						m.orders = append(m.orders, order)
+						m.setOrderFlash(order.DisplayName())
+						m.ordersAddStep = 0
+						m.selectedActivityIndex = 0
+					}
+				} else if selectedActivity.ID == "extract" {
+					extractTypes := game.GetExtractableItemTypes(m.gameMap.Items())
+					if m.selectedTargetIndex < len(extractTypes) {
+						targetType := extractTypes[m.selectedTargetIndex].TargetType
+						order := entity.NewOrder(m.nextOrderID, "extract", targetType)
 						m.nextOrderID++
 						m.orders = append(m.orders, order)
 						m.setOrderFlash(order.DisplayName())

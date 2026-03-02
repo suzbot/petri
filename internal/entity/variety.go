@@ -67,10 +67,16 @@ func (v *ItemVariety) Description() string {
 	return strings.Join(parts, " ")
 }
 
-// GenerateVarietyID creates a unique ID from the variety's attributes
-func GenerateVarietyID(itemType string, color types.Color, pattern types.Pattern, texture types.Texture) string {
+// GenerateVarietyID creates a unique ID from the variety's attributes.
+// When kind is set, it replaces itemType in the ID to disambiguate subtypes
+// (e.g., "gourd seed" vs "flower seed" which share ItemType "seed").
+func GenerateVarietyID(itemType, kind string, color types.Color, pattern types.Pattern, texture types.Texture) string {
 	var parts []string
-	parts = append(parts, itemType)
+	if kind != "" {
+		parts = append(parts, kind)
+	} else {
+		parts = append(parts, itemType)
+	}
 
 	if color != "" {
 		parts = append(parts, string(color))

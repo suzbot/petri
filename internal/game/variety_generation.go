@@ -200,6 +200,42 @@ func GetHarvestableItemTypes(items []*entity.Item) []string {
 	return result
 }
 
+// ExtractableTypeEntry represents an extractable plant type for the order UI menu.
+type ExtractableTypeEntry struct {
+	DisplayName string // e.g., "Flower Seeds", "Grass Seeds"
+	TargetType  string // plant type stored in order.TargetType: "flower", "grass"
+}
+
+// GetExtractableItemTypes returns a sorted, deduplicated list of plant types
+// that can yield seeds via extraction — growing, non-sprout plants of extractable types.
+func GetExtractableItemTypes(items []*entity.Item) []ExtractableTypeEntry {
+	seen := make(map[string]bool)
+	var entries []ExtractableTypeEntry
+
+	for _, item := range items {
+		if item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout {
+			continue
+		}
+		if !config.ExtractableTypes[item.ItemType] {
+			continue
+		}
+		if seen[item.ItemType] {
+			continue
+		}
+		seen[item.ItemType] = true
+		entries = append(entries, ExtractableTypeEntry{
+			DisplayName: capitalize(item.ItemType) + " Seeds",
+			TargetType:  item.ItemType,
+		})
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].TargetType < entries[j].TargetType
+	})
+
+	return entries
+}
+
 // capitalize returns s with the first letter uppercased.
 func capitalize(s string) string {
 	if s == "" {
@@ -224,11 +260,41 @@ func GenerateVarieties() *VarietyRegistry {
 
 	// Generate seed varieties for gourds (one seed variety per gourd variety)
 	for _, g := range registry.VarietiesOfType("gourd") {
-		seedID := entity.GenerateVarietyID("seed", g.Color, g.Pattern, g.Texture)
+		seedID := entity.GenerateVarietyID("seed", "gourd seed", g.Color, g.Pattern, g.Texture)
 		registry.Register(&entity.ItemVariety{
 			ID:        seedID,
 			ItemType:  "seed",
 			Kind:      "gourd seed",
+			Color:     g.Color,
+			Pattern:   g.Pattern,
+			Texture:   g.Texture,
+			Plantable: true,
+			Sym:       config.CharSeed,
+		})
+	}
+
+	// Generate seed varieties for flowers (one seed variety per flower variety)
+	for _, f := range registry.VarietiesOfType("flower") {
+		seedID := entity.GenerateVarietyID("seed", "flower seed", f.Color, f.Pattern, f.Texture)
+		registry.Register(&entity.ItemVariety{
+			ID:        seedID,
+			ItemType:  "seed",
+			Kind:      "flower seed",
+			Color:     f.Color,
+			Pattern:   f.Pattern,
+			Texture:   f.Texture,
+			Plantable: true,
+			Sym:       config.CharSeed,
+		})
+	}
+
+	// Generate seed varieties for grass (one seed variety per grass variety)
+	for _, g := range registry.VarietiesOfType("grass") {
+		seedID := entity.GenerateVarietyID("seed", "grass seed", g.Color, g.Pattern, g.Texture)
+		registry.Register(&entity.ItemVariety{
+			ID:        seedID,
+			ItemType:  "seed",
+			Kind:      "grass seed",
 			Color:     g.Color,
 			Pattern:   g.Pattern,
 			Texture:   g.Texture,
@@ -285,7 +351,7 @@ func generateVarietiesForType(itemType string, cfg ItemTypeConfig) []*entity.Ite
 		}
 
 		// Check for duplicate
-		id := entity.GenerateVarietyID(itemType, color, pattern, texture)
+		id := entity.GenerateVarietyID(itemType, cfg.Kind, color, pattern, texture)
 		if seen[id] {
 			continue
 		}

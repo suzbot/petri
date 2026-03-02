@@ -390,7 +390,7 @@ func TestFindHarvestIntent_LooksForVesselFirst(t *testing.T) {
 	// Set up variety registry so FindAvailableVessel works
 	registry := game.NewVarietyRegistry()
 	registry.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
 		Edible:   &entity.EdibleProperties{},
@@ -439,13 +439,13 @@ func TestFindHarvestIntent_DropsIncompatibleVessel(t *testing.T) {
 	// Set up variety registry
 	registry := game.NewVarietyRegistry()
 	registry.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
 		Edible:   &entity.EdibleProperties{},
 	})
 	registry.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("mushroom", types.ColorBrown, types.PatternSpotted, types.TextureSlimy),
+		ID:       entity.GenerateVarietyID("mushroom", "", types.ColorBrown, types.PatternSpotted, types.TextureSlimy),
 		ItemType: "mushroom",
 		Color:    types.ColorBrown,
 		Pattern:  types.PatternSpotted,
@@ -464,7 +464,7 @@ func TestFindHarvestIntent_DropsIncompatibleVessel(t *testing.T) {
 		Container: &entity.ContainerData{
 			Capacity: 1,
 			Contents: []entity.Stack{{
-				Variety: registry.Get(entity.GenerateVarietyID("mushroom", types.ColorBrown, types.PatternSpotted, types.TextureSlimy)),
+				Variety: registry.Get(entity.GenerateVarietyID("mushroom", "", types.ColorBrown, types.PatternSpotted, types.TextureSlimy)),
 				Count:   5,
 			}},
 		},
@@ -505,7 +505,7 @@ func TestFindHarvestIntent_UsesCompatibleVessel(t *testing.T) {
 	// Set up variety registry
 	registry := game.NewVarietyRegistry()
 	registry.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone),
+		ID:       entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
 		ItemType: "berry",
 		Color:    types.ColorRed,
 		Edible:   &entity.EdibleProperties{},
@@ -522,7 +522,7 @@ func TestFindHarvestIntent_UsesCompatibleVessel(t *testing.T) {
 		Container: &entity.ContainerData{
 			Capacity: 1,
 			Contents: []entity.Stack{{
-				Variety: registry.Get(entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone)),
+				Variety: registry.Get(entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone)),
 				Count:   5,
 			}},
 		},
@@ -2022,7 +2022,7 @@ func TestFindPlantIntent_WithLockedVariety_OnlySeeksMatchingVariety(t *testing.T
 
 	// Order has locked variety to "red berry"
 	order := entity.NewOrder(1, "plant", "berry")
-	order.LockedVariety = entity.GenerateVarietyID("berry", types.ColorRed, types.PatternNone, types.TextureNone)
+	order.LockedVariety = entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone)
 	items := gameMap.Items()
 
 	intent := findPlantIntent(char, char.Pos(), items, order, nil, gameMap)
@@ -3870,5 +3870,441 @@ func TestHarvestBerry_VesselPath_Unchanged(t *testing.T) {
 	result = Pickup(char, berry, gameMap, nil, registry)
 	if result != PickupToVessel {
 		t.Fatalf("Expected PickupToVessel for berry, got %d", result)
+	}
+}
+
+// =============================================================================
+// findExtractIntent
+// =============================================================================
+
+func TestFindExtractIntent_FindsNearestExtractablePlant(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"extract"}
+	gameMap.AddCharacter(char)
+
+	// Create a vessel and give to character
+	vessel := &entity.Item{
+		ItemType:  "vessel",
+		Container: &entity.ContainerData{Capacity: 1, Contents: []entity.Stack{}},
+	}
+	char.AddToInventory(vessel)
+
+	// Plant far away
+	farFlower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 18, Y: 18, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	// Plant close
+	nearFlower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 11, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	gameMap.AddItem(farFlower)
+	gameMap.AddItem(nearFlower)
+
+	order := entity.NewOrder(1, "extract", "flower")
+	pos := types.Position{X: char.X, Y: char.Y}
+	intent := findExtractIntent(char, pos, gameMap.Items(), order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected non-nil intent")
+	}
+	if intent.Action != entity.ActionExtract {
+		t.Errorf("Expected ActionExtract, got %d", intent.Action)
+	}
+	if intent.TargetItem != nearFlower {
+		t.Error("Expected intent to target the nearer flower")
+	}
+}
+
+func TestFindExtractIntent_BFSStepNotTeleport(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 2, 2, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"extract"}
+	gameMap.AddCharacter(char)
+
+	vessel := &entity.Item{
+		ItemType:  "vessel",
+		Container: &entity.ContainerData{Capacity: 1, Contents: []entity.Stack{}},
+	}
+	char.AddToInventory(vessel)
+
+	// Plant far away (distance > 1)
+	flower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 15, Y: 15, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	gameMap.AddItem(flower)
+
+	order := entity.NewOrder(1, "extract", "flower")
+	pos := types.Position{X: char.X, Y: char.Y}
+	intent := findExtractIntent(char, pos, gameMap.Items(), order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected non-nil intent")
+	}
+
+	// Target should be a BFS step (adjacent to character), NOT the plant position
+	plantPos := types.Position{X: 15, Y: 15}
+	if intent.Target == plantPos {
+		t.Error("Target should be a BFS step toward the plant, not the plant position itself (teleport bug)")
+	}
+	// Dest should be the plant position
+	if intent.Dest != plantPos {
+		t.Errorf("Dest should be plant position %v, got %v", plantPos, intent.Dest)
+	}
+	// Target should be close to the character (one step away)
+	charPos := types.Position{X: 2, Y: 2}
+	dist := intent.Target.DistanceTo(charPos)
+	if dist > 2 {
+		t.Errorf("Target should be one BFS step from character, but distance is %d", dist)
+	}
+}
+
+func TestFindExtractIntent_SkipsSeedTimerPositive(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"extract"}
+	gameMap.AddCharacter(char)
+
+	vessel := &entity.Item{
+		ItemType:  "vessel",
+		Container: &entity.ContainerData{Capacity: 1, Contents: []entity.Stack{}},
+	}
+	char.AddToInventory(vessel)
+
+	// Plant with active seed timer (recently extracted)
+	flower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 11, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 50.0},
+	}
+	gameMap.AddItem(flower)
+
+	order := entity.NewOrder(1, "extract", "flower")
+	pos := types.Position{X: char.X, Y: char.Y}
+	intent := findExtractIntent(char, pos, gameMap.Items(), order, nil, gameMap)
+
+	if intent != nil {
+		t.Error("Expected nil intent when all plants have active SeedTimer")
+	}
+}
+
+func TestFindExtractIntent_SkipsSprouts(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"extract"}
+	gameMap.AddCharacter(char)
+
+	vessel := &entity.Item{
+		ItemType:  "vessel",
+		Container: &entity.ContainerData{Capacity: 1, Contents: []entity.Stack{}},
+	}
+	char.AddToInventory(vessel)
+
+	sprout := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 11, Y: 10, Sym: '🌱', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true, SeedTimer: 0},
+	}
+	gameMap.AddItem(sprout)
+
+	order := entity.NewOrder(1, "extract", "flower")
+	pos := types.Position{X: char.X, Y: char.Y}
+	intent := findExtractIntent(char, pos, gameMap.Items(), order, nil, gameMap)
+
+	if intent != nil {
+		t.Error("Expected nil intent for sprouts")
+	}
+}
+
+func TestFindExtractIntent_VesselProcurement(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+
+	// Set up variety registry with seed varieties
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:       "flower seed-yellow",
+		ItemType: "seed",
+		Kind:     "flower seed",
+		Color:    types.ColorYellow,
+		Sym:      '·',
+	})
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"extract"}
+	char.Inventory = nil // No vessel
+	gameMap.AddCharacter(char)
+
+	// Vessel on ground
+	vessel := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 12, Y: 10, Sym: 'U', EType: entity.TypeItem},
+		ItemType:   "vessel",
+		Container:  &entity.ContainerData{Capacity: 1, Contents: []entity.Stack{}},
+	}
+	gameMap.AddItem(vessel)
+
+	flower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 15, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	gameMap.AddItem(flower)
+
+	order := entity.NewOrder(1, "extract", "flower")
+	pos := types.Position{X: char.X, Y: char.Y}
+	intent := findExtractIntent(char, pos, gameMap.Items(), order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected vessel procurement intent")
+	}
+	// Should be ActionPickup targeting the vessel, not the flower
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Expected ActionPickup for vessel, got %d", intent.Action)
+	}
+	if intent.TargetItem != vessel {
+		t.Error("Expected intent to target the vessel")
+	}
+}
+
+func TestFindExtractIntent_ReturnsNilWhenNoTargets(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"extract"}
+	gameMap.AddCharacter(char)
+
+	vessel := &entity.Item{
+		ItemType:  "vessel",
+		Container: &entity.ContainerData{Capacity: 1, Contents: []entity.Stack{}},
+	}
+	char.AddToInventory(vessel)
+
+	// No flowers on the map
+	order := entity.NewOrder(1, "extract", "flower")
+	pos := types.Position{X: char.X, Y: char.Y}
+	intent := findExtractIntent(char, pos, gameMap.Items(), order, nil, gameMap)
+
+	if intent != nil {
+		t.Error("Expected nil intent when no extractable plants exist")
+	}
+}
+
+func TestFindExtractIntent_RespectsLockedVariety(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"extract"}
+	gameMap.AddCharacter(char)
+
+	vessel := &entity.Item{
+		ItemType:  "vessel",
+		Container: &entity.ContainerData{Capacity: 1, Contents: []entity.Stack{}},
+	}
+	char.AddToInventory(vessel)
+
+	// Yellow flower (near) and pink flower (far) — both extractable
+	yellowFlower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 11, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	pinkFlower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 15, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorPink,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	gameMap.AddItem(yellowFlower)
+	gameMap.AddItem(pinkFlower)
+
+	// Lock order to pink variety — should skip nearby yellow and target pink
+	order := entity.NewOrder(1, "extract", "flower")
+	order.LockedVariety = entity.GenerateVarietyID("flower", "", types.ColorPink, "", "")
+
+	pos := types.Position{X: char.X, Y: char.Y}
+	intent := findExtractIntent(char, pos, gameMap.Items(), order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected intent targeting pink flower")
+	}
+	if intent.TargetItem != pinkFlower {
+		t.Error("Expected intent to target pink flower (locked variety), not yellow")
+	}
+}
+
+func TestFindExtractIntent_LockedVarietyNilWhenDepleted(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"extract"}
+	gameMap.AddCharacter(char)
+
+	vessel := &entity.Item{
+		ItemType:  "vessel",
+		Container: &entity.ContainerData{Capacity: 1, Contents: []entity.Stack{}},
+	}
+	char.AddToInventory(vessel)
+
+	// Yellow flower on cooldown, pink flower available
+	yellowFlower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 11, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 100},
+	}
+	pinkFlower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 15, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorPink,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	gameMap.AddItem(yellowFlower)
+	gameMap.AddItem(pinkFlower)
+
+	// Lock to yellow — should return nil even though pink is available
+	order := entity.NewOrder(1, "extract", "flower")
+	order.LockedVariety = entity.GenerateVarietyID("flower", "", types.ColorYellow, "", "")
+
+	pos := types.Position{X: char.X, Y: char.Y}
+	intent := findExtractIntent(char, pos, gameMap.Items(), order, nil, gameMap)
+
+	if intent != nil {
+		t.Error("Expected nil intent when locked variety is depleted, even though other varieties are available")
+	}
+}
+
+func TestExtractOrderCompletion_CompletesWhenLockedVarietyDepleted(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Yellow flower on cooldown, pink flower available
+	yellowFlower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 11, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 100},
+	}
+	pinkFlower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 15, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorPink,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	gameMap.AddItem(yellowFlower)
+	gameMap.AddItem(pinkFlower)
+
+	order := entity.NewOrder(1, "extract", "flower")
+	order.LockedVariety = entity.GenerateVarietyID("flower", "", types.ColorYellow, "", "")
+
+	// Locked to yellow, yellow is depleted → should complete
+	if !isMultiStepOrderComplete(char, order, gameMap) {
+		t.Error("Expected extract order to complete when locked variety has no extractable plants")
+	}
+}
+
+func TestExtractOrderCompletion_DoesNotCompleteBeforeLock(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// All flowers on cooldown but no variety lock yet
+	flower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 11, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 100},
+	}
+	gameMap.AddItem(flower)
+
+	order := entity.NewOrder(1, "extract", "flower")
+	// LockedVariety is empty — not yet locked
+
+	if isMultiStepOrderComplete(char, order, gameMap) {
+		t.Error("Expected extract order NOT to complete before variety is locked (no extraction done yet)")
+	}
+}
+
+func TestExtractFeasibility_IgnoresLockedVariety(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"extract"}
+	gameMap.AddCharacter(char)
+
+	// Only pink flower available (yellow on cooldown)
+	yellowFlower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 11, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 100},
+	}
+	pinkFlower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 15, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorPink,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	gameMap.AddItem(yellowFlower)
+	gameMap.AddItem(pinkFlower)
+
+	order := entity.NewOrder(1, "extract", "flower")
+	// Feasibility check should pass — pink flower is extractable
+	feasible, _ := IsOrderFeasible(order, gameMap.Items(), gameMap)
+	if !feasible {
+		t.Error("Expected extract order to be feasible when any flower has seeds available")
+	}
+}
+
+func TestExtractFeasibility_InfeasibleWhenAllOnCooldown(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"extract"}
+	gameMap.AddCharacter(char)
+
+	flower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 11, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 100},
+	}
+	gameMap.AddItem(flower)
+
+	order := entity.NewOrder(1, "extract", "flower")
+	feasible, _ := IsOrderFeasible(order, gameMap.Items(), gameMap)
+	if feasible {
+		t.Error("Expected extract order to be infeasible when all flowers are on seed cooldown")
 	}
 }

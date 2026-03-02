@@ -211,9 +211,19 @@ func (p Preference) ExactMatch(other Preference) bool {
 		p.Texture == other.Texture
 }
 
+// ItemDisplayName returns the singular display name for an item type.
+// Maps ItemType to its canonical name (e.g., "grass" → "tall grass").
+func ItemDisplayName(itemType string) string {
+	if itemType == "grass" {
+		return "tall grass"
+	}
+	return itemType
+}
+
 // Pluralize returns the plural form of an item type.
 func Pluralize(itemType string) string {
-	switch itemType {
+	name := ItemDisplayName(itemType)
+	switch name {
 	case "berry":
 		return "berries"
 	case "mushroom":
@@ -223,7 +233,7 @@ func Pluralize(itemType string) string {
 	case "tall grass":
 		return "tall grass"
 	default:
-		return itemType + "s"
+		return name + "s"
 	}
 }
 

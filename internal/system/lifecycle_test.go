@@ -669,7 +669,7 @@ func TestUpdateSproutTimers_RestoresEdibleFromVarietyRegistry(t *testing.T) {
 	// Register a poisonous gourd variety in the registry
 	registry := game.NewVarietyRegistry()
 	registry.Register(&entity.ItemVariety{
-		ID:       entity.GenerateVarietyID("gourd", types.ColorGreen, types.PatternSpotted, types.TextureWarty),
+		ID:       entity.GenerateVarietyID("gourd", "", types.ColorGreen, types.PatternSpotted, types.TextureWarty),
 		ItemType: "gourd",
 		Color:    types.ColorGreen,
 		Pattern:  types.PatternSpotted,
@@ -909,5 +909,97 @@ func TestUpdateSpawnTimers_WetMultiplierOnReproduction(t *testing.T) {
 	expectedTimer := 100.0 - (delta * config.WetGrowthMultiplier)
 	if plant.Plant.SpawnTimer != expectedTimer {
 		t.Errorf("SpawnTimer on wet: got %.2f, want %.2f", plant.Plant.SpawnTimer, expectedTimer)
+	}
+}
+
+// =============================================================================
+// UpdateSeedTimers
+// =============================================================================
+
+func TestUpdateSeedTimers_DecrementsTimerOnExtractablePlant(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	flower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 5, Y: 5, Sym: config.CharFlower, EType: entity.TypeItem},
+		ItemType:   "flower",
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 50.0},
+	}
+	gameMap.AddItem(flower)
+
+	UpdateSeedTimers(gameMap, 10.0)
+
+	if flower.Plant.SeedTimer != 40.0 {
+		t.Errorf("SeedTimer: got %.2f, want 40.00", flower.Plant.SeedTimer)
+	}
+}
+
+func TestUpdateSeedTimers_ClampsAtZero(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	grass := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 3, Y: 3, Sym: config.CharGrass, EType: entity.TypeItem},
+		ItemType:   "grass",
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 5.0},
+	}
+	gameMap.AddItem(grass)
+
+	UpdateSeedTimers(gameMap, 20.0)
+
+	if grass.Plant.SeedTimer != 0 {
+		t.Errorf("SeedTimer should clamp at 0, got %.2f", grass.Plant.SeedTimer)
+	}
+}
+
+func TestUpdateSeedTimers_SkipsNonPlants(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	// Item with no plant properties — should not panic or be affected
+	shell := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 2, Y: 2, Sym: config.CharShell, EType: entity.TypeItem},
+		ItemType:   "shell",
+	}
+	gameMap.AddItem(shell)
+
+	// Should not panic
+	UpdateSeedTimers(gameMap, 10.0)
+}
+
+func TestUpdateSeedTimers_SkipsZeroTimer(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	flower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 5, Y: 5, Sym: config.CharFlower, EType: entity.TypeItem},
+		ItemType:   "flower",
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	gameMap.AddItem(flower)
+
+	UpdateSeedTimers(gameMap, 10.0)
+
+	if flower.Plant.SeedTimer != 0 {
+		t.Errorf("SeedTimer should stay at 0, got %.2f", flower.Plant.SeedTimer)
+	}
+}
+
+func TestUpdateSeedTimers_SkipsSprouts(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	sprout := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 5, Y: 5, Sym: config.CharSprout, EType: entity.TypeItem},
+		ItemType:   "flower",
+		Plant:      &entity.PlantProperties{IsGrowing: true, IsSprout: true, SeedTimer: 50.0},
+	}
+	gameMap.AddItem(sprout)
+
+	UpdateSeedTimers(gameMap, 10.0)
+
+	// Sprouts shouldn't have their seed timer touched
+	if sprout.Plant.SeedTimer != 50.0 {
+		t.Errorf("Sprout SeedTimer should be unchanged, got %.2f", sprout.Plant.SeedTimer)
 	}
 }
