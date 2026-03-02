@@ -32,7 +32,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 - **Door passability mechanism**: Currently passability is boolean. Doors need "character-passable but creature-impassable" (for future Threats phase). May need a passability enum or just Passable=true until creatures exist. Discuss when refining Step 5.
 - **Hut supply management**: The reqs say "marked tiles for construction get all their supplies dropped on them and then each tile with all its supplies is worked for a duration." How does the worker distribute supplies across tiles? Discuss when refining Step 6.
 - **Multiple hut materials**: Can a single hut mix materials (some thatch tiles, some brick)? Reqs imply one material per hut. Confirm when refining Step 6.
-- **Extract discovery triggers**: What experience discovers Extract know-how? Looking at flowers/grass? Picking up seeds? Discuss when refining Step 2.
+- ~~**Extract discovery triggers**~~: **Resolved in Step 2 refinement.** Looking at flowers or grass (ActionLook + ItemType "flower"/"grass"), and looking at or picking up seeds (ActionLook/ActionPickup + ItemType "seed"). Uses existing ItemType-specific trigger pattern (same as tillSoil triggers on hoe).
 - ~~**Grass seed vs grass item**~~: **Resolved in Step 1 refinement.** Different items. Harvested grass = "grass" material with BundleCount. Grass seed = ItemType "seed", Kind "grass seed" (produced by extraction in Step 2).
 
 ---
@@ -411,24 +411,162 @@ Bugs found during testing:
 
 ### Step 2: Seed Extraction (Extract Activity)
 
-**Anchor story:** The player creates an Extract > Flower Seeds order. A character who has discovered how to extract walks to a growing flower, spends time carefully collecting seeds, and obtains a flower seed — without harming the flower. The same mechanic works for Extract > Grass Seeds with tall grass. Seeds can be planted in tilled soil.
+**Anchor story:** The player creates an Extract > Flower Seeds order. A character who has discovered how to extract procures a vessel, walks to a growing flower, spends time carefully collecting seeds, and obtains a flower seed in their vessel — without harming the flower. They continue to the next flower. The flower can't be extracted from again until its next reproduction cycle. The same mechanic works for Extract > Grass Seeds with tall grass. Seeds can be planted in tilled soil.
+
+**Resolved design decisions (from refinement):**
+- **Single activity with target type selection** (like Harvest), not a category with sub-activities (like Craft). The player sees "Extract" at the top level, then picks from a list of extractable plant types ("Flower Seeds", "Grass Seeds"). One know-how discovery covers all extraction. The mechanic is identical across targets (walk to plant, extract seed) — different targets don't need separate activities. Follows **Follow the Existing Shape** (Harvest pattern).
+- **SeedTimer on PlantProperties** — not a one-and-done flag. After extraction, `SeedTimer` resets to the plant type's reproduction interval (from `config.ItemLifecycle`). Decrements every tick independently of SpawnTimer (SeedTimer always ticks; SpawnTimer only ticks when population is below target). When `SeedTimer <= 0`, the plant can be extracted from again. Ties seed regeneration speed to the plant's lifecycle — fast-reproducing grass regenerates seeds faster than flowers. Creates a natural cycle: extract → wait → extract again.
+- **Vessel support included.** With only 2 inventory slots, vesselless extraction is nearly useless. Follows the harvest vessel procurement pattern: `findExtractIntent` calls `EnsureHasVesselFor` before finding targets. The twist vs harvest: seeds are *created* by the handler rather than picked up from the ground, so vessel routing uses `AddToVessel` directly rather than going through `Pickup()`.
+- **Discovery triggers** — `ActionLook` on flower/grass (seeing a plant with seeds), `ActionPickup`/`ActionLook` on seeds (encountering seeds suggests more sources). Uses ItemType-specific trigger pattern (same as tillSoil on hoe). No new boolean flags needed.
+- **Seeds created in handler** — `applyExtract` creates a seed item and routes it to vessel (if carrying one with capacity) or inventory (if space). Does NOT create on ground then Pickup — the seed is a product of work, not a ground item.
+- **Planting of extracted seeds** — should work via existing Plant order if seed varieties are registered with `Plantable: true`. If it doesn't Just Work, track in Step 8 post-phase investigation.
+
+---
+
+#### ✅ Step 2a: Seed Varieties + Extract Activity (Full Flow)
+
+**Anchor story:** The player creates an Extract > Flower Seeds order. A character who knows how to extract procures a vessel, walks to a growing red flower, spends time extracting, and a red flower seed appears in their vessel. The flower is unharmed but its seed supply is depleted — another flower nearby is still available. The character continues to the next flower. When all nearby flowers are depleted or the vessel is full, the order completes. Over time, extracted flowers regenerate seed availability.
 
 **What's new:**
-- New `ActionExtract` action constant
-- "Extract" activity category with subcategories in ActivityRegistry
-- Extract intent finder and handler
-- Non-destructive plant interaction pattern (plant stays, seed produced)
-- Discovery triggers for extract know-how
+
+**Seed variety registration** (`game/variety_generation.go`):
+- For each flower variety (each color), create a corresponding seed variety: ItemType "seed", Kind "flower seed", Color from parent flower, Plantable true, Sym CharSeed. Follows the gourd seed variety pattern exactly (lines 225-238).
+- For each grass variety (currently one — pale green), create a corresponding seed variety: ItemType "seed", Kind "grass seed", Color from parent grass, Plantable true, Sym CharSeed.
+- Seed varieties inherit Color, Pattern, Texture from parent plant variety. This enables variety-correct vessel storage and planting.
+
+**SeedTimer on PlantProperties** (`entity/item.go`):
+- `SeedTimer float64` field on `PlantProperties`. Starts at 0 (seeds available from birth).
+- After extraction, reset to the plant type's spawn interval from `config.ItemLifecycle[itemType].SpawnInterval`.
+- Decremented every tick in lifecycle updates (new loop in `lifecycle.go`, alongside death timer decrements — NOT inside `UpdateSpawnTimers` which gates on population count).
+- `findExtractIntent` skips plants where `SeedTimer > 0`.
+- Serialization: add `SeedTimer` to `SavePlantProperties` in `save/state.go`, round-trip in `serialize.go`. Backward compatibility: old saves without SeedTimer default to 0 (available).
+
+**ActionExtract constant** (`entity/character.go`):
+- New `ActionExtract ActionType` in the iota block.
+
+**Extract activity in ActivityRegistry** (`entity/activity.go`):
+- ID: "extract", Name: "Extract", Category: "" (top-level, like harvest), IntentFormation: IntentOrderable, Availability: AvailabilityKnowHow.
+- DiscoveryTriggers:
+  - `{Action: ActionLook, ItemType: "flower"}` — looking at a flower sparks the idea
+  - `{Action: ActionLook, ItemType: "grass"}` — looking at grass sparks the idea
+  - `{Action: ActionPickup, ItemType: "seed"}` — picking up a seed suggests more sources
+  - `{Action: ActionLook, ItemType: "seed"}` — looking at a seed suggests more sources
+- `Pluralize("flower seed")` and `Pluralize("grass seed")` entries in `entity/preference.go` — "flower seeds", "grass seeds".
+
+**`getExtractableItemTypes()` for order UI** (`ui/view.go`):
+- Scans `m.gameMap.Items()` for distinct `ItemType` values where `Plant != nil && Plant.IsGrowing && !Plant.IsSprout` AND type is in `config.ExtractableTypes` set (new config: `{"flower", "grass"}`).
+- Returns display labels: maps item type to "[Type] Seeds" (e.g., "flower" → "Flower Seeds", "grass" → "Grass Seeds"). The order's `TargetType` stores the plant type ("flower", "grass"), not the display label.
+- Follows `getHarvestableItemTypes()` pattern — map-based scan with a config filter.
+- Wire into order UI where harvest target selection is rendered. Extract uses the same target selection flow — player picks activity "Extract", then picks target type from the extractable list.
+
+**`findExtractIntent`** (`system/order_execution.go`):
+- Follows the harvest intent finder pattern with vessel procurement.
+- First: `EnsureHasVesselFor(char, targetSeed, items, gameMap, log, true, "extract")` — procure a vessel if not carrying one. `targetSeed` is a synthetic seed item (correct ItemType/Kind/Color) used for vessel compatibility checking. If EnsureHasVesselFor returns non-nil, return that intent (vessel procurement).
+- After vessel ready: find nearest growing non-sprout plant of `order.TargetType` where `Plant.SeedTimer <= 0` (seeds available). Use `findNearestItemByType` with a custom filter or a new variant that accepts a predicate.
+- If no extractable target: return nil (order becomes unfulfillable temporarily — timers may refresh later, or new plants may grow).
+- If target found: return `ActionExtract` intent targeting the plant. Walk-then-act pattern — action type is ActionExtract from the start, not ActionMove.
+- CurrentActivity: "Moving to extract from [type]" / "Extracting [type] seeds".
+
+**`applyExtract` handler** (`ui/apply_actions.go`):
+- Add `applyExtract` method on Model and wire into `applyIntent` dispatch table.
+- **Walking phase:** If not adjacent to target, `moveWithCollision` toward target. Return (still in transit).
+- **Working phase:** At target, accumulate progress for `ActionDurationShort` (same as pickup/look). When progress complete:
+  1. Look up target plant's variety info (Color, Pattern, Texture).
+  2. Create seed: `entity.NewSeed(char.X, char.Y, plant.ItemType, plant.Color, plant.Pattern, plant.Texture)`.
+  3. Route seed: if character has carried vessel with capacity (`CanVesselAccept`), add via `AddToVessel`. Else if inventory has space, add to inventory. Else: log "no room for seeds", clear intent, return (order pauses).
+  4. Set `plant.Plant.SeedTimer` to `config.ItemLifecycle[plant.ItemType].SpawnInterval`.
+  5. Log: "[Name] extracted [kind] from [plant description]".
+  6. Clear intent (ordered action pattern — next tick re-evaluates via findExtractIntent for next target).
+- **Anti-pattern to avoid:** Do NOT create seed on ground then Pickup. Seeds are created by the handler and routed directly. This is fundamentally different from pickup (no item removal from map). Do NOT use the self-managing action pattern — extraction is an ordered action with clear-intent between work units.
+
+**`continueIntent` handling** (`system/intent.go`):
+- ActionExtract uses the **generic path**. Target (the plant) stays on the map throughout — no early-return block needed. The generic path verifies target item exists, recalculates path, handles arrival transition.
+
+**Order execution wiring** (`system/order_execution.go`):
+- `findOrderIntent` switch: add `case "extract": return findExtractIntent(...)`.
+- `IsOrderFeasible`: extract is feasible if any growing non-sprout plant of the target type exists on the map (don't check SeedTimer for feasibility — timers refresh over time, so the order is feasible even if all plants are temporarily depleted).
+- `isMultiStepOrderComplete`: extract completes when the handler can't route the seed (vessel full and inventory full). The handler itself logs and clears intent; the order stays active for re-evaluation. Completion is implicit: when no targets exist AND no more will appear (all extracted, no new growth), the order becomes abandoned via the standard "return nil from findExtractIntent" path.
+
+**`applyPickup` vessel prerequisite** (`ui/apply_actions.go`):
+- In the `PickupToInventory` handler path: add extract order recognition. When a character picks up a vessel as part of an extract order, the vessel pickup is a prerequisite — clear intent and return. Next tick, `findExtractIntent` sees the character has a vessel and proceeds to find a plant. Follows the same pattern as harvest vessel prerequisite in the existing `PickupToInventory` handler.
 
 **Architecture patterns:**
-- Adding an Ordered Action checklist (architecture.md) — action constant, activity registry, intent finder, handler, order execution wiring
-- Order execution pattern — single work unit, clear intent, re-evaluate
-- **Consider Extensibility** — extraction pattern accommodates future targets (pigment, sap, essence)
-- **Anchor to Intent** — "character gets seeds from a living plant without killing it"
+- **Adding an Ordered Action** checklist — action constant, activity registry, intent finder, handler, findOrderIntent wiring, IsOrderFeasible, applyIntent dispatch. All touchpoints covered.
+- **Walk-then-act pattern** (like ActionLook) — action type set from start, handler has walking + acting phases, generic continueIntent path.
+- **Component Procurement** — `EnsureHasVesselFor` for vessel, follows harvest pattern exactly.
+- **Follow the Existing Shape** — harvest vessel flow for procurement, gourd seed variety pattern for registration, ItemType-specific discovery triggers like tillSoil.
+- **Consider Extensibility** — extraction pattern accommodates future targets (pigment, sap, essence). The `config.ExtractableTypes` set and `getExtractableItemTypes()` function generalize to any plant-based extraction.
+- **Anchor to Intent** — "character gets seeds from a living plant without killing it."
 
-**Serialization:** No new entity fields beyond the activity/order entries.
+**Reqs reconciliation:**
+- "Foraging a flower produces 1 flower variety seed without removing the flower" (original gardening req, line 22) → extract creates one seed, plant stays alive. Extraction replaces foraging as the verb. ✓
+- "Bears seeds in the same manner as flowers that can be picked up by foraging" (Construction-Reqs line 37) → grass follows the same extraction pattern as flowers. ✓
+- "New verb: Extract? Collect? Glean?" (Construction-Reqs lines 17, 23-26) → "Extract" chosen per decision #3. ✓
+- "could allow for more creative things later - sap, essence, etc" (Construction-Reqs line 26) → ExtractableTypes config set and generic handler accommodate future targets. ✓
 
-[TEST] Extract order appears in orders panel when known. Character walks to target plant, extracts seed, plant remains alive. Seeds inherit parent variety. Order continues until no more target plants or inventory full. Flower extraction produces flower seeds; grass extraction produces grass seeds.
+**Tests (TDD):**
+- Unit: flower seed varieties registered for each flower color
+- Unit: grass seed variety registered
+- Unit: seed varieties have Plantable=true, correct Kind ("flower seed"/"grass seed")
+- Unit: SeedTimer decrements each tick in lifecycle update
+- Unit: SeedTimer does not decrement for non-growing plants
+- Unit: `findExtractIntent` returns nil when all plants have SeedTimer > 0
+- Unit: `findExtractIntent` returns ActionExtract intent for plant with SeedTimer <= 0
+- Unit: `findExtractIntent` uses vessel procurement when character has no vessel
+- Unit: `findExtractIntent` skips sprouts
+- Unit: `applyExtract` creates seed with correct variety (color, pattern, texture from parent)
+- Unit: `applyExtract` adds seed to vessel when vessel has capacity
+- Unit: `applyExtract` adds seed to inventory when no vessel
+- Unit: `applyExtract` sets SeedTimer on plant after extraction
+- Unit: `applyExtract` clears intent after extraction (ordered action pattern)
+- Unit: `IsOrderFeasible` returns true for extract when growing plants of target type exist
+- Unit: discovery triggers fire for ActionLook on flower, grass, seed
+- Unit: discovery triggers fire for ActionPickup on seed
+- Unit: Save/load round-trips SeedTimer on PlantProperties
+- Integration: extract flower seeds end-to-end — character procures vessel, extracts seeds from multiple flowers, vessel fills, SeedTimers set on extracted plants
+
+[TEST] Create a test world with a character who has extract know-how, flowers and grass on the map, and a vessel available. Create Extract > Flower Seeds order. Watch character procure vessel, walk to flower, extract seed (seed appears in vessel), flower stays alive. Character continues to next flower. Already-extracted flowers are skipped. Order completes when vessel is full or no more extractable flowers. Verify SeedTimer — wait for reproduction cycle, then create another extract order to verify the same flowers become extractable again. Try Extract > Grass Seeds — same flow with grass. Verify extract appears in order panel only for characters with know-how. Verify discovery: a character who looks at a flower or picks up a seed gains extract know-how.
+
+Bugs found during testing:
+- Teleporting bug: `findExtractIntent` was setting `Target` to the plant's position directly instead of computing a BFS step toward it. Fixed by routing through `NextStepBFS`.
+- Extraction used adjacent-tile targeting (like harvest); changed to same-tile targeting — character must be on the plant's tile to extract.
+
+[DOCS] ✅
+
+[RETRO]
+
+---
+
+#### Step 2b: Planting Verification + Save/Load + Polish
+
+**Anchor story:** The player plants extracted flower seeds in tilled soil. Red flower sprouts appear and grow into full red flowers. They save the world mid-extraction — some flowers have active SeedTimers, some seeds are in vessels — and reload. Everything is preserved: SeedTimers, seeds, vessel contents.
+
+**What's new:**
+
+**Planting verification:**
+- Verify flower seeds can be planted via existing Plant order in tilled soil. Seed should grow into a flower of the correct color/variety.
+- Verify grass seeds can be planted. Seed should grow into grass (tall grass) of the correct variety.
+- The existing plant system should handle this if varieties are registered correctly with `Plantable: true`. The `applyPlant` handler creates a sprout from the plantable item's variety — verify it produces the right plant type.
+- **If planting doesn't Just Work:** Do NOT fix inline. Note the gap in Step 8 (Phase Wrap-Up) for investigation. Planting is a downstream use case of extraction, not a core extraction mechanic.
+
+**Save/load verification:**
+- SeedTimer on plants round-trips correctly (non-zero values preserved, default 0 for old saves).
+- Extracted seed items in inventory and vessels persist.
+- Seed varieties in registry survive save/load.
+- Backward compatibility: old saves without SeedTimer field default to 0 (seeds available).
+
+**Polish:**
+- Details panel for flower/grass seeds shows correct Kind ("flower seed", "grass seed"), Color, and Plantable status.
+- Details panel for extractable plants (`config.ExtractableTypes` — flower, grass) with `SeedTimer <= 0` (seeds available): show "Gone to seed" text in dusky earth color (reuse the dry tilled soil style). Only shown for extractable plant types, not berries/mushrooms/gourds. Tells the player this plant has seeds ready for extraction. The line disappears after extraction (SeedTimer resets) and reappears when SeedTimer counts back down to 0. In debug mode, show the SeedTimer value in parentheses (e.g., "Gone to seed" when ready, or the remaining time when on cooldown).
+- Action log messages read naturally: "extracted flower seed from red flower."
+
+**Tests (TDD):**
+- Round-trip test: save world with SeedTimer > 0 on plants → load → SeedTimer preserved
+- Round-trip test: save world with flower seeds in vessel → load → seeds preserved with correct variety
+- Migration test: load old save without SeedTimer → defaults to 0
+- Planting test (if applicable): plant flower seed → sprout appears → matures into flower of correct color
+
+[TEST] Plant extracted flower seeds in tilled soil. Verify sprouts appear and mature into flowers with correct colors. Plant grass seeds — verify they grow into tall grass. Select an extractable flower — details panel shows "Gone to seed" in dry-tilled-soil style. Extract from it — "Gone to seed" disappears. In debug mode, verify SeedTimer countdown shows in parentheses. Wait for timer to expire — "Gone to seed" reappears. Verify non-extractable plants (berries, mushrooms) never show "Gone to seed". Save a world mid-extraction (flowers with SeedTimers, seeds in vessels). Reload. Verify SeedTimers preserved (flowers still on cooldown), seeds still in vessel, varieties correct. Load a pre-extraction save — verify no issues (SeedTimer defaults to 0).
 
 [DOCS]
 
@@ -597,4 +735,6 @@ Bugs found during testing:
 - [RETRO] Run `/retro` on full construction phase
 - Update triggered-enhancements.md — mark resolved triggers, add new deferred items discovered during phase
 - Update randomideas.md — remove completed items, add new observations
+- **Tuning: extraction duration and seed yield.** Extraction currently uses `ActionDurationShort` (~10 world minutes). Re-evaluate whether a longer duration (Medium, ~48 min) feels better for the careful interaction it represents. If duration increases, consider also increasing seed yield per extraction (e.g., 2-3 seeds) to keep the activity worthwhile. The two knobs (duration and yield) should be tuned together.
+- **Preference-weighted target selection → unified item-seeking in picking.go.** Multiple systems currently pick targets by nearest-distance alone. With item variety (7 shell colors, 4+ flower colors, berry varieties), characters could instead score targets by preference and distance, similar to food seeking's gradient scoring in foraging.go. This affects: (1) Order target selection (`findHarvestIntent`, `findGatherIntent`, `findExtractIntent`) — characters harvest/gather/extract the nearest matching item regardless of variety, producing surprising behavior like dropping a vessel of red flowers to pick a blue one; (2) Component procurement (`EnsureHasRecipeInputs`) — characters pick nearest component instead of preferred color; (3) Recipe selection by preference — `findCraftIntent` picks first feasible recipe instead of scoring by input preference. Candidates to generalize into picking.go: `scoreForageItems` → generic `scoreItemsByPreference`, `createPickupIntent` → generic intent builder, order target finders → preference-weighted scoring, `EnsureHasRecipeInputs` → preference-weighted scoring. Moved from triggered-enhancements.md — the construction phase's multiple craft recipes with varied inputs meets the original trigger condition.
 - **Post-phase review: code touchpoints for new item types.** Adding grass as a harvestable/bundleable type required changes across many files (config, entity, system, UI rendering, serialization, lifecycle, order execution, apply_actions). Sticks had the same pattern. Investigate whether a checklist, registry, or structural change could reduce the number of touchpoints and lower the risk of missing one when adding future item types. Include in the review: preference formation and mood participation should be part of any new-item-type checklist — any entity that characters can look at or interact with should participate in the preference/mood system (appropriate descriptive attributes, lookable, correct Kind for natural preference language).

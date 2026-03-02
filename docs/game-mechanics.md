@@ -373,6 +373,7 @@ Know-how represents activity skills discovered through experience. Unlike facts,
 **Discovery triggers:**
 - **Harvest**: Discovered when foraging, eating edible items, or picking up or looking at any harvestable plant (growing non-sprout plants, including grass and flowers)
 - **Plant**: Discovered when picking up or looking at plantable items (berries, mushrooms, gourd seeds)
+- **Extract**: Discovered when looking at a flower or tall grass, or when picking up or looking at a seed
 - **Crafting know-how**: See [Crafting Discovery](#discovery)
 
 **Discovery chance depends on mood:**
@@ -429,6 +430,8 @@ When a character becomes idle-eligible:
 3. Fall through to random idle activity
 
 **Harvest orders:** Character seeks growing items of the target type, picks them up into a vessel (or inventory). Continues until vessel is full or no matching items remain.
+
+**Extract orders:** Character procures a vessel and extracts seeds from matching plants without removing the plant. Plants can only be extracted from when their `SeedTimer` has expired (seeds regenerated). After extraction, the plant's seed timer resets — tied to the plant type's reproduction interval (fast-reproducing grass regenerates seeds faster than flowers). If all plants of the target type are temporarily depleted, the order shows as **[Unfulfillable]** and is skipped until seeds regenerate. Order completes when no extractable plants remain or the vessel is full. Requires Extract know-how.
 
 **Gather orders:** Character picks up loose (non-growing, non-container, non-tool) items from the ground. For items with registered varieties (seeds, nuts, shells), uses vessel procurement. For bundleable items (sticks), successive pickups merge into a bundle in inventory. When the bundle reaches max size (see `config.MaxBundleSize`), the character drops the completed bundle on the ground and the order completes — one bundle per order. No know-how required — all characters can gather.
 

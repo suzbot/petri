@@ -86,6 +86,7 @@ Functional attributes live in optional property structs (`EdibleProperties`, `Pl
 - `IsGrowing bool` — item can spawn new items of its variety. Set to false when picked up.
 - `IsSprout bool` — item is in the sprout phase. Lifecycle skips reproduction for sprouts. Maturation logic converts sprout to full-grown item when `SproutTimer` expires.
 - `SproutTimer float64` — countdown to maturation (see `config.SproutDuration`).
+- `SeedTimer float64` — cooldown before this plant can be extracted from again. Starts at 0 (seeds available). Reset to the plant type's spawn interval after extraction. Decremented every tick independently of `SpawnTimer`. Only extractable plant types (see `config.ExtractableTypes`) use this field.
 
 **ContainerData** enables storage — vessels have `Capacity: 1` (one stack). Contents tracked as `[]Stack` where each Stack has a Variety pointer and count. Liquids are stored as stacks with ItemType "liquid" and Kind (e.g., "water"), reusing all existing vessel infrastructure.
 
@@ -299,6 +300,8 @@ Action handler pseudocode:
 
 **Walk-then-act pattern:** Actions like `ActionLook` and `ActionTalk` set their final action type from the start (not `ActionMove`). The intent creator owns the action type; `continueIntent` just recalculates paths via the generic fallthrough. The handler in `apply_actions.go` has a walking phase (moves via `moveWithCollision` while not yet at target) and an acting phase (performs the action when arrived). This follows **Consistency Over Local Cleverness** (Values.md) — all walk-then-act actions share the same shape.
 
+**Intent target contract:** `Target` is the *next step* (one BFS move from current position); `Dest` is the *final destination*. Intent creators must call `NextStepBFS` to calculate `Target` — never set `Target` directly to the destination. `moveWithCollision` and `continueIntent` both consume `Target` as a single-step move, not a teleport destination.
+
 ### Adding New Actions
 
 Three checklists organized by category. Each includes every touchpoint; see the sections above for the rationale behind each pattern.
@@ -334,6 +337,13 @@ Three checklists organized by category. Each includes every touchpoint; see the 
 7. `simulation.go`: add handler if simulation exercises this action
 8. If the action uses vessel procurement: use `RunVesselProcurement` tick helper
 9. If the action uses water fill: use `RunWaterFill` tick helper
+
+**Behavioral details the plan must specify** (these are design decisions, not implementation details — the plan should resolve them before implementation begins):
+- **Targeting**: same-tile or adjacent? (Most actions use same-tile; Look uses adjacent.)
+- **Duration**: which `ActionDuration` constant? (Short, Medium, Long)
+- **Completion criteria**: what makes a multi-step order complete? (e.g., "no more items of locked variety on map")
+- **Feasibility criteria**: what makes the order unfulfillable? (greyed out, skipped during assignment)
+- **Variety lock**: does the order lock to a specific variety on first action? (Harvest, Plant, Extract do; TillSoil, Craft don't.)
 
 ## Activity Registry & Know-How Discovery
 

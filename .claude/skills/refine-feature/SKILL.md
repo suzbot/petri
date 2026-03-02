@@ -85,16 +85,19 @@ Once the outline is aligned, write the detailed implementation steps into the ex
 **If the feature resolved open design questions during Step 2, explicitly document:**
 - [ ] Deferred scope (what was descoped and where is it tracked?)
 
+**Behavioral completeness — resolve before writing:**
+- Ensure all behavioral details of the feature are specified, even if they weren't in the original requirements. For ordered actions, check the "Behavioral details the plan must specify" checklist in architecture.md (targeting, duration, completion criteria, feasibility criteria, variety lock). Make recommendations and get approval from the user on all such details before recording them in the plan.
+
 A plan is implementation-ready when it has:
 - **Anchor story per step (REQUIRED)** — each step MUST open with a 1-2 sentence narrative of what the user/character experiences. This is a critical handoff artifact: `/implement-feature` derives its anchor tests directly from these stories. A step without an anchor story will produce tests that validate code structure instead of user intent. Example: "Character gets a Water Garden order but has no vessel. They procure one, fill it at the pond, and start watering." The anchor test derived from this would verify: "ground vessel ends up filled with water and tiles get watered" — not "returns ActionWaterGarden."
-- **Granular implementation steps** with iterative testable checkpoints: [TEST], [DOCS], and [RETRO]
+- **Granular implementation steps** with iterative testable checkpoints: [TEST] → [DOCS] → [RETRO] as a unit at every testable milestone
   - Each functional accomplishment reconciled with references to original requirements doc
   - **Architecture pattern references** — name which patterns each step extends (e.g., "follows Component Procurement pattern", "uses EnsureHasVesselFor") so `/implement-feature` can validate without re-deriving. Include anti-patterns when ambiguity is likely (e.g., "follows ordered action pattern, NOT self-managing like ActionFillVessel"). Also name prior-step artifacts this step depends on (e.g., "calls RunWaterFill extracted in Step 5a").
   - **New entity fields require same-step serialization** — if a step adds fields to an entity struct, the corresponding Save struct and serialize/deserialize code must be updated in that same step
 - **Tests first:** planned before/at the beginning of each step (TDD)
 - **Human testing checkpoints** after each testable milestone, not just at the end
   - It is OK if human testing is only for a partial workflow — just note what won't function until a subsequent step
-- **/retro checkpoints** after each human testing checkpoint
+- **[TEST] → [DOCS] → [RETRO] as a unit** — every [TEST] checkpoint must be followed by [DOCS] and [RETRO]. These three always appear together. This ensures documentation and process reflection happen at each testable milestone, not just at the end of a feature.
 
 ## Checkpoint Definitions
 

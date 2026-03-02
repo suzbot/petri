@@ -85,7 +85,7 @@ internal/
 
 - `internal/ui/model.go` - Game state, Bubble Tea model
 - `internal/ui/update.go` - Tick processing, game loop orchestration, input handling, lifecycle (startGame, loadWorld, saveGame)
-- `internal/ui/apply_actions.go` - Intent execution: applyIntent dispatch table + 15 handler methods (applyMove, applyDrink, applySleep, applyLook, applyTalk, applyPickup, applyConsume, applyCraft, applyTillSoil, applyPlant, applyForage, applyFillVessel, applyWaterGarden, applyHelpFeed, applyHelpWater) + execution helpers (moveWithCollision, findEmptyCardinalTile, etc.)
+- `internal/ui/apply_actions.go` - Intent execution: applyIntent dispatch table + 16 handler methods (applyMove, applyDrink, applySleep, applyLook, applyTalk, applyPickup, applyConsume, applyCraft, applyTillSoil, applyPlant, applyForage, applyFillVessel, applyWaterGarden, applyHelpFeed, applyHelpWater, applyExtract) + execution helpers (moveWithCollision, findEmptyCardinalTile, etc.)
 
 **Save System**
 
@@ -113,7 +113,7 @@ internal/
 
 **Up Next:**
 
-- Construction Phase in progress: Steps 1a–1d (bundles, tall grass, harvest/gather integration, polish/UI/save-load) complete. See [docs/construction-phase-plan.md](docs/construction-phase-plan.md).
+- Construction Phase in progress: Steps 1a–1d and 2a (bundles, tall grass, extract activity) complete. See [docs/construction-phase-plan.md](docs/construction-phase-plan.md).
 
 ## Reference and Planning Documents
 

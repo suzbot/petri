@@ -21,7 +21,9 @@ then they can be removed from this list.
 
 ## Tech Stuff
 
+## Bugs to Investigate
 
+1. **Fill vessel abandoned mid-trip** — Observed character picking up a vessel for water, heading toward the pond, then abandoning the fill-vessel intent partway there (wandered off to talk instead). Needs investigation into why ActionFillVessel intent was dropped before reaching water. (Observed during extract testing, world-test-extract)
 
 ## Unallocated Features
 

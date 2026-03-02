@@ -42,11 +42,12 @@ model: sonnet
 
 **Core loop:**
 1. **Announce** what you're about to write — one sentence: "I'm about to write [these tests] and [this implementation]"
-2. **Write each sub-step's tests immediately before that sub-step's code** — do not batch tests for multiple sub-steps. Anchor to the step's anchor story, not implementation paths. "Ground vessel ends up filled with water" validates intent; "returns ActionPickup" validates structure. When modifying a shared function (Pickup, CanPickUpMore, FindNextTarget, etc.), trace all callers before writing code — new return values and behavior changes must be handled at every call site.
-3. **Implement** minimum code to pass tests
-4. **Verify** — run tests, run `gofmt ./...`
-5. **Pause at each [TEST] checkpoint** for user to rebuild and test
-6. After [TEST] passes, follow [DOCS] and [RETRO] checkpoints in the plan
+2. **Only implement behavior specified in the plan, which has been reconciled to requirements.** If a detail isn't specified, surface the gap, make a recommendation, and seek confirmation from the user.
+3. **Write each sub-step's tests immediately before that sub-step's code** — do not batch tests for multiple sub-steps. Anchor to the step's anchor story, not implementation paths. "Ground vessel ends up filled with water" validates intent; "returns ActionPickup" validates structure. When modifying a shared function (Pickup, CanPickUpMore, FindNextTarget, etc.), trace all callers before writing code — new return values and behavior changes must be handled at every call site.
+4. **Implement** minimum code to pass tests
+5. **Verify** — run tests, run `gofmt ./...`
+6. **Pause at each [TEST] checkpoint** for user to rebuild and test
+7. After [TEST] passes, follow [DOCS] and [RETRO] checkpoints in the plan
 
 **When to stop coding and invoke `/refine-feature`:**
 - You're proposing design alternatives, not just implementation details
@@ -80,7 +81,7 @@ model: sonnet
 
 ### Step 5: Update Documentation ([DOCS])
 Only after human testing confirms success:
-- Run /update-docs via the **Task tool** (general-purpose subagent, sonnet model). Read `.claude/skills/update-docs/SKILL.md` and pass its full instructions + arguments as the task prompt.
+- Launch an **Agent tool** subagent (general-purpose, sonnet model) to run update-docs autonomously. Read `.claude/skills/update-docs/SKILL.md` and pass its full instructions + the change summary as the agent prompt. Do NOT use the Skill tool — that requires per-edit approval.
 - Mark feature complete in phase plan
 
 ### Step 6: Retro ([RETRO])

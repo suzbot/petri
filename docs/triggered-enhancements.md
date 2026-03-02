@@ -23,7 +23,6 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Cobra CLI migration**                | Next time we want to add a flag; Current flag parsing becomes unwieldy            |
 | **Knowledge/Learning pattern review** | Enhanced Learning phase begins; Adding new knowledge types or transmission methods |
 | **UI extensibility refactoring** | UI structure blocks adding new activities or features; Area selection pattern needs generalization |
-| **Preference-weighted component procurement** | Multiple craft recipes with varied inputs; Characters feel flat when seeking components; Scoring math exists in foraging.go to reuse |
 | **applyIntent duplication (simulation.go)** | INTENTIONALLY SEPARATE - simulation.go is lighter test harness; only unify if maintaining both becomes burdensome |
 | **Order-aware simulation for e2e testing** | Construction adds multiple new ordered actions with supply procurement; Post-pickup handler branching bugs recur across ordered actions |
 | **Temporarily-blocked order cooldown** | Assign/abandon churn noticeable for temporarily-blocked (but feasible) orders; Character visibly thrashes between taking and abandoning the same order |
@@ -109,28 +108,6 @@ _(Action pattern unification investigation moved to [post-gardening-cleanup.md](
 The blocks share a common shape: check if item is in inventory → return unchanged (no movement needed) or recalculate toward `Dest`. If this grows to 5+ blocks, evaluate whether a general "multi-phase item tracking" pattern could replace per-action blocks — e.g., a helper that checks inventory-then-map for `TargetItem` and recalculates accordingly, called by each action's block or replacing them entirely.
 
 Don't consolidate prematurely — each block has slight phase-detection differences. The trigger is when adding a new block feels like copy-paste. With 6 blocks now present, this trigger is met — evaluate on the next multi-phase action addition.
-
----
-
-**Preference-weighted target selection → unified item-seeking in picking.go:**
-
-Multiple systems currently pick targets by nearest-distance alone. With item variety (7 shell colors, 4+ flower colors, berry varieties), characters could instead score targets by preference and distance, similar to food seeking's gradient scoring in foraging.go. This affects three areas:
-
-1. **Order target selection** (`findHarvestIntent`, `findGatherIntent` in order_execution.go): Characters harvest/gather the nearest matching item regardless of variety. This produces surprising behavior — e.g., a character carrying a vessel of red flowers walks past more red flowers to harvest the nearest blue flower, then drops the red vessel to get an empty one for the blue. A preference-aware selector would favor targets matching the carried vessel's variety (or the character's color preference), reducing wasteful vessel swaps and creating more intentional-looking behavior.
-
-2. **Component procurement** (`EnsureHasRecipeInputs` in picking.go): When gathering recipe inputs (e.g., shells for Craft Hoe), characters pick the nearest available component. With shell color variety, characters could score components by preference and distance — a character who prefers silver shells would craft silver shell hoes, developing a personal aesthetic.
-
-3. **Recipe selection by preference**: `findCraftIntent` currently picks the first feasible recipe for an activity. When multiple recipes produce the same product (e.g., shell hoe, metal hoe, wooden hoe), the character could score each feasible recipe by net preference for its inputs. The `findCraftIntent` structure (get feasible recipes → pick one → gather inputs) has the selection point built in at step 3.
-
-picking.go is the shared home for "how characters acquire items." Currently, foraging.go has the most mature item-seeking logic (`scoreForageItems`, `createPickupIntent` — preference + distance scoring), while order execution and recipe procurement use simpler nearest-distance. These should converge: characters' item-seeking behavior should be consistent whether they're foraging, fulfilling orders, or gathering craft components. Preference shapes material culture — a character who prefers red flowers harvests red flowers, creating a personal aesthetic across all activities.
-
-Candidates to generalize into picking.go when this triggers:
-- `scoreForageItems` (foraging.go) → generic `scoreItemsByPreference` in picking.go
-- `createPickupIntent` (foraging.go) → generic intent builder in picking.go (currently duplicated across foraging.go, order_execution.go, picking.go with different logging)
-- Order target finders (`FindNextHarvestTarget`, `FindNextGatherTarget`) → use preference-weighted scoring
-- `EnsureHasRecipeInputs` component seeking → use preference-weighted scoring instead of nearest-distance
-
-Deferred because: Nearest-distance works functionally. The vessel-swap behavior (dropping a partially-filled vessel for a different variety) is correct but feels unintentional. Revisit when character behavior needs to feel more purposeful, or when multiple recipes per activity create enough variety that "character ignores preferred material" feels wrong. **Note:** Construction phase adds multiple craft recipes with varied inputs — if this hasn't triggered organically by end of Construction, implement it then, as the recipe variety meets the trigger condition.
 
 ---
 
