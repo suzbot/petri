@@ -45,6 +45,7 @@ Surface any drift in conversation so it gets discussed, not silently carried for
 - Describe each option's implications — for player experience, structural alignment with vision (code structure mirrors character knowledge per VISION.txt), scalability, performance. Don't describe options in implementation jargon (function signatures, parameter patterns). If the user can't evaluate the difference without reading code, the description needs translating.
 - If an option has no evaluable implications (purely code-organizational), decide unilaterally and note it in passing rather than presenting it as a choice.
 - If you realize mid-explanation that you haven't actually surfaced a question, pause and reframe
+- When a step involves multiple related items (similar names, overlapping systems), ensure each item is explicitly delineated in both the step spec and updated to be clearly separate concerns in the design document, to prevent conflation within and across implementation sessions.
 
 **Anti-pattern:** Stating an interpretation as if it's an open question without naming the alternatives.
 **Anti-pattern:** Treating an existing plan's implementation details as ground truth. The requirements and Design Decisions are ground truth; the plan is a draft that may have drifted.

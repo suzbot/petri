@@ -109,6 +109,7 @@ A. Assess whether Step 1 insights revealed **clear, recurring, or token/context-
     - Explain **why it is worth the cost**
     - Specify **what future context, effort, or friction it saves**
     - Keep recommendations minimal, concrete, and scoped
+    - **Prefer structural enforcement over prose instructions.** If a correction was needed because something was forgotten mid-session, the fix should be a task, a skill invocation, or a dependency — not a paragraph to remember. Adding more text to a skill that was already ignored doesn't solve the problem.
     - **Route proposals to the right home:**
       - **Design values** (how to think about the game/code/player) → `docs/Values.md`
       - **Communication norms** (how to present, qualify, escalate) → CLAUDE.md Collaboration section. ≤15 words per bullet. Combine with thematically related existing bullets rather than adding new ones.
