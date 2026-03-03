@@ -433,6 +433,8 @@ When a character becomes idle-eligible:
 
 **Extract orders:** Character procures a vessel and extracts seeds from matching plants without removing the plant. Plants can only be extracted from when their `SeedTimer` has expired (seeds regenerated). After extraction, the plant's seed timer resets — tied to the plant type's reproduction interval (fast-reproducing grass regenerates seeds faster than flowers). If all plants of the target type are temporarily depleted, the order shows as **[Unfulfillable]** and is skipped until seeds regenerate. Order completes when no extractable plants remain or the vessel is full. Requires Extract know-how.
 
+When a fully grown extractable plant (flower or tall grass) has seeds available, the details panel shows **"Gone to seed"** below "Growing" — a signal that the plant is ready to extract from. Sprouts and non-extractable plants never show this indicator.
+
 **Gather orders:** Character picks up loose (non-growing, non-container, non-tool) items from the ground. For items with registered varieties (seeds, nuts, shells), uses vessel procurement. For bundleable items (sticks), successive pickups merge into a bundle in inventory. When the bundle reaches max size (see `config.MaxBundleSize`), the character drops the completed bundle on the ground and the order completes — one bundle per order. No know-how required — all characters can gather.
 
 ### Order Interruption and Resumption

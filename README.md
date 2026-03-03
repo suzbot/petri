@@ -37,7 +37,7 @@ Core process innovations developed over the course of this project:
 
 ## Latest Updates
 
-- **Seed extraction**: Characters extract seeds from flowers and tall grass via Extract orders, without harming the plant.
+- **Seed extraction**: Characters extract seeds from flowers and tall grass via Extract orders, without harming the plant. Plants show "Gone to seed" when ready to extract again.
 - **Tall grass**: Pale green grass grows and spreads across the world, the fastest-growing plant.
 - **Gather bundles**: Characters gathering sticks stack them into bundles; a completed bundle is dropped on the ground and the order finishes.
 - **Helping:** Characters bring food or water to other character in crisis

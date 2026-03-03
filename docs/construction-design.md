@@ -28,7 +28,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 ---
 
 ### Step 2: Seed Extraction
-**Status:** In Progress (Step 2b remaining)
+**Status:** Complete
 
 **Anchor story:** The player creates an Extract > Flower Seeds order. A character who has discovered how to extract procures a vessel, walks to a growing flower, spends time carefully collecting seeds, and obtains a flower seed in their vessel — without harming the flower. They continue to the next flower. The flower can't be extracted from again until its next reproduction cycle. The same mechanic works for Extract > Grass Seeds with tall grass. Seeds can be planted in tilled soil.
 

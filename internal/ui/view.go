@@ -909,6 +909,14 @@ func (m Model) renderDetails() string {
 		if item.Plant != nil && item.Plant.IsGrowing {
 			lines = append(lines, " "+growingStyle.Render("Growing"))
 		}
+		// Show seed availability indicator for extractable plants
+		if config.ExtractableTypes[item.ItemType] && item.Plant != nil && item.Plant.IsGrowing && !item.Plant.IsSprout {
+			if item.Plant.SeedTimer <= 0 {
+				lines = append(lines, " "+tilledStyle.Render("Gone to seed"))
+			} else if m.testCfg.Debug {
+				lines = append(lines, fmt.Sprintf(" Seed cooldown: %.0fs", item.Plant.SeedTimer))
+			}
+		}
 		// Show Plantable status
 		if item.Plantable {
 			lines = append(lines, " "+growingStyle.Render("Plantable"))
