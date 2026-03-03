@@ -88,6 +88,8 @@ Functional attributes live in optional property structs (`EdibleProperties`, `Pl
 - `SproutTimer float64` — countdown to maturation (see `config.SproutDuration`).
 - `SeedTimer float64` — cooldown before this plant can be extracted from again. Starts at 0 (seeds available). Reset to the plant type's spawn interval after extraction. Decremented every tick independently of `SpawnTimer`. Only extractable plant types (see `config.ExtractableTypes`) use this field.
 
+`SourceVarietyID string` — registry ID of the parent plant's variety. Set at seed creation (extraction, gourd consumption). Used at planting time to look up the parent variety and create the sprout with full fidelity — no string derivation. Carried by `Item` (loose seeds) and `ItemVariety` (vessel-stacked seeds).
+
 **ContainerData** enables storage — vessels have `Capacity: 1` (one stack). Contents tracked as `[]Stack` where each Stack has a Variety pointer and count. Liquids are stored as stacks with ItemType "liquid" and Kind (e.g., "water"), reusing all existing vessel infrastructure.
 
 **EdibleProperties** marks items as edible with optional effects. Items with `Edible != nil` can be eaten; Poisonous/Healing determine effects.
@@ -590,7 +592,7 @@ When adding fields to saved structs:
 1. **Display fields**: Symbols (`Sym`), colors, styles set by constructors — must be explicitly restored on deserialization
 2. **All attribute fields**: Easy to miss nested fields (e.g., Pattern/Texture on preferences)
 3. **Round-trip tests**: Save → load → verify all fields match
-4. **Variety fields**: `VarietySave` must include all fields that `ConsumeAccessibleItem` / `ConsumePlantable` need to restore (currently: `Kind`, `Plantable`, `Sym`)
+4. **Variety fields**: `VarietySave` must include all fields that `ConsumeAccessibleItem` / `ConsumePlantable` need to restore (currently: `Kind`, `Plantable`, `Sym`, `SourceVarietyID`)
 
 Constructor-set fields won't be populated when deserializing directly into structs — must be explicitly restored based on type.
 

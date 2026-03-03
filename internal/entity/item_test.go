@@ -358,11 +358,11 @@ func TestNewFlower_NotPlantable(t *testing.T) {
 // Seed tests
 // =============================================================================
 
-// TestNewSeed_Properties verifies NewSeed creates seed with correct properties
+// TestNewSeed_Properties verifies NewSeed creates seed with correct properties (gourd parent, no Kind)
 func TestNewSeed_Properties(t *testing.T) {
 	t.Parallel()
 
-	item := NewSeed(3, 7, "gourd", types.ColorGreen, types.PatternSpotted, types.TextureWarty)
+	item := NewSeed(3, 7, "gourd", "gourd-green-spotted-warty", "", types.ColorGreen, types.PatternSpotted, types.TextureWarty)
 
 	pos := item.Pos()
 	if pos.X != 3 || pos.Y != 7 {
@@ -373,6 +373,9 @@ func TestNewSeed_Properties(t *testing.T) {
 	}
 	if item.Kind != "gourd seed" {
 		t.Errorf("NewSeed Kind: got %q, want %q", item.Kind, "gourd seed")
+	}
+	if item.SourceVarietyID != "gourd-green-spotted-warty" {
+		t.Errorf("NewSeed SourceVarietyID: got %q, want %q", item.SourceVarietyID, "gourd-green-spotted-warty")
 	}
 	if item.Symbol() != config.CharSeed {
 		t.Errorf("NewSeed Symbol(): got %c, want %c", item.Symbol(), config.CharSeed)
@@ -400,11 +403,39 @@ func TestNewSeed_Properties(t *testing.T) {
 	}
 }
 
+// TestNewSeed_GrassParent verifies seed from grass parent uses parentKind for Kind
+func TestNewSeed_GrassParent(t *testing.T) {
+	t.Parallel()
+
+	item := NewSeed(0, 0, "grass", "tall grass-pale green", "tall grass", types.ColorPaleGreen, types.PatternNone, types.TextureNone)
+
+	if item.Kind != "tall grass seed" {
+		t.Errorf("NewSeed Kind with parentKind: got %q, want %q", item.Kind, "tall grass seed")
+	}
+	if item.SourceVarietyID != "tall grass-pale green" {
+		t.Errorf("NewSeed SourceVarietyID: got %q, want %q", item.SourceVarietyID, "tall grass-pale green")
+	}
+}
+
+// TestNewSeed_FlowerParent verifies seed from flower parent (no Kind) uses parentItemType
+func TestNewSeed_FlowerParent(t *testing.T) {
+	t.Parallel()
+
+	item := NewSeed(0, 0, "flower", "flower-blue", "", types.ColorBlue, types.PatternNone, types.TextureNone)
+
+	if item.Kind != "flower seed" {
+		t.Errorf("NewSeed Kind without parentKind: got %q, want %q", item.Kind, "flower seed")
+	}
+	if item.SourceVarietyID != "flower-blue" {
+		t.Errorf("NewSeed SourceVarietyID: got %q, want %q", item.SourceVarietyID, "flower-blue")
+	}
+}
+
 // TestNewSeed_Description verifies seed description combines parent attributes with kind
 func TestNewSeed_Description(t *testing.T) {
 	t.Parallel()
 
-	item := NewSeed(0, 0, "gourd", types.ColorGreen, types.PatternSpotted, types.TextureWarty)
+	item := NewSeed(0, 0, "gourd", "gourd-green-spotted-warty", "", types.ColorGreen, types.PatternSpotted, types.TextureWarty)
 	got := item.Description()
 	want := "warty spotted green gourd seed"
 	if got != want {
@@ -416,7 +447,7 @@ func TestNewSeed_Description(t *testing.T) {
 func TestNewSeed_DescriptionColorOnly(t *testing.T) {
 	t.Parallel()
 
-	item := NewSeed(0, 0, "gourd", types.ColorOrange, types.PatternNone, types.TextureNone)
+	item := NewSeed(0, 0, "gourd", "gourd-orange", "", types.ColorOrange, types.PatternNone, types.TextureNone)
 	got := item.Description()
 	want := "orange gourd seed"
 	if got != want {
@@ -428,14 +459,21 @@ func TestNewSeed_DescriptionColorOnly(t *testing.T) {
 // CreateSprout tests
 // =============================================================================
 
-// TestCreateSprout_FromGourdSeed verifies sprout from seed has parent type and attributes
+// TestCreateSprout_FromGourdSeed verifies sprout from gourd seed variety has parent type and attributes
 func TestCreateSprout_FromGourdSeed(t *testing.T) {
 	t.Parallel()
 
-	seed := NewSeed(0, 0, "gourd", types.ColorGreen, types.PatternSpotted, types.TextureWarty)
-	edible := &EdibleProperties{} // gourds are edible, not poison/healing
+	parentVariety := &ItemVariety{
+		ID:       "gourd-green-spotted-warty",
+		ItemType: "gourd",
+		Color:    types.ColorGreen,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureWarty,
+		Edible:   &EdibleProperties{},
+		Sym:      config.CharGourd,
+	}
 
-	sprout := CreateSprout(5, 10, seed, edible)
+	sprout := CreateSprout(5, 10, parentVariety)
 
 	if sprout.ItemType != "gourd" {
 		t.Errorf("CreateSprout ItemType: got %q, want %q", sprout.ItemType, "gourd")
@@ -473,14 +511,74 @@ func TestCreateSprout_FromGourdSeed(t *testing.T) {
 	}
 }
 
-// TestCreateSprout_FromBerry verifies sprout from berry preserves type and edible properties
+// TestCreateSprout_FromFlowerSeed verifies sprout from flower seed has correct type and color
+func TestCreateSprout_FromFlowerSeed(t *testing.T) {
+	t.Parallel()
+
+	parentVariety := &ItemVariety{
+		ID:       "flower-blue",
+		ItemType: "flower",
+		Color:    types.ColorBlue,
+		Sym:      config.CharFlower,
+	}
+
+	sprout := CreateSprout(3, 7, parentVariety)
+
+	if sprout.ItemType != "flower" {
+		t.Errorf("CreateSprout ItemType: got %q, want %q", sprout.ItemType, "flower")
+	}
+	if sprout.Color != types.ColorBlue {
+		t.Errorf("CreateSprout Color: got %q, want %q", sprout.Color, types.ColorBlue)
+	}
+	if sprout.IsEdible() {
+		t.Error("CreateSprout from flower seed should not be edible")
+	}
+}
+
+// TestCreateSprout_FromGrassSeed verifies sprout from grass seed has correct type and Kind
+func TestCreateSprout_FromGrassSeed(t *testing.T) {
+	t.Parallel()
+
+	parentVariety := &ItemVariety{
+		ID:       "tall grass-pale green",
+		ItemType: "grass",
+		Kind:     "tall grass",
+		Color:    types.ColorPaleGreen,
+		Sym:      config.CharGrass,
+	}
+
+	sprout := CreateSprout(4, 8, parentVariety)
+
+	if sprout.ItemType != "grass" {
+		t.Errorf("CreateSprout ItemType: got %q, want %q", sprout.ItemType, "grass")
+	}
+	if sprout.Kind != "tall grass" {
+		t.Errorf("CreateSprout Kind: got %q, want %q", sprout.Kind, "tall grass")
+	}
+	if sprout.Color != types.ColorPaleGreen {
+		t.Errorf("CreateSprout Color: got %q, want %q", sprout.Color, types.ColorPaleGreen)
+	}
+	if sprout.Plant == nil {
+		t.Fatal("CreateSprout Plant: got nil")
+	}
+	if !sprout.Plant.IsSprout {
+		t.Error("CreateSprout IsSprout: got false, want true")
+	}
+}
+
+// TestCreateSprout_FromBerry verifies sprout from berry variety preserves type and edible properties
 func TestCreateSprout_FromBerry(t *testing.T) {
 	t.Parallel()
 
-	berry := NewBerry(0, 0, types.ColorRed, false, false)
-	berry.Plantable = true
+	berryVariety := &ItemVariety{
+		ID:       "berry-red",
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   &EdibleProperties{},
+		Sym:      config.CharBerry,
+	}
 
-	sprout := CreateSprout(3, 7, berry, berry.Edible)
+	sprout := CreateSprout(3, 7, berryVariety)
 
 	if sprout.ItemType != "berry" {
 		t.Errorf("CreateSprout ItemType: got %q, want %q", sprout.ItemType, "berry")
@@ -509,10 +607,17 @@ func TestCreateSprout_FromBerry(t *testing.T) {
 func TestCreateSprout_FromMushroom_PreservesEdible(t *testing.T) {
 	t.Parallel()
 
-	mush := NewMushroom(0, 0, types.ColorBlue, types.PatternSpotted, types.TextureSlimy, true, false)
-	mush.Plantable = true
+	mushroomVariety := &ItemVariety{
+		ID:       "mushroom-blue-spotted-slimy",
+		ItemType: "mushroom",
+		Color:    types.ColorBlue,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureSlimy,
+		Edible:   &EdibleProperties{Poisonous: true},
+		Sym:      config.CharMushroom,
+	}
 
-	sprout := CreateSprout(2, 4, mush, mush.Edible)
+	sprout := CreateSprout(2, 4, mushroomVariety)
 
 	if sprout.ItemType != "mushroom" {
 		t.Errorf("CreateSprout ItemType: got %q, want %q", sprout.ItemType, "mushroom")

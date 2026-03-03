@@ -2,7 +2,6 @@ package entity
 
 import (
 	"fmt"
-	"strings"
 
 	"petri/internal/config"
 	"petri/internal/types"
@@ -67,6 +66,10 @@ type Item struct {
 
 	// Plantable - set when berries/mushrooms are picked, or for seeds
 	Plantable bool
+
+	// SourceVarietyID — for seeds, the variety registry ID of the parent plant.
+	// Used to reconstruct the parent plant when planted.
+	SourceVarietyID string
 
 	// Bundle count for stackable materials (sticks, grass). 0 = not a bundle.
 	BundleCount int
@@ -219,8 +222,15 @@ func NewShell(x, y int, color types.Color) *Item {
 	}
 }
 
-// NewSeed creates a new seed item from a parent plant type
-func NewSeed(x, y int, parentItemType string, color types.Color, pattern types.Pattern, texture types.Texture) *Item {
+// NewSeed creates a new seed item from a parent plant type.
+// sourceVarietyID is the parent plant's variety registry ID.
+// parentKind is the parent's Kind (e.g., "tall grass"); when non-empty, seed Kind = parentKind + " seed".
+// When parentKind is empty, seed Kind = parentItemType + " seed".
+func NewSeed(x, y int, parentItemType string, sourceVarietyID string, parentKind string, color types.Color, pattern types.Pattern, texture types.Texture) *Item {
+	kind := parentItemType + " seed"
+	if parentKind != "" {
+		kind = parentKind + " seed"
+	}
 	return &Item{
 		BaseEntity: BaseEntity{
 			X:     x,
@@ -228,12 +238,13 @@ func NewSeed(x, y int, parentItemType string, color types.Color, pattern types.P
 			Sym:   config.CharSeed,
 			EType: TypeItem,
 		},
-		ItemType:  "seed",
-		Kind:      parentItemType + " seed",
-		Color:     color,
-		Pattern:   pattern,
-		Texture:   texture,
-		Plantable: true,
+		ItemType:        "seed",
+		Kind:            kind,
+		Color:           color,
+		Pattern:         pattern,
+		Texture:         texture,
+		Plantable:       true,
+		SourceVarietyID: sourceVarietyID,
 	}
 }
 
@@ -305,17 +316,10 @@ func (i *Item) Description() string {
 	return result
 }
 
-// CreateSprout creates a sprout item from a plantable item.
-// For seeds (ItemType="seed"), derives parent type from Kind ("gourd seed" → "gourd").
-// For berries/mushrooms, uses the item's own type.
-// Caller provides edible properties (from item.Edible for berries/mushrooms,
-// from registry lookup for seeds since seeds themselves aren't edible).
-func CreateSprout(x, y int, plantedItem *Item, edible *EdibleProperties) *Item {
-	parentType := plantedItem.ItemType
-	if plantedItem.ItemType == "seed" {
-		parentType = strings.TrimSuffix(plantedItem.Kind, " seed")
-	}
-
+// CreateSprout creates a sprout item from a parent variety.
+// The caller resolves the parent variety: for seeds via SourceVarietyID registry lookup,
+// for berries/mushrooms via their own variety. All attributes come from the variety.
+func CreateSprout(x, y int, parentVariety *ItemVariety) *Item {
 	return &Item{
 		BaseEntity: BaseEntity{
 			X:     x,
@@ -323,15 +327,16 @@ func CreateSprout(x, y int, plantedItem *Item, edible *EdibleProperties) *Item {
 			Sym:   config.CharSprout,
 			EType: TypeItem,
 		},
-		ItemType: parentType,
-		Color:    plantedItem.Color,
-		Pattern:  plantedItem.Pattern,
-		Texture:  plantedItem.Texture,
+		ItemType: parentVariety.ItemType,
+		Kind:     parentVariety.Kind,
+		Color:    parentVariety.Color,
+		Pattern:  parentVariety.Pattern,
+		Texture:  parentVariety.Texture,
 		Plant: &PlantProperties{
 			IsGrowing:   true,
 			IsSprout:    true,
-			SproutTimer: config.GetSproutDuration(parentType),
+			SproutTimer: config.GetSproutDuration(parentVariety.ItemType),
 		},
-		Edible: edible,
+		Edible: parentVariety.Edible,
 	}
 }

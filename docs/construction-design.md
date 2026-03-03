@@ -40,12 +40,16 @@ Characters gather materials and construct small buildings from grass, sticks, or
 - findExtractIntent with vessel procurement
 - applyExtract handler (walk-then-act, creates seed, routes to vessel/inventory)
 - Discovery triggers (looking at flowers/grass, encountering seeds)
+- SourceVarietyID on Item and ItemVariety — seeds carry parent plant's variety ID (DD-13)
+- Seed Kind uses parent Kind ("tall grass seed" not "grass seed") (DD-13)
+- CreateSprout uses variety registry lookup instead of string derivation (DD-13)
+- PlantableItemExists fix for vessel-stored seeds
 - Planting verification for extracted seeds
 - "Gone to seed" indicator on details panel
-- Save/load for SeedTimer
+- Save/load for SeedTimer and SourceVarietyID
 
 **Open questions:**
-- None remaining (all resolved during Step 2a refinement)
+- None remaining (all resolved during Step 2a and 2b refinement)
 
 ---
 
@@ -228,3 +232,11 @@ Characters gather materials and construct small buildings from grass, sticks, or
 **Decision:** ActionLook on flower/grass (seeing a plant with seeds), ActionPickup/ActionLook on seeds (encountering seeds suggests more sources). Uses existing ItemType-specific trigger pattern (same as tillSoil triggers on hoe).
 **Rationale:** Follows **Follow the Existing Shape** — ItemType-specific triggers are an established pattern.
 **Affects:** Step 2
+
+### DD-13: Seeds carry parent variety ID (SourceVarietyID)
+**Context:** Seeds need to reconstruct their parent plant when planted. The current approach encodes parent identity in the seed's Kind string ("grass seed" → TrimSuffix → "grass"), which loses the parent's Kind ("tall grass") and relies on brittle string derivation. The seed's Kind also under-specifies identity — "grass seed" when it should be "tall grass seed" (like "turkey egg" vs "bird egg").
+**Decision:** Seeds carry `SourceVarietyID string` — the variety registry ID of the parent plant, generated at world creation and shared by all plants of that variety. Added to both `Item` (loose seeds) and `ItemVariety` (vessel-stored seeds). The seed's Kind uses the parent's Kind for specificity: `parentKind + " seed"` when Kind exists, `parentItemType + " seed"` otherwise. At planting time, the parent variety is looked up from the registry; `CreateSprout` receives the resolved variety and creates the sprout with full fidelity — no string derivation.
+**Rationale:** The variety registry is the source of truth for plant identity (**Isomorphism**). A single ID reference is lossless and extensible — new variety attributes flow through automatically (**Consider Extensibility**). The seed carrying its parent's variety ID is isomorphic to biological seeds carrying genetic information. Eliminates string derivation as an identity mechanism (**Source of Truth Clarity**).
+**Affects:** Step 2b
+
+**Triggered enhancement:** Generalize plant order targetType to parent ItemType level (show "grass seed" not "tall grass seed") — trigger: when multiple Kinds exist per parent ItemType

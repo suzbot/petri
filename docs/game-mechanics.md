@@ -95,7 +95,7 @@ See `config.GroundSpawnInterval` for intervals.
 - **Sticks**: Brown `/`; non-edible, crafting material. Falls from canopy periodically.
 - **Shells**: Colored `<`; non-edible, crafting material. Multiple color variants. Washes up adjacent to ponds.
 - **Grass**: Pale green `W`; non-edible, construction material. Kind "tall grass". Grows and spreads across the world; fastest lifecycle (fast maturation and reproduction). Has a death timer so it doesn't take over the map. Harvested into bundles; color changes to pale yellow on harvest, representing drying.
-- **Seeds**: Dot `.` in parent gourd's color; not edible, plantable. Inherits parent's full variety. Auto-dropped when a gourd is consumed.
+- **Seeds**: Dot `.` in parent's color; not edible, plantable. Carries the parent plant's variety ID so planted seeds grow into the correct variety with full fidelity. Kind reflects parent Kind when present (e.g., "tall grass seed", "flower seed", "gourd seed"). Auto-dropped when a gourd is consumed.
 
 ### Varieties
 

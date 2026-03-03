@@ -262,14 +262,15 @@ func GenerateVarieties() *VarietyRegistry {
 	for _, g := range registry.VarietiesOfType("gourd") {
 		seedID := entity.GenerateVarietyID("seed", "gourd seed", g.Color, g.Pattern, g.Texture)
 		registry.Register(&entity.ItemVariety{
-			ID:        seedID,
-			ItemType:  "seed",
-			Kind:      "gourd seed",
-			Color:     g.Color,
-			Pattern:   g.Pattern,
-			Texture:   g.Texture,
-			Plantable: true,
-			Sym:       config.CharSeed,
+			ID:              seedID,
+			ItemType:        "seed",
+			Kind:            "gourd seed",
+			Color:           g.Color,
+			Pattern:         g.Pattern,
+			Texture:         g.Texture,
+			Plantable:       true,
+			Sym:             config.CharSeed,
+			SourceVarietyID: g.ID,
 		})
 	}
 
@@ -277,29 +278,33 @@ func GenerateVarieties() *VarietyRegistry {
 	for _, f := range registry.VarietiesOfType("flower") {
 		seedID := entity.GenerateVarietyID("seed", "flower seed", f.Color, f.Pattern, f.Texture)
 		registry.Register(&entity.ItemVariety{
-			ID:        seedID,
-			ItemType:  "seed",
-			Kind:      "flower seed",
-			Color:     f.Color,
-			Pattern:   f.Pattern,
-			Texture:   f.Texture,
-			Plantable: true,
-			Sym:       config.CharSeed,
+			ID:              seedID,
+			ItemType:        "seed",
+			Kind:            "flower seed",
+			Color:           f.Color,
+			Pattern:         f.Pattern,
+			Texture:         f.Texture,
+			Plantable:       true,
+			Sym:             config.CharSeed,
+			SourceVarietyID: f.ID,
 		})
 	}
 
 	// Generate seed varieties for grass (one seed variety per grass variety)
+	// Kind uses parent's Kind ("tall grass seed") not generic "grass seed"
 	for _, g := range registry.VarietiesOfType("grass") {
-		seedID := entity.GenerateVarietyID("seed", "grass seed", g.Color, g.Pattern, g.Texture)
+		seedKind := g.Kind + " seed" // e.g., "tall grass seed"
+		seedID := entity.GenerateVarietyID("seed", seedKind, g.Color, g.Pattern, g.Texture)
 		registry.Register(&entity.ItemVariety{
-			ID:        seedID,
-			ItemType:  "seed",
-			Kind:      "grass seed",
-			Color:     g.Color,
-			Pattern:   g.Pattern,
-			Texture:   g.Texture,
-			Plantable: true,
-			Sym:       config.CharSeed,
+			ID:              seedID,
+			ItemType:        "seed",
+			Kind:            seedKind,
+			Color:           g.Color,
+			Pattern:         g.Pattern,
+			Texture:         g.Texture,
+			Plantable:       true,
+			Sym:             config.CharSeed,
+			SourceVarietyID: g.ID,
 		})
 	}
 

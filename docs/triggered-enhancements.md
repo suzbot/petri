@@ -28,6 +28,8 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Temporarily-blocked order cooldown** | Assign/abandon churn noticeable for temporarily-blocked (but feasible) orders; Character visibly thrashes between taking and abandoning the same order |
 | **Smarter displacement direction** | Displacement oscillation visible in crowded (16-char) worlds; Characters pick a displacement perpendicular that leads back toward the blocker instead of away |
 | **Interactive inventory details panel** | Items gain enough attributes that parenthetical summary in inventory list isn't sufficient; Want to inspect individual inventory items with full details view |
+| **Plant order generalizes to ItemType seeds** | Multiple Kinds exist per parent ItemType (e.g., tall grass + bamboo both have ItemType "grass"); Plant order menu should show "grass seed" and let characters choose Kind, rather than listing each Kind separately |
+| **SourceVarietyID on all plantable items** | Berry/mushroom planting uses GenerateVarietyID fallback to look up parent variety; a second place needs the same fallback; Simplify by setting SourceVarietyID at pickup time (when Plantable is set) so all plantables carry it uniformly |
 | **Drinkable bool on ItemVariety**      | Non-drinkable liquid introduced (lamp oil, dye); Need to distinguish consumable vs non-consumable liquids |
 | **Watertight bool on ContainerData**   | Non-watertight container introduced (basket, sack); Need to prevent liquid storage in permeable containers |
 | **Vessel-excluded vs bundleable split** | An item needs vessel exclusion without being bundleable, or vice versa; Currently `config.MaxBundleSize` membership serves both purposes |

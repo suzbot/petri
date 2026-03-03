@@ -1107,6 +1107,85 @@ func TestPlantableItemExists_FindsItemsInGroundVessel(t *testing.T) {
 	}
 }
 
+// TestPlantableItemExists_FlowerSeedsInGroundVessel verifies vessel-stored flower seeds
+// are found by PlantableItemExists (seeds have ItemType="seed", Kind="flower seed").
+func TestPlantableItemExists_FlowerSeedsInGroundVessel(t *testing.T) {
+	t.Parallel()
+
+	vessel := createTestVessel()
+	vessel.X = 5
+	vessel.Y = 5
+	vessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{
+			ItemType:  "seed",
+			Kind:      "flower seed",
+			Color:     types.ColorBlue,
+			Plantable: true,
+		}, Count: 3},
+	}
+
+	items := []*entity.Item{vessel}
+	if !PlantableItemExists(items, nil, "flower seed") {
+		t.Error("Expected PlantableItemExists to find flower seeds inside ground vessel")
+	}
+}
+
+// TestPlantableItemExists_GrassSeedsInCarriedVessel verifies vessel-stored tall grass seeds
+// in a character's inventory are found by PlantableItemExists.
+func TestPlantableItemExists_GrassSeedsInCarriedVessel(t *testing.T) {
+	t.Parallel()
+
+	char := &entity.Character{}
+	char.X = 5
+	char.Y = 5
+	vessel := createTestVessel()
+	vessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{
+			ItemType:  "seed",
+			Kind:      "tall grass seed",
+			Color:     types.ColorPaleGreen,
+			Plantable: true,
+		}, Count: 2},
+	}
+	char.AddToInventory(vessel)
+
+	if !PlantableItemExists(nil, []*entity.Character{char}, "tall grass seed") {
+		t.Error("Expected PlantableItemExists to find tall grass seeds in carried vessel")
+	}
+}
+
+// TestConsumePlantable_VesselSeed_PreservesSourceVarietyID verifies that seeds
+// reconstructed from vessel stacks carry their SourceVarietyID.
+func TestConsumePlantable_VesselSeed_PreservesSourceVarietyID(t *testing.T) {
+	t.Parallel()
+
+	char := &entity.Character{}
+	char.X = 5
+	char.Y = 5
+
+	// Create vessel with flower seed variety that has SourceVarietyID
+	vessel := createTestVessel()
+	vessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{
+			ItemType:        "seed",
+			Kind:            "flower seed",
+			Color:           types.ColorBlue,
+			Plantable:       true,
+			Sym:             '.',
+			SourceVarietyID: "flower-blue",
+		}, Count: 3},
+	}
+	char.AddToInventory(vessel)
+
+	item := ConsumePlantable(char, "flower seed", "")
+	if item == nil {
+		t.Fatal("Expected ConsumePlantable to return a seed")
+	}
+	if item.SourceVarietyID != "flower-blue" {
+		t.Errorf("ConsumePlantable SourceVarietyID: got %q, want %q", item.SourceVarietyID, "flower-blue")
+	}
+}
+
 // =============================================================================
 // AddLiquidToVessel Tests
 // =============================================================================

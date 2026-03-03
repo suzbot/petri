@@ -409,11 +409,11 @@ func TestGenerateVarieties_GrassSeedVarietyRegistered(t *testing.T) {
 
 	grasses := registry.VarietiesOfType("grass")
 
-	// Count grass seeds (Kind = "grass seed")
+	// Count grass seeds (Kind = "tall grass seed" — uses parent Kind)
 	seeds := registry.VarietiesOfType("seed")
 	var grassSeeds []*entity.ItemVariety
 	for _, s := range seeds {
-		if s.Kind == "grass seed" {
+		if s.Kind == "tall grass seed" {
 			grassSeeds = append(grassSeeds, s)
 		}
 	}
@@ -422,11 +422,11 @@ func TestGenerateVarieties_GrassSeedVarietyRegistered(t *testing.T) {
 		t.Errorf("Expected %d grass seed varieties (one per grass), got %d", len(grasses), len(grassSeeds))
 	}
 
-	// Verify the seed has correct attributes
+	// Verify the seed has correct attributes and SourceVarietyID
 	for _, g := range grasses {
-		seedVariety := registry.GetByAttributes("seed", "grass seed", g.Color, g.Pattern, g.Texture)
-		if seedVariety == nil || seedVariety.Kind != "grass seed" {
-			t.Errorf("Expected grass seed variety for grass color %q", g.Color)
+		seedVariety := registry.GetByAttributes("seed", "tall grass seed", g.Color, g.Pattern, g.Texture)
+		if seedVariety == nil || seedVariety.Kind != "tall grass seed" {
+			t.Errorf("Expected tall grass seed variety for grass color %q", g.Color)
 			continue
 		}
 		if !seedVariety.Plantable {
@@ -434,6 +434,9 @@ func TestGenerateVarieties_GrassSeedVarietyRegistered(t *testing.T) {
 		}
 		if seedVariety.Sym != config.CharSeed {
 			t.Errorf("Grass seed variety Sym: got %c, want %c", seedVariety.Sym, config.CharSeed)
+		}
+		if seedVariety.SourceVarietyID != g.ID {
+			t.Errorf("Grass seed SourceVarietyID: got %q, want %q", seedVariety.SourceVarietyID, g.ID)
 		}
 	}
 }

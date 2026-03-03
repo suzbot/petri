@@ -172,6 +172,8 @@ type ItemSave struct {
 
 	Plantable bool `json:"plantable,omitempty"`
 
+	SourceVarietyID string `json:"source_variety_id,omitempty"`
+
 	BundleCount int `json:"bundle_count,omitempty"`
 
 	DeathTimer float64 `json:"death_timer"`
@@ -230,4 +232,6 @@ type VarietySave struct {
 	Healing   bool   `json:"healing"`
 	Plantable bool   `json:"plantable,omitempty"`
 	Sym       string `json:"sym,omitempty"` // rune stored as string for JSON
+
+	SourceVarietyID string `json:"source_variety_id,omitempty"`
 }

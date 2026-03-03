@@ -1676,6 +1676,19 @@ func TestApplyIntent_Plant_ConsumesItemAndCreatesSprout(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(20, 20)
+
+	// Create variety registry with berry variety
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:        entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
+		ItemType:  "berry",
+		Color:     types.ColorRed,
+		Plantable: true,
+		Edible:    &entity.EdibleProperties{},
+		Sym:       config.CharBerry,
+	})
+	gameMap.SetVarieties(registry)
+
 	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
 	char.KnownActivities = []string{"plant"}
 	gameMap.AddCharacter(char)
@@ -1757,12 +1770,27 @@ func TestApplyIntent_Plant_GourdSeed_SproutHasGourdType(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(20, 20)
+
+	// Create variety registry with gourd parent variety
+	registry := game.NewVarietyRegistry()
+	gourdVariety := &entity.ItemVariety{
+		ID:       "gourd-green-spotted-warty",
+		ItemType: "gourd",
+		Color:    types.ColorGreen,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureWarty,
+		Edible:   &entity.EdibleProperties{},
+		Sym:      config.CharGourd,
+	}
+	registry.Register(gourdVariety)
+	gameMap.SetVarieties(registry)
+
 	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
 	char.KnownActivities = []string{"plant"}
 	gameMap.AddCharacter(char)
 
 	// Create a gourd seed and add to inventory
-	seed := entity.NewSeed(0, 0, "gourd", types.ColorGreen, types.PatternSpotted, types.TextureWarty)
+	seed := entity.NewSeed(0, 0, "gourd", "gourd-green-spotted-warty", "", types.ColorGreen, types.PatternSpotted, types.TextureWarty)
 	char.AddToInventory(seed)
 
 	// Tile must be tilled
@@ -1813,6 +1841,20 @@ func TestApplyIntent_Plant_SetsLockedVarietyOnOrder(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(20, 20)
+
+	// Create variety registry with berry variety
+	registry := game.NewVarietyRegistry()
+	berryVariety := &entity.ItemVariety{
+		ID:        entity.GenerateVarietyID("berry", "", types.ColorBlue, types.PatternNone, types.TextureNone),
+		ItemType:  "berry",
+		Color:     types.ColorBlue,
+		Plantable: true,
+		Edible:    &entity.EdibleProperties{Poisonous: true},
+		Sym:       config.CharBerry,
+	}
+	registry.Register(berryVariety)
+	gameMap.SetVarieties(registry)
+
 	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
 	char.KnownActivities = []string{"plant"}
 	gameMap.AddCharacter(char)
@@ -1861,6 +1903,21 @@ func TestApplyIntent_Plant_PreservesEdibleOnSprout(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(20, 20)
+
+	// Create variety registry with mushroom variety
+	registry := game.NewVarietyRegistry()
+	mushVariety := &entity.ItemVariety{
+		ID:       entity.GenerateVarietyID("mushroom", "", types.ColorPurple, types.PatternSpotted, types.TextureSlimy),
+		ItemType: "mushroom",
+		Color:    types.ColorPurple,
+		Pattern:  types.PatternSpotted,
+		Texture:  types.TextureSlimy,
+		Edible:   &entity.EdibleProperties{Poisonous: true},
+		Sym:      config.CharMushroom,
+	}
+	registry.Register(mushVariety)
+	gameMap.SetVarieties(registry)
+
 	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
 	char.KnownActivities = []string{"plant"}
 	gameMap.AddCharacter(char)
@@ -2021,6 +2078,19 @@ func TestApplyIntent_Plant_CompletesOrderWhenLastItemPlanted(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(20, 20)
+
+	// Create variety registry with berry variety
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:        entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
+		ItemType:  "berry",
+		Color:     types.ColorRed,
+		Plantable: true,
+		Edible:    &entity.EdibleProperties{},
+		Sym:       config.CharBerry,
+	})
+	gameMap.SetVarieties(registry)
+
 	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
 	char.KnownActivities = []string{"plant"}
 	gameMap.AddCharacter(char)
@@ -2076,6 +2146,19 @@ func TestApplyIntent_Plant_CompletesOrderWhenNoMoreTilledTiles(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(20, 20)
+
+	// Create variety registry with berry variety
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:        entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone),
+		ItemType:  "berry",
+		Color:     types.ColorRed,
+		Plantable: true,
+		Edible:    &entity.EdibleProperties{},
+		Sym:       config.CharBerry,
+	})
+	gameMap.SetVarieties(registry)
+
 	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
 	char.KnownActivities = []string{"plant"}
 	gameMap.AddCharacter(char)

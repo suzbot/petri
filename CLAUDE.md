@@ -113,7 +113,7 @@ internal/
 
 **Up Next:**
 
-- Construction Phase in progress: Steps 1–2a complete (bundles, tall grass, extract activity). Step 2b next. See [docs/construction-design.md](docs/construction-design.md) for design and [docs/step-spec.md](docs/step-spec.md) for current step.
+- Construction Phase in progress: Steps 1–2a complete (bundles, tall grass, extract activity). Step 2b in progress (2b-1 vessel fix, 2b-2 CreateSprout/PlantableItemExists complete; 2b-3 "gone to seed" indicator remaining). See [docs/construction-design.md](docs/construction-design.md) for design and [docs/step-spec.md](docs/step-spec.md) for current step.
 
 ## Reference and Planning Documents
 

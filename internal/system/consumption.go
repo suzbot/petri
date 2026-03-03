@@ -131,7 +131,8 @@ func Consume(char *entity.Character, item *entity.Item, gameMap *game.Map, log *
 
 	// Gourd consumption creates a seed at character's position
 	if item.ItemType == "gourd" {
-		seed := entity.NewSeed(char.X, char.Y, "gourd", item.Color, item.Pattern, item.Texture)
+		sourceVarietyID := entity.GenerateVarietyID(item.ItemType, item.Kind, item.Color, item.Pattern, item.Texture)
+		seed := entity.NewSeed(char.X, char.Y, "gourd", sourceVarietyID, "", item.Color, item.Pattern, item.Texture)
 		gameMap.AddItem(seed)
 	}
 }
@@ -260,7 +261,8 @@ func ConsumeFromInventory(char *entity.Character, item *entity.Item, gameMap *ga
 
 	// Gourd consumption creates a seed at character's position
 	if item.ItemType == "gourd" && gameMap != nil {
-		seed := entity.NewSeed(char.X, char.Y, "gourd", item.Color, item.Pattern, item.Texture)
+		sourceVarietyID := entity.GenerateVarietyID(item.ItemType, item.Kind, item.Color, item.Pattern, item.Texture)
+		seed := entity.NewSeed(char.X, char.Y, "gourd", sourceVarietyID, "", item.Color, item.Pattern, item.Texture)
 		gameMap.AddItem(seed)
 	}
 }
@@ -450,7 +452,8 @@ func ConsumeFromVessel(char *entity.Character, vessel *entity.Item, gameMap *gam
 
 	// Gourd consumption creates a seed at character's position
 	if variety.ItemType == "gourd" && gameMap != nil {
-		seed := entity.NewSeed(char.X, char.Y, "gourd", variety.Color, variety.Pattern, variety.Texture)
+		sourceVarietyID := entity.GenerateVarietyID(variety.ItemType, variety.Kind, variety.Color, variety.Pattern, variety.Texture)
+		seed := entity.NewSeed(char.X, char.Y, "gourd", sourceVarietyID, "", variety.Color, variety.Pattern, variety.Texture)
 		gameMap.AddItem(seed)
 	}
 

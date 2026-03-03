@@ -601,9 +601,7 @@ func itemExistsInWorld(itemType string, chars []*entity.Character, items []*enti
 // PlantableItemExists checks if any plantable item matching the target exists in the world
 // (on the ground, in character inventories, or inside carried vessels). Matches on ItemType
 // or Kind to support both direct plantables ("berry") and seed kinds ("gourd seed").
-// Vessel contents lose the Plantable flag, so we infer plantability from ItemTypeConfig.
 func PlantableItemExists(items []*entity.Item, chars []*entity.Character, targetType string) bool {
-	configs := game.GetItemTypeConfigs()
 	for _, item := range items {
 		if isPlantableMatch(item, targetType) {
 			return true
@@ -611,11 +609,8 @@ func PlantableItemExists(items []*entity.Item, chars []*entity.Character, target
 		// Check ground vessel contents
 		if item.Container != nil {
 			for _, stack := range item.Container.Contents {
-				if stack.Variety != nil && stack.Count > 0 &&
-					stack.Variety.ItemType == targetType {
-					if cfg, ok := configs[stack.Variety.ItemType]; ok && cfg.Plantable {
-						return true
-					}
+				if isPlantableVarietyMatch(stack.Variety, stack.Count, targetType) {
+					return true
 				}
 			}
 		}
@@ -628,21 +623,25 @@ func PlantableItemExists(items []*entity.Item, chars []*entity.Character, target
 			if isPlantableMatch(item, targetType) {
 				return true
 			}
-			// Check vessel contents — infer plantability from config since
-			// the Plantable flag is lost when items enter vessels
+			// Check vessel contents
 			if item.Container != nil {
 				for _, stack := range item.Container.Contents {
-					if stack.Variety != nil && stack.Count > 0 &&
-						stack.Variety.ItemType == targetType {
-						if cfg, ok := configs[stack.Variety.ItemType]; ok && cfg.Plantable {
-							return true
-						}
+					if isPlantableVarietyMatch(stack.Variety, stack.Count, targetType) {
+						return true
 					}
 				}
 			}
 		}
 	}
 	return false
+}
+
+// isPlantableVarietyMatch checks if a vessel stack variety matches the target type.
+// Mirrors isPlantableMatch but for varieties: checks Plantable flag and matches on
+// either ItemType or Kind.
+func isPlantableVarietyMatch(variety *entity.ItemVariety, count int, targetType string) bool {
+	return variety != nil && count > 0 && variety.Plantable &&
+		(variety.ItemType == targetType || variety.Kind == targetType)
 }
 
 func isPlantableMatch(item *entity.Item, targetType string) bool {
@@ -1086,7 +1085,8 @@ func findExtractIntent(char *entity.Character, pos types.Position, items []*enti
 	}
 
 	// Vessel procurement: create synthetic seed for compatibility checking
-	syntheticSeed := entity.NewSeed(0, 0, target.ItemType, target.Color, target.Pattern, target.Texture)
+	sourceVarietyID := entity.GenerateVarietyID(target.ItemType, target.Kind, target.Color, target.Pattern, target.Texture)
+	syntheticSeed := entity.NewSeed(0, 0, target.ItemType, sourceVarietyID, target.Kind, target.Color, target.Pattern, target.Texture)
 	if intent := EnsureHasVesselFor(char, syntheticSeed, items, gameMap, log, true, "extract"); intent != nil {
 		return intent
 	}

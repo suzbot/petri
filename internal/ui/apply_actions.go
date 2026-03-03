@@ -635,8 +635,24 @@ func (m *Model) applyPlant(char *entity.Character, delta float64) {
 			return
 		}
 
-		// Create sprout from the planted item
-		sprout := entity.CreateSprout(dest.X, dest.Y, plantedItem, plantedItem.Edible)
+		// Look up parent variety for sprout creation
+		registry := m.gameMap.Varieties()
+		var parentVariety *entity.ItemVariety
+		if plantedItem.SourceVarietyID != "" {
+			parentVariety = registry.Get(plantedItem.SourceVarietyID)
+		}
+		if parentVariety == nil {
+			// Berries/mushrooms planted directly — look up their own variety
+			parentVariety = registry.GetByAttributes(plantedItem.ItemType, plantedItem.Kind, plantedItem.Color, plantedItem.Pattern, plantedItem.Texture)
+		}
+		if parentVariety == nil {
+			char.CurrentActivity = "Idle"
+			char.Intent = nil
+			return
+		}
+
+		// Create sprout from the parent variety
+		sprout := entity.CreateSprout(dest.X, dest.Y, parentVariety)
 		m.gameMap.AddItem(sprout)
 
 		// Lock the variety on the order (subsequent plants use same variety)
@@ -1417,7 +1433,8 @@ func (m *Model) applyExtract(char *entity.Character, delta float64) {
 	char.ActionProgress = 0
 
 	// Create seed from the plant's attributes
-	seed := entity.NewSeed(char.X, char.Y, plant.ItemType, plant.Color, plant.Pattern, plant.Texture)
+	sourceVarietyID := entity.GenerateVarietyID(plant.ItemType, plant.Kind, plant.Color, plant.Pattern, plant.Texture)
+	seed := entity.NewSeed(char.X, char.Y, plant.ItemType, sourceVarietyID, plant.Kind, plant.Color, plant.Pattern, plant.Texture)
 
 	// Route seed: vessel first, then inventory
 	registry := m.gameMap.Varieties()

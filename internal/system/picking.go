@@ -406,13 +406,14 @@ func ConsumePlantable(char *entity.Character, targetType string, lockedVariety s
 					}
 					// Reconstruct item from variety
 					item := &entity.Item{
-						ItemType:  stack.Variety.ItemType,
-						Kind:      stack.Variety.Kind,
-						Color:     stack.Variety.Color,
-						Pattern:   stack.Variety.Pattern,
-						Texture:   stack.Variety.Texture,
-						Edible:    stack.Variety.Edible,
-						Plantable: stack.Variety.Plantable,
+						ItemType:        stack.Variety.ItemType,
+						Kind:            stack.Variety.Kind,
+						Color:           stack.Variety.Color,
+						Pattern:         stack.Variety.Pattern,
+						Texture:         stack.Variety.Texture,
+						Edible:          stack.Variety.Edible,
+						Plantable:       stack.Variety.Plantable,
+						SourceVarietyID: stack.Variety.SourceVarietyID,
 					}
 					item.EType = entity.TypeItem
 					item.Sym = stack.Variety.Sym

@@ -3,6 +3,7 @@ package system
 import (
 	"testing"
 
+	"petri/internal/config"
 	"petri/internal/entity"
 	"petri/internal/game"
 	"petri/internal/types"
@@ -1699,7 +1700,7 @@ func TestIsOrderFeasible_PlantFeasible_WhenPlantableSeedExistsByKind(t *testing.
 	char.KnownActivities = []string{"plant"}
 	gameMap.AddCharacter(char)
 
-	seed := entity.NewSeed(7, 5, "gourd", types.ColorGreen, types.PatternNone, types.TextureNone)
+	seed := entity.NewSeed(7, 5, "gourd", "gourd-green", "", types.ColorGreen, types.PatternNone, types.TextureNone)
 	gameMap.AddItem(seed)
 
 	// Target is the Kind "gourd seed", not the ItemType "seed"
@@ -1755,7 +1756,7 @@ func TestIsOrderFeasible_PlantFeasible_WhenPlantableBerryInVessel(t *testing.T) 
 		Container: &entity.ContainerData{
 			Capacity: 1,
 			Contents: []entity.Stack{
-				{Variety: &entity.ItemVariety{ItemType: "berry", Color: types.ColorRed}, Count: 3},
+				{Variety: &entity.ItemVariety{ItemType: "berry", Color: types.ColorRed, Plantable: true}, Count: 3},
 			},
 		},
 	}
@@ -1809,7 +1810,7 @@ func TestIsOrderFeasible_PlantUnfeasible_WhenWrongSeedKind(t *testing.T) {
 	gameMap.AddCharacter(char)
 
 	// Gourd seed exists but order targets flower seeds
-	seed := entity.NewSeed(7, 5, "gourd", types.ColorGreen, types.PatternNone, types.TextureNone)
+	seed := entity.NewSeed(7, 5, "gourd", "gourd-green", "", types.ColorGreen, types.PatternNone, types.TextureNone)
 	gameMap.AddItem(seed)
 
 	order := entity.NewOrder(1, "plant", "flower seed")
@@ -1871,7 +1872,7 @@ func TestFindPlantIntent_ReturnsProcurementIntent_WhenNoPlantableCarried(t *test
 	gameMap.SetTilled(types.Position{X: 3, Y: 3})
 
 	// Plantable seed on the ground (not carried)
-	seed := entity.NewSeed(7, 5, "gourd", types.ColorGreen, types.PatternNone, types.TextureNone)
+	seed := entity.NewSeed(7, 5, "gourd", "gourd-green", "", types.ColorGreen, types.PatternNone, types.TextureNone)
 	gameMap.AddItem(seed)
 
 	order := entity.NewOrder(1, "plant", "gourd seed")
@@ -2051,7 +2052,14 @@ func TestFindPlantIntent_SkipsTilledTilesWithItems(t *testing.T) {
 	gameMap.SetTilled(emptyPos)
 
 	// Place a sprout on the occupied tile
-	sprout := entity.CreateSprout(occupiedPos.X, occupiedPos.Y, berry, berry.Edible)
+	berryVariety := &entity.ItemVariety{
+		ID:       "berry-red",
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   &entity.EdibleProperties{},
+		Sym:      config.CharBerry,
+	}
+	sprout := entity.CreateSprout(occupiedPos.X, occupiedPos.Y, berryVariety)
 	gameMap.AddItem(sprout)
 
 	order := entity.NewOrder(1, "plant", "berry")
@@ -2086,7 +2094,7 @@ func TestFindPlantIntent_DropsUnneededItem_WhenInventoryFull(t *testing.T) {
 	gameMap.SetTilled(types.Position{X: 3, Y: 3})
 
 	// Plantable seed on the ground
-	seed := entity.NewSeed(7, 5, "gourd", types.ColorGreen, types.PatternNone, types.TextureNone)
+	seed := entity.NewSeed(7, 5, "gourd", "gourd-green", "", types.ColorGreen, types.PatternNone, types.TextureNone)
 	gameMap.AddItem(seed)
 
 	order := entity.NewOrder(1, "plant", "gourd seed")

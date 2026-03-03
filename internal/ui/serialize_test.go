@@ -784,9 +784,14 @@ func TestSproutSerialization_RoundTrip(t *testing.T) {
 	m := createTestModel()
 
 	// Create a sprout on the map
-	berry := entity.NewBerry(0, 0, types.ColorRed, true, false)
-	berry.Plantable = true
-	sprout := entity.CreateSprout(15, 15, berry, berry.Edible)
+	berryVariety := &entity.ItemVariety{
+		ID:       "berry-red",
+		ItemType: "berry",
+		Color:    types.ColorRed,
+		Edible:   &entity.EdibleProperties{Poisonous: true},
+		Sym:      config.CharBerry,
+	}
+	sprout := entity.CreateSprout(15, 15, berryVariety)
 	m.gameMap.AddItem(sprout)
 
 	// Save
@@ -1067,5 +1072,68 @@ func TestGrassMigration_OldSaveWithoutKind(t *testing.T) {
 	}
 	if restoredGrass.Kind != "tall grass" {
 		t.Errorf("Expected Kind migrated to 'tall grass', got %q", restoredGrass.Kind)
+	}
+}
+
+func TestSeedSerialization_SourceVarietyID_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	m := createTestModel()
+
+	// Add a seed with SourceVarietyID on the ground
+	seed := entity.NewSeed(25, 25, "grass", "tall grass-pale green", "tall grass", types.ColorPaleGreen, types.PatternNone, types.TextureNone)
+	m.gameMap.AddItem(seed)
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	restoredSeed := restored.gameMap.ItemAt(types.Position{X: 25, Y: 25})
+	if restoredSeed == nil {
+		t.Fatal("Expected seed at (25,25)")
+	}
+	if restoredSeed.SourceVarietyID != "tall grass-pale green" {
+		t.Errorf("SourceVarietyID: got %q, want %q", restoredSeed.SourceVarietyID, "tall grass-pale green")
+	}
+	if restoredSeed.Kind != "tall grass seed" {
+		t.Errorf("Kind: got %q, want %q", restoredSeed.Kind, "tall grass seed")
+	}
+	if !restoredSeed.Plantable {
+		t.Error("Seed should be plantable after round-trip")
+	}
+}
+
+func TestSeedVarietySerialization_SourceVarietyID_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	m := createTestModel()
+
+	// Round trip — variety registry should preserve SourceVarietyID on seed varieties
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Find a grass seed variety in the restored registry
+	registry := restored.gameMap.Varieties()
+	seeds := registry.VarietiesOfType("seed")
+	var grassSeed *entity.ItemVariety
+	for _, s := range seeds {
+		if s.Kind == "tall grass seed" {
+			grassSeed = s
+			break
+		}
+	}
+
+	if grassSeed == nil {
+		t.Fatal("Expected tall grass seed variety in restored registry")
+	}
+	if grassSeed.SourceVarietyID == "" {
+		t.Error("Seed variety SourceVarietyID should be preserved after round-trip")
+	}
+	// Verify it points to a grass variety
+	grassVariety := registry.Get(grassSeed.SourceVarietyID)
+	if grassVariety == nil {
+		t.Errorf("SourceVarietyID %q should resolve to a grass variety", grassSeed.SourceVarietyID)
+	} else if grassVariety.ItemType != "grass" {
+		t.Errorf("SourceVarietyID should point to grass variety, got ItemType %q", grassVariety.ItemType)
 	}
 }

@@ -63,16 +63,17 @@ func varietiesToSave(registry *game.VarietyRegistry) []save.VarietySave {
 	result := make([]save.VarietySave, len(varieties))
 	for i, v := range varieties {
 		result[i] = save.VarietySave{
-			ItemType:  v.ItemType,
-			Kind:      v.Kind,
-			Color:     string(v.Color),
-			Pattern:   string(v.Pattern),
-			Texture:   string(v.Texture),
-			Edible:    v.IsEdible(),
-			Poisonous: v.IsPoisonous(),
-			Healing:   v.IsHealing(),
-			Plantable: v.Plantable,
-			Sym:       string(v.Sym),
+			ItemType:        v.ItemType,
+			Kind:            v.Kind,
+			Color:           string(v.Color),
+			Pattern:         string(v.Pattern),
+			Texture:         string(v.Texture),
+			Edible:          v.IsEdible(),
+			Poisonous:       v.IsPoisonous(),
+			Healing:         v.IsHealing(),
+			Plantable:       v.Plantable,
+			Sym:             string(v.Sym),
+			SourceVarietyID: v.SourceVarietyID,
 		}
 	}
 	return result
@@ -103,22 +104,23 @@ func charactersToSave(characters []*entity.Character) []save.CharacterSave {
 					}
 				}
 				inventory[idx] = save.ItemSave{
-					ID:          item.ID,
-					Position:    item.Pos(),
-					Name:        item.Name,
-					ItemType:    item.ItemType,
-					Kind:        item.Kind,
-					Color:       string(item.Color),
-					Pattern:     string(item.Pattern),
-					Texture:     string(item.Texture),
-					Plant:       plantSave,
-					Container:   containerToSave(item.Container),
-					Edible:      item.IsEdible(),
-					Poisonous:   item.IsPoisonous(),
-					Healing:     item.IsHealing(),
-					Plantable:   item.Plantable,
-					BundleCount: item.BundleCount,
-					DeathTimer:  item.DeathTimer,
+					ID:              item.ID,
+					Position:        item.Pos(),
+					Name:            item.Name,
+					ItemType:        item.ItemType,
+					Kind:            item.Kind,
+					Color:           string(item.Color),
+					Pattern:         string(item.Pattern),
+					Texture:         string(item.Texture),
+					Plant:           plantSave,
+					Container:       containerToSave(item.Container),
+					Edible:          item.IsEdible(),
+					Poisonous:       item.IsPoisonous(),
+					Healing:         item.IsHealing(),
+					Plantable:       item.Plantable,
+					SourceVarietyID: item.SourceVarietyID,
+					BundleCount:     item.BundleCount,
+					DeathTimer:      item.DeathTimer,
 				}
 			}
 		}
@@ -240,22 +242,23 @@ func itemsToSave(items []*entity.Item) []save.ItemSave {
 			}
 		}
 		result[i] = save.ItemSave{
-			ID:          item.ID,
-			Position:    item.Pos(),
-			Name:        item.Name,
-			ItemType:    item.ItemType,
-			Kind:        item.Kind,
-			Color:       string(item.Color),
-			Pattern:     string(item.Pattern),
-			Texture:     string(item.Texture),
-			Plant:       plantSave,
-			Container:   containerToSave(item.Container),
-			Edible:      item.IsEdible(),
-			Poisonous:   item.IsPoisonous(),
-			Healing:     item.IsHealing(),
-			Plantable:   item.Plantable,
-			BundleCount: item.BundleCount,
-			DeathTimer:  item.DeathTimer,
+			ID:              item.ID,
+			Position:        item.Pos(),
+			Name:            item.Name,
+			ItemType:        item.ItemType,
+			Kind:            item.Kind,
+			Color:           string(item.Color),
+			Pattern:         string(item.Pattern),
+			Texture:         string(item.Texture),
+			Plant:           plantSave,
+			Container:       containerToSave(item.Container),
+			Edible:          item.IsEdible(),
+			Poisonous:       item.IsPoisonous(),
+			Healing:         item.IsHealing(),
+			Plantable:       item.Plantable,
+			SourceVarietyID: item.SourceVarietyID,
+			BundleCount:     item.BundleCount,
+			DeathTimer:      item.DeathTimer,
 		}
 	}
 	return result
@@ -467,15 +470,16 @@ func varietiesFromSave(varieties []save.VarietySave) *game.VarietyRegistry {
 			sym = []rune(vs.Sym)[0]
 		}
 		v := &entity.ItemVariety{
-			ID:        entity.GenerateVarietyID(vs.ItemType, vs.Kind, types.Color(vs.Color), types.Pattern(vs.Pattern), types.Texture(vs.Texture)),
-			ItemType:  vs.ItemType,
-			Kind:      vs.Kind,
-			Color:     types.Color(vs.Color),
-			Pattern:   types.Pattern(vs.Pattern),
-			Texture:   types.Texture(vs.Texture),
-			Edible:    edible,
-			Plantable: vs.Plantable,
-			Sym:       sym,
+			ID:              entity.GenerateVarietyID(vs.ItemType, vs.Kind, types.Color(vs.Color), types.Pattern(vs.Pattern), types.Texture(vs.Texture)),
+			ItemType:        vs.ItemType,
+			Kind:            vs.Kind,
+			Color:           types.Color(vs.Color),
+			Pattern:         types.Pattern(vs.Pattern),
+			Texture:         types.Texture(vs.Texture),
+			Edible:          edible,
+			Plantable:       vs.Plantable,
+			Sym:             sym,
+			SourceVarietyID: vs.SourceVarietyID,
 		}
 		registry.Register(v)
 	}
@@ -631,19 +635,20 @@ func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item
 	}
 
 	item := &entity.Item{
-		ID:          is.ID,
-		Name:        is.Name,
-		ItemType:    is.ItemType,
-		Kind:        is.Kind,
-		Color:       types.Color(is.Color),
-		Pattern:     types.Pattern(is.Pattern),
-		Texture:     types.Texture(is.Texture),
-		Plant:       plant,
-		Container:   containerFromSave(is.Container, registry),
-		Edible:      edible,
-		Plantable:   is.Plantable,
-		BundleCount: is.BundleCount,
-		DeathTimer:  is.DeathTimer,
+		ID:              is.ID,
+		Name:            is.Name,
+		ItemType:        is.ItemType,
+		Kind:            is.Kind,
+		Color:           types.Color(is.Color),
+		Pattern:         types.Pattern(is.Pattern),
+		Texture:         types.Texture(is.Texture),
+		Plant:           plant,
+		Container:       containerFromSave(is.Container, registry),
+		Edible:          edible,
+		Plantable:       is.Plantable,
+		SourceVarietyID: is.SourceVarietyID,
+		BundleCount:     is.BundleCount,
+		DeathTimer:      is.DeathTimer,
 	}
 	item.X = is.Position.X
 	item.Y = is.Position.Y

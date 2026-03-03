@@ -25,6 +25,9 @@ type ItemVariety struct {
 	// Plantable - true for varieties that can be planted (berries, mushrooms, seeds)
 	Plantable bool
 
+	// SourceVarietyID — for seed varieties, the variety registry ID of the parent plant.
+	SourceVarietyID string
+
 	// Display
 	Sym rune // symbol for rendering
 }

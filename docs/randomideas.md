@@ -21,9 +21,14 @@ then they can be removed from this list.
 
 ## Tech Stuff
 
+## Display / Naming
+
+1. **Tall grass variety display name** — When a tall grass seed sprout matures, the resulting plant's display name may need review. Discuss whether "pale green tall grass" is the right phrasing vs. just "tall grass" (since all tall grass is pale green — the color is redundant).
+
 ## Bugs to Investigate
 
 1. **Fill vessel abandoned mid-trip** — Observed character picking up a vessel for water, heading toward the pond, then abandoning the fill-vessel intent partway there (wandered off to talk instead). Needs investigation into why ActionFillVessel intent was dropped before reaching water. (Observed during extract testing, world-test-extract)
+2. **Order acceptance drops carried vessel unnecessarily** — Character dropped their hollow gourd when accepting a new extract order, even though they had a free inventory slot and could have picked up a second vessel. This would be a problem if they were carrying provisions. (Observed during 2b-1 extraction testing, world-test-extraction)
 
 ## Unallocated Features
 
