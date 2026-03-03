@@ -35,7 +35,7 @@ Before fixing anything:
 ### Step 4: Classify and Route
 
 **Gap** (missing behavior, not a bug):
-- Small gaps: discuss scope before writing code (see Values.md: "Pause Before Solving"), then fix in place
+- Small gaps: confirm the gap is worth solving now and discuss scope before writing code, then fix in place
 - Design-level gaps: invoke `/refine-feature`
 
 **Bug** (code doesn't match intended behavior):
@@ -52,9 +52,9 @@ Before fixing anything:
 
 ### Step 6: Escalation Check
 
-**Second bug in the same feature?** Stop patching.
+**Second bug in the same feature?** Stop patching. Multiple bugs in the same workflow signal a design problem, not an implementation problem.
 - Restate the intended end-to-end flow
-- Evaluate whether the design is sound (Values.md: "Step Back on Cascading Bugs")
+- Evaluate whether the design is sound before fixing further
 - Surface the pattern to the user before continuing
 
 ### Step 7: Re-test

@@ -4,7 +4,7 @@ Guidance for Claude Code when working with code in this repo.
 
 Petri is a Dwarf Fortress-inspired simulation exploring emergent culture development.
 
-**Current features:** Procedural world generation, multi-stat survival with urgency-based AI, preferences and knowledge, social behavior, inventory with vessels and bundles, crafting, player-directed orders (gardening, gathering, construction), crisis helping, and action logging.
+**Current features:** Procedural world generation, urgency-based survival AI, social behavior with preferences and knowledge, crafting and inventory, player-directed orders.
 
 **Vision:** Complex roguelike simulation world with complex interactions between characters, items, and attributes. History exists only in character memories and created artifacts. As characters die, their knowledge dies with them except what they've communicated or created. See [docs/VISION.txt](docs/VISION.txt).
 
@@ -98,9 +98,9 @@ internal/
 **Pause -> Skill -> Discussion → Tests -> Implementation → Human Testing → Documentation**
 
 - **Before writing code**: Load the relevant skill, check architecture.md, discuss approach. Use project skills (`/refine-feature`, `/implement-feature`, `/new-phase`, `/retro`) — not generic plan mode. Phase design docs and step specs live in `docs/`.
-- **Frame the problem first**: Specify current state and desired state in functional terms before proposing changes. Consider impact on the larger system. Confirm alignment before implementing.
-- **Communication**: Functional terms, not code mechanics. Prose for tradeoffs, not multiple-choice. Recommend with options. Qualify claims precisely.
-- **When things go wrong**: Always examine the save file or gather other direct evidence before hypothesizing about a human-reported issue. Second bug = step back and restate the flow. Surface when stuck.
+- **Frame the problem first**: Before solving, confirm the problem — is this actually a problem? Is it worth solving now? Specify current state and desired state in functional terms. Consider impact on the larger system. Confirm alignment before implementing. When human testing surfaces a new gap mid-implementation, that's a new problem to scope and discuss, not a defect to fix in place.
+- **Communication**: Functional terms, not code mechanics. Prose for tradeoffs, not multiple-choice. Recommend with options. Qualify claims precisely. When claiming alignment with patterns or docs, cite specific evidence — assertions aren't demonstrations.
+- **When things go wrong**: Gather evidence first — examine the save file, add logging, ask what the user observes — before reasoning about causes. The cost of one diagnostic is always lower than three rounds of speculation. Second bug in the same feature = step back and restate the intended flow before patching further. Surface when stuck.
 - **Quality gates**: TDD. User must test before marking complete. Keep docs current.
 
 ## Testing

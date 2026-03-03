@@ -1,6 +1,6 @@
 Name: Values
 
-Description: Design principles observed and refined through retrospectives. Ordered from most broadly applicable to most context-specific.
+Description: Design principles observed and refined through retrospectives. Collaboration norms live in CLAUDE.md.
 
 ## Anchor to Intent, Not Structure
 
@@ -13,39 +13,6 @@ Every phase of work — planning, refinement, implementation, testing, fixing �
 **Fixing:** A bug fix that changes what the player experiences is a feature change, not a fix. A plan whose causal model is wrong produces correct code that addresses the wrong cause. Describe any proposed change in terms of what the player experiences — a fix that sounds neutral technically ("sort map keys") may be a behavior change in gameplay terms ("every character discovers activities in the same fixed order").
 
 Examples: Fetch Water tests validated ActionPickup returns while the actual requirement — continuous vessel-fill activity — was broken. A flaky discovery test was fixed by retrying in the test (preserving production randomness), not by sorting iteration order (removing emergent variety). Pathing plan said displacement fixes thrashing; one human test showed the real cause was BFS convergence, requiring a different approach.
-
-## Pause Before Solving
-
-Before working on a solution, confirm the problem. Is this actually a problem? What specifically is it? Is it worth solving now? Only after those questions have answers — from discussion, not assumed — should solution work begin.
-
-The failure mode is momentum: something looks wrong, so fixing begins immediately. A test fails, so debugging starts before asking whether the test is correct. Investigation is expected to produce action items, so it produces one even when the honest answer is "nothing needs to change." This applies equally mid-implementation — when human testing surfaces a new gap, that's a new problem to scope and discuss, not a code defect to fix in place. The cost of pausing is low; the cost of solving the wrong problem compounds across every phase that inherits the unexamined premise.
-
-**Frame the problem:** Specify both current state and desired state in functional terms, and confirm alignment before changing behavior. Consider the impact of changes on the larger system. (Need spam fix went four rounds because each patch addressed one symptom without a complete picture of desired behavior across all relevant states.)
-
-When the situation diverges from expectations, make that divergence visible and get agreement before acting on it.
-
-## Make Reasoning Evaluable
-
-Present thinking in terms others can evaluate — functional language, cited evidence, and clear recommendations.
-
-**Use functional language:** Describe proposals in terms of player experience, gameplay impact, structural alignment, or scalability — not implementation mechanics. "Sort map keys for deterministic iteration" can't be evaluated for design alignment; "every character discovers activities in the same fixed order instead of varied order" can. This applies to refinement, implementation proposals, options, and retro findings alike.
-
-**When presenting options:** Include pros, cons, relevant reasoning, and a recommendation. State which option you'd pick and why, so the decision can be approved, overridden, or discussed — not just handed back as an open question.
-
-**Adopt terminology deliberately:** When the user uses a term descriptively, don't promote it to a system name without confirming. "Bucket" as a category label is different from "bucket routing" as the feature name.
-
-**When claiming alignment:** Demonstrate specific evidence from docs or code. "This follows the ordered action pattern" is an assertion; tracing the path through CalculateIntent → selectIdleActivity → AssignedOrderID is a demonstration.
-If the difference between options is purely code-organizational with no functional impact, make the call and note it in passing.
-
-## Evidence Before Reasoning
-
-When something fails, gather evidence first — run a diagnostic, add logging, ask what the user observes — before attempting to reason about causes. Reasoning without evidence leads to circular re-derivation. The cost of one diagnostic run is always lower than three rounds of speculation.
-
-**Corollary — step back on cascading bugs:** Multiple bugs in the same workflow signal a design problem, not an implementation problem. After a second bug in the same feature, stop patching and restate the intended end-to-end flow before fixing further. (Fetch Water went four rounds before stepping back revealed the two-roll design was wrong.)
-
-**Corollary — layer solutions:** When a problem might have multiple causes, test the simplest fix first and observe what remains. Each layer should have an observed reason to exist. (Greedy-first pathfinding was tested alone; displacement was re-added only after observing what it didn't solve.)
-
-Examples: WaterGarden tests failed — three rounds of reasoning about positioning produced wrong fixes. One `t.Logf` pass revealed the actual cause (`IsWet` adjacency). Gather orders — "characters aren't picking up vessels" prompted a hypothesis about stale intent, but asking "what are you seeing?" revealed they were skipping vessel procurement entirely.
 
 ## Isomorphism
 
