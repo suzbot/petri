@@ -119,12 +119,13 @@ func TestEnsureHasVesselFor_NoVessel_NoneAvailable(t *testing.T) {
 	}
 }
 
-func TestEnsureHasVesselFor_IncompatibleVessel_DropAndFind(t *testing.T) {
+func TestEnsureHasVesselFor_IncompatibleVessel_KeepsAndFindsNew(t *testing.T) {
 	registry := createTestRegistry()
 	gameMap := game.NewMap(10, 10)
 	gameMap.SetVarieties(registry)
 
 	// Character has a vessel with blue berries (incompatible with red target)
+	// but has a free inventory slot — should keep the vessel
 	vessel := createTestVessel()
 	blueBerry := entity.NewBerry(0, 0, types.ColorBlue, false, false)
 	AddToVessel(vessel, blueBerry, registry)
@@ -148,21 +149,9 @@ func TestEnsureHasVesselFor_IncompatibleVessel_DropAndFind(t *testing.T) {
 
 	intent := EnsureHasVesselFor(char, target, items, gameMap, nil, true, "order")
 
-	// Should have dropped the incompatible vessel
-	if len(char.Inventory) != 0 {
-		t.Error("Should have dropped incompatible vessel")
-	}
-
-	// Vessel should be on map at character's position
-	found := false
-	for _, item := range gameMap.Items() {
-		if item == vessel && item.X == 0 && item.Y == 0 {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("Dropped vessel should be on map at character position")
+	// Should NOT have dropped — free slot available
+	if len(char.Inventory) != 1 || char.Inventory[0] != vessel {
+		t.Error("Should keep incompatible vessel when inventory has space")
 	}
 
 	// Intent should be to pick up compatible vessel
@@ -215,12 +204,13 @@ func TestEnsureHasVesselFor_IncompatibleVessel_NoDropWhenDisabled(t *testing.T) 
 	}
 }
 
-func TestEnsureHasVesselFor_FullVessel_DropAndFind(t *testing.T) {
+func TestEnsureHasVesselFor_FullVessel_KeepsAndFindsNew(t *testing.T) {
 	registry := createTestRegistry()
 	gameMap := game.NewMap(10, 10)
 	gameMap.SetVarieties(registry)
 
 	// Character has a full vessel (gourd stack size is 1)
+	// but has a free inventory slot — should keep the full vessel
 	vessel := createTestVessel()
 	gourd := entity.NewGourd(0, 0, types.ColorGreen, types.PatternStriped, types.TextureWarty, false, false)
 	AddToVessel(vessel, gourd, registry)
@@ -244,9 +234,9 @@ func TestEnsureHasVesselFor_FullVessel_DropAndFind(t *testing.T) {
 
 	intent := EnsureHasVesselFor(char, target, items, gameMap, nil, true, "order")
 
-	// Should have dropped the full vessel
-	if len(char.Inventory) != 0 {
-		t.Error("Should have dropped full vessel")
+	// Should NOT have dropped — free slot available
+	if len(char.Inventory) != 1 || char.Inventory[0] != vessel {
+		t.Error("Should keep full vessel when inventory has space")
 	}
 
 	// Intent should be to pick up empty vessel
@@ -360,6 +350,205 @@ func TestEnsureHasVesselFor_AlreadyAtVessel(t *testing.T) {
 	}
 	if intent.Target.X != 3 || intent.Target.Y != 3 {
 		t.Error("Target should be current position when already at vessel")
+	}
+}
+
+// Regression: incompatible vessel with free inventory slot should NOT be dropped.
+// Character keeps their provisions and picks up a second vessel.
+func TestEnsureHasVesselFor_IncompatibleVessel_KeepsWhenSpaceAvailable(t *testing.T) {
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	// Character has a vessel with blue berries (incompatible with red target) + free slot
+	vessel := createTestVessel()
+	blueBerry := entity.NewBerry(0, 0, types.ColorBlue, false, false)
+	AddToVessel(vessel, blueBerry, registry)
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{vessel}, // 1 of 2 slots used
+	}
+	char.X = 0
+	char.Y = 0
+
+	// Target is red berry - incompatible with vessel contents
+	target := entity.NewBerry(5, 5, types.ColorRed, false, false)
+
+	// Compatible vessel on map
+	compatibleVessel := createTestVessel()
+	compatibleVessel.X = 3
+	compatibleVessel.Y = 3
+	items := []*entity.Item{target, compatibleVessel}
+
+	intent := EnsureHasVesselFor(char, target, items, gameMap, nil, true, "order")
+
+	// Should NOT have dropped the incompatible vessel — there's a free slot
+	if len(char.Inventory) != 1 {
+		t.Errorf("Should keep incompatible vessel when inventory has space, got %d items", len(char.Inventory))
+	}
+	if char.Inventory[0] != vessel {
+		t.Error("Original vessel should still be in inventory")
+	}
+
+	// Intent should be to pick up the compatible vessel
+	if intent == nil {
+		t.Fatal("Should return intent to pick up compatible vessel")
+	}
+	if intent.TargetItem != compatibleVessel {
+		t.Error("Intent should target the compatible vessel")
+	}
+}
+
+// When inventory is full and vessel is incompatible, dropping is still necessary.
+func TestEnsureHasVesselFor_IncompatibleVessel_DropsWhenFull(t *testing.T) {
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	// Character has incompatible vessel + a berry — inventory is full
+	vessel := createTestVessel()
+	blueBerry := entity.NewBerry(0, 0, types.ColorBlue, false, false)
+	AddToVessel(vessel, blueBerry, registry)
+	looseBerry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{vessel, looseBerry}, // 2 of 2 slots — full
+	}
+	char.X = 0
+	char.Y = 0
+
+	// Target is red berry - incompatible with vessel contents
+	target := entity.NewBerry(5, 5, types.ColorRed, false, false)
+
+	// Compatible vessel on map
+	compatibleVessel := createTestVessel()
+	compatibleVessel.X = 3
+	compatibleVessel.Y = 3
+	items := []*entity.Item{target, compatibleVessel}
+
+	intent := EnsureHasVesselFor(char, target, items, gameMap, nil, true, "order")
+
+	// Should have dropped the incompatible vessel to make room
+	if len(char.Inventory) != 1 {
+		t.Errorf("Should have 1 item after dropping incompatible vessel, got %d", len(char.Inventory))
+	}
+
+	// Intent should be to pick up the compatible vessel
+	if intent == nil {
+		t.Fatal("Should return intent to pick up compatible vessel")
+	}
+	if intent.TargetItem != compatibleVessel {
+		t.Error("Intent should target the compatible vessel")
+	}
+}
+
+// Regression: character carrying [incompatible vessel, compatible vessel] should
+// find the compatible one and return nil — not drop the incompatible one.
+// This is the second-pass scenario: character picked up an empty vessel, then
+// EnsureHasVesselFor is called again with full inventory.
+func TestEnsureHasVesselFor_SecondVesselCompatible_NoDropNeeded(t *testing.T) {
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	// Slot 1: water vessel (incompatible with berries)
+	waterVessel := createTestVessel()
+	waterVarieties := registry.VarietiesOfType("liquid")
+	if len(waterVarieties) > 0 {
+		AddLiquidToVessel(waterVessel, waterVarieties[0], 4)
+	}
+
+	// Slot 2: empty vessel (compatible with anything)
+	emptyVessel := createTestVessel()
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{waterVessel, emptyVessel}, // 2 of 2 — full
+	}
+	char.X = 0
+	char.Y = 0
+
+	// Target is a red berry
+	target := entity.NewBerry(5, 5, types.ColorRed, false, false)
+
+	intent := EnsureHasVesselFor(char, target, nil, gameMap, nil, true, "order")
+
+	// Should return nil — empty vessel in slot 2 is compatible
+	if intent != nil {
+		t.Error("Should return nil when second vessel is compatible")
+	}
+
+	// Both vessels should still be in inventory
+	if len(char.Inventory) != 2 {
+		t.Errorf("Should keep both vessels, got %d items", len(char.Inventory))
+	}
+	if char.Inventory[0] != waterVessel {
+		t.Error("Water vessel should still be in slot 1")
+	}
+	if char.Inventory[1] != emptyVessel {
+		t.Error("Empty vessel should still be in slot 2")
+	}
+}
+
+// =============================================================================
+// FindCarriedVesselFor Tests
+// =============================================================================
+
+func TestFindCarriedVesselFor_SkipsIncompatible_FindsCompatible(t *testing.T) {
+	registry := createTestRegistry()
+
+	// Slot 1: vessel with blue berries (incompatible with red berries)
+	blueVessel := createTestVessel()
+	blueBerry := entity.NewBerry(0, 0, types.ColorBlue, false, false)
+	AddToVessel(blueVessel, blueBerry, registry)
+
+	// Slot 2: empty vessel (compatible with anything)
+	emptyVessel := createTestVessel()
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{blueVessel, emptyVessel},
+	}
+
+	redBerry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+
+	found := FindCarriedVesselFor(char, redBerry, registry)
+	if found != emptyVessel {
+		t.Errorf("Should find empty vessel in slot 2, got %v", found)
+	}
+}
+
+func TestFindCarriedVesselFor_NoCompatibleVessel(t *testing.T) {
+	registry := createTestRegistry()
+
+	// Slot 1: vessel with blue berries (incompatible with red berries)
+	blueVessel := createTestVessel()
+	blueBerry := entity.NewBerry(0, 0, types.ColorBlue, false, false)
+	AddToVessel(blueVessel, blueBerry, registry)
+
+	// Slot 2: full vessel (red berries at capacity — stack size is 20)
+	fullVessel := createTestVessel()
+	for i := 0; i < 20; i++ {
+		AddToVessel(fullVessel, entity.NewBerry(0, 0, types.ColorRed, false, false), registry)
+	}
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{blueVessel, fullVessel},
+	}
+
+	redBerry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+
+	found := FindCarriedVesselFor(char, redBerry, registry)
+	if found != nil {
+		t.Error("Should return nil when no vessel can accept the item")
 	}
 }
 

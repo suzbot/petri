@@ -231,81 +231,82 @@ func FindForageFoodIntent(char *entity.Character, pos types.Position, items []*e
 // FindNextVesselTarget finds the next item to pick up when filling a vessel.
 // When growingOnly is true, only considers growing (not dropped) items — used by harvest.
 // When growingOnly is false, considers any ground item matching the variety — used by gather.
-// Returns nil if vessel is empty, full, or no matching items exist.
+// Checks ALL carried vessels (not just the first) to find one with matching, non-full contents.
+// Returns nil if no vessel has fillable contents or no matching items exist.
 func FindNextVesselTarget(char *entity.Character, cx, cy int, items []*entity.Item, registry *game.VarietyRegistry, gameMap *game.Map, growingOnly bool) *entity.Intent {
-	vessel := char.GetCarriedVessel()
-	if vessel == nil {
-		return nil
-	}
-	if len(vessel.Container.Contents) == 0 {
-		return nil // Empty vessel - shouldn't happen mid-forage
-	}
-	if IsVesselFull(vessel, registry) {
-		return nil
-	}
-
-	targetVariety := vessel.Container.Contents[0].Variety
-	if targetVariety == nil {
-		return nil
-	}
-
-	// Find nearest item matching the variety
 	pos := types.Position{X: cx, Y: cy}
-	var nearest *entity.Item
-	nearestDist := int(^uint(0) >> 1) // Max int
 
-	for _, item := range items {
-		if growingOnly {
-			// Must be growing (not dropped) and not a sprout
-			if item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout {
-				continue
-			}
-		} else {
-			// Any ground item (not in a container, not a sprout)
-			if item.Plant != nil && item.Plant.IsSprout {
-				continue
-			}
+	// Check ALL carried vessels — the active one may not be the first
+	for _, vessel := range char.Inventory {
+		if vessel == nil || vessel.Container == nil {
+			continue
 		}
-		// Must match variety
-		if item.ItemType != targetVariety.ItemType ||
-			item.Color != targetVariety.Color ||
-			item.Pattern != targetVariety.Pattern ||
-			item.Texture != targetVariety.Texture {
+		if len(vessel.Container.Contents) == 0 {
+			continue // Empty vessel
+		}
+		if IsVesselFull(vessel, registry) {
+			continue // Full vessel
+		}
+
+		targetVariety := vessel.Container.Contents[0].Variety
+		if targetVariety == nil {
 			continue
 		}
 
-		ipos := item.Pos()
-		dist := pos.DistanceTo(ipos)
-		if dist < nearestDist {
-			nearestDist = dist
-			nearest = item
+		// Find nearest item matching this vessel's variety
+		var nearest *entity.Item
+		nearestDist := int(^uint(0) >> 1) // Max int
+
+		for _, item := range items {
+			if growingOnly {
+				if item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout {
+					continue
+				}
+			} else {
+				if item.Plant != nil && item.Plant.IsSprout {
+					continue
+				}
+			}
+			if item.ItemType != targetVariety.ItemType ||
+				item.Color != targetVariety.Color ||
+				item.Pattern != targetVariety.Pattern ||
+				item.Texture != targetVariety.Texture {
+				continue
+			}
+
+			ipos := item.Pos()
+			dist := pos.DistanceTo(ipos)
+			if dist < nearestDist {
+				nearestDist = dist
+				nearest = item
+			}
 		}
-	}
 
-	if nearest == nil {
-		return nil
-	}
+		if nearest == nil {
+			continue // No matching items for this vessel — try next vessel
+		}
 
-	npos := nearest.Pos()
-	tx, ty := npos.X, npos.Y
-	if cx == tx && cy == ty {
-		// Already at target
-		char.CurrentActivity = "Foraging " + nearest.Description()
+		npos := nearest.Pos()
+		tx, ty := npos.X, npos.Y
+		if cx == tx && cy == ty {
+			char.CurrentActivity = "Foraging " + nearest.Description()
+			return &entity.Intent{
+				Target:     types.Position{X: cx, Y: cy},
+				Dest:       types.Position{X: cx, Y: cy},
+				Action:     entity.ActionPickup,
+				TargetItem: nearest,
+			}
+		}
+
+		nx, ny := NextStepBFS(cx, cy, tx, ty, gameMap)
+		char.CurrentActivity = "Moving to forage " + nearest.Description()
 		return &entity.Intent{
-			Target:     types.Position{X: cx, Y: cy},
-			Dest:       types.Position{X: cx, Y: cy}, // Already at destination
+			Target:     types.Position{X: nx, Y: ny},
+			Dest:       types.Position{X: tx, Y: ty},
 			Action:     entity.ActionPickup,
 			TargetItem: nearest,
 		}
 	}
 
-	// Move toward target
-	nx, ny := NextStepBFS(cx, cy, tx, ty, gameMap)
-	char.CurrentActivity = "Moving to forage " + nearest.Description()
-	return &entity.Intent{
-		Target:     types.Position{X: nx, Y: ny},
-		Dest:       types.Position{X: tx, Y: ty}, // Destination is the item's position
-		Action:     entity.ActionPickup,
-		TargetItem: nearest,
-	}
+	return nil
 }

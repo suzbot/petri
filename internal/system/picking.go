@@ -20,22 +20,29 @@ import (
 func EnsureHasVesselFor(char *entity.Character, target *entity.Item, items []*entity.Item, gameMap *game.Map, log *ActionLog, dropConflict bool, category string) *entity.Intent {
 	registry := gameMap.Varieties()
 
-	// Check if already carrying a compatible vessel
-	carriedVessel := char.GetCarriedVessel()
-	if carriedVessel != nil {
-		if CanVesselAccept(carriedVessel, target, registry) {
-			// Already have compatible vessel
-			return nil
+	// Check ALL carried vessels for compatibility (not just the first)
+	var firstIncompatible *entity.Item
+	for _, item := range char.Inventory {
+		if item == nil || item.Container == nil {
+			continue
 		}
+		if CanVesselAccept(item, target, registry) {
+			return nil // Have a compatible vessel — ready
+		}
+		if firstIncompatible == nil {
+			firstIncompatible = item
+		}
+	}
 
-		// Have incompatible/full vessel
+	// No compatible vessel found. Need to acquire one.
+	if firstIncompatible != nil {
 		if !dropConflict {
-			// Can't drop - can't get vessel
 			return nil
 		}
-
-		// Drop the incompatible vessel
-		DropItem(char, carriedVessel, gameMap, log)
+		// Only drop if inventory is full — prefer keeping provisions
+		if !char.HasInventorySpace() {
+			DropItem(char, firstIncompatible, gameMap, log)
+		}
 	}
 
 	// Need to find a vessel - check if we have inventory space
@@ -545,6 +552,22 @@ func FindVesselContaining(cx, cy int, items []*entity.Item, targetType string, l
 // Vessel Helpers
 // =============================================================================
 
+// FindCarriedVesselFor returns the first vessel in the character's inventory
+// that can accept the given item, or nil if no compatible vessel exists.
+// Use this instead of GetCarriedVessel() when checking vessel compatibility —
+// GetCarriedVessel() only returns the first vessel, which may not be compatible.
+func FindCarriedVesselFor(char *entity.Character, item *entity.Item, registry *game.VarietyRegistry) *entity.Item {
+	for _, vessel := range char.Inventory {
+		if vessel == nil || vessel.Container == nil {
+			continue
+		}
+		if CanVesselAccept(vessel, item, registry) {
+			return vessel
+		}
+	}
+	return nil
+}
+
 // AddToVessel attempts to add an item to a vessel's contents.
 // Returns true if the item was added, false if:
 // - vessel has no container, or registry is nil, or variety not found
@@ -759,10 +782,11 @@ func CanPickUpMore(char *entity.Character, registry *game.VarietyRegistry) bool 
 	if char.HasInventorySpace() {
 		return true
 	}
-	// Inventory is full — check if any vessel has space
-	vessel := char.GetCarriedVessel()
-	if vessel != nil && !IsVesselFull(vessel, registry) {
-		return true
+	// Inventory is full — check if ANY vessel has space
+	for _, inv := range char.Inventory {
+		if inv != nil && inv.Container != nil && !IsVesselFull(inv, registry) {
+			return true
+		}
 	}
 	// Check if any bundle has room
 	for _, item := range char.Inventory {

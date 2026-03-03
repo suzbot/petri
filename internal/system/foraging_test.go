@@ -445,6 +445,38 @@ func TestFindNextVesselTarget_VesselFull(t *testing.T) {
 	}
 }
 
+func TestFindNextVesselTarget_SkipsIncompatibleVessel_FindsBerryVessel(t *testing.T) {
+	registry := createTestRegistry()
+
+	// Slot 1: vessel with blue berries (no matching blue berries on ground)
+	blueVessel := createTestVessel()
+	AddToVessel(blueVessel, entity.NewBerry(0, 0, types.ColorBlue, false, false), registry)
+
+	// Slot 2: vessel with 1 red berry (space for more, matching items on ground)
+	redVessel := createTestVessel()
+	AddToVessel(redVessel, entity.NewBerry(0, 0, types.ColorRed, false, false), registry)
+
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{blueVessel, redVessel},
+	}
+
+	// Growing red berry on map (no blue berries on map)
+	growingBerry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	growingBerry.Plant = &entity.PlantProperties{IsGrowing: true}
+	items := []*entity.Item{growingBerry}
+
+	intent := FindNextVesselTarget(char, 0, 0, items, registry, nil, true)
+
+	if intent == nil {
+		t.Fatal("Should find next target — red vessel in slot 2 has space and matching items exist")
+	}
+	if intent.TargetItem != growingBerry {
+		t.Error("Should target the growing red berry")
+	}
+}
+
 // =============================================================================
 // Pickup with Vessel Tests
 // =============================================================================

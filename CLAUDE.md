@@ -73,7 +73,7 @@ internal/
 - `internal/system/helping.go` - Crisis detection, findHelpFeedIntent/findHelpWaterIntent (food/water delivery to crisis characters)
 - `internal/system/order_execution.go` - Order assignment, intent finding, completion/abandonment
 - `internal/system/crafting.go` - CreateVessel, crafted item creation
-- `internal/system/picking.go` - Pickup, Drop, vessel helpers, EnsureHasVesselFor, EnsureHasItem
+- `internal/system/picking.go` - Pickup, Drop, vessel helpers, EnsureHasVesselFor, FindCarriedVesselFor, EnsureHasItem
 - `internal/system/foraging.go` - Foraging intent, unified scoring
 
 **World & Generation**

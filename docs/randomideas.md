@@ -28,8 +28,7 @@ then they can be removed from this list.
 ## Bugs to Investigate
 
 1. **Fill vessel abandoned mid-trip** — Observed character picking up a vessel for water, heading toward the pond, then abandoning the fill-vessel intent partway there (wandered off to talk instead). Needs investigation into why ActionFillVessel intent was dropped before reaching water. (Observed during extract testing, world-test-extract)
-2. **Order acceptance drops carried vessel unnecessarily** — Character dropped their hollow gourd when accepting a new extract order, even though they had a free inventory slot and could have picked up a second vessel. This would be a problem if they were carrying provisions. (Observed during 2b-1 extraction testing, world-test-extraction)
-3. **"Moving to look at item" stuck when standing on it** — Character gets stuck in "moving to look at item" state when already on the item's tile. Likely a pathfinding/adjacency check that doesn't handle distance-zero. (Observed during 2b-3 testing)
+2. **"Moving to look at item" stuck when standing on it** — Character gets stuck in "moving to look at item" state when already on the item's tile. Likely a pathfinding/adjacency check that doesn't handle distance-zero. (Observed during 2b-3 testing)
 
 ## Unallocated Features
 

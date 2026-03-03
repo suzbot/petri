@@ -501,7 +501,7 @@ Vessels are containers crafted from gourds that hold stacks of items. Different 
 
 **Look-for-container:** When starting to forage or harvest without a vessel, characters first look for an available vessel on the ground (empty or compatible with space). If none found, they pick up items directly.
 
-**Drop-when-blocked:** If a vessel can't accept the target item — for orders, the character drops the vessel (order takes priority); for idle foraging, the character skips the incompatible item (don't lose vessel contents for casual activity).
+**Drop-when-blocked:** If no carried vessel can accept the target item — for orders, the character drops a vessel only when inventory is full (need space for a compatible vessel); for idle foraging, the character skips the incompatible item (don't lose vessel contents for casual activity). All vessel compatibility checks iterate every carried vessel, not just the first.
 
 ## Gardening
 

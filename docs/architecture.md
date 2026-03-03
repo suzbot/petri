@@ -411,7 +411,8 @@ Pool is serialized in `SaveState.MarkedForTillingPositions`.
 
 1. **Map Search** — `findNearestItemByType`, `FindAvailableVessel` (vessels that can receive items), `FindVesselContaining` (vessels whose contents match a target)
 2. **Prerequisite Orchestration** — `EnsureHasVesselFor`, `EnsureHasRecipeInputs`, `EnsureHasItem` (check-or-go-get helpers)
-3. **Physical Actions** — `Pickup`, `Drop`, vessel operations
+3. **Inventory Query** — `FindCarriedVesselFor(char, item, registry)` finds the first carried vessel that can accept a specific item. Use this instead of `GetCarriedVessel()` when vessel compatibility matters — `GetCarriedVessel()` only returns the first vessel, which may be incompatible (e.g., holds water when you need to store berries).
+4. **Physical Actions** — `Pickup`, `Drop`, vessel operations
 
 ### Pickup Result Pattern
 

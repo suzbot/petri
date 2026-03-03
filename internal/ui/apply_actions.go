@@ -296,13 +296,11 @@ func (m *Model) applyPickup(char *entity.Character, delta float64) {
 			char.ActionProgress = 0
 			if item := char.Intent.TargetItem; item != nil && item.Pos() == (types.Position{X: cx, Y: cy}) && m.gameMap.HasItemOnMap(item) {
 				// If on an order and inventory full, drop current item first
-				// BUT don't drop if carrying a vessel with space (can add to it)
+				// BUT don't drop if ANY carried vessel can accept the item
 				// (If carrying a recipe input, we'd have ActionCraft intent instead)
 				if char.AssignedOrderID != 0 && char.IsInventoryFull() {
-					// Check if carrying vessel with space - don't drop, will add to it
-					carriedVessel := char.GetCarriedVessel()
-					canAddToVessel := carriedVessel != nil &&
-						!system.IsVesselFull(carriedVessel, m.gameMap.Varieties())
+					// Check ALL vessels for compatibility — not just the first
+					canAddToVessel := system.FindCarriedVesselFor(char, item, m.gameMap.Varieties()) != nil
 					// Check if target can merge into existing bundle - don't drop
 					canMergeBundle := system.CanMergeIntoBundle(char, item)
 					if !canAddToVessel && !canMergeBundle {
@@ -1438,10 +1436,10 @@ func (m *Model) applyExtract(char *entity.Character, delta float64) {
 
 	// Route seed: vessel first, then inventory
 	registry := m.gameMap.Varieties()
-	vessel := char.GetCarriedVessel()
 	routed := false
 
-	if vessel != nil && system.CanVesselAccept(vessel, seed, registry) {
+	// Try ALL carried vessels for seed routing — not just the first
+	if vessel := system.FindCarriedVesselFor(char, seed, registry); vessel != nil {
 		if system.AddToVessel(vessel, seed, registry) {
 			routed = true
 		}

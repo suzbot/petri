@@ -432,7 +432,7 @@ func TestFindHarvestIntent_LooksForVesselFirst(t *testing.T) {
 	}
 }
 
-func TestFindHarvestIntent_DropsIncompatibleVessel(t *testing.T) {
+func TestFindHarvestIntent_KeepsIncompatibleVessel_WhenSpaceAvailable(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(10, 10)
@@ -458,7 +458,8 @@ func TestFindHarvestIntent_DropsIncompatibleVessel(t *testing.T) {
 	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
 	gameMap.AddCharacter(char)
 
-	// Character is carrying vessel with mushrooms
+	// Character is carrying vessel with mushrooms (incompatible with berries)
+	// but has a free inventory slot — should keep the vessel
 	vessel := &entity.Item{
 		ItemType: "vessel",
 		Name:     "Test Vessel",
@@ -479,22 +480,20 @@ func TestFindHarvestIntent_DropsIncompatibleVessel(t *testing.T) {
 	order := entity.NewOrder(1, "harvest", "berry")
 	items := gameMap.Items()
 
-	// This should drop the vessel
 	intent := findHarvestIntent(char, types.Position{X: 5, Y: 5}, items, order, nil, gameMap)
 
 	if intent == nil {
 		t.Fatal("Expected intent, got nil")
 	}
 
-	// Vessel should have been dropped
-	if char.GetCarriedVessel() != nil {
-		t.Error("Vessel should have been dropped due to variety mismatch")
+	// Vessel should still be in inventory — free slot available
+	if char.GetCarriedVessel() != vessel {
+		t.Error("Vessel should be kept when inventory has space")
 	}
 
-	// Vessel should be on the map at character's position
-	droppedVessel := gameMap.ItemAt(types.Position{X: 5, Y: 5})
-	if droppedVessel == nil || droppedVessel.Container == nil {
-		t.Error("Dropped vessel should be on map at character position")
+	// Intent should be to move toward the berry (no vessel on map to procure)
+	if intent.TargetItem != berry {
+		t.Error("Intent should target the berry for harvest")
 	}
 }
 
