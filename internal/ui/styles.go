@@ -59,6 +59,8 @@ var (
 	tilledStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("138")).Bold(true) // dusky earth (dry tilled soil)
 	wetTilledStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("94")).Bold(true)  // dark brown (wet tilled soil)
 	wetSproutStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("29")).Bold(true)  // dark teal (sprouts on wet ground)
+	clayStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("138")).Bold(true) // dusky earth (clay terrain + clay items)
+	earthyStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("138")).Bold(true) // dusky earth (item color for clay)
 
 	// UI highlight (background)
 	highlightStyle        = lipgloss.NewStyle().Background(lipgloss.Color("23")).Foreground(lipgloss.Color("255")) // dark cyan bg, white text

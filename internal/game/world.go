@@ -130,6 +130,126 @@ func SpawnPonds(m *Map) {
 	}
 }
 
+// SpawnClay generates clay tiles adjacent to water, with loose clay items on some tiles.
+// Must be called after SpawnPonds so water tiles exist.
+// Uses pair-placement: picks random water-adjacent candidates and pairs each with a cardinal
+// neighbor also in the candidate pool. Pairs are scattered independently — clay is a deposit,
+// not a contiguous body like a pond.
+func SpawnClay(m *Map) {
+	waterPositions := m.WaterPositions()
+	if len(waterPositions) == 0 {
+		return // No water — no clay
+	}
+
+	targetSize := config.ClayMinCount + rand.Intn(config.ClayMaxCount-config.ClayMinCount+1)
+	cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+
+	// Build candidate pool: all non-water tiles cardinal-adjacent to water
+	candidateSet := make(map[types.Position]bool)
+	for _, wp := range waterPositions {
+		for _, dir := range cardinalDirs {
+			adj := types.Position{X: wp.X + dir[0], Y: wp.Y + dir[1]}
+			if m.IsValid(adj) && !m.IsWater(adj) {
+				candidateSet[adj] = true
+			}
+		}
+	}
+
+	// Convert to shuffled slice for random iteration
+	candidates := make([]types.Position, 0, len(candidateSet))
+	for pos := range candidateSet {
+		candidates = append(candidates, pos)
+	}
+	rand.Shuffle(len(candidates), func(i, j int) {
+		candidates[i], candidates[j] = candidates[j], candidates[i]
+	})
+
+	// Phase 1: Place pairs until we reach target size
+	placed := make(map[types.Position]bool)
+	var placedList []types.Position
+
+	for _, pos := range candidates {
+		if len(placedList) >= targetSize {
+			break
+		}
+		if placed[pos] {
+			continue
+		}
+
+		// Find a cardinal neighbor that's also in the candidate pool and not yet placed
+		var partner types.Position
+		foundPartner := false
+		// Shuffle directions for variety
+		dirs := make([][2]int, len(cardinalDirs))
+		copy(dirs, cardinalDirs)
+		rand.Shuffle(len(dirs), func(i, j int) { dirs[i], dirs[j] = dirs[j], dirs[i] })
+		for _, dir := range dirs {
+			neighbor := types.Position{X: pos.X + dir[0], Y: pos.Y + dir[1]}
+			if candidateSet[neighbor] && !placed[neighbor] {
+				partner = neighbor
+				foundPartner = true
+				break
+			}
+		}
+		if !foundPartner {
+			continue // Skip candidates with no available partner
+		}
+
+		// Place both
+		placed[pos] = true
+		placed[partner] = true
+		placedList = append(placedList, pos, partner)
+	}
+
+	// Phase 2: Fill in — add remaining candidates that touch both water and placed clay.
+	// Repeats until target reached or no more candidates can be added (each added tile
+	// may enable further candidates in the next pass).
+	for len(placedList) < targetSize {
+		added := false
+		rand.Shuffle(len(candidates), func(i, j int) {
+			candidates[i], candidates[j] = candidates[j], candidates[i]
+		})
+		for _, pos := range candidates {
+			if len(placedList) >= targetSize {
+				break
+			}
+			if placed[pos] {
+				continue
+			}
+			for _, dir := range cardinalDirs {
+				neighbor := types.Position{X: pos.X + dir[0], Y: pos.Y + dir[1]}
+				if placed[neighbor] {
+					placed[pos] = true
+					placedList = append(placedList, pos)
+					added = true
+					break
+				}
+			}
+		}
+		if !added {
+			break
+		}
+	}
+
+	// Set clay terrain
+	for _, pos := range placedList {
+		m.SetClay(pos)
+	}
+
+	// Spawn loose clay items on randomly selected clay tiles
+	if len(placedList) > 0 {
+		looseCount := config.ClayLooseItems + rand.Intn(2) // ClayLooseItems to ClayLooseItems+1
+		shuffled := make([]types.Position, len(placedList))
+		copy(shuffled, placedList)
+		rand.Shuffle(len(shuffled), func(i, j int) {
+			shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+		})
+		for i := 0; i < looseCount && i < len(shuffled); i++ {
+			m.AddItem(entity.NewClay(shuffled[i].X, shuffled[i].Y))
+		}
+	}
+}
+
 // spawnPondBlob grows a single contiguous pond of the given size from a random starting tile.
 func spawnPondBlob(m *Map, size int) {
 	// Pick a random starting position that's not already water

@@ -698,3 +698,34 @@ func TestItem_Description_KindWithMultipleAttributes(t *testing.T) {
 		t.Errorf("Description() with Kind + attrs: got %q, want %q", got, "warty spotted green hollow gourd")
 	}
 }
+
+func TestNewClay_Properties(t *testing.T) {
+	clay := NewClay(3, 4)
+	if clay.ItemType != "clay" {
+		t.Errorf("ItemType: got %q, want %q", clay.ItemType, "clay")
+	}
+	if clay.Sym != config.CharClay {
+		t.Errorf("Sym: got %c, want %c", clay.Sym, config.CharClay)
+	}
+	if clay.Kind != "" {
+		t.Errorf("Kind: got %q, want empty", clay.Kind)
+	}
+	if clay.Color != types.ColorEarthy {
+		t.Errorf("Color: got %q, want %q", clay.Color, types.ColorEarthy)
+	}
+	if clay.Plant != nil {
+		t.Error("Plant should be nil")
+	}
+	if clay.Container != nil {
+		t.Error("Container should be nil")
+	}
+	if clay.Edible != nil {
+		t.Error("Edible should be nil")
+	}
+	if clay.BundleCount != 0 {
+		t.Errorf("BundleCount: got %d, want 0", clay.BundleCount)
+	}
+	if clay.X != 3 || clay.Y != 4 {
+		t.Errorf("Position: got (%d,%d), want (3,4)", clay.X, clay.Y)
+	}
+}

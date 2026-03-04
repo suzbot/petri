@@ -113,7 +113,7 @@ internal/
 
 **Up Next:**
 
-- Construction Phase in progress: Steps 1–2 complete (bundles, tall grass, extract activity, seed planting, "gone to seed" indicator). Step 3 (clay terrain) is next. See [docs/construction-design.md](docs/construction-design.md) for design and [docs/step-spec.md](docs/step-spec.md) for current step.
+- Construction Phase: In progress. See [docs/construction-design.md](docs/construction-design.md) for design and [docs/step-spec.md](docs/step-spec.md) for current step.
 
 ## Reference and Planning Documents
 

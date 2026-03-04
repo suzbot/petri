@@ -128,12 +128,25 @@ Crafted items (like vessels) differ from natural items:
 6. `game/world.go` — Add case to `createItemFromVariety()` to call the constructor. Without this, the type falls through to the default (currently `NewFlower`).
 7. `ui/serialize.go` — Add case to the symbol restoration switch in `itemFromSave()`. Symbols are not serialized — they're restored from ItemType on load.
 
-### Future Extensions
+### Adding New Item Types (Non-Plant)
 
-When adding new item types (tools, materials):
-- Add new functional flags as needed (Craftable, Wearable, Drinkable)
-- Descriptive attributes remain the basis for preference formation
-- Use `Name` field for crafted item display names
+When adding new item types (tools, materials, resources):
+
+1. `entity/item.go` — Add `NewX()` constructor. Set `Color` (required for rendering via `styledSymbol`). Set `Name` if the auto-generated `Description()` isn't right (e.g., "lump of clay" vs "earthy clay").
+2. `config/config.go` — Add character constant (`CharX`). If edible, add to `ItemMealSize`.
+3. `types/types.go` — Add new `Color` constant if needed (e.g., `ColorEarthy`).
+4. `ui/styles.go` — Add rendering style for the new color if it doesn't have one.
+5. `ui/view.go` — Add case in `styledSymbol()` for the new color. If the item has associated terrain, add terrain rendering in `renderCell()` and terrain annotation in details panel (both empty-tile and entity-on-tile paths).
+6. `ui/serialize.go` — Add case to the symbol restoration switch in `itemFromSave()`.
+7. Add new functional flags as needed (Craftable, Wearable, Drinkable). Descriptive attributes remain the basis for preference formation.
+
+### Adding New Terrain Types
+
+1. `game/map.go` — Add field (e.g., `clay map[types.Position]bool`), initialize in `NewMap`, add Set/Is/Has/Positions query methods.
+2. `game/world.go` — Add spawn function, wire into world gen in `ui/update.go` (both `startGameRandom` and `startGameFromCreation`).
+3. `ui/styles.go` — Add terrain style.
+4. `ui/view.go` — Add terrain rendering in `renderCell()` (check rendering order: water → clay → tilled). Add terrain fill behind entities. Add terrain annotation in details panel (both empty-tile "Type:" section and entity-on-terrain annotation).
+5. `save/state.go` — Add positions field to `SaveState`. Add serialization in `ui/serialize.go` (both `ToSaveState` and `FromSaveState`).
 
 ## Item Lifecycle
 

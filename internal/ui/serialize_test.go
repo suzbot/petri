@@ -1137,3 +1137,55 @@ func TestSeedVarietySerialization_SourceVarietyID_RoundTrip(t *testing.T) {
 		t.Errorf("SourceVarietyID should point to grass variety, got ItemType %q", grassVariety.ItemType)
 	}
 }
+
+func TestFromSaveState_RestoresClayTiles(t *testing.T) {
+	m := createTestModel()
+
+	// Add clay tiles
+	m.gameMap.SetClay(types.Position{X: 5, Y: 5})
+	m.gameMap.SetClay(types.Position{X: 6, Y: 5})
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Verify clay tiles restored
+	if !restored.gameMap.IsClay(types.Position{X: 5, Y: 5}) {
+		t.Error("Expected clay tile at (5,5)")
+	}
+	if !restored.gameMap.IsClay(types.Position{X: 6, Y: 5}) {
+		t.Error("Expected clay tile at (6,5)")
+	}
+	// Verify non-clay tile is not clay
+	if restored.gameMap.IsClay(types.Position{X: 7, Y: 5}) {
+		t.Error("Position (7,5) should not be clay")
+	}
+}
+
+func TestFromSaveState_RestoresClayItemSymbol(t *testing.T) {
+	m := createTestModel()
+
+	// Add a clay item
+	clay := entity.NewClay(3, 3)
+	clay.ID = m.gameMap.NextItemID()
+	m.gameMap.AddItem(clay)
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Find the clay item
+	var found *entity.Item
+	for _, item := range restored.gameMap.Items() {
+		if item.ItemType == "clay" {
+			found = item
+			break
+		}
+	}
+	if found == nil {
+		t.Fatal("Clay item not found after round-trip")
+	}
+	if found.Sym != config.CharClay {
+		t.Errorf("Clay symbol not restored: got %c, want %c", found.Sym, config.CharClay)
+	}
+}

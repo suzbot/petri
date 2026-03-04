@@ -981,3 +981,49 @@ func TestWateredPositions_ReturnsAll(t *testing.T) {
 		t.Error("returned positions should include both watered tiles")
 	}
 }
+
+// --- Clay terrain tests ---
+
+func TestIsClay_ClayTile(t *testing.T) {
+	m := NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+	m.SetClay(pos)
+	if !m.IsClay(pos) {
+		t.Error("IsClay() should return true after SetClay")
+	}
+}
+
+func TestIsClay_NonClayTile(t *testing.T) {
+	m := NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+	if m.IsClay(pos) {
+		t.Error("IsClay() should return false for non-clay position")
+	}
+}
+
+func TestFindNearestClay_FindsClosest(t *testing.T) {
+	m := NewMap(20, 20)
+	// Place two clay tiles, one closer than the other
+	near := types.Position{X: 5, Y: 5}
+	far := types.Position{X: 15, Y: 15}
+	m.SetClay(near)
+	m.SetClay(far)
+
+	from := types.Position{X: 4, Y: 5}
+	result, found := m.FindNearestClay(from)
+	if !found {
+		t.Fatal("FindNearestClay should find a clay tile")
+	}
+	if result != near {
+		t.Errorf("FindNearestClay should return nearest tile %v, got %v", near, result)
+	}
+}
+
+func TestFindNearestClay_NoClay(t *testing.T) {
+	m := NewMap(20, 20)
+	from := types.Position{X: 5, Y: 5}
+	_, found := m.FindNearestClay(from)
+	if found {
+		t.Error("FindNearestClay should return false when no clay tiles exist")
+	}
+}

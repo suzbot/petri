@@ -16,6 +16,9 @@ const (
 	PondMaxCount     = 5
 	PondMinSize      = 4
 	PondMaxSize      = 16
+	ClayMinCount     = 6
+	ClayMaxCount     = 10
+	ClayLooseItems   = 2 // loose clay items spawned on clay tiles at world gen (min; max is +1)
 	UpdateInterval   = 150 * time.Millisecond
 
 	// Symbols
@@ -38,6 +41,8 @@ const (
 	CharBundle     = 'X'
 	CharSprout     = '𖧧'
 	CharSleeping   = 'z'
+	CharClay       = '☗'
+	CharClayTile   = '░'
 
 	// Speed system
 	BaseSpeed              = 50 // baseline speed (0-100 scale)

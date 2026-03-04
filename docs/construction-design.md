@@ -53,22 +53,25 @@ Characters gather materials and construct small buildings from grass, sticks, or
 
 ---
 
-### Step 3: Clay Terrain + Gather Clay
-**Status:** Planned
+### Step 3: Clay Terrain + Dig Clay
+**Status:** 3a Complete, 3b Planned
 
-**Anchor story:** The player notices reddish-brown patches near the pond — clay deposits. They create a Gather > Clay order. A character walks to the clay, scoops some up, and carries a lump of clay. Clay deposits never run out.
+**Anchor story:** The player notices dusky earth patches with a halftone texture near the pond — clay deposits, with a few loose lumps of clay on the surface. A character looks at one and realizes they could dig for more. The player creates a Dig Clay order. The character drops what they're carrying, walks to the clay, scoops some up, and carries a lump of clay. They dig a second lump, then set both down on the ground. Clay deposits never run out.
 
 **Scope:**
 - Clay terrain type on Map (clay map, IsClay query, clustered near water)
 - Clay tile generation during world creation (6-10 tiles, adjacent to water)
-- Clay tile rendering (reddish brown)
-- Clay as a gatherable item type (new item constructor)
-- Gather order extended for terrain-source items (infinite, like drinking from water)
+- Clay tile rendering (dusky earth color 138, light shade `░` fill character)
+- Clay as a uniform item type (NewClay constructor, no varieties) (DD-14)
+- "Dig Clay" as a new top-level ordered action (ActionDig, activity "dig") (DD-15)
+- Dig order: drop inventory → dig until both slots full → drop clay on completion (DD-16)
+- Dig discovery via loose clay items spawned at world gen (DD-17)
+- Drop-on-completion for non-bundled items (separate from DropCompletedBundle) (DD-18)
 - Clay terrain serialization (follows tilled soil pattern)
 
 **Open questions:**
-- Clay item properties: does clay have varieties/colors, or is it uniform? Reqs don't specify.
-- Gather-from-terrain mechanics: gather currently targets ground items. Clay creates an item from terrain (like filling a vessel creates water). How does the gather handler dispatch between ground-item and terrain-source paths?
+- ~~Clay item properties: does clay have varieties/colors, or is it uniform?~~ → DD-14
+- ~~Gather-from-terrain mechanics: how does the gather handler dispatch between ground-item and terrain-source paths?~~ → DD-15
 
 ---
 
@@ -240,3 +243,33 @@ Characters gather materials and construct small buildings from grass, sticks, or
 **Affects:** Step 2b
 
 **Triggered enhancement:** Generalize plant order targetType to parent ItemType level (show "grass seed" not "tall grass seed") — trigger: when multiple Kinds exist per parent ItemType
+
+### DD-14: Clay is uniform, no varieties
+**Context:** Reqs don't specify clay varieties, colors, or differentiation. Clay is a raw material input to bricks.
+**Decision:** Uniform item. `NewClay()` constructor with ItemType "clay", no Kind, no variety registration, no color variation.
+**Rationale:** No gameplay reason for varieties — clay exists to become bricks. Follows **Start With the Simpler Rule**.
+**Affects:** Step 3
+
+### DD-15: Dig is a separate order verb from Gather
+**Context:** Gather targets ground items (sticks, nuts, shells). Clay creates items from terrain — fundamentally different source type. Extending gather would require branching in `findGatherIntent`, `isMultiStepOrderComplete`, `IsOrderFeasible`, and `GetGatherableTypes`.
+**Decision:** "Dig Clay" is a new top-level ordered action (`ActionDig`, activity ID "dig", `AvailabilityKnowHow`). Separate intent finder `findDigIntent`, separate handler `applyDig`. Top-level order (no category) — can be broken into Dig > Clay, Dig > [Other] when future dig targets appear.
+**Rationale:** The physical action (creating material from terrain) is different from gathering (picking up ground items). A separate verb avoids branching in the gather flow and extends naturally to future terrain-extraction actions (roots, trenches, stone, ore). Follows **Consider Extensibility** and **Isomorphism** — digging IS a different action from gathering.
+**Affects:** Step 3
+
+### DD-16: Dig order drops inventory first, drops clay on completion
+**Context:** Characters have 2 inventory slots. Dig needs empty inventory to collect clay. Order completion needs a clear rule.
+**Decision:** On taking a dig order, character drops all non-clay inventory items (procurement drop pattern). Digs until both inventory slots have clay (order complete). On completion, drops both clay items on the ground.
+**Rationale:** Drop-on-completion keeps inventory free for other work between orders and makes clay immediately available on the ground for brick crafting (Step 4). Follows **Follow the Existing Shape** — mirrors bundle drop on gather completion.
+**Affects:** Step 3
+
+### DD-17: Dig discovery via loose clay items at world gen
+**Context:** Dig requires know-how discovery, but clay comes from terrain — there are no items to look at before anyone digs. Options: (A) spawn loose clay items on clay tiles at world gen, (B) new trigger type for walking on terrain.
+**Decision:** Spawn 2-3 loose clay items on clay tiles during world generation. Discovery triggers use existing item-based pattern: ActionLook on clay item, ActionPickup on clay item. This also gives characters something to form preferences about before anyone digs.
+**Rationale:** Reuses existing discovery system with no new plumbing. Follows **Follow the Existing Shape** — item-based triggers are the established pattern. Terrain-look triggers deferred as a triggered enhancement.
+**Affects:** Step 3
+
+### DD-18: Drop-on-completion for dig uses separate logic from DropCompletedBundle
+**Context:** `DropCompletedBundle` looks for items with `BundleCount >= MaxBundleSize`. Clay is not bundled — it's individual loose items in inventory slots.
+**Decision:** Add a separate drop path for dig orders that iterates inventory and drops all items of the target type. Same call site in `selectOrderActivity` (after `isMultiStepOrderComplete` returns true), different logic from the bundle path.
+**Rationale:** Clay isn't bundled and shouldn't have a bundle count. The drop mechanism is structurally different — dropping N individual items vs. dropping one bundle. Follows **Isomorphism** — different things shouldn't be forced into the same representation.
+**Affects:** Step 3

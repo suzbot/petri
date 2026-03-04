@@ -519,6 +519,11 @@ func (m Model) renderCell(x, y int) string {
 			sym = waterFill
 			fill = waterFill
 		}
+	} else if m.gameMap.IsClay(pos) {
+		// Empty clay tile — full terrain fill
+		clayFill := clayStyle.Render(string(config.CharClayTile))
+		sym = clayFill
+		fill = clayFill
 	} else if m.gameMap.IsTilled(pos) {
 		// Empty tilled tile — full terrain fill (dark brown if wet, dusky earth if dry)
 		tStyle := tilledStyle
@@ -532,6 +537,11 @@ func (m Model) renderCell(x, y int) string {
 		sym = m.styledSymbol(feature)
 	} else {
 		sym = " "
+	}
+
+	// Entities on clay terrain get terrain fill padding
+	if fill == "" && m.gameMap.IsClay(pos) {
+		fill = clayStyle.Render(string(config.CharClayTile))
 	}
 
 	// Entities on tilled soil get terrain fill padding (dark brown if wet, dusky earth if dry)
@@ -693,6 +703,8 @@ func (m Model) styledSymbol(e entity.Entity) string {
 			return lavenderStyle.Render(sym)
 		case types.ColorPaleGreen:
 			return paleGreenStyle.Render(sym)
+		case types.ColorEarthy:
+			return earthyStyle.Render(sym)
 		}
 
 	case *entity.Feature:
@@ -722,7 +734,9 @@ func (m Model) renderDetails() string {
 	waterType := m.gameMap.WaterAt(cursorPos)
 
 	if e == nil && item == nil && feature == nil && waterType == game.WaterNone {
-		if m.gameMap.IsTilled(cursorPos) {
+		if m.gameMap.IsClay(cursorPos) {
+			lines = append(lines, " Type: "+clayStyle.Render("Clay deposit"))
+		} else if m.gameMap.IsTilled(cursorPos) {
 			lines = append(lines, " Type: "+growingStyle.Render("Tilled soil"))
 		} else if m.gameMap.IsMarkedForTilling(cursorPos) {
 			lines = append(lines, " Type: "+growingStyle.Render("Marked for tilling"))
@@ -942,7 +956,10 @@ func (m Model) renderDetails() string {
 				}
 			}
 		}
-		// Show tilled/marked soil annotation
+		// Show terrain annotations
+		if m.gameMap.IsClay(cursorPos) {
+			lines = append(lines, " "+clayStyle.Render("Clay deposit"))
+		}
 		if m.gameMap.IsTilled(cursorPos) {
 			lines = append(lines, " "+growingStyle.Render("On tilled soil"))
 		} else if m.gameMap.IsMarkedForTilling(cursorPos) {

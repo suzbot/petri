@@ -138,3 +138,102 @@ func findPondComponents(m *Map) [][]types.Position {
 
 	return components
 }
+
+// --- SpawnClay tests ---
+
+func TestSpawnClay_CountInRange(t *testing.T) {
+	iterations := 20
+	failures := 0
+	for i := 0; i < iterations; i++ {
+		m := NewMap(config.MapWidth, config.MapHeight)
+		SpawnPonds(m)
+		SpawnClay(m)
+		count := len(m.ClayPositions())
+		if count < config.ClayMinCount || count > config.ClayMaxCount {
+			failures++
+			t.Logf("iteration %d: expected %d-%d clay tiles, got %d", i, config.ClayMinCount, config.ClayMaxCount, count)
+		}
+	}
+	maxAllowedFailures := 2
+	if failures > maxAllowedFailures {
+		t.Errorf("%d/%d iterations produced out-of-range clay counts (max allowed: %d)", failures, iterations, maxAllowedFailures)
+	}
+}
+
+func TestSpawnClay_AdjacentToWater(t *testing.T) {
+	m := NewMap(config.MapWidth, config.MapHeight)
+	SpawnPonds(m)
+	SpawnClay(m)
+
+	cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+	for _, pos := range m.ClayPositions() {
+		adjacentToWater := false
+		for _, dir := range cardinalDirs {
+			neighbor := types.Position{X: pos.X + dir[0], Y: pos.Y + dir[1]}
+			if m.IsWater(neighbor) {
+				adjacentToWater = true
+				break
+			}
+		}
+		if !adjacentToWater {
+			t.Errorf("clay tile at %v is not adjacent to any water tile", pos)
+		}
+	}
+}
+
+func TestSpawnClay_Clustered(t *testing.T) {
+	m := NewMap(config.MapWidth, config.MapHeight)
+	SpawnPonds(m)
+	SpawnClay(m)
+
+	clayPositions := m.ClayPositions()
+	if len(clayPositions) <= 1 {
+		// Single tile can't be clustered; skip
+		return
+	}
+
+	cardinalDirs := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+	for _, pos := range clayPositions {
+		adjacentToClay := false
+		for _, dir := range cardinalDirs {
+			neighbor := types.Position{X: pos.X + dir[0], Y: pos.Y + dir[1]}
+			if m.IsClay(neighbor) {
+				adjacentToClay = true
+				break
+			}
+		}
+		if !adjacentToClay {
+			t.Errorf("clay tile at %v is not adjacent to any other clay tile", pos)
+		}
+	}
+}
+
+func TestSpawnClay_SpawnsLooseClayItems(t *testing.T) {
+	m := NewMap(config.MapWidth, config.MapHeight)
+	SpawnPonds(m)
+	SpawnClay(m)
+
+	clayCount := 0
+	for _, item := range m.Items() {
+		if item.ItemType == "clay" {
+			clayCount++
+			// Must be on a clay tile
+			if !m.IsClay(item.Pos()) {
+				t.Errorf("loose clay item at %v is not on a clay tile", item.Pos())
+			}
+		}
+	}
+	if clayCount < 2 || clayCount > 3 {
+		t.Errorf("SpawnClay should spawn 2-3 loose clay items, got %d", clayCount)
+	}
+}
+
+func TestSpawnClay_NoPondNoClay(t *testing.T) {
+	// Without ponds there are no water-adjacent tiles — SpawnClay should not panic
+	m := NewMap(40, 40)
+	SpawnClay(m) // should complete without panic or infinite loop
+}
+
+// Verify config constants referenced in clay tests compile
+var _ = config.ClayMinCount
+var _ = config.ClayMaxCount

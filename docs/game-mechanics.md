@@ -68,6 +68,7 @@ The current world day is displayed in the status bar.
 - **Springs**: Single water tiles (`☉`), impassable, drink from adjacent tile
 - **Ponds**: Contiguous blob-shaped clusters of 4-16 water tiles (`▓`), impassable, drink from adjacent tile. 1-5 ponds generated per world.
 - **Wet tiles**: Tiles 8-directionally adjacent to any water tile are considered wet. Shown as "Wet" (blue) in the details panel. See also [Watered Tiles](#watered-tiles) for manually-watered tiles.
+- **Clay deposits**: Clusters of passable dusky earth tiles (`░`) adjacent to water. Generated during world creation near ponds. Loose clay items spawn on some clay tiles. Clay tiles display "Clay deposit" in the details panel. See `config.ClayMinCount`, `config.ClayMaxCount`.
 - **Tilled soil**: Ground modified by characters working Till Soil orders. See [Gardening](#gardening).
 - **Leaf Piles**: Passable terrain features, used as beds for sleeping.
 

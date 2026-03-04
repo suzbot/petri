@@ -24,6 +24,7 @@ const (
 	ColorGray       Color = "gray"
 	ColorLavender   Color = "lavender"
 	ColorPaleGreen  Color = "pale green"
+	ColorEarthy     Color = "earthy"
 )
 
 // AllColors returns all valid colors

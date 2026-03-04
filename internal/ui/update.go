@@ -488,9 +488,10 @@ func (m Model) startGameRandom() Model {
 		m.cursorX, m.cursorY = pos.X, pos.Y
 	}
 
-	// Spawn world: ponds first (before items/features), then features, then items
+	// Spawn world: ponds first (before items/features), then clay, then features, then items
 	if !m.testCfg.NoWater {
 		game.SpawnPonds(m.gameMap)
+		game.SpawnClay(m.gameMap)
 	}
 	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 	if !m.testCfg.NoFood {
@@ -995,9 +996,10 @@ func (m Model) startGameFromCreation() Model {
 	// Clear creation state
 	m.creationState = nil
 
-	// Spawn world: ponds first (before items/features), then features, then items
+	// Spawn world: ponds first (before items/features), then clay, then features, then items
 	if !m.testCfg.NoWater {
 		game.SpawnPonds(m.gameMap)
+		game.SpawnClay(m.gameMap)
 	}
 	game.SpawnFeatures(m.gameMap, m.testCfg.NoWater, m.testCfg.NoBeds)
 	if !m.testCfg.NoFood {

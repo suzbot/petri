@@ -24,6 +24,7 @@ func (m Model) ToSaveState() *save.SaveState {
 		Items:                     itemsToSave(m.gameMap.Items()),
 		Features:                  featuresToSave(m.gameMap.Features()),
 		WaterTiles:                waterTilesToSave(m.gameMap),
+		ClayPositions:             m.gameMap.ClayPositions(),
 		TilledPositions:           m.gameMap.TilledPositions(),
 		MarkedForTillingPositions: m.gameMap.MarkedForTillingPositions(),
 		WateredTiles:              wateredTilesToSaveManual(m.gameMap),
@@ -366,6 +367,11 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 		m.gameMap.AddWater(ws.Position, game.WaterType(ws.WaterType))
 	}
 
+	// Restore clay positions
+	for _, pos := range state.ClayPositions {
+		m.gameMap.SetClay(pos)
+	}
+
 	// Restore tilled positions
 	for _, pos := range state.TilledPositions {
 		m.gameMap.SetTilled(pos)
@@ -678,6 +684,8 @@ func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item
 		item.Sym = config.CharSeed
 	case "grass":
 		item.Sym = config.CharGrass
+	case "clay":
+		item.Sym = config.CharClay
 	}
 
 	// Override symbol for sprouts (must come after type-based switch)

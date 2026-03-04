@@ -29,6 +29,9 @@ type Map struct {
 	// Water terrain (springs and ponds)
 	water map[types.Position]WaterType
 
+	// Clay terrain positions (passable, items can exist on them)
+	clay map[types.Position]bool
+
 	// Tilled soil positions (walkable, items can exist on them)
 	tilled map[types.Position]bool
 
@@ -57,6 +60,7 @@ func NewMap(width, height int) *Map {
 		items:            make([]*entity.Item, 0),
 		features:         make([]*entity.Feature, 0),
 		water:            make(map[types.Position]WaterType),
+		clay:             make(map[types.Position]bool),
 		tilled:           make(map[types.Position]bool),
 		markedForTilling: make(map[types.Position]bool),
 		wateredTimers:    make(map[types.Position]float64),
@@ -437,6 +441,49 @@ func (m *Map) IsWet(pos types.Position) bool {
 		}
 	}
 	return false
+}
+
+// SetClay marks a position as clay terrain
+func (m *Map) SetClay(pos types.Position) {
+	m.clay[pos] = true
+}
+
+// IsClay returns true if the position has clay terrain
+func (m *Map) IsClay(pos types.Position) bool {
+	return m.clay[pos]
+}
+
+// HasClay returns true if any clay tiles exist on the map
+func (m *Map) HasClay() bool {
+	return len(m.clay) > 0
+}
+
+// ClayPositions returns all positions that have clay terrain
+func (m *Map) ClayPositions() []types.Position {
+	positions := make([]types.Position, 0, len(m.clay))
+	for pos := range m.clay {
+		positions = append(positions, pos)
+	}
+	return positions
+}
+
+// FindNearestClay finds the nearest clay tile to the given position.
+// Clay is passable so no adjacency check is needed (unlike FindNearestWater).
+// Returns the clay position and true if found, or zero position and false if not.
+func (m *Map) FindNearestClay(pos types.Position) (types.Position, bool) {
+	var nearestPos types.Position
+	nearestDist := int(^uint(0) >> 1)
+	found := false
+
+	for clayPos := range m.clay {
+		dist := pos.DistanceTo(clayPos)
+		if dist < nearestDist {
+			nearestDist = dist
+			nearestPos = clayPos
+			found = true
+		}
+	}
+	return nearestPos, found
 }
 
 // SetTilled marks a position as tilled soil

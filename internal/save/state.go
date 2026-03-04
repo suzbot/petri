@@ -23,6 +23,7 @@ type SaveState struct {
 	Items                     []ItemSave          `json:"items"`
 	Features                  []FeatureSave       `json:"features"`
 	WaterTiles                []WaterTileSave     `json:"water_tiles,omitempty"`
+	ClayPositions             []types.Position    `json:"clay_positions,omitempty"`
 	TilledPositions           []types.Position    `json:"tilled_positions,omitempty"`
 	MarkedForTillingPositions []types.Position    `json:"marked_for_tilling,omitempty"`
 	WateredTiles              []WateredTileSave   `json:"watered_tiles_manual,omitempty"`

@@ -193,6 +193,21 @@ func NewStick(x, y int) *Item {
 	}
 }
 
+// NewClay creates a new clay item (non-edible, non-plant, non-bundleable, no variety)
+func NewClay(x, y int) *Item {
+	return &Item{
+		BaseEntity: BaseEntity{
+			X:     x,
+			Y:     y,
+			Sym:   config.CharClay,
+			EType: TypeItem,
+		},
+		Name:     "lump of clay",
+		ItemType: "clay",
+		Color:    types.ColorEarthy,
+	}
+}
+
 // NewNut creates a new nut item (edible, non-plant)
 func NewNut(x, y int) *Item {
 	return &Item{
