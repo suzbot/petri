@@ -78,13 +78,23 @@ Characters gather materials and construct small buildings from grass, sticks, or
 ### Step 4: Craft Bricks
 **Status:** Planned
 
-**Anchor story:** A character picks up some clay and has a moment of insight — they could shape this into bricks! The player creates a Craft > Bricks order. The character takes clay from their inventory and forms it into a brick.
+**Anchor story:** A character picks up some clay and has a moment of insight — they could shape this into bricks! The player creates a Craft > Bricks order. The character picks up clay, shapes it into a terracotta brick, sets it down, and goes for the next lump. When no more loose clay remains, the order completes.
 
 **Scope:**
-- Brick item type (new item constructor)
-- craftBrick recipe in RecipeRegistry (input: clay, output: brick)
-- craftBrick activity in ActivityRegistry with discovery triggers (picking up or looking at clay)
-- Brick creation function in crafting.go
+- VesselExcludedTypes config split from MaxBundleSize (DD-20, triggered enhancement resolved)
+- Clay + brick added to VesselExcludedTypes
+- ColorTerracotta + terracottaStyle (new color)
+- Brick item type: `▬` symbol, terracotta color, no Kind, no variety (DD-21)
+- craftBrick recipe in RecipeRegistry (input: clay, output: brick, Repeatable: true) (DD-19)
+- craftBrick activity in ActivityRegistry with discovery triggers (looking at, picking up, or digging clay)
+- CreateBrick function in crafting.go
+- applyCraft dispatch case + Repeatable skip for inline CompleteOrder (DD-19)
+- isMultiStepOrderComplete case for craftBrick: no loose clay on map (DD-19)
+- Save/load: brick symbol restoration
+
+**Open questions:**
+- ~~Quantity selection for brick orders~~ → Deferred to triggered enhancements
+- ~~Completion condition~~ → DD-19
 
 ---
 
@@ -273,3 +283,21 @@ Characters gather materials and construct small buildings from grass, sticks, or
 **Decision:** Add a separate drop path for dig orders that iterates inventory and drops all items of the target type. Same call site in `selectOrderActivity` (after `isMultiStepOrderComplete` returns true), different logic from the bundle path.
 **Rationale:** Clay isn't bundled and shouldn't have a bundle count. The drop mechanism is structurally different — dropping N individual items vs. dropping one bundle. Follows **Isomorphism** — different things shouldn't be forced into the same representation.
 **Affects:** Step 3
+
+### DD-19: Craft brick order is repeatable — completes when no loose clay remains
+**Context:** Brick crafting should process all available clay, not just one lump. Quantity selection deferred. Options: (A) single-craft order like vessel/hoe, (B) repeatable order that loops until a world-state condition is met.
+**Decision:** Add `Repeatable bool` field to Recipe. When true, `applyCraft` skips inline `CompleteOrder` and clears intent instead. The `selectOrderActivity` loop re-evaluates each tick: `findCraftIntent` finds more clay → craft → repeat. `isMultiStepOrderComplete` returns true when no clay items exist on the ground (`!groundItemOfTypeExists(items, "clay")`). Multiple characters assigned to the same order work in parallel.
+**Rationale:** Follows **Follow the Existing Shape** — multi-step orders (gather, dig) already use the `isMultiStepOrderComplete` loop. Adding `Repeatable` to Recipe keeps the existing single-craft path unchanged for vessel/hoe while enabling the new pattern. Follows **Consider Extensibility** — future repeatable recipes (e.g., craft planks from logs) use the same field.
+**Affects:** Step 4
+
+### DD-20: VesselExcludedTypes split from MaxBundleSize
+**Context:** `MaxBundleSize` map served double duty as both "bundleable" and "vessel-excluded" (DD-2). Triggered enhancement said to split when concepts diverge. Brick and clay are vessel-excluded but not bundleable — trigger condition met.
+**Decision:** Add `VesselExcludedTypes map[string]bool` to config (stick, grass, clay, brick). Update vessel exclusion checks in `AddToVessel`, `CanVesselAccept`, `Pickup`, `findHarvestIntent`, and `findGatherIntent` to use `VesselExcludedTypes` instead of `MaxBundleSize`. Bundle logic (bundle merge, canGatherMore, hasFullBundle, DropCompletedBundle) stays on `MaxBundleSize`.
+**Rationale:** Follows **Source of Truth Clarity** — each config set means one thing. Follows **Isomorphism** — vessel exclusion and bundleability are different concepts now that items can have one without the other.
+**Affects:** Step 4
+
+### DD-21: Brick is uniform with terracotta color
+**Context:** Brick appearance properties. Only one brick type exists (from clay). Options: inherit clay's earthy color, or give bricks a distinct color.
+**Decision:** Brick uses new `ColorTerracotta` (warm reddish-brown, distinct from clay's earthy), symbol `▬` (`CharBrick`), ItemType "brick", no Kind, no variety. Uniform item like clay (DD-14).
+**Rationale:** Terracotta is visually distinct from raw clay — shaped bricks look different from loose lumps. Follows **Isomorphism** — the transformation from clay to brick should be visible. Follows **Start With the Simpler Rule** — no Kind until multiple brick types exist.
+**Affects:** Step 4

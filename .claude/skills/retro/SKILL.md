@@ -77,8 +77,18 @@ Address the following **only if applicable**:
 - If yes:
   - Was it merited due to actual complexity, or could have a different prompt or different availability of information circumvented the extra effort?
 
-If none of the above occurred, explicitly state that **no meaningful
-collaboration friction was observed**. If any of the above did occur, carry the insights to Step 2.
+If none of items 1-6 occurred, explicitly state that **no meaningful
+collaboration friction was observed**.
+
+#### 7. Value Signals (always assess)
+Unlike items 1-6, this applies even when no friction occurred. Observe what choices the user made during the session and name the implicit value behind each:
+- When the user selected between options: what did they optimize for?
+- When the user redirected an approach: what principle were they enforcing?
+- When the user added or removed scope: what trade-off were they making?
+
+For each signal, state: the choice made and the value it expresses. Note if Values.md has something similar, but don't force-fit — if it feels like a distinct principle, present it as one.
+
+Carry friction insights (items 1-6) and value signals (item 7) to Step 2.
 
 ---
 
@@ -123,7 +133,7 @@ A. Assess whether Step 1 insights revealed **clear, recurring, or token/context-
   - Did the user request the retro? If so, provide the analysis and the reasoning for no change.
   - Was the retro automatic? No output is needed, do not solicit user response.
 
-B. If the session revealed a genuinely new design value not yet captured in Values.md, propose it. Don't propose adding examples to existing values unless the current wording is misleading or incomplete — examples that merely reinforce an already-clear value are fluff.
+B. Surface all value signals from Step 1 item 7 every retro. Name the value, describe the choice that revealed it, and note whether Values.md has something similar. Don't force-fit observations into existing values — if it feels like a distinct principle, present it that way. The user decides whether it's new, a refinement of something existing, or not worth capturing.
 
 ---
 

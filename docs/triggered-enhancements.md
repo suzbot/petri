@@ -27,6 +27,7 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Order-aware simulation for e2e testing** | Construction adds multiple new ordered actions with supply procurement; Post-pickup handler branching bugs recur across ordered actions |
 | **Temporarily-blocked order cooldown** | Assign/abandon churn noticeable for temporarily-blocked (but feasible) orders; Character visibly thrashes between taking and abandoning the same order |
 | **Smarter displacement direction** | Displacement oscillation visible in crowded (16-char) worlds; Characters pick a displacement perpendicular that leads back toward the blocker instead of away |
+| **Craft order quantity selection** | User creates many individual craft orders to get desired quantity; Brick demand from construction exceeds convenience of "craft all available" |
 | **Interactive inventory details panel** | Items gain enough attributes that parenthetical summary in inventory list isn't sufficient; Want to inspect individual inventory items with full details view |
 | **Plant order generalizes to ItemType seeds** | Multiple Kinds exist per parent ItemType (e.g., tall grass + bamboo both have ItemType "grass"); Plant order menu should show "grass seed" and let characters choose Kind, rather than listing each Kind separately |
 | **SourceVarietyID on all plantable items** | Berry/mushroom planting uses GenerateVarietyID fallback to look up parent variety; a second place needs the same fallback; Simplify by setting SourceVarietyID at pickup time (when Plantable is set) so all plantables carry it uniformly |
@@ -173,11 +174,7 @@ The current approach (direct intent clearing + action log entry) works well for 
 
 ---
 
-**Vessel-excluded vs bundleable split:**
-
-Currently `config.MaxBundleSize` map membership means both "this item type stacks into bundles" and "this item type can't go in vessels." The sets happen to be identical (sticks, grass). The check `config.MaxBundleSize[itemType] > 0` is used inline at 5 sites as a vessel-exclusion test: `Pickup()` (picking.go), `AddToVessel()` (picking.go), `findHarvestIntent()` and `findGatherIntent()` (order_execution.go), and `FindNextHarvestTarget()` (order_execution.go). There is no `IsVesselExcluded()` helper — the inline check is sufficient while the two concepts are identical.
-
-If a future item needs vessel exclusion without bundling (e.g., a large tool) or bundling without vessel exclusion (unlikely but possible), split into `MaxBundleSize` (bundling) and a separate `VesselExcludedTypes` set (vessel exclusion), and introduce an `IsVesselExcluded()` helper to replace the inline checks.
+**Vessel-excluded vs bundleable split:** ✓ Resolved in Step 4 (Construction phase, DD-20). Split into `VesselExcludedTypes` and `MaxBundleSize`. Triggered by brick and clay needing vessel exclusion without bundling.
 
 ---
 

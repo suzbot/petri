@@ -84,6 +84,7 @@ Present the step breakdown to the user as conversation at a high-to-medium level
 - "Here are the N sub-steps I see this breaking into: ..."
 - Include enough detail to evaluate sequencing, scope per sub-step, and dependencies
 - For each sub-step, name the architecture pattern and Values.md principle it follows — this surfaces the Step 2 reconciliation work for the user to validate before the written plan
+- For each sub-step, confirm where [TEST] falls and whether new item types need save/load in the same sub-step
 - Do NOT write into the step spec yet — this is a digestibility and alignment check
 
 Get user feedback on the outline before proceeding. Adjust if needed.
