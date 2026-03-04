@@ -68,6 +68,8 @@ Before writing the step spec, read the actual code for each function the plan wi
 - For pickup/procurement chains: trace from `findXxxIntent` through `Pickup()` result handling in `applyPickup` through continuation/completion.
 - For new entity fields: trace all code paths that read or write the parent struct.
 
+- For borrowed algorithms: when the plan reuses an existing algorithm for a new context (e.g., SpawnPonds logic for SpawnClay), trace the original's constraints and verify they hold in the new context. Different entity types often have different spatial or adjacency constraints that make the algorithm fail silently or produce degenerate results.
+
 This is targeted reads (3-5 files the plan already names), not broad exploration. The goal is to identify assumptions in the plan that don't match the code — the class of bugs where the plan describes the right behavior but misses a code-level detail (like Target needing to be a BFS step, not a destination).
 
 Surface any mismatches as discussion items before proceeding to the step spec.

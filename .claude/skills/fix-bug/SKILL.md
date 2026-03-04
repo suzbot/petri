@@ -57,9 +57,10 @@ Before fixing anything:
 - Evaluate whether the design is sound before fixing further
 - Surface the pattern to the user before continuing
 
-### Step 7: Re-test
+### Step 7: Re-test and Close
 
 After the fix is confirmed:
 - Re-run the full [TEST] checklist from the step spec — not just the specific fix
-- Offer `/test-world` if the scenario warrants a fresh test world
-- Wait for user confirmation before marking the fix-bug task complete
+- Offer `/test-world` if the scenario warrants a fresh test world. **Before invoking, read the test-world skill's Caller Requirements and build a structured spec.**
+- Wait for user confirmation before updating documents to indicate completion. When the bug is on randomideas.md or the resolution involved completing a triggered-enhancements.md item, then those items are to be removed from those documents when complete. If the bug was documented on a step-spec document, then mark as complete without removing.
+- Invoke `/update-docs` to ensure all other documents are updated if/as needed.

@@ -77,7 +77,7 @@ When modifying a shared function (Pickup, CanPickUpMore, FindNextTarget, etc.), 
 ### Human Testing Guidelines (for task 6)
 
 - Before relaying [TEST] items to user: verify each item matches the step's implemented behavior. Surface contradictions rather than forwarding verbatim.
-- Offer `/test-world` if the [TEST] checkpoint calls for it or the scenario is complex
+- Offer `/test-world` if the [TEST] checkpoint calls for it or the scenario is complex. **Before invoking, read the test-world skill's Caller Requirements and build a structured spec.**
 - Wait for explicit confirmation from user before continuing
 
 ### Documentation Guidelines (for task 8)

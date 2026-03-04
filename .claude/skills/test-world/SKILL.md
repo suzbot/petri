@@ -2,7 +2,7 @@
 name: test-world
 description: "Create a test world with specific preconditions, when asking user to verify a behavior that's hard to observe naturally."
 user-invocable: true
-argument-hint: What behavior to test and what preconditions are needed
+argument-hint: "Structured world spec — read this skill's Caller Requirements before invoking"
 model: sonnet
 agent: true
 allowed-tools:
@@ -13,9 +13,26 @@ allowed-tools:
   - Grep
 ---
 
+## Caller Requirements
+
+**The caller must read this section and build a structured argument before invoking this skill.**
+
+Specify all of the following in the skill argument:
+
+- **Characters**: count, positions, stat overrides (if any), and exact inventory contents — item type, color, kind for each item; for vessels, include container contents
+- **Map items**: what's on the ground, with full variety attributes (item_type, color, pattern, texture, kind, edible, poisonous, healing); for plants, specify growth state (mature, sprout, gone-to-seed)
+- **Orders**: activity ID, target type, status, assignment (if pre-assigned)
+- **Varieties to register**: every unique item_type/color/kind combination that appears anywhere — inventory, container contents, map items, seeds. If an item exists anywhere in the world, its variety must be listed here.
+- **Support infrastructure**: water tile positions, leaf piles, other needs-satisfying features
+- **What to observe**: the specific behavior the user should watch for
+
+Do not leave entity attributes for the skill to infer. If a vessel contains water, specify `"item_type": "liquid", "color": "", "kind": "water"`. If a vessel contains berries, specify the exact color. The skill will translate this spec into a valid save file.
+
+---
+
 ## Creating a Test World
 
-You are creating a test world save file so the user can verify specific game behaviors. You will be given a description of what to test as your argument.
+You are creating a test world save file so the user can verify specific game behaviors. You will be given a structured world spec as your argument.
 
 ### Step 1: Read the Schema
 
@@ -78,6 +95,7 @@ Start from the **recipe template** below, then customize for the test scenario.
 - **Position format**: Characters, items, features, and water tiles all use flat `"x": N, "y": N` fields (NOT nested `"position": {"x": N, "y": N}`)
 - **Vessel availability:** If testing a behavior that uses vessels, provide enough vessels to fill both inventory slots per character. Characters may autonomously pick up vessels for other idle activities (forage, fetch water) before the target behavior triggers — extra vessels prevent this from blocking the test.
 - **Order-item match:** If testing orders, verify test items match the order's target type (e.g., growing plants for harvest, not loose berries).
+- **Vessel varieties:** Water vessels require `"color": ""` (not `"blue"`) and `"kind": "water"` in both the stack contents and the varieties array — wrong color causes a nil-pointer crash on save. Extraction requires seed varieties pre-registered in varieties (e.g. `{"item_type": "seed", "kind": "tall grass seed", ...}`) — `AddToVessel` fails silently without them.
 
 #### Type Reference
 
