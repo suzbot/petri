@@ -85,7 +85,7 @@ internal/
 
 - `internal/ui/model.go` - Game state, Bubble Tea model
 - `internal/ui/update.go` - Tick processing, game loop orchestration, input handling, lifecycle (startGame, loadWorld, saveGame)
-- `internal/ui/apply_actions.go` - Intent execution: applyIntent dispatch table + 16 handler methods (applyMove, applyDrink, applySleep, applyLook, applyTalk, applyPickup, applyConsume, applyCraft, applyTillSoil, applyPlant, applyForage, applyFillVessel, applyWaterGarden, applyHelpFeed, applyHelpWater, applyExtract) + execution helpers (moveWithCollision, findEmptyCardinalTile, etc.)
+- `internal/ui/apply_actions.go` - Intent execution: applyIntent dispatch table + 17 handler methods (applyMove, applyDrink, applySleep, applyLook, applyTalk, applyPickup, applyConsume, applyCraft, applyTillSoil, applyPlant, applyForage, applyFillVessel, applyWaterGarden, applyHelpFeed, applyHelpWater, applyExtract, applyDig) + execution helpers (moveWithCollision, findEmptyCardinalTile, etc.)
 
 **Save System**
 

@@ -90,6 +90,43 @@ func TestPlantActivity_Registered(t *testing.T) {
 	}
 }
 
+// TestDigActivity_InRegistry verifies the dig activity exists with correct properties
+func TestDigActivity_InRegistry(t *testing.T) {
+	t.Parallel()
+
+	activity, ok := ActivityRegistry["dig"]
+	if !ok {
+		t.Fatal("dig activity not found in ActivityRegistry")
+	}
+
+	if activity.IntentFormation != IntentOrderable {
+		t.Errorf("dig IntentFormation: got %q, want %q", activity.IntentFormation, IntentOrderable)
+	}
+	if activity.Availability != AvailabilityKnowHow {
+		t.Errorf("dig Availability: got %q, want %q", activity.Availability, AvailabilityKnowHow)
+	}
+	if activity.Category != "" {
+		t.Errorf("dig Category: got %q, want empty (top-level)", activity.Category)
+	}
+
+	hasLookClay := false
+	hasPickupClay := false
+	for _, trigger := range activity.DiscoveryTriggers {
+		if trigger.Action == ActionLook && trigger.ItemType == "clay" {
+			hasLookClay = true
+		}
+		if trigger.Action == ActionPickup && trigger.ItemType == "clay" {
+			hasPickupClay = true
+		}
+	}
+	if !hasLookClay {
+		t.Error("dig DiscoveryTriggers: missing ActionLook clay trigger")
+	}
+	if !hasPickupClay {
+		t.Error("dig DiscoveryTriggers: missing ActionPickup clay trigger")
+	}
+}
+
 // TestCraftActivities_HaveCategory verifies existing craft activities have Category set
 func TestCraftActivities_HaveCategory(t *testing.T) {
 	t.Parallel()

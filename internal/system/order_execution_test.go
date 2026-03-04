@@ -4315,3 +4315,364 @@ func TestExtractFeasibility_InfeasibleWhenAllOnCooldown(t *testing.T) {
 		t.Error("Expected extract order to be infeasible when all flowers are on seed cooldown")
 	}
 }
+
+// =============================================================================
+// Step 3b: findDigIntent
+// =============================================================================
+
+func TestFindDigIntent_FindsNearestClayTile(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"dig"}
+	gameMap.AddCharacter(char)
+
+	// Clay tile nearby
+	clayPos := types.Position{X: 7, Y: 5}
+	gameMap.SetClay(clayPos)
+
+	order := entity.NewOrder(1, "dig", "clay")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	intent := FindDigIntentForTest(char, char.Pos(), gameMap.Items(), order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected dig intent, got nil")
+	}
+	if intent.Action != entity.ActionDig {
+		t.Errorf("Intent.Action: got %v, want ActionDig", intent.Action)
+	}
+	if intent.Dest != clayPos {
+		t.Errorf("Intent.Dest: got %v, want %v (clay tile)", intent.Dest, clayPos)
+	}
+}
+
+func TestFindDigIntent_NilWhenNoClay(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"dig"}
+	gameMap.AddCharacter(char)
+
+	// No clay tiles
+	order := entity.NewOrder(1, "dig", "clay")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	intent := FindDigIntentForTest(char, char.Pos(), gameMap.Items(), order, nil, gameMap)
+
+	if intent != nil {
+		t.Error("Expected nil when no clay tiles exist")
+	}
+}
+
+func TestFindDigIntent_NilWhenInventoryFullOfClay(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"dig"}
+	gameMap.AddCharacter(char)
+
+	// Fill both inventory slots with clay
+	clay1 := entity.NewClay(0, 0)
+	clay2 := entity.NewClay(0, 0)
+	char.Inventory = []*entity.Item{clay1, clay2}
+
+	gameMap.SetClay(types.Position{X: 7, Y: 5})
+
+	order := entity.NewOrder(1, "dig", "clay")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	intent := FindDigIntentForTest(char, char.Pos(), gameMap.Items(), order, nil, gameMap)
+
+	if intent != nil {
+		t.Error("Expected nil when both inventory slots have clay (triggers completion)")
+	}
+}
+
+func TestFindDigIntent_DropsInventoryFirst(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"dig"}
+	gameMap.AddCharacter(char)
+
+	// Full inventory with non-clay items
+	berry1 := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	berry2 := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.Inventory = []*entity.Item{berry1, berry2}
+
+	gameMap.SetClay(types.Position{X: 7, Y: 5})
+
+	order := entity.NewOrder(1, "dig", "clay")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	log := NewActionLog(100)
+	intent := FindDigIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+
+	// Should return a dig intent (drop happens inside findDigIntent, then proceeds)
+	if intent == nil {
+		t.Fatal("Expected dig intent after dropping non-clay items")
+	}
+	if intent.Action != entity.ActionDig {
+		t.Errorf("Intent.Action: got %v, want ActionDig", intent.Action)
+	}
+	// Inventory should have been cleared of non-clay items
+	for _, item := range char.Inventory {
+		if item != nil && item.ItemType != "clay" {
+			t.Errorf("Expected non-clay items to be dropped, but found %s in inventory", item.ItemType)
+		}
+	}
+}
+
+// =============================================================================
+// Step 3b: isMultiStepOrderComplete for dig
+// =============================================================================
+
+func TestIsMultiStepOrderComplete_Dig(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+
+	clay1 := entity.NewClay(0, 0)
+	clay2 := entity.NewClay(0, 0)
+	char.Inventory = []*entity.Item{clay1, clay2}
+	gameMap.AddCharacter(char)
+
+	order := entity.NewOrder(1, "dig", "clay")
+
+	if !IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Error("Expected dig order complete when both inventory slots have clay")
+	}
+}
+
+func TestIsMultiStepOrderComplete_Dig_OneSlot(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+
+	clay1 := entity.NewClay(0, 0)
+	char.Inventory = []*entity.Item{clay1, nil}
+	gameMap.AddCharacter(char)
+
+	order := entity.NewOrder(1, "dig", "clay")
+
+	if IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Error("Expected dig order NOT complete with only one clay")
+	}
+}
+
+func TestIsMultiStepOrderComplete_Dig_Empty(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	order := entity.NewOrder(1, "dig", "clay")
+
+	if IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Error("Expected dig order NOT complete with empty inventory")
+	}
+}
+
+// =============================================================================
+// Step 3b: DropCompletedDigItems
+// =============================================================================
+
+func TestDropCompletedDigItems_DropsAllClay(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	clay1 := entity.NewClay(0, 0)
+	clay2 := entity.NewClay(0, 0)
+	char.Inventory = []*entity.Item{clay1, clay2}
+
+	order := entity.NewOrder(1, "dig", "clay")
+
+	log := NewActionLog(100)
+	DropCompletedDigItems(char, order, gameMap, log)
+
+	// Both clay items should be dropped
+	for i, item := range char.Inventory {
+		if item != nil && item.ItemType == "clay" {
+			t.Errorf("Expected clay slot %d to be nil after drop, but got clay item", i)
+		}
+	}
+
+	// Clay items should appear on the map
+	clayOnMap := 0
+	for _, item := range gameMap.Items() {
+		if item.ItemType == "clay" {
+			clayOnMap++
+		}
+	}
+	if clayOnMap != 2 {
+		t.Errorf("Expected 2 clay items on the map, got %d", clayOnMap)
+	}
+}
+
+// =============================================================================
+// Step 3b: IsOrderFeasible for dig
+// =============================================================================
+
+func TestIsOrderFeasible_Dig_ClayExists(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"dig"}
+	gameMap.AddCharacter(char)
+
+	gameMap.SetClay(types.Position{X: 7, Y: 5})
+
+	order := entity.NewOrder(1, "dig", "clay")
+	feasible, noKnowHow := IsOrderFeasible(order, gameMap.Items(), gameMap)
+
+	if !feasible {
+		t.Error("Expected dig order to be feasible when clay tiles exist")
+	}
+	if noKnowHow {
+		t.Error("Expected noKnowHow=false when character knows dig")
+	}
+}
+
+func TestIsOrderFeasible_Dig_NoClay(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"dig"}
+	gameMap.AddCharacter(char)
+
+	// No clay tiles
+	order := entity.NewOrder(1, "dig", "clay")
+	feasible, noKnowHow := IsOrderFeasible(order, gameMap.Items(), gameMap)
+
+	if feasible {
+		t.Error("Expected dig order to be infeasible when no clay tiles exist")
+	}
+	if noKnowHow {
+		t.Error("Expected noKnowHow=false (clay absence, not know-how absence)")
+	}
+}
+
+// =============================================================================
+// Step 3b: TestDigOrder_EndToEnd
+// =============================================================================
+
+// TestDigOrder_EndToEnd traces the full dig flow: drop inventory → walk to clay →
+// dig → walk to next clay → dig → completion check → drop both clay.
+// Follows TestGatherOrder_InventoryPath_FullBundle_EndToEnd pattern.
+func TestDigOrder_EndToEnd(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"dig"}
+	gameMap.AddCharacter(char)
+
+	// Start with a non-clay item in inventory
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	char.Inventory = []*entity.Item{berry}
+
+	// Place two clay tiles at character position (simplify by co-locating)
+	clay1Pos := types.Position{X: 5, Y: 5}
+	clay2Pos := types.Position{X: 6, Y: 5}
+	gameMap.SetClay(clay1Pos)
+	gameMap.SetClay(clay2Pos)
+
+	order := entity.NewOrder(1, "dig", "clay")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	log := NewActionLog(100)
+
+	// --- Phase 1: findDigIntent drops non-clay inventory, returns dig intent ---
+	intent := FindDigIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+	if intent == nil {
+		t.Fatal("Phase 1: Expected dig intent, got nil")
+	}
+	if intent.Action != entity.ActionDig {
+		t.Fatalf("Phase 1: Expected ActionDig, got %v", intent.Action)
+	}
+	// Berry should have been dropped
+	for _, item := range char.Inventory {
+		if item != nil && item.ItemType == "berry" {
+			t.Error("Phase 1: Berry should have been dropped before digging")
+		}
+	}
+
+	// --- Phase 2: Simulate walking to clay tile and digging (add clay to inventory) ---
+	clay1 := entity.NewClay(clay1Pos.X, clay1Pos.Y)
+	char.AddToInventory(clay1)
+
+	// --- Phase 3: findDigIntent should not return nil yet (only 1 clay) ---
+	if IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Fatal("Phase 3: Order should not be complete with only 1 clay")
+	}
+
+	// findDigIntent should find next clay tile
+	intent = FindDigIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+	if intent == nil {
+		t.Fatal("Phase 3: Expected second dig intent")
+	}
+
+	// --- Phase 4: Dig second clay ---
+	clay2 := entity.NewClay(clay2Pos.X, clay2Pos.Y)
+	char.AddToInventory(clay2)
+
+	// --- Phase 5: findDigIntent returns nil (both slots have clay) ---
+	intent = FindDigIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+	if intent != nil {
+		t.Fatal("Phase 5: Expected nil intent when both slots have clay")
+	}
+
+	// --- Phase 6: isMultiStepOrderComplete returns true ---
+	if !IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Fatal("Phase 6: Expected order complete with 2 clay items")
+	}
+
+	// --- Phase 7: Drop both clay on completion ---
+	DropCompletedDigItems(char, order, gameMap, log)
+	CompleteOrder(char, order, log)
+
+	// Verify: 2 clay on map, inventory empty, order completed
+	clayOnMap := 0
+	for _, item := range gameMap.Items() {
+		if item.ItemType == "clay" {
+			clayOnMap++
+		}
+	}
+	if clayOnMap != 2 {
+		t.Errorf("Final: Expected 2 clay items on map, got %d", clayOnMap)
+	}
+	for i, item := range char.Inventory {
+		if item != nil && item.ItemType == "clay" {
+			t.Errorf("Final: Expected clay slot %d cleared, but still has clay", i)
+		}
+	}
+	if order.Status != entity.OrderCompleted {
+		t.Errorf("Final: Expected order completed, got %s", order.Status)
+	}
+	if char.AssignedOrderID != 0 {
+		t.Error("Final: Expected character unassigned from order")
+	}
+}

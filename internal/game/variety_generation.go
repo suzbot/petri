@@ -236,6 +236,23 @@ func GetExtractableItemTypes(items []*entity.Item) []ExtractableTypeEntry {
 	return entries
 }
 
+// DiggableTypeEntry represents a diggable terrain-derived material type for the order UI menu.
+type DiggableTypeEntry struct {
+	DisplayName string // e.g., "Clay"
+	TargetType  string // value stored in order.TargetType: "clay"
+}
+
+// GetDiggableTypes returns the list of diggable material types given a map.
+// Currently only clay terrain is diggable. Returns ["clay"] when clay tiles exist.
+func GetDiggableTypes(gameMap *Map) []DiggableTypeEntry {
+	if !gameMap.HasClay() {
+		return nil
+	}
+	return []DiggableTypeEntry{
+		{DisplayName: "Clay", TargetType: "clay"},
+	}
+}
+
 // capitalize returns s with the first letter uppercased.
 func capitalize(s string) string {
 	if s == "" {

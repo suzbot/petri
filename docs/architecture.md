@@ -358,7 +358,9 @@ Three checklists organized by category. Each includes every touchpoint; see the 
 - **Duration**: which `ActionDuration` constant? (Short, Medium, Long)
 - **Completion criteria**: what makes a multi-step order complete? (e.g., "no more items of locked variety on map")
 - **Feasibility criteria**: what makes the order unfulfillable? (greyed out, skipped during assignment)
-- **Variety lock**: does the order lock to a specific variety on first action? (Harvest, Plant, Extract do; TillSoil, Craft don't.)
+- **Variety lock**: does the order lock to a specific variety on first action? (Harvest, Plant, Extract do; TillSoil, Craft, Dig don't.)
+- **DisplayName suffix**: does the order display name include a target type suffix? (Most do: `activity.Name + " " + Pluralize(targetType)`. Activities whose name already implies the target — like "Dig Clay" — return `activity.Name` alone. Add a case to `DisplayName()` in `order.go`.)
+- **Sub-menu (step 1)**: does the order need a target type selection sub-menu? If there is only one possible target type (e.g., clay for dig), skip step 1: create the order immediately at step 0 in `applyOrdersConfirm` and omit the step-1 rendering branch in `view.go`. If multiple target types exist, add `GetXxxTypes()` in `variety_generation.go` and wire into the step-1 nav, confirm, and render paths.
 
 ## Activity Registry & Know-How Discovery
 

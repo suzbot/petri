@@ -1068,8 +1068,19 @@ func (m *Model) applyOrdersConfirm() {
 		if m.ordersAddStep == 0 {
 			activities := m.getOrderableActivities()
 			if len(activities) > 0 && m.selectedActivityIndex < len(activities) {
-				m.ordersAddStep = 1
-				m.selectedTargetIndex = 0
+				selectedActivity := activities[m.selectedActivityIndex]
+				// Dig has no sub-menu — create order immediately
+				if selectedActivity.ID == "dig" {
+					order := entity.NewOrder(m.nextOrderID, "dig", "clay")
+					m.nextOrderID++
+					m.orders = append(m.orders, order)
+					m.setOrderFlash(order.DisplayName())
+					m.ordersAddStep = 0
+					m.selectedActivityIndex = 0
+				} else {
+					m.ordersAddStep = 1
+					m.selectedTargetIndex = 0
+				}
 			}
 		} else if m.ordersAddStep == 1 {
 			activities := m.getOrderableActivities()

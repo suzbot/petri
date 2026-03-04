@@ -33,18 +33,13 @@ Core process innovations developed over the course of this project:
 - [`.claude/skills/`](.claude/skills/) — AI interaction protocols developed for this project
 - [`docs/Values.md`](docs/Values.md) — design values surfaced through retrospectives
 - [`CLAUDE.md`](CLAUDE.md) — codebase context and collaboration norms
-- `docs/*-phase-plan.md` — requirement-traced phase plans with TDD checkpoints
 
 ## Latest Updates
 
-- **Clay deposits**: Dusky earth patches appear near ponds with loose lumps of clay on the surface
-- **Seed extraction**: Characters extract seeds from flowers and tall grass via Extract orders, without harming the plant. Plants show "Gone to seed" when ready to extract again.
-- **Tall grass**: Pale green grass grows and spreads across the world, the fastest-growing plant.
-- **Gather bundles**: Characters gathering sticks stack them into bundles; a completed bundle is dropped on the ground and the order finishes.
+- **Dig Clay orders**: Direct characters to dig clay from deposits; they fill both inventory slots and drop lumps on completion
+- **Seed extraction**: Characters extract seeds from flowers and tall grass via Extract orders, without harming the plant.
 - **Helping:** Characters bring food or water to other character in crisis
-- **Food Mechanics:** Characters find food in containers, select food based on how filling it is and how long it takes to eat
 - **Gardening:** Characters can gather seeds, till soil, water the garden, and watch food grow
-
 
 ## How It Works
 

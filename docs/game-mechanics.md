@@ -375,6 +375,7 @@ Know-how represents activity skills discovered through experience. Unlike facts,
 - **Harvest**: Discovered when foraging, eating edible items, or picking up or looking at any harvestable plant (growing non-sprout plants, including grass and flowers)
 - **Plant**: Discovered when picking up or looking at plantable items (berries, mushrooms, gourd seeds)
 - **Extract**: Discovered when looking at a flower or tall grass, or when picking up or looking at a seed
+- **Dig Clay**: Discovered when looking at or picking up a clay item
 - **Crafting know-how**: See [Crafting Discovery](#discovery)
 
 **Discovery chance depends on mood:**
@@ -437,6 +438,8 @@ When a character becomes idle-eligible:
 When a fully grown extractable plant (flower or tall grass) has seeds available, the details panel shows **"Gone to seed"** below "Growing" — a signal that the plant is ready to extract from. Sprouts and non-extractable plants never show this indicator.
 
 **Gather orders:** Character picks up loose (non-growing, non-container, non-tool) items from the ground. For items with registered varieties (seeds, nuts, shells), uses vessel procurement. For bundleable items (sticks), successive pickups merge into a bundle in inventory. When the bundle reaches max size (see `config.MaxBundleSize`), the character drops the completed bundle on the ground and the order completes — one bundle per order. No know-how required — all characters can gather.
+
+**Dig Clay orders:** Character drops any non-clay items from inventory, walks to the nearest clay tile, and digs for a lump of clay (see `config.ActionDurationMedium`). Continues digging until both inventory slots hold clay, then drops both lumps on the ground and the order completes. Clay deposits are inexhaustible. Only available when clay deposits exist on the map. Requires Dig Clay know-how.
 
 ### Order Interruption and Resumption
 

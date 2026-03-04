@@ -3961,3 +3961,104 @@ func TestApplyExtract_FullFlow_ExtractsSeedToVessel(t *testing.T) {
 		t.Errorf("Expected order locked to %q, got %q", expectedVariety, updatedOrder.LockedVariety)
 	}
 }
+
+// =============================================================================
+// Step 3b: applyDig handler
+// =============================================================================
+
+func TestApplyDig_WalksToClayTile(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"dig"}
+	gameMap.AddCharacter(char)
+
+	clayPos := types.Position{X: 8, Y: 5}
+	gameMap.SetClay(clayPos)
+
+	// Intent: walking toward clay (not yet there)
+	char.Intent = &entity.Intent{
+		Action: entity.ActionDig,
+		Target: types.Position{X: 6, Y: 5},
+		Dest:   clayPos,
+	}
+
+	m := Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, 0.15)
+
+	// Character should have moved toward clay
+	newPos := char.Pos()
+	if newPos.X == 5 && newPos.Y == 5 {
+		t.Error("Expected character to move toward clay tile, but position unchanged")
+	}
+	// Should not have dug anything (progress requires being at Dest)
+	if char.HasInventorySpace() && countItemType(char, "clay") > 0 {
+		t.Error("Expected no clay in inventory while still walking")
+	}
+}
+
+func TestApplyDig_CreatesClayInInventory(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"dig"}
+	gameMap.AddCharacter(char)
+
+	// Clay tile at character's position (already there)
+	clayPos := types.Position{X: 5, Y: 5}
+	gameMap.SetClay(clayPos)
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionDig,
+		Target: clayPos,
+		Dest:   clayPos,
+	}
+
+	m := Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, config.ActionDurationMedium+0.1)
+
+	// Clay should be in inventory
+	clayCount := countItemType(char, "clay")
+	if clayCount != 1 {
+		t.Errorf("Expected 1 clay in inventory after digging, got %d", clayCount)
+	}
+}
+
+func TestApplyDig_ClearsIntent(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"dig"}
+	gameMap.AddCharacter(char)
+
+	clayPos := types.Position{X: 5, Y: 5}
+	gameMap.SetClay(clayPos)
+
+	char.Intent = &entity.Intent{
+		Action: entity.ActionDig,
+		Target: clayPos,
+		Dest:   clayPos,
+	}
+
+	m := Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, config.ActionDurationMedium+0.1)
+
+	// Intent should be cleared (ordered action one-tick-idle pattern)
+	if char.Intent != nil {
+		t.Error("Expected intent cleared after dig completes")
+	}
+}
+
+// countItemType counts how many items of the given type are in a character's inventory
+func countItemType(char *entity.Character, itemType string) int {
+	count := 0
+	for _, item := range char.Inventory {
+		if item != nil && item.ItemType == itemType {
+			count++
+		}
+	}
+	return count
+}

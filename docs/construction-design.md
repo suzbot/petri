@@ -54,7 +54,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 ---
 
 ### Step 3: Clay Terrain + Dig Clay
-**Status:** 3a Complete, 3b Planned
+**Status:** Complete
 
 **Anchor story:** The player notices dusky earth patches with a halftone texture near the pond — clay deposits, with a few loose lumps of clay on the surface. A character looks at one and realizes they could dig for more. The player creates a Dig Clay order. The character drops what they're carrying, walks to the clay, scoops some up, and carries a lump of clay. They dig a second lump, then set both down on the ground. Clay deposits never run out.
 

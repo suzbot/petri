@@ -177,6 +177,9 @@ func applyIntent(char *entity.Character, gameMap *game.Map, delta float64, actio
 		// Picking up an item (used by both foraging and harvest orders)
 		// Order completion is handled in UI layer
 		applyPickupIntent(char, gameMap, delta, actionLog)
+
+	case entity.ActionDig:
+		applyDigIntent(char, gameMap, delta, actionLog)
 	}
 }
 
@@ -392,6 +395,47 @@ func findAlternateStep(char *entity.Character, gameMap *game.Map, cx, cy int, tr
 	}
 
 	return nil
+}
+
+// applyDigIntent handles ActionDig in simulation: walk to clay tile, then dig.
+func applyDigIntent(char *entity.Character, gameMap *game.Map, delta float64, actionLog *system.ActionLog) {
+	cpos := char.Pos()
+
+	if !char.HasInventorySpace() {
+		char.Intent = nil
+		return
+	}
+
+	// Walking phase: not yet at clay tile
+	if cpos != char.Intent.Dest {
+		speed := char.EffectiveSpeed()
+		char.SpeedAccumulator += float64(speed) * delta
+		const movementThreshold = 7.5
+		if char.SpeedAccumulator < movementThreshold {
+			return
+		}
+		char.SpeedAccumulator -= movementThreshold
+		tx, ty := char.Intent.Target.X, char.Intent.Target.Y
+		if gameMap.MoveCharacter(char, types.Position{X: tx, Y: ty}) {
+			newPos := char.Pos()
+			dest := char.Intent.Dest
+			if newPos != dest {
+				nextX, nextY := system.NextStep(newPos.X, newPos.Y, dest.X, dest.Y)
+				char.Intent.Target.X = nextX
+				char.Intent.Target.Y = nextY
+			}
+		}
+		return
+	}
+
+	// Working phase
+	char.ActionProgress += delta
+	if char.ActionProgress >= config.ActionDurationMedium {
+		char.ActionProgress = 0
+		clay := entity.NewClay(cpos.X, cpos.Y)
+		char.AddToInventory(clay)
+		char.Intent = nil
+	}
 }
 
 func sign(x int) int {

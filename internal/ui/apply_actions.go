@@ -56,6 +56,8 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		m.applyHelpWater(char, delta)
 	case entity.ActionExtract:
 		m.applyExtract(char, delta)
+	case entity.ActionDig:
+		m.applyDig(char, delta)
 	}
 }
 
@@ -1481,5 +1483,42 @@ func (m *Model) applyExtract(char *entity.Character, delta float64) {
 	}
 
 	// Clear intent — ordered action pattern: next tick re-evaluates via findExtractIntent
+	char.Intent = nil
+}
+
+// applyDig handles ActionDig: walk to a clay terrain tile, then dig up a lump of clay.
+// Walk-then-act pattern with ActionDurationShort. Clay added directly to inventory.
+// Ordered action pattern: clear intent after digging so next tick re-evaluates.
+func (m *Model) applyDig(char *entity.Character, delta float64) {
+	cpos := char.Pos()
+
+	// Guard: no inventory space (safety net — findDigIntent should prevent this)
+	if !char.HasInventorySpace() {
+		char.Intent = nil
+		return
+	}
+
+	// Walking phase: not yet at clay tile
+	if cpos != char.Intent.Dest {
+		m.moveWithCollision(char, cpos, delta)
+		return
+	}
+
+	// Working phase: at clay tile, accumulate progress
+	char.ActionProgress += delta
+	if char.ActionProgress < config.ActionDurationMedium {
+		return
+	}
+
+	// Dig complete
+	char.ActionProgress = 0
+	clay := entity.NewClay(cpos.X, cpos.Y)
+	char.AddToInventory(clay)
+
+	if m.actionLog != nil {
+		m.actionLog.Add(char.ID, char.Name, "activity", "Dug clay")
+	}
+
+	// Clear intent — ordered action pattern: next tick re-evaluates via findDigIntent
 	char.Intent = nil
 }

@@ -636,3 +636,41 @@ func TestDiscoverHarvest_FromLookingAtFlower(t *testing.T) {
 		t.Error("Expected character to know harvest after looking at flower")
 	}
 }
+
+func TestDigDiscovery_LookAtClay(t *testing.T) {
+	t.Parallel()
+
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{},
+	}
+	clay := entity.NewClay(0, 0)
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionLook, clay, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected discovery from looking at clay")
+	}
+	if !char.KnowsActivity("dig") {
+		t.Error("Expected character to know dig after looking at clay")
+	}
+}
+
+func TestDigDiscovery_PickupClay(t *testing.T) {
+	t.Parallel()
+
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{},
+	}
+	clay := entity.NewClay(0, 0)
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionPickup, clay, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected discovery from picking up clay")
+	}
+	if !char.KnowsActivity("dig") {
+		t.Error("Expected character to know dig after picking up clay")
+	}
+}

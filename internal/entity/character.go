@@ -117,6 +117,7 @@ const (
 	ActionHelpFeed    // Delivering food to a character in crisis hunger (self-managing, idle override)
 	ActionHelpWater   // Delivering water to a character in crisis thirst (self-managing, idle override)
 	ActionExtract     // Extracting seeds from a living plant (ordered, walk-then-act)
+	ActionDig         // Digging material from terrain (ordered, walk-then-act)
 )
 
 // NewCharacter creates a new character with the given preferences

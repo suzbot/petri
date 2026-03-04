@@ -34,6 +34,7 @@ func selectOrderActivity(char *entity.Character, pos types.Position, items []*en
 			// Check if order goal is achieved vs failure
 			if isMultiStepOrderComplete(char, order, gameMap) {
 				DropCompletedBundle(char, order, gameMap, log)
+				DropCompletedDigItems(char, order, gameMap, log)
 				CompleteOrder(char, order, log)
 				return nil
 			}
@@ -67,6 +68,7 @@ func selectOrderActivity(char *entity.Character, pos types.Position, items []*en
 	// Check if order goal is achieved vs failure
 	if isMultiStepOrderComplete(char, order, gameMap) {
 		DropCompletedBundle(char, order, gameMap, log)
+		DropCompletedDigItems(char, order, gameMap, log)
 		CompleteOrder(char, order, log)
 		return nil
 	}
@@ -136,6 +138,8 @@ func findOrderIntent(char *entity.Character, pos types.Position, items []*entity
 		return findGatherIntent(char, pos, items, order, log, gameMap)
 	case "extract":
 		return findExtractIntent(char, pos, items, order, log, gameMap)
+	case "dig":
+		return findDigIntent(char, pos, items, order, log, gameMap)
 	default:
 		// Unknown activity type - cannot create intent
 		return nil
@@ -342,6 +346,15 @@ func isMultiStepOrderComplete(char *entity.Character, order *entity.Order, gameM
 	case "extract":
 		// Complete when locked to a variety and no more extractable plants of that variety exist
 		return order.LockedVariety != "" && !extractableItemExists(gameMap.Items(), order.TargetType, order.LockedVariety)
+	case "dig":
+		// Complete when both inventory slots have clay
+		clayCount := 0
+		for _, item := range char.Inventory {
+			if item != nil && item.ItemType == "clay" {
+				clayCount++
+			}
+		}
+		return clayCount >= 2
 	default:
 		return false
 	}
@@ -577,6 +590,8 @@ func IsOrderFeasible(order *entity.Order, items []*entity.Item, gameMap *game.Ma
 		return groundItemOfTypeExists(items, order.TargetType), false
 	case "extract":
 		return extractableItemExists(items, order.TargetType, ""), false
+	case "dig":
+		return gameMap.HasClay(), false
 	default:
 		return true, false // Unknown activity type, assume feasible
 	}
@@ -1159,4 +1174,84 @@ func findNearestExtractable(cx, cy int, items []*entity.Item, itemType string, l
 	}
 
 	return nearest
+}
+
+// findDigIntent creates an intent to dig clay from a clay terrain tile.
+// Walk-then-act pattern (follows applyExtract). No vessel procurement.
+// Step 1: If both inventory slots have clay, return nil (triggers completion).
+// Step 2: Drop all non-clay inventory items (procurement drop pattern).
+// Step 3: Find nearest clay tile. Return nil if none (triggers abandonment).
+// Step 4: Return ActionDig intent targeting the clay tile.
+func findDigIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	// Step 1: If both slots have clay, return nil to trigger completion
+	clayCount := 0
+	for _, item := range char.Inventory {
+		if item != nil && item.ItemType == "clay" {
+			clayCount++
+		}
+	}
+	if clayCount >= 2 {
+		return nil
+	}
+
+	// Step 2: Drop all non-clay inventory items (procurement drop pattern)
+	var toDrop []*entity.Item
+	for _, item := range char.Inventory {
+		if item != nil && item.ItemType != "clay" {
+			toDrop = append(toDrop, item)
+		}
+	}
+	for _, item := range toDrop {
+		DropItem(char, item, gameMap, log)
+	}
+
+	// Step 3: Find nearest clay tile
+	clayPos, found := gameMap.FindNearestClay(pos)
+	if !found {
+		return nil // No clay tiles — triggers abandonment
+	}
+
+	// Step 4: Walk-then-act
+	if pos == clayPos {
+		char.CurrentActivity = "Digging clay"
+		return &entity.Intent{
+			Target: pos,
+			Dest:   clayPos,
+			Action: entity.ActionDig,
+		}
+	}
+
+	nx, ny := NextStepBFS(pos.X, pos.Y, clayPos.X, clayPos.Y, gameMap)
+	newActivity := "Moving to dig clay"
+	if char.CurrentActivity != newActivity {
+		char.CurrentActivity = newActivity
+	}
+	return &entity.Intent{
+		Target: types.Position{X: nx, Y: ny},
+		Dest:   clayPos,
+		Action: entity.ActionDig,
+	}
+}
+
+// DropCompletedDigItems drops all clay items from inventory when a dig order completes.
+// Called from selectOrderActivity before CompleteOrder. No-op for other order types.
+func DropCompletedDigItems(char *entity.Character, order *entity.Order, gameMap *game.Map, log *ActionLog) {
+	if order.ActivityID != "dig" {
+		return
+	}
+	// Collect first, then drop (avoid modifying inventory during iteration)
+	var toDrop []*entity.Item
+	for _, item := range char.Inventory {
+		if item != nil && item.ItemType == "clay" {
+			toDrop = append(toDrop, item)
+		}
+	}
+	for _, item := range toDrop {
+		DropItem(char, item, gameMap, log)
+	}
+}
+
+// FindDigIntentForTest is an exported wrapper for integration tests in other packages.
+func FindDigIntentForTest(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	return findDigIntent(char, pos, items, order, log, gameMap)
 }
