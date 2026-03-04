@@ -109,7 +109,8 @@ Design doc: [phase-design.md](phase-design.md)
 - [ ] Deferred scope (what was descoped and where is it tracked?)
 
 **Behavioral completeness — resolve before writing:**
-- Ensure all behavioral details of the feature are specified, even if they weren't in the original requirements. For ordered actions, check the "Behavioral details the plan must specify" checklist in architecture.md (targeting, duration, completion criteria, feasibility criteria, variety lock). Make recommendations and get approval from the user on all such details before recording them in the step spec.
+- Ensure all behavioral details of the feature are specified, even if they weren't in the original requirements. Make recommendations and get approval from the user on all such details before recording them in the step spec.
+- **For ordered actions:** Read the "Behavioral details the plan must specify" checklist under "Adding an Ordered Action" in architecture.md. Each item must be resolved in the step spec — not left as an implicit default. The step spec should state the chosen value explicitly (e.g., "Duration: ActionDurationMedium", "No sub-menu — single target type").
 
 A step spec is implementation-ready when it has:
 - **Anchor story per sub-step (REQUIRED)** — each sub-step MUST open with a 1-2 sentence narrative of what the user/character experiences. This is a critical handoff artifact: `/implement-feature` derives its anchor tests directly from these stories. A sub-step without an anchor story will produce tests that validate code structure instead of user intent. Example: "Character gets a Water Garden order but has no vessel. They procure one, fill it at the pond, and start watering." The anchor test derived from this would verify: "ground vessel ends up filled with water and tiles get watered" — not "returns ActionWaterGarden."

@@ -88,7 +88,7 @@ Start from the **recipe template** below, then customize for the test scenario.
 - Use `version: 1` and set `map_width: 60`, `map_height: 60`
 - Position characters near relevant items/features
 - Pre-populate knowledge/known_activities if testing knowledge-dependent behavior
-- Include water_tiles for drinking, features (leaf piles, feature_type: 2) for sleeping
+- Include water_tiles for drinking, features (leaf piles, feature_type: 1) for sleeping
 - Include varieties for all item types present
 - Set `talking_with_id: -1` for characters not in conversation
 - All items need fields matching the `ItemSave` struct in `state.go`. See templates below for common examples.
@@ -238,7 +238,7 @@ To put a vessel in a character's inventory, add it to the character's `"inventor
   "id": 1,
   "x": 35,
   "y": 30,
-  "feature_type": 2
+  "feature_type": 1
 }
 ```
 
