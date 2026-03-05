@@ -1024,6 +1024,71 @@ func TestContinueIntent_ActionLookArrivesAdjacent(t *testing.T) {
 	}
 }
 
+func TestContinueIntent_ActionLookReroutesWhenOnSameTile(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPos(types.Position{X: 5, Y: 5}) // Same tile as item
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	item := entity.NewBerry(5, 5, types.ColorRed, false, false)
+	gameMap.AddItem(item)
+
+	char.Intent = &entity.Intent{
+		Target:     types.Position{X: 5, Y: 5},
+		Dest:       types.Position{X: 5, Y: 5},
+		Action:     entity.ActionLook,
+		TargetItem: item,
+	}
+
+	intent := continueIntent(char, 5, 5, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Should return intent when on same tile as look target, not nil")
+	}
+	if intent.Action != entity.ActionLook {
+		t.Errorf("Action: got %d, want ActionLook", intent.Action)
+	}
+	// Should route to an adjacent tile, not stay stuck at (5,5)
+	ipos := item.Pos()
+	if intent.Target.X == ipos.X && intent.Target.Y == ipos.Y {
+		t.Error("Target should move toward an adjacent tile, not stay on item")
+	}
+}
+
+func TestContinueIntent_TalkReroutesWhenOnSameTile(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPos(types.Position{X: 5, Y: 5})
+
+	target := entity.NewCharacter(2, 5, 5, "Other", "berry", types.ColorBlue)
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	gameMap.AddCharacter(char)
+	gameMap.AddCharacter(target)
+
+	char.Intent = &entity.Intent{
+		Target:          types.Position{X: 5, Y: 5},
+		Dest:            types.Position{X: 5, Y: 5},
+		Action:          entity.ActionTalk,
+		TargetCharacter: target,
+	}
+
+	intent := continueIntent(char, 5, 5, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Should return intent when on same tile as talk target, not nil")
+	}
+	if intent.Action != entity.ActionTalk {
+		t.Errorf("Action: got %d, want ActionTalk", intent.Action)
+	}
+	// Should route to an adjacent tile, not stay stuck at (5,5)
+	if intent.Target.X == 5 && intent.Target.Y == 5 {
+		t.Error("Target should move toward an adjacent tile, not stay on target character")
+	}
+}
+
 func TestContinueIntent_NonLookTargetItemNoDrivingStat_NoConversion(t *testing.T) {
 	t.Parallel()
 
@@ -3080,5 +3145,128 @@ func TestFindFoodTarget_FullInventory_GroundFoodVesselStillSelected(t *testing.T
 
 	if result.Item != vessel {
 		t.Error("Ground food vessel should be selected even when inventory is full — eat-in-place doesn't need inventory space")
+	}
+}
+
+// =============================================================================
+// UsingBFS Preservation for Position-Based Orders
+// =============================================================================
+
+// Regression: position-based order intents (tillSoil, plant, dig) have no TargetItem,
+// so they bypass continueIntent and re-evaluate each tick. This was clearing UsingBFS,
+// causing characters to oscillate into dead-end pockets near water.
+func TestUsingBFS_PreservedForAssignedOrder(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	// Add water to create an obstacle
+	gameMap.AddWater(types.Position{X: 10, Y: 8}, game.WaterPond)
+
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	char.Hunger = 0
+	char.Thirst = 0
+	char.Energy = 100
+	gameMap.AddCharacter(char)
+
+	// Set up a tillSoil order assigned to this character
+	order := entity.NewOrder(1, "tillSoil", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+	orders := []*entity.Order{order}
+
+	// Mark a tile for tilling (past the water)
+	gameMap.MarkForTilling(types.Position{X: 10, Y: 5})
+
+	// Give character a hoe so tillSoil intent can be found
+	hoe := entity.NewHoe(10, 10, types.ColorGray)
+	char.Inventory = append(char.Inventory, hoe)
+
+	// Character knows tillSoil
+	char.KnownActivities = append(char.KnownActivities, "tillSoil")
+
+	// Set up existing intent as if character was mid-movement on this order
+	char.Intent = &entity.Intent{
+		Target: types.Position{X: 10, Y: 9},
+		Dest:   types.Position{X: 10, Y: 5},
+		Action: entity.ActionTillSoil,
+	}
+	char.UsingBFS = true
+
+	// CalculateIntent should preserve UsingBFS since character has an assigned order
+	CalculateIntent(char, gameMap.Items(), gameMap, nil, orders)
+
+	if !char.UsingBFS {
+		t.Error("UsingBFS should be preserved when character has an assigned order")
+	}
+}
+
+// Regression: character near an irregularly shaped pond oscillates into a dead-end
+// pocket instead of routing around it. Simulates the full multi-tick sequence.
+func TestTillOrder_RoutesAroundPondPocket(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	// Create a pond pocket: (10,9) is clear but N/W/E are water
+	gameMap.AddWater(types.Position{X: 10, Y: 8}, game.WaterPond) // N
+	gameMap.AddWater(types.Position{X: 9, Y: 9}, game.WaterPond)  // W
+	gameMap.AddWater(types.Position{X: 11, Y: 9}, game.WaterPond) // E
+
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	char.Hunger = 0
+	char.Thirst = 0
+	char.Energy = 100
+	gameMap.AddCharacter(char)
+
+	// Set up tillSoil order
+	order := entity.NewOrder(1, "tillSoil", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+	orders := []*entity.Order{order}
+
+	// Mark a tile north past the pond
+	gameMap.MarkForTilling(types.Position{X: 10, Y: 5})
+
+	// Give character a hoe and tillSoil know-how
+	hoe := entity.NewHoe(10, 10, types.ColorGray)
+	char.Inventory = append(char.Inventory, hoe)
+	char.KnownActivities = append(char.KnownActivities, "tillSoil")
+
+	// Simulate multiple ticks — character should eventually route around the pocket
+	for tick := 0; tick < 5; tick++ {
+		intent := CalculateIntent(char, gameMap.Items(), gameMap, nil, orders)
+		if intent == nil {
+			t.Fatalf("Tick %d: expected intent, got nil", tick)
+		}
+		// Simulate movement: update character position to intent's Target
+		gameMap.MoveCharacter(char, intent.Target)
+		char.Intent = intent
+	}
+
+	// After 5 ticks, character should NOT be at (10,10) or (10,9) — they should
+	// have broken out of the pocket and be making progress around the pond
+	finalPos := char.Pos()
+	if finalPos.X == 10 && (finalPos.Y == 10 || finalPos.Y == 9) {
+		t.Errorf("Character is still oscillating in pond pocket at (%d,%d) after 5 ticks", finalPos.X, finalPos.Y)
+	}
+}
+
+func TestUsingBFS_ClearsWhenNoAssignedOrder(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// No assigned order
+	char.AssignedOrderID = 0
+	char.UsingBFS = true
+	char.Intent = nil
+
+	CalculateIntent(char, nil, gameMap, nil, nil)
+
+	if char.UsingBFS {
+		t.Error("UsingBFS should be cleared when character has no assigned order")
 	}
 }

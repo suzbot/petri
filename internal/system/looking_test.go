@@ -237,6 +237,45 @@ func TestFindLookIntent_ReturnsLookIntentWhenAdjacent(t *testing.T) {
 	}
 }
 
+func TestFindLookIntent_RoutesToAdjacentWhenOnSameTile(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	gameMap := game.NewMap(10, 10)
+
+	// Item on same tile as character
+	item := entity.NewFlower(5, 5, types.ColorPurple)
+	items := []*entity.Item{item}
+
+	var intent *entity.Intent
+	for i := 0; i < 20; i++ {
+		intent = findLookIntent(char, types.Position{X: 5, Y: 5}, items, gameMap, nil)
+		if intent != nil {
+			break
+		}
+	}
+
+	if intent == nil {
+		t.Skip("No look intent returned in 20 attempts (probabilistic)")
+	}
+
+	if intent.Action != entity.ActionLook {
+		t.Errorf("Expected ActionLook, got %v", intent.Action)
+	}
+	if intent.TargetItem != item {
+		t.Error("TargetItem should be the same-tile item")
+	}
+	// Character should be routed to an adjacent tile, not staying at (5,5)
+	ipos := item.Pos()
+	if intent.Dest.X == ipos.X && intent.Dest.Y == ipos.Y {
+		t.Error("Dest should be an adjacent tile, not the item's tile")
+	}
+	destPos := intent.Dest
+	if !destPos.IsAdjacentTo(ipos) {
+		t.Errorf("Dest (%d,%d) should be adjacent to item at (%d,%d)", destPos.X, destPos.Y, ipos.X, ipos.Y)
+	}
+}
+
 func TestFindLookIntent_ReturnsLookIntentWhenNotAdjacent(t *testing.T) {
 	t.Parallel()
 

@@ -28,9 +28,10 @@ then they can be removed from this list.
 ## Bugs to Investigate
 
 1. **Fill vessel abandoned mid-trip** — Observed character picking up a vessel for water, heading toward the pond, then abandoning the fill-vessel intent partway there (wandered off to talk instead). Needs investigation into why ActionFillVessel intent was dropped before reaching water. (Observed during extract testing, world-test-extract)
-2. **"Moving to look at item" stuck when standing on it** — Character gets stuck in "moving to look at item" state when already on the item's tile. Likely a pathfinding/adjacency check that doesn't handle distance-zero. (Observed during 2b-3 testing)
 
 ## Unallocated Features
+
+1. **Poison preference reinforcement on repeat consumption** — Poison items push toward dislike on first consumption, but if a character's opinion later changes (e.g., from looking at the item), eating the poison again doesn't re-form the negative preference. Repeated poison consumption should reinforce dislike even if opinion changed in the interim.
 
 
 

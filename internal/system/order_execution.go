@@ -251,8 +251,12 @@ func findTillSoilIntent(char *entity.Character, pos types.Position, items []*ent
 		}
 	}
 
-	// Move toward target tile
-	nx, ny := NextStepBFS(pos.X, pos.Y, nearest.X, nearest.Y, gameMap)
+	// Move toward target tile (use sticky BFS — position-based orders recalculate
+	// each tick, so the character needs BFS to persist across recalculations)
+	nx, ny, usedBFS := nextStepBFSCore(pos.X, pos.Y, nearest.X, nearest.Y, gameMap, char.UsingBFS)
+	if usedBFS {
+		char.UsingBFS = true
+	}
 	newActivity := "Moving to till soil"
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity
@@ -301,8 +305,11 @@ func findPlantIntent(char *entity.Character, pos types.Position, items []*entity
 			}
 		}
 
-		// Move toward tilled tile
-		nx, ny := NextStepBFS(pos.X, pos.Y, nearestTile.X, nearestTile.Y, gameMap)
+		// Move toward tilled tile (use sticky BFS — position-based orders recalculate each tick)
+		nx, ny, usedBFS := nextStepBFSCore(pos.X, pos.Y, nearestTile.X, nearestTile.Y, gameMap, char.UsingBFS)
+		if usedBFS {
+			char.UsingBFS = true
+		}
 		newActivity := "Moving to plant"
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
@@ -1221,7 +1228,11 @@ func findDigIntent(char *entity.Character, pos types.Position, items []*entity.I
 		}
 	}
 
-	nx, ny := NextStepBFS(pos.X, pos.Y, clayPos.X, clayPos.Y, gameMap)
+	// Use sticky BFS — position-based orders recalculate each tick
+	nx, ny, usedBFS := nextStepBFSCore(pos.X, pos.Y, clayPos.X, clayPos.Y, gameMap, char.UsingBFS)
+	if usedBFS {
+		char.UsingBFS = true
+	}
 	newActivity := "Moving to dig clay"
 	if char.CurrentActivity != newActivity {
 		char.CurrentActivity = newActivity

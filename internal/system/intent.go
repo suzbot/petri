@@ -171,7 +171,13 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 
 	// Creating a new intent from scratch — clear sticky BFS flag.
 	// (If continueIntent was called above and returned, UsingBFS was preserved.)
-	char.UsingBFS = false
+	// Preserve UsingBFS for characters with assigned orders — position-based order
+	// intents (tillSoil, plant, dig) recalculate each tick but still face the same
+	// terrain obstacles. Clearing UsingBFS would cause greedy to walk into dead-end
+	// pockets near water on every tick, creating an oscillation loop.
+	if char.AssignedOrderID == 0 {
+		char.UsingBFS = false
+	}
 
 	// Evaluate which stat to address based on tier and tie-breakers
 
@@ -718,26 +724,64 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	}
 
 	// Check if we've arrived adjacent to an item for looking
-	if intent.Action == entity.ActionLook && intent.TargetItem != nil && isAdjacent(cx, cy, tx, ty) {
-		newActivity := "Looking at " + intent.TargetItem.Description()
-		if char.CurrentActivity != newActivity {
-			char.CurrentActivity = newActivity
+	if intent.Action == entity.ActionLook && intent.TargetItem != nil {
+		if isAdjacent(cx, cy, tx, ty) {
+			newActivity := "Looking at " + intent.TargetItem.Description()
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+			}
+			return &entity.Intent{
+				Target:     types.Position{X: cx, Y: cy}, // Stay in place
+				Dest:       types.Position{X: cx, Y: cy}, // Already at destination (adjacent to item)
+				Action:     entity.ActionLook,
+				TargetItem: intent.TargetItem,
+			}
 		}
-		return &entity.Intent{
-			Target:     types.Position{X: cx, Y: cy}, // Stay in place
-			Dest:       types.Position{X: cx, Y: cy}, // Already at destination (adjacent to item)
-			Action:     entity.ActionLook,
-			TargetItem: intent.TargetItem,
+		// On same tile as item — reroute to an adjacent tile to look from there
+		if cx == tx && cy == ty {
+			adjX, adjY := findClosestAdjacentTile(cx, cy, tx, ty, gameMap)
+			if adjX == -1 {
+				return nil // No accessible adjacent tile
+			}
+			nx, ny, usedBFS := nextStepBFSCore(cx, cy, adjX, adjY, gameMap, char.UsingBFS)
+			if usedBFS {
+				char.UsingBFS = true
+			}
+			return &entity.Intent{
+				Target:     types.Position{X: nx, Y: ny},
+				Dest:       types.Position{X: adjX, Y: adjY},
+				Action:     entity.ActionLook,
+				TargetItem: intent.TargetItem,
+			}
 		}
 	}
 
 	// Check if we've arrived adjacent to a character for talking
-	if intent.TargetCharacter != nil && isAdjacent(cx, cy, tx, ty) {
-		return &entity.Intent{
-			Target:          types.Position{X: cx, Y: cy}, // Stay in place
-			Dest:            types.Position{X: cx, Y: cy}, // Already at destination (adjacent to character)
-			Action:          entity.ActionTalk,
-			TargetCharacter: intent.TargetCharacter,
+	if intent.TargetCharacter != nil {
+		if isAdjacent(cx, cy, tx, ty) {
+			return &entity.Intent{
+				Target:          types.Position{X: cx, Y: cy}, // Stay in place
+				Dest:            types.Position{X: cx, Y: cy}, // Already at destination (adjacent to character)
+				Action:          entity.ActionTalk,
+				TargetCharacter: intent.TargetCharacter,
+			}
+		}
+		// On same tile as target character — reroute to an adjacent tile
+		if cx == tx && cy == ty {
+			adjX, adjY := findClosestAdjacentTile(cx, cy, tx, ty, gameMap)
+			if adjX == -1 {
+				return nil // No accessible adjacent tile
+			}
+			nx, ny, usedBFS := nextStepBFSCore(cx, cy, adjX, adjY, gameMap, char.UsingBFS)
+			if usedBFS {
+				char.UsingBFS = true
+			}
+			return &entity.Intent{
+				Target:          types.Position{X: nx, Y: ny},
+				Dest:            types.Position{X: adjX, Y: adjY},
+				Action:          entity.ActionTalk,
+				TargetCharacter: intent.TargetCharacter,
+			}
 		}
 	}
 
