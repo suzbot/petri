@@ -13,6 +13,8 @@ Investigate and fix a bug or gap reported during human testing. The goal is to a
 
 **Do this BEFORE forming any hypothesis about the cause.**
 
+- Read the relevant section of `docs/architecture.md` for the affected system — establishes the intended pattern before any code is read
+- Read `docs/game-mechanics.md` for the expected player-visible behavior — anchors the correct-behavior baseline before hypothesizing
 - Examine the most recently modified save file: `ls -t ~/.petri/worlds/*/state.json | head -1`
 - Check logs, add `t.Logf` or `-v` to relevant tests if needed
 - Never guess what the game state is — read it
@@ -23,6 +25,7 @@ Investigate and fix a bug or gap reported during human testing. The goal is to a
 - Present the evidence gathered — what the save file, logs, or diagnostics show
 - If the expected behavior is unclear, consult `docs/game-mechanics.md` for how the system should work from the player's perspective
 - If evidence doesn't match the report, ask clarifying questions — don't assume the user is misreporting. Ambiguity in what they observed is more likely than a wrong report
+- **Frame the problem before solving it.** Specify current state and desired state in functional terms. Consider impact on the larger system: name which existing behaviors the fix must not break. For bugs in multi-stage pipelines (movement, order execution), trace all stages — a fix scoped to one stage may leave others.
 - **Stop here and wait for user confirmation that the problem statement is correct.** Do not propose fixes yet.
 
 ### Step 3: Scan Sibling Flows and Check Coverage

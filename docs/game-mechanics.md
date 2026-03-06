@@ -431,9 +431,9 @@ When a character becomes idle-eligible:
 2. Check for open orders character can take → take first available
 3. Fall through to random idle activity
 
-**Harvest orders:** Character seeks growing items of the target type, picks them up into a vessel (or inventory). Continues until vessel is full or no matching items remain.
+**Harvest orders:** Character seeks growing items of the target type, picks them up into a vessel (or inventory). Continues until vessel is full, inventory is full with no vessel available, or no matching items remain.
 
-**Extract orders:** Character procures a vessel and extracts seeds from matching plants without removing the plant. Plants can only be extracted from when their `SeedTimer` has expired (seeds regenerated). After extraction, the plant's seed timer resets — tied to the plant type's reproduction interval (fast-reproducing grass regenerates seeds faster than flowers). If all plants of the target type are temporarily depleted, the order shows as **[Unfulfillable]** and is skipped until seeds regenerate. Order completes when no extractable plants remain or the vessel is full. Requires Extract know-how.
+**Extract orders:** Character procures a vessel and extracts seeds from matching plants without removing the plant. Plants can only be extracted from when their `SeedTimer` has expired (seeds regenerated). After extraction, the plant's seed timer resets — tied to the plant type's reproduction interval (fast-reproducing grass regenerates seeds faster than flowers). If all plants of the target type are temporarily depleted, the order shows as **[Unfulfillable]** and is skipped until seeds regenerate. Order completes when all plants of the target variety have been extracted (none left with seeds available), or inventory is full with no vessel space remaining for seeds. Requires Extract know-how.
 
 When a fully grown extractable plant (flower or tall grass) has seeds available, the details panel shows **"Gone to seed"** below "Growing" — a signal that the plant is ready to extract from. Sprouts and non-extractable plants never show this indicator.
 
@@ -534,12 +534,14 @@ Tilled soil is a terrain state that doesn't block movement or item placement. Cr
 
 ### Planting
 
+The plant order menu lists all plantable item types currently found in the world — on the ground, in vessels, or in character inventories. This includes flower seeds, tall grass seeds, gourd seeds, berries, and mushrooms. Only types that actually exist in the world appear in the menu.
+
 When a character works a Plant order:
 1. Procures a plantable item matching the order's target type (checks inventory, ground vessels, loose items)
-2. Moves to the nearest empty tilled tile
-3. Plants: consumes the item and places a sprout
+2. Moves to the nearest available tilled tile — tiles with only loose non-growing items (seeds, vessels) are considered available; only tiles with a growing plant are skipped
+3. Plants: pushes any loose non-growing items on the tile to an adjacent empty tile, then consumes the plantable item and places a sprout
 4. On first plant, the order locks to that exact variety — subsequent procurement seeks only the same variety
-5. Completes when no empty tilled tiles remain or no matching items are available
+5. Completes when no available tilled tiles remain (all occupied by growing plants) or no matching items are available
 
 ### Sprouts
 

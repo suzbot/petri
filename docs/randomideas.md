@@ -12,12 +12,11 @@ then they can be removed from this list.
 ## UI Improvements
 
 1. **Capitalization** consistency clean-up (not quick - lots of strings to sweep through)
-3. **Natural Language Descriptions**
+2. **Natural Language Descriptions**
    - Key words shown in relevant color (color text is color, poison red, healing green, growing olive) and bolded
    - Everything non-null/non-false reflected in a sentence
    - Design must easily expand as new attribute types added
    - Example: "This is a hollow gourd. It is a vessel that can be used to carry things. It is warty and green."
-
 
 ## Tech Stuff
 
@@ -28,15 +27,13 @@ then they can be removed from this list.
 ## Bugs to Investigate
 
 1. **Fill vessel abandoned mid-trip** — Observed character picking up a vessel for water, heading toward the pond, then abandoning the fill-vessel intent partway there (wandered off to talk instead). Needs investigation into why ActionFillVessel intent was dropped before reaching water. (Observed during extract testing, world-test-extract)
+2. 'Clays' in gatherable list should be 'clay'
 
 ## Unallocated Features
 
 1. **Poison preference reinforcement on repeat consumption** — Poison items push toward dislike on first consumption, but if a character's opinion later changes (e.g., from looking at the item), eating the poison again doesn't re-form the negative preference. Repeated poison consumption should reinforce dislike even if opinion changed in the interim.
-
-
-
-
-
+2. Limit shell varieties to 2 per world generation
+3. Allow gourds to drop 2 seeds (need to decide whether some of the time or all the time)
 
 # Ideas that aren't ready yet
 
@@ -50,7 +47,7 @@ then they can be removed from this list.
   - Soup! made out of mushrooms + water
   - feed fire with fuel?
   - food quality for mood
-  - satiety of food items
+  - tea
 - Streams and Bridges (requires Construction)
 - Use moss, feathers, and leaves to make beds (requires Construction)
 - Baskets, Bags, and Bins (consider after Gardening)

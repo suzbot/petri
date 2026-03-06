@@ -38,6 +38,7 @@ Core process innovations developed over the course of this project:
 
 - **Dig Clay orders**: Direct characters to dig clay from deposits; they fill both inventory slots and drop lumps on completion
 - **Seed extraction**: Characters extract seeds from flowers and tall grass via Extract orders, without harming the plant.
+- **Plant order menu**: Now lists all plantable types found in the world, including flower seeds, grass seeds, berries, and mushrooms.
 - **Helping:** Characters bring food or water to other character in crisis
 - **Gardening:** Characters can gather seeds, till soil, water the garden, and watch food grow
 

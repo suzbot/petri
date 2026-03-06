@@ -42,7 +42,7 @@ Confirm the sub-step spec has:
 - [ ] Tests listed before implementation tasks (TDD order)
 - [ ] At least one test traces the anchor story end-to-end
 - [ ] [TEST] checkpoint
-- [ ] If step spec references an architecture.md "Adding New X" checklist, verify spec covers every item
+- [ ] Identify which "Adding New X" checklists in architecture.md apply to this step; verify spec covers every item in each applicable checklist
 
 **Pattern alignment:**
 - Cite the architecture.md section and state how it applies
@@ -87,3 +87,11 @@ When modifying a shared function (Pickup, CanPickUpMore, FindNextTarget, etc.), 
 - Update the step's **Status** in the phase design doc to "Complete"
 - Replace `docs/step-spec.md` content with: `Step N complete. Next: Step M — run /refine-feature.`
 - Suggest a commit message for the completed work
+
+### Retro Guidelines (for task 9)
+
+1. **Before invoking:** Ask the user if they want conversation history searched for uncaptured friction
+2. **If yes:** Run the conversation history search process defined in the retro skill's "Conversation History Search" section, then pass findings as part of the `/retro` arguments
+3. **Invoke `/retro`** via the Skill tool — it runs as an agent and returns proposals
+4. **Relay proposals to the user** for approval; implement only what the user approves
+5. **After proposals are resolved:** Update `memory/last-retro.txt` with the current ISO timestamp

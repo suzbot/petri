@@ -347,9 +347,10 @@ Three checklists organized by category. Each includes every touchpoint; see the 
 
 1. Action constant in `character.go`
 2. Activity entry in `ActivityRegistry` (with `IntentOrderable` and appropriate `Category`)
-3. `findXxxIntent()` in `order_execution.go` — handles target selection on each resumption tick
+3. `findXxxIntent()` in `order_execution.go` — handles target selection on each resumption tick. **Position-based intents** (no `TargetItem`, e.g., TillSoil, Plant, Dig) bypass `continueIntent` and recalculate each tick — use `nextStepBFSCore(... char.UsingBFS)` and set `char.UsingBFS = true` when BFS is used, so sticky BFS survives across ticks. Item-based intents flow through `continueIntent` which handles this automatically.
 4. Wire into `findOrderIntent` switch, `isMultiStepOrderComplete`, `IsOrderFeasible`
 5. Handler method in `apply_actions.go` — add a named `applyXxx` method on `Model` and a case in the `applyIntent` dispatch table; complete one work unit, clear intent, check order completion inline
+5a. **Completion criteria**: every ordered action must define and test both (a) inline completion in the handler (checked after each work unit) and (b) a safety-net case in `isMultiStepOrderComplete` (checked each tick before resuming). Missing either allows the order to loop forever if world state changes between ticks. Add a regression test that exercises the completion boundary (e.g., full inventory, no remaining targets).
 6. `continueIntent`: multi-phase ordered actions with vessel procurement (e.g., WaterGarden) need an early-return block. Single-phase ordered actions (TillSoil, Plant) use the generic path. (See `continueIntent` Rules above.)
 7. `simulation.go`: add handler if simulation exercises this action
 8. If the action uses vessel procurement: use `RunVesselProcurement` tick helper
@@ -359,7 +360,7 @@ Three checklists organized by category. Each includes every touchpoint; see the 
 - **Targeting**: same-tile or adjacent? (Most actions use same-tile; Look uses adjacent.)
 - **Duration**: which `ActionDuration` constant? (Short, Medium, Long)
 - **Completion criteria**: what makes a multi-step order complete? (e.g., "no more items of locked variety on map")
-- **Feasibility criteria**: what makes the order unfulfillable? (greyed out, skipped during assignment)
+- **Feasibility criteria**: what makes the order unfulfillable? (greyed out, skipped during assignment). **Alignment rule**: `IsOrderFeasible` must use the same tile/item eligibility definition as the execution intent (`findXxxIntent`). If execution skips tiles with growing plants but `IsOrderFeasible` counts those tiles as available, characters will take the order, find no valid target, and abandon — looping until feasibility is fixed.
 - **Variety lock**: does the order lock to a specific variety on first action? (Harvest, Plant, Extract do; TillSoil, Craft, Dig don't.)
 - **DisplayName suffix**: does the order display name include a target type suffix? (Most do: `activity.Name + " " + Pluralize(targetType)`. Activities whose name already implies the target — like "Dig Clay" — return `activity.Name` alone. Add a case to `DisplayName()` in `order.go`.)
 - **Sub-menu (step 1)**: does the order need a target type selection sub-menu? If there is only one possible target type (e.g., clay for dig), skip step 1: create the order immediately at step 0 in `applyOrdersConfirm` and omit the step-1 rendering branch in `view.go`. If multiple target types exist, add `GetXxxTypes()` in `variety_generation.go` and wire into the step-1 nav, confirm, and render paths.

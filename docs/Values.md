@@ -40,6 +40,14 @@ When introducing a new type, category, or pattern, ask: "What else will eventual
 
 Example: Water as ItemType "liquid", Kind "water" (not ItemType "water"). Future beverages become Kind variants under the same ItemType with no structural changes.
 
+## Semantic Precision
+
+Names encode meaning. A config flag, a field name, a type name — each is a contract about what it represents. Don't overload a name to serve a purpose it doesn't describe, even when that's the expedient path. If `CanProduceSeeds` means "produces seeds on consumption," it shouldn't also mean "is plantable." When a name doesn't fit the need, the right response is a different name or a different mechanism — not stretching the existing one.
+
+This extends beyond naming to any encoded meaning: enum values, type hierarchies, status fields. If the code says something *is* X, it should *be* X in every context it's read.
+
+Example: `CanProduceSeeds` on ItemTypeConfig controls seed production on consumption (gourd → gourd seed). Using it to also control whether items appear in the plant order menu conflates two unrelated concepts. The correct source of truth for "what's plantable" is the `Plantable` field on the items themselves.
+
 ## Start With the Simpler Rule
 
 When designing character behavior, default to the simplest version that addresses the observed problem. Don't add conditions without a concrete observed reason. A conditional rule that isn't grounded in something the player actually experiences is complexity with no benefit.
