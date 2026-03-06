@@ -1,1 +1,1 @@
-Step 4 complete. Next: Step 5 — run /refine-feature.
+Step 5 complete. Next: Step 6 — Build Fence Order. Run /refine-feature.

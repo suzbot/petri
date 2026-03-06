@@ -25,6 +25,7 @@ type Map struct {
 	characterByPos map[types.Position]*entity.Character // O(1) position lookup, max 1 character per position
 	items          []*entity.Item
 	features       []*entity.Feature
+	constructs     []*entity.Construct
 
 	// Water terrain (springs and ponds)
 	water map[types.Position]WaterType
@@ -42,8 +43,9 @@ type Map struct {
 	wateredTimers map[types.Position]float64
 
 	// ID counters for save/load
-	nextItemID    int
-	nextFeatureID int
+	nextItemID      int
+	nextFeatureID   int
+	nextConstructID int
 
 	// Variety registry for this world (determines poison/healing for item types)
 	varieties *VarietyRegistry
@@ -59,6 +61,7 @@ func NewMap(width, height int) *Map {
 		characterByPos:   make(map[types.Position]*entity.Character),
 		items:            make([]*entity.Item, 0),
 		features:         make([]*entity.Feature, 0),
+		constructs:       make([]*entity.Construct, 0),
 		water:            make(map[types.Position]WaterType),
 		clay:             make(map[types.Position]bool),
 		tilled:           make(map[types.Position]bool),
@@ -148,6 +151,11 @@ func (m *Map) MoveCharacter(char *entity.Character, to types.Position) bool {
 		return false
 	}
 
+	// Refuse move if target has an impassable construct
+	if c := m.ConstructAt(to); c != nil && !c.IsPassable() {
+		return false
+	}
+
 	// Remove from old position - but verify it's actually this character
 	if m.characterByPos[oldPos] == char {
 		delete(m.characterByPos, oldPos)
@@ -182,6 +190,9 @@ func (m *Map) IsBlocked(pos types.Position) bool {
 	if f := m.FeatureAt(pos); f != nil && !f.IsPassable() {
 		return true
 	}
+	if c := m.ConstructAt(pos); c != nil && !c.IsPassable() {
+		return true
+	}
 	return false
 }
 
@@ -197,6 +208,9 @@ func (m *Map) IsEmpty(pos types.Position) bool {
 		return false
 	}
 	if m.FeatureAt(pos) != nil {
+		return false
+	}
+	if m.ConstructAt(pos) != nil {
 		return false
 	}
 	return true
@@ -340,6 +354,53 @@ func (m *Map) NextFeatureID() int {
 // SetNextFeatureID sets the next feature ID (for save/load)
 func (m *Map) SetNextFeatureID(id int) {
 	m.nextFeatureID = id
+}
+
+// AddConstruct adds a construct to the map, assigning a unique ID
+func (m *Map) AddConstruct(c *entity.Construct) {
+	m.nextConstructID++
+	c.ID = m.nextConstructID
+	m.constructs = append(m.constructs, c)
+}
+
+// AddConstructDirect adds a construct to the map without assigning an ID (for save/load)
+func (m *Map) AddConstructDirect(c *entity.Construct) {
+	m.constructs = append(m.constructs, c)
+}
+
+// Constructs returns all constructs on the map
+func (m *Map) Constructs() []*entity.Construct {
+	return m.constructs
+}
+
+// ConstructAt returns the construct at the given position, or nil
+func (m *Map) ConstructAt(pos types.Position) *entity.Construct {
+	for _, c := range m.constructs {
+		if c.Pos() == pos {
+			return c
+		}
+	}
+	return nil
+}
+
+// RemoveConstruct removes a construct from the map
+func (m *Map) RemoveConstruct(c *entity.Construct) {
+	for i, con := range m.constructs {
+		if con == c {
+			m.constructs = append(m.constructs[:i], m.constructs[i+1:]...)
+			break
+		}
+	}
+}
+
+// NextConstructID returns the current next construct ID (for save/load)
+func (m *Map) NextConstructID() int {
+	return m.nextConstructID
+}
+
+// SetNextConstructID sets the next construct ID (for save/load)
+func (m *Map) SetNextConstructID(id int) {
+	m.nextConstructID = id
 }
 
 // AddWater adds a water tile at the given position

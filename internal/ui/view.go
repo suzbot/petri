@@ -508,6 +508,15 @@ func (m Model) renderCell(x, y int) string {
 		sym = m.styledSymbol(char)
 	} else if item := m.gameMap.ItemAt(pos); item != nil {
 		sym = m.styledSymbol(item)
+	} else if construct := m.gameMap.ConstructAt(pos); construct != nil {
+		sym = m.styledSymbol(construct)
+		// Directional fill: check for horizontal construct neighbors
+		leftPos := types.Position{X: x - 1, Y: y}
+		rightPos := types.Position{X: x + 1, Y: y}
+		if m.gameMap.ConstructAt(leftPos) != nil || m.gameMap.ConstructAt(rightPos) != nil {
+			fill = sym // horizontal neighbor: ╬╬╬ (continuous bar)
+		}
+		// else: no fill, renders as " ╬ " (centered post for vertical/standalone)
 	} else if wtype := m.gameMap.WaterAt(pos); wtype != game.WaterNone {
 		// Water terrain
 		switch wtype {
@@ -668,54 +677,65 @@ func (m Model) styledSymbol(e entity.Entity) string {
 			}
 			return sproutStyle.Render(sym)
 		}
-		switch v.Color {
-		case types.ColorRed:
-			return redStyle.Render(sym)
-		case types.ColorBlue:
-			return blueStyle.Render(sym)
-		case types.ColorBrown:
-			return brownStyle.Render(sym)
-		case types.ColorWhite:
-			return whiteStyle.Render(sym)
-		case types.ColorOrange:
-			return orangeStyle.Render(sym)
-		case types.ColorYellow:
-			return yellowStyle.Render(sym)
-		case types.ColorPurple:
-			return purpleStyle.Render(sym)
-		case types.ColorTan:
-			return tanStyle.Render(sym)
-		case types.ColorPink:
-			return pinkStyle.Render(sym)
-		case types.ColorBlack:
-			return blackStyle.Render(sym)
-		case types.ColorGreen:
-			return greenStyle.Render(sym)
-		case types.ColorPalePink:
-			return palePinkStyle.Render(sym)
-		case types.ColorPaleYellow:
-			return paleYellowStyle.Render(sym)
-		case types.ColorSilver:
-			return silverStyle.Render(sym)
-		case types.ColorGray:
-			return grayStyle.Render(sym)
-		case types.ColorLavender:
-			return lavenderStyle.Render(sym)
-		case types.ColorPaleGreen:
-			return paleGreenStyle.Render(sym)
-		case types.ColorEarthy:
-			return earthyStyle.Render(sym)
-		case types.ColorTerracotta:
-			return terracottaStyle.Render(sym)
-		}
+		return colorToStyle(v.Color).Render(sym)
 
 	case *entity.Feature:
 		if v.IsBed() {
 			return leafStyle.Render(sym)
 		}
+
+	case *entity.Construct:
+		style := colorToStyle(v.MaterialColor)
+		return style.Render(sym)
 	}
 
 	return sym
+}
+
+// colorToStyle maps a types.Color to the corresponding lipgloss style
+func colorToStyle(c types.Color) lipgloss.Style {
+	switch c {
+	case types.ColorRed:
+		return redStyle
+	case types.ColorBlue:
+		return blueStyle
+	case types.ColorBrown:
+		return brownStyle
+	case types.ColorWhite:
+		return whiteStyle
+	case types.ColorOrange:
+		return orangeStyle
+	case types.ColorYellow:
+		return yellowStyle
+	case types.ColorPurple:
+		return purpleStyle
+	case types.ColorTan:
+		return tanStyle
+	case types.ColorPink:
+		return pinkStyle
+	case types.ColorBlack:
+		return blackStyle
+	case types.ColorGreen:
+		return greenStyle
+	case types.ColorPalePink:
+		return palePinkStyle
+	case types.ColorPaleYellow:
+		return paleYellowStyle
+	case types.ColorSilver:
+		return silverStyle
+	case types.ColorGray:
+		return grayStyle
+	case types.ColorLavender:
+		return lavenderStyle
+	case types.ColorPaleGreen:
+		return paleGreenStyle
+	case types.ColorEarthy:
+		return earthyStyle
+	case types.ColorTerracotta:
+		return terracottaStyle
+	default:
+		return whiteStyle
+	}
 }
 
 // renderDetails renders the details sidebar
@@ -732,10 +752,11 @@ func (m Model) renderDetails() string {
 		item = allItems[0]
 	}
 	feature := m.gameMap.FeatureAt(cursorPos)
+	construct := m.gameMap.ConstructAt(cursorPos)
 
 	waterType := m.gameMap.WaterAt(cursorPos)
 
-	if e == nil && item == nil && feature == nil && waterType == game.WaterNone {
+	if e == nil && item == nil && feature == nil && construct == nil && waterType == game.WaterNone {
 		if m.gameMap.IsClay(cursorPos) {
 			lines = append(lines, " Type: "+clayStyle.Render("Clay deposit"))
 		} else if m.gameMap.IsTilled(cursorPos) {
@@ -983,6 +1004,15 @@ func (m Model) renderDetails() string {
 			for _, other := range allItems[1:] {
 				lines = append(lines, "   "+other.Description())
 			}
+		}
+	} else if construct != nil {
+		lines = append(lines, fmt.Sprintf(" %s", construct.DisplayName()))
+		if m.testCfg.Debug {
+			lines = append(lines, fmt.Sprintf(" Pos: (%d, %d)", m.cursorX, m.cursorY))
+		}
+		lines = append(lines, fmt.Sprintf(" %s", construct.Description()))
+		if !construct.Passable {
+			lines = append(lines, " Not passable")
 		}
 	} else if waterType != game.WaterNone {
 		lines = append(lines, " Type: Water")

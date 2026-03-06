@@ -18,6 +18,7 @@ Detailed game mechanics for Petri. For exact values, see `internal/config/config
 - [Crafting](#crafting)
 - [Inventory & Vessels](#inventory--vessels)
 - [Gardening](#gardening)
+- [Constructs](#constructs)
 
 ## Overview
 
@@ -570,3 +571,22 @@ Tiles can be wet from two sources:
 **Water Garden orders:** Character discovers Water Garden know-how by filling a vessel with water. Character procures a vessel with water, walks to each dry tilled planted tile, and waters it (consuming 1 water unit per tile). Order completes when no dry tilled planted tiles remain.
 
 **Growth effect:** Wet tiles accelerate sprout maturation and plant reproduction (see `config.WetGrowthMultiplier`).
+
+## Constructs
+
+Constructs are player-built structures placed on the map — distinct from natural terrain features like leaf piles. Currently only fences exist; future types include furniture and hut walls.
+
+### Passability
+
+Constructs have a passability property. Impassable constructs (such as fences) block movement for characters and are treated as obstacles by the pathfinding system. Characters navigate around impassable constructs the same way they navigate around water tiles.
+
+### Details Panel
+
+Selecting a tile that contains a construct shows:
+- **Display name** — e.g., "Stick Fence", "Brick Fence"
+- **Type label** — e.g., "Structure"
+- **"Not passable"** — shown for impassable constructs
+
+### Rendering
+
+Fences render using their material's color. A horizontal fence segment fills the full tile width (`╬╬╬`); a vertical segment is centered (`  ╬  `).

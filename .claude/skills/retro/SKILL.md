@@ -50,26 +50,20 @@ Address the following **only if applicable**:
   - What type of clarification was requested?
     (e.g., scope, assumptions, terminology, intent, constraints)
 
-#### 3. Options & Decision Signals
-- Were multiple options presented?
-- If yes:
-  - What criteria did the user appear to value when selecting an option?
-    (e.g., simplicity, flexibility, explicitness, speed, extensibility)
-
-#### 4. Reminders of Prior Context
+#### 3. Reminders of Prior Context
 - Did the user remind you of something already read or provided this session?
 - If yes:
   - Where did context slip?
   - How could documents, skills, or tools provide better breadcrumbs so the
     information is used when needed, without adding unnecessary overhead?
 
-#### 5. Human-Caught Bugs or Issues
+#### 4. Human-Caught Bugs or Issues
 - Were any bugs, logical gaps, or misalignments caught during user testing checkpoints?
 - If yes:
   - What recurring pattern or pitfall caused them?
   - Could a lightweight guardrail have prevented them?
 
-#### 6. Intensive processes
+#### 5. Intensive processes
 - Were there any suspiciusly high-token or high-touch procceses for actions that were expected to be more straightforward? examples
   - test world creation needing to search code and other save files to reason about how to build it
   - internal churning going back and forth over a question without surfacing it
@@ -77,12 +71,13 @@ Address the following **only if applicable**:
 - If yes:
   - Was it merited due to actual complexity, or could have a different prompt or different availability of information circumvented the extra effort?
 
-If none of items 1-6 occurred, explicitly state that **no meaningful
+If none of items 1-5 occurred, explicitly state that **no meaningful
 collaboration friction was observed**.
 
-#### 7. Value Signals (always assess)
+#### 6. Value Signals (always assess)
 Unlike items 1-6, this applies even when no friction occurred. Observe what choices the user made during the session and name the implicit value behind each:
-- When the user selected between options: what did they optimize for?
+- When the user selected between options: what did they optimize for? What criteria did the user appear to value when selecting an option?
+    (e.g., simplicity, flexibility, explicitness, speed, extensibility)
 - When the user redirected an approach: what principle were they enforcing?
 - When the user added or removed scope: what trade-off were they making?
 
@@ -98,6 +93,7 @@ Before formulating proposals, read what already exists so proposals build on or 
 
 - **`docs/Values.md`** — current design values. Check whether a friction signal maps to an existing value that could be strengthened (new example, broader wording) rather than a new value.
 - **Relevant skills in `.claude/skills/`** — skim skills that relate to the friction observed (e.g., if the issue was during implementation, read `implement-feature/SKILL.md`). Check whether existing guidance already covers the issue but wasn't surfaced at the right time, vs. guidance that's genuinely missing.
+- **claude.md** - read section on collaboration norms
 
 The goal is: **strengthen or surface existing content first, create new content only when nothing existing covers the gap.** This prevents values and skills from growing redundantly across retros.
 
@@ -112,6 +108,7 @@ A. Assess whether Step 1 insights revealed **clear, recurring, or token/context-
     - Updates to documents
     - Updates to Claude skills
     - Updates to custom agents
+    - Updates to claude.md
     - Creation of a new Claude skill
     - Creation of a new custom agent
 
@@ -132,8 +129,6 @@ A. Assess whether Step 1 insights revealed **clear, recurring, or token/context-
 - If No: changes do not clearly pass the cost-benefit threshold
   - Did the user request the retro? If so, provide the analysis and the reasoning for no change.
   - Was the retro automatic? No output is needed, do not solicit user response.
-
-B. Surface all value signals from Step 1 item 7 every retro. Name the value, describe the choice that revealed it, and note whether Values.md has something similar. Don't force-fit observations into existing values — if it feels like a distinct principle, present it that way. The user decides whether it's new, a refinement of something existing, or not worth capturing.
 
 ---
 

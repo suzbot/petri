@@ -44,6 +44,7 @@ const (
 	CharClay       = '☗'
 	CharClayTile   = '░'
 	CharBrick      = '▬'
+	CharFence      = '╬'
 
 	// Speed system
 	BaseSpeed              = 50 // baseline speed (0-100 scale)

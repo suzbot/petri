@@ -11,13 +11,13 @@ argument-hint: Feature or step to refine (e.g., "Step 3" or "clay terrain")
 
 ### Step 1: Build Context (REQUIRED)
 Read these before discussing approach:
+- **Original requirements document** for full context (linked at top of design doc). Proposals that contradict or miss requirements waste discussion time.
 - **Phase design doc** in `docs/` (e.g., `docs/construction-design.md`) — read the step's anchor story, scope, open questions, and triggered enhancements. Also read the Design Decisions section for prior decisions that affect this step.
 - **`docs/step-spec.md`** — if one exists from a prior partial refinement, read it for continuity.
 - **`docs/architecture.md`** — Read sections relevant to this feature FIRST. Identify which established patterns apply (Component Procurement, Order execution, Pickup helpers, Recipe system, etc.). This is the routing table that prevents expensive broad code exploration — use it before reaching for Explore or reading implementation files.
 - **`docs/Values.md`** — Design principles that shape implementation decisions (consistency, source of truth, reuse). Keep these in mind when evaluating approaches.
-- **Original requirements document** for full context (linked at top of design doc). Proposals that contradict or miss requirements waste discussion time.
 - **`docs/game-mechanics.md`** (optional) — If the feature interacts with existing game systems and you need to understand current player-visible behavior without code diving, read relevant sections here. Covers stats, food selection, orders, gardening, etc.
-- **Implementation code** (if needed) — If the feature extends existing systems and the docs above don't give enough detail on how those systems currently work, use targeted reads or an Explore agent to understand the relevant code. Architecture.md often points to the right files; start there before doing broad exploration.
+- **Implementation code** — Use targeted reads or an Explore agent for initial exploration to understand the relevant code. Architecture.md often points to the right files; start there before doing broad exploration. Deeper exploration comes later in step 2.7.
 
 ### Step 2: Discussion First (REQUIRED)
 **Do NOT write code yet.** First:
@@ -63,10 +63,10 @@ Before invoking expensive exploration (Explore agents, broad code reads for impl
 
 ### Step 2.7: Trace Execution Path (REQUIRED)
 
-Before writing the step spec, read the actual code for each function the plan will modify or extend. Walk through what happens at runtime when the new behavior executes:
+Before writing the step spec, grep existing symbol constants and helper functions for any names or values the plan will introduce — conflicts in a small namespace are findable before proposing specifics. Then read the actual code for each function the plan will modify or extend. Walk through what happens at runtime when the new behavior executes:
 - For ordered actions: trace tick-by-tick from intent creation through handler execution. What does Target get set to? What does the handler read? What happens on the second tick?
 - For pickup/procurement chains: trace from `findXxxIntent` through `Pickup()` result handling in `applyPickup` through continuation/completion.
-- For new entity fields: trace all code paths that read or write the parent struct.
+- For new entity fields: trace all code paths that read or write the parent struct, including ToSaveState/FromSaveState for any fields that touch serialized state.
 
 - For borrowed algorithms: when the plan reuses an existing algorithm for a new context (e.g., SpawnPonds logic for SpawnClay), trace the original's constraints and verify they hold in the new context. Different entity types often have different spatial or adjacency constraints that make the algorithm fail silently or produce degenerate results.
 

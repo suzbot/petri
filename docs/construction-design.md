@@ -98,34 +98,74 @@ Characters gather materials and construct small buildings from grass, sticks, or
 
 ---
 
-### Step 5: Construct Entity + Build Fence
-**Status:** Planned
+### Step 5: Construct Entity
+**Status:** Complete
 
-**Anchor story:** A character who has been gathering sticks discovers they can build a fence. The player creates a Construction > Build Fence order (selecting stick fence). The character gathers a full bundle of 6 sticks, walks to an open tile, and builds a fence segment. The fence blocks movement — characters path around it. Another character looks at the fence and decides they like the look of stick construction.
+**Anchor story:** The player creates a test world with a fence already placed on the map. The fence renders as a colored `#` — brown for stick, pale yellow for thatch, terracotta for brick. A character walking toward the fence paths around it — the fence blocks movement. The details panel shows "Stick Fence" with "Structure" and "Not passable."
 
 **Scope:**
-- Construct entity type with ConstructType/Kind/Material/Color/Passable/Movable fields
-- Map integration (construct storage, AddConstruct, RemoveConstruct, ConstructAt, IsBlocked)
-- Construct rendering and save/load serialization
-- ActionBuildFence action, buildFence activity, "Construction" order UI category
-- Three fence recipes: thatch (1 grass bundle of 6), stick (1 stick bundle of 6), brick (6 bricks)
-- Build fence intent finder with material procurement (EnsureHasBundle or equivalent)
-- Discovery triggers for buildFence know-how
-- Looking at constructs + material preference formation
+- Construct entity type with ConstructType/Kind/Material/MaterialColor/Passable/Movable fields (DD-4)
+- Map integration (construct storage, AddConstruct, RemoveConstruct, ConstructAt)
+- IsBlocked, MoveCharacter, BFS updated to respect impassable constructs
+- Construct rendering (symbol, material color) and details panel
+- Save/load serialization
+- Test with pre-placed constructs via test-world
 
 **Open questions:**
-- ~~EnsureHasBundle helper design~~ → DD-7
-- How does a construction worker procure a full bundle of 6? Does EnsureHasBundle gather one at a time, or is there a "fill bundle" loop?
-- Door passability mechanism: currently passability is boolean. Doors need "character-passable but creature-impassable" (for future Threats phase). May need a passability enum or just Passable=true until creatures exist.
+- Door passability mechanism: currently passability is boolean. Doors need "character-passable but creature-impassable" (for future Threats phase). May need a passability enum or just Passable=true until creatures exist. (Deferred — relevant to Step 8 huts, not Step 5.)
+
+---
+
+### Step 6: Build Fence
+**Status:** Refining
+
+**Anchor story:** The player creates a Construction > Fence order. They enter a line-placement mode and mark several contiguous tiles for fence construction. A character takes the order and decides to use sticks. They find a bundle of 6 sticks (open question: gather their own bundle or rely on pre-gathered full bundles), walk to one of the marked tiles, and build. Another character takes a fence construction order and starts building from the other end. The line already has a material choice — sticks — so they build their section out of sticks too. For a brick fence segment, a character makes multiple trips — carrying 2 bricks at a time, dropping them at the build site, and returning for more until 6 are accumulated, then building.
+
+**Scope:**
+- buildFence activity in ActivityRegistry, "Construction" order UI category
+- Three fence recipes: thatch (1 grass bundle of 6), stick (1 stick bundle of 6), brick (6 bricks) (DD-23)
+- Fence placement UI: line/series tile marking (DD-24)
+- Character-driven material/recipe selection based on preference and availability — no player sub-menu for material (DD-22)
+- Material lock for contiguous fence segments (DD-25)
+- Material procurement: bundle gathering for grass/sticks, multi-trip supply-drop for bricks (DD-23)
+- Build fence handler with adjacent-tile building (DD-26)
+- Order feasibility, completion, multiple workers on same fence line
+- Discovery triggers for buildFence know-how
+
+**Open questions:**
+- ~~Material sub-menu~~ → DD-22 (character chooses, no player sub-menu)
+- ~~Brick bundleability~~ → DD-23 (bricks stay individual, supply-drop pattern)
+- Bundle procurement: does the character gather items one at a time into a bundle (like gather orders), or find a pre-gathered full bundle on the ground, or both?
+- Line selection UI: what does the placement mode look like? Single-tile 'p' presses, or click-and-drag line drawing? How do non-contiguous fence segments interact with material lock?
+- Material lock mechanism: what defines a "line" or "segment"? When does the lock form — first tile built, or at marking time? Storage: data on marked tiles, on order, or derived from placed constructs? What happens when the locked material runs out?
+- Build position collision: what happens when another character stands on or walks into the build tile during construction? Options include waiting, displacement, or building-on-tile with post-build displacement.
+- Multiple workers: can two workers supply-drop bricks to the same tile, or is each tile claimed by one worker?
 
 **Triggered enhancements:**
-- `continueIntent` early-return block consolidation — already at 6 blocks, trigger threshold met. Evaluate whether fence building adds a multi-phase action that needs an early-return block.
+- `continueIntent` early-return block consolidation — already at 6 blocks, trigger threshold was met before Step 5 (not worsened by fence building, which uses position-based intent with no new block). Evaluate independently of construction.
 - Order-aware simulation for e2e testing — construction adds multiple new ordered actions with supply procurement.
 - Category type formalization — evaluate whether `VesselExcludedTypes` set is sufficient or whether formal item categories are needed.
 
 ---
 
-### Step 6: Build Hut
+### Step 7: Construct Interaction
+**Status:** Refining
+
+**Anchor story:** A character wanders past a stick fence and pauses to look at it. They decide they like the look of stick construction — "Likes sticks" appears in their preferences panel. Another character, in a bad mood, looks at a brick fence and develops "Dislikes brick walls."
+
+**Scope:**
+- Extend Look idle activity to target constructs (new TargetConstruct on Intent or similar)
+- Material preference formation from looking at constructs
+- Construct-specific preference attributes (e.g., "Likes brick walls") — extensibility for future attributes
+- Details panel shows construct information when selected
+
+**Open questions:**
+- How should Look be extended to target constructs? Structural implications: TargetConstruct field on Intent vs alternative approaches. Isomorphism considerations — constructs are not items, should Look treat them differently?
+- Preference scope: should characters form preferences about the material only ("Likes sticks"), the construct+material combo ("Likes brick walls"), or both? What about extensibility for future construct attributes (size, craftsmanship, etc.)?
+
+---
+
+### Step 8: Build Hut
 **Status:** Planned
 
 **Anchor story:** The player selects Construction > Build Hut > Thatch Hut and enters area selection mode. They position a 4x4 footprint and confirm. Marked tiles appear. A character begins the long process of building — dropping bundles of grass on each of the 16 tiles, then working each tile one by one. Eventually a hut stands: a 4x4 outline of thatch walls with a 3x3 interior space accessible through a single door tile. Characters can walk through the door but not through walls.
@@ -145,7 +185,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 
 ---
 
-### Step 7: Activity Preferences
+### Step 9: Activity Preferences
 **Status:** Planned
 
 **Anchor story:** A character finishes a gardening order while in a good mood and develops a fondness for gardening. The next time they work a garden order, their mood improves slightly faster. Another character who disliked their construction work finds their mood dipping while building. The player opens the preferences panel and sees a new section: "Activity Preferences" showing which work each character enjoys or dislikes.
@@ -160,7 +200,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 
 ---
 
-### Step 8: Phase Wrap-Up
+### Step 10: Phase Wrap-Up
 **Status:** Planned
 
 **Scope:**
@@ -295,6 +335,36 @@ Characters gather materials and construct small buildings from grass, sticks, or
 **Decision:** Add `VesselExcludedTypes map[string]bool` to config (stick, grass, clay, brick). Update vessel exclusion checks in `AddToVessel`, `CanVesselAccept`, `Pickup`, `findHarvestIntent`, and `findGatherIntent` to use `VesselExcludedTypes` instead of `MaxBundleSize`. Bundle logic (bundle merge, canGatherMore, hasFullBundle, DropCompletedBundle) stays on `MaxBundleSize`.
 **Rationale:** Follows **Source of Truth Clarity** — each config set means one thing. Follows **Isomorphism** — vessel exclusion and bundleability are different concepts now that items can have one without the other.
 **Affects:** Step 4
+
+### DD-22: Character chooses fence material — no player sub-menu
+**Context:** How does the player specify which material a fence should use? Options: player selects material in sub-menu (like harvest target type selection), or character chooses based on preference and availability (like the game's vision of character agency).
+**Decision:** No material sub-menu. Order UI is Construction > Fence (no material step). The character assigned to the order evaluates available fence recipes and selects one based on material preference and availability. This aligns with the game vision: the player says *what* to build, the character decides *how*.
+**Rationale:** Follows **Isomorphism** — characters have preferences and agency; material choice is a character decision, not a player directive. Follows the game vision: history exists in character decisions, not player micromanagement.
+**Affects:** Step 6
+
+### DD-23: Bricks stay individual — supply-drop for brick fences
+**Context:** Brick fences require 6 bricks. Characters have 2 inventory slots. Options: (A) make bricks bundleable at 6 for one-trip carry, (B) multi-trip supply-drop where character carries 2 at a time, drops at build site, repeats.
+**Decision:** Bricks stay individual (not bundled). Characters carry 2 bricks per trip, drop at build site, return for more until 6 are accumulated, then build. This creates a visible, narrative supply chain — characters shuttle materials to a construction site.
+**Rationale:** The original requirements describe bricks as "6 bricks" distinct from "1 bundle of 6." The multi-trip pattern is isomorphic to real construction — materials are stockpiled before building. This pattern is also needed for huts (Step 8: "supplies dropped on tiles, then worked"). Introducing it at fence scale (one tile, 6 items) before hut scale (16 tiles, 12+ items each) follows **Start With the Simpler Rule** for infrastructure introduction.
+**Affects:** Step 6, Step 8
+
+### DD-24: Fence placement uses line/series tile marking
+**Context:** Fences are linear structures — walls, borders, enclosures. Placement UI options: single-tile orders with TargetPosition, rectangle area selection (like tilling), or line/series marking.
+**Decision:** Fence placement uses a line/series marking mode. Player marks individual tiles or draws lines of tiles for fence construction. Contiguous marked tiles form fence segments. Details of the line-drawing UX are an open question.
+**Rationale:** Fences are lines, not rectangles. Single-tile placement creates order clutter for realistic fence lengths. Line marking matches the structural intent. Follows **Isomorphism** — the placement tool mirrors what the player is building.
+**Affects:** Step 6
+
+### DD-25: Material lock for contiguous fence segments
+**Context:** When a character builds a fence line, contiguous tiles should use the same material — a wall shouldn't alternate between thatch and brick. But the character chooses the material (DD-22), not the player. How is consistency enforced?
+**Decision:** Mechanism TBD — multiple options under discussion. The constraint is: contiguous marked fence tiles should be built with the same material. A second character working on the same line respects the existing material choice. The central design question is what defines a "line" or "segment" — this determines how the lock scopes and propagates. Open questions: segment definition, when the lock forms (first tile built vs marking time), what happens when materials run out, and the storage mechanism (data on marked tiles, on the order, or derived from placed constructs).
+**Rationale:** Visual and structural consistency in built structures. Follows **Isomorphism** — a real fence section is one material.
+**Affects:** Step 6
+
+### DD-26: Building from adjacent tile
+**Context:** Should a character stand on the build tile or work from adjacent? Standing on the tile and placing an impassable construct creates a "trapped inside my own fence" problem.
+**Decision:** Characters build from a cardinally adjacent tile, not the build tile itself. Handler checks `char.Pos().IsCardinallyAdjacentTo(buildPos)`. Additional collision scenarios (another character on the build tile, blocked access) are open questions.
+**Rationale:** Follows **Follow the Existing Shape** — water drinking uses adjacent-tile interaction for impassable targets.
+**Affects:** Step 6
 
 ### DD-21: Brick is uniform with terracotta color
 **Context:** Brick appearance properties. Only one brick type exists (from clay). Options: inherit clay's earthy color, or give bricks a distinct color.

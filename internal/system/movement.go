@@ -36,7 +36,9 @@ func nextStepBFSCore(fromX, fromY, toX, toY int, gameMap *game.Map, preferBFS bo
 		greedyPos := types.Position{X: gx, Y: gy}
 		if gameMap.IsValid(greedyPos) && !gameMap.IsWater(greedyPos) {
 			if f := gameMap.FeatureAt(greedyPos); f == nil || f.IsPassable() {
-				return gx, gy, false
+				if c := gameMap.ConstructAt(greedyPos); c == nil || c.IsPassable() {
+					return gx, gy, false
+				}
 			}
 		}
 	}
@@ -68,6 +70,9 @@ func nextStepBFSCore(fromX, fromY, toX, toY int, gameMap *game.Map, preferBFS bo
 		if f := gameMap.FeatureAt(neighbor); f != nil && !f.IsPassable() {
 			continue
 		}
+		if c := gameMap.ConstructAt(neighbor); c != nil && !c.IsPassable() {
+			continue
+		}
 		visited[neighbor] = true
 		if neighbor == to {
 			return neighbor.X, neighbor.Y, true
@@ -88,6 +93,9 @@ func nextStepBFSCore(fromX, fromY, toX, toY int, gameMap *game.Map, preferBFS bo
 				continue
 			}
 			if f := gameMap.FeatureAt(neighbor); f != nil && !f.IsPassable() {
+				continue
+			}
+			if c := gameMap.ConstructAt(neighbor); c != nil && !c.IsPassable() {
 				continue
 			}
 			visited[neighbor] = true

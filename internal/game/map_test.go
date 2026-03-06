@@ -1027,3 +1027,83 @@ func TestFindNearestClay_NoClay(t *testing.T) {
 		t.Error("FindNearestClay should return false when no clay tiles exist")
 	}
 }
+
+// =============================================================================
+// Construct Tests
+// =============================================================================
+
+func TestConstructAt(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	fence := entity.NewFence(10, 10, "stick", types.ColorBrown)
+	m.AddConstruct(fence)
+
+	got := m.ConstructAt(types.Position{X: 10, Y: 10})
+	if got != fence {
+		t.Error("ConstructAt() should return the added construct")
+	}
+
+	got = m.ConstructAt(types.Position{X: 5, Y: 5})
+	if got != nil {
+		t.Error("ConstructAt() should return nil for empty position")
+	}
+}
+
+func TestIsBlocked_ImpassableConstruct(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	fence := entity.NewFence(10, 10, "stick", types.ColorBrown)
+	m.AddConstruct(fence)
+
+	if !m.IsBlocked(types.Position{X: 10, Y: 10}) {
+		t.Error("IsBlocked() should return true for impassable construct")
+	}
+}
+
+func TestIsBlocked_PassableConstruct(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	fence := entity.NewFence(10, 10, "stick", types.ColorBrown)
+	fence.Passable = true // simulate a door or passable construct
+	m.AddConstruct(fence)
+
+	if m.IsBlocked(types.Position{X: 10, Y: 10}) {
+		t.Error("IsBlocked() should return false for passable construct")
+	}
+}
+
+func TestIsEmpty_WithConstruct(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	fence := entity.NewFence(10, 10, "stick", types.ColorBrown)
+	m.AddConstruct(fence)
+
+	if m.IsEmpty(types.Position{X: 10, Y: 10}) {
+		t.Error("IsEmpty() should return false for position with construct")
+	}
+}
+
+func TestMoveCharacter_BlockedByImpassableConstruct(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	c := newTestCharacter(1, 5, 5)
+	m.AddCharacter(c)
+
+	fence := entity.NewFence(6, 5, "stick", types.ColorBrown)
+	m.AddConstruct(fence)
+
+	ok := m.MoveCharacter(c, types.Position{X: 6, Y: 5})
+	if ok {
+		t.Error("MoveCharacter() should fail when target has impassable construct")
+	}
+
+	pos := c.Pos()
+	if pos.X != 5 || pos.Y != 5 {
+		t.Errorf("Character position should be (5,5), got (%d,%d)", pos.X, pos.Y)
+	}
+}

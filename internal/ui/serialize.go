@@ -23,6 +23,7 @@ func (m Model) ToSaveState() *save.SaveState {
 		Characters:                charactersToSave(m.gameMap.Characters()),
 		Items:                     itemsToSave(m.gameMap.Items()),
 		Features:                  featuresToSave(m.gameMap.Features()),
+		Constructs:                constructsToSave(m.gameMap.Constructs()),
 		WaterTiles:                waterTilesToSave(m.gameMap),
 		ClayPositions:             m.gameMap.ClayPositions(),
 		TilledPositions:           m.gameMap.TilledPositions(),
@@ -281,6 +282,24 @@ func featuresToSave(features []*entity.Feature) []save.FeatureSave {
 	return result
 }
 
+// constructsToSave converts constructs to save format
+func constructsToSave(constructs []*entity.Construct) []save.ConstructSave {
+	result := make([]save.ConstructSave, len(constructs))
+	for i, c := range constructs {
+		result[i] = save.ConstructSave{
+			ID:            c.ID,
+			Position:      c.Pos(),
+			ConstructType: c.ConstructType,
+			Kind:          c.Kind,
+			Material:      c.Material,
+			MaterialColor: string(c.MaterialColor),
+			Passable:      c.Passable,
+			Movable:       c.Movable,
+		}
+	}
+	return result
+}
+
 // waterTilesToSave converts water tiles to save format
 func waterTilesToSave(gameMap *game.Map) []save.WaterTileSave {
 	positions := gameMap.WaterPositions()
@@ -402,9 +421,20 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 		}
 	}
 
+	// Restore constructs (without auto-assigning IDs)
+	maxConstructID := 0
+	for _, cs := range state.Constructs {
+		construct := constructFromSave(cs)
+		m.gameMap.AddConstructDirect(construct)
+		if cs.ID > maxConstructID {
+			maxConstructID = cs.ID
+		}
+	}
+
 	// Set ID counters to max + 1 for future spawns
 	m.gameMap.SetNextItemID(maxItemID)
 	m.gameMap.SetNextFeatureID(maxFeatureID)
+	m.gameMap.SetNextConstructID(maxConstructID)
 
 	// Restore action logs
 	m.actionLog.SetAllLogs(actionLogsFromSave(state.ActionLogs))
@@ -740,6 +770,30 @@ func featureFromSave(fs save.FeatureSave) *entity.Feature {
 	}
 
 	return feature
+}
+
+// constructFromSave converts a saved construct back to an entity
+func constructFromSave(cs save.ConstructSave) *entity.Construct {
+	c := &entity.Construct{
+		ID:            cs.ID,
+		ConstructType: cs.ConstructType,
+		Kind:          cs.Kind,
+		Material:      cs.Material,
+		MaterialColor: types.Color(cs.MaterialColor),
+		Passable:      cs.Passable,
+		Movable:       cs.Movable,
+	}
+	c.X = cs.Position.X
+	c.Y = cs.Position.Y
+	c.EType = entity.TypeConstruct
+
+	// Set display symbol based on Kind
+	switch cs.Kind {
+	case "fence":
+		c.Sym = config.CharFence
+	}
+
+	return c
 }
 
 // actionLogsFromSave converts saved action logs back to Event format

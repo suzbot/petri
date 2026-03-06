@@ -1217,3 +1217,57 @@ func TestFromSaveState_RestoresBrickItemSymbol(t *testing.T) {
 		t.Errorf("Brick symbol not restored: got %c, want %c", found.Sym, config.CharBrick)
 	}
 }
+
+func TestConstructSerialization_RoundTrip(t *testing.T) {
+	m := createTestModel()
+
+	// Add constructs of each material type
+	thatch := entity.NewFence(3, 3, "grass", types.ColorPaleYellow)
+	m.gameMap.AddConstruct(thatch)
+
+	stick := entity.NewFence(5, 5, "stick", types.ColorBrown)
+	m.gameMap.AddConstruct(stick)
+
+	brick := entity.NewFence(7, 7, "brick", types.ColorTerracotta)
+	m.gameMap.AddConstruct(brick)
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Verify all three constructs survived
+	constructs := restored.gameMap.Constructs()
+	if len(constructs) != 3 {
+		t.Fatalf("Expected 3 constructs after round-trip, got %d", len(constructs))
+	}
+
+	// Verify the stick fence at (5,5) has all fields preserved
+	found := restored.gameMap.ConstructAt(types.Position{X: 5, Y: 5})
+	if found == nil {
+		t.Fatal("Expected construct at (5,5) after round-trip")
+	}
+	if found.ConstructType != "structure" {
+		t.Errorf("ConstructType: got %q, want %q", found.ConstructType, "structure")
+	}
+	if found.Kind != "fence" {
+		t.Errorf("Kind: got %q, want %q", found.Kind, "fence")
+	}
+	if found.Material != "stick" {
+		t.Errorf("Material: got %q, want %q", found.Material, "stick")
+	}
+	if found.MaterialColor != types.ColorBrown {
+		t.Errorf("MaterialColor: got %q, want %q", found.MaterialColor, types.ColorBrown)
+	}
+	if found.Passable != false {
+		t.Error("Passable should be false")
+	}
+	if found.Movable != false {
+		t.Error("Movable should be false")
+	}
+	if found.Sym != config.CharFence {
+		t.Errorf("Sym not restored: got %c, want %c", found.Sym, config.CharFence)
+	}
+	if found.Type() != entity.TypeConstruct {
+		t.Errorf("EType not restored: got %d, want %d", found.Type(), entity.TypeConstruct)
+	}
+}

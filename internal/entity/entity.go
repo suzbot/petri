@@ -9,6 +9,7 @@ const (
 	TypeCharacter EntityType = iota
 	TypeItem
 	TypeFeature
+	TypeConstruct
 )
 
 // Entity is the base interface for all game objects

@@ -471,3 +471,27 @@ func TestStickyBFS_ClearsOnNewIntent(t *testing.T) {
 		t.Error("Expected UsingBFS=false after CalculateIntent creates a new intent")
 	}
 }
+
+func TestNextStepBFS_RoutesAroundConstruct(t *testing.T) {
+	t.Parallel()
+
+	// Character at (5,5), target at (5,2), fence wall at y=3 from x=3 to x=7
+	gameMap := game.NewMap(20, 20)
+	for x := 3; x <= 7; x++ {
+		fence := entity.NewFence(x, 3, "stick", types.ColorBrown)
+		gameMap.AddConstruct(fence)
+	}
+
+	nx, ny := NextStepBFS(5, 5, 5, 2, gameMap)
+
+	// Step should not be into a construct
+	stepPos := types.Position{X: nx, Y: ny}
+	if gameMap.ConstructAt(stepPos) != nil {
+		t.Errorf("BFS stepped into construct at (%d,%d)", nx, ny)
+	}
+	// Step should be adjacent to start
+	start := types.Position{X: 5, Y: 5}
+	if start.DistanceTo(stepPos) != 1 {
+		t.Errorf("BFS step (%d,%d) is not adjacent to start (5,5)", nx, ny)
+	}
+}

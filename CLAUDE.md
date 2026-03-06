@@ -34,7 +34,7 @@ cmd/petri/main.go           # Entry point, flag parsing
 internal/
   config/config.go          # Game constants
   types/types.go            # Shared type constants (Color, StatType)
-  entity/                   # Character, Item, Feature
+  entity/                   # Character, Item, Feature, Construct
   game/                     # Map, world generation
   save/                     # Save/load, world management, serialization types
   system/                   # Movement, survival, consumption, action log
@@ -60,6 +60,7 @@ internal/
 - `internal/entity/activity.go` - Activity struct, ActivityRegistry, know-how discovery triggers
 - `internal/entity/recipe.go` - Recipe struct, RecipeRegistry, crafting definitions
 - `internal/entity/order.go` - Order struct for player-directed tasks
+- `internal/entity/construct.go` - Construct struct (ConstructType/Kind/Material/MaterialColor/Passable/Movable); NewFence constructor
 
 **Core Systems**
 
@@ -78,7 +79,7 @@ internal/
 
 **World & Generation**
 
-- `internal/game/world.go` - World struct, entity management
+- `internal/game/world.go` - World struct, entity management; constructs slice, AddConstruct/AddConstructDirect/ConstructAt/Constructs/RemoveConstruct + ID methods
 - `internal/game/variety_generation.go` - Variety creation, poison/healing assignment
 
 **Game Loop**

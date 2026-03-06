@@ -22,6 +22,7 @@ type SaveState struct {
 	Characters                []CharacterSave     `json:"characters"`
 	Items                     []ItemSave          `json:"items"`
 	Features                  []FeatureSave       `json:"features"`
+	Constructs                []ConstructSave     `json:"constructs,omitempty"`
 	WaterTiles                []WaterTileSave     `json:"water_tiles,omitempty"`
 	ClayPositions             []types.Position    `json:"clay_positions,omitempty"`
 	TilledPositions           []types.Position    `json:"tilled_positions,omitempty"`
@@ -190,6 +191,18 @@ type WaterTileSave struct {
 type WateredTileSave struct {
 	types.Position
 	Remaining float64 `json:"remaining"` // seconds of wetness remaining
+}
+
+// ConstructSave represents a construct for serialization
+type ConstructSave struct {
+	ID            int            `json:"id"`
+	Position      types.Position `json:"position"`
+	ConstructType string         `json:"construct_type"`
+	Kind          string         `json:"kind"`
+	Material      string         `json:"material"`
+	MaterialColor string         `json:"material_color"`
+	Passable      bool           `json:"passable"`
+	Movable       bool           `json:"movable"`
 }
 
 // FeatureSave represents a feature for serialization

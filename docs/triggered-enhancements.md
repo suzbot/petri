@@ -19,7 +19,6 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Need-evaluator split from intent.go** | Adding a 5th stat type to the priority loop; Scrolling past 400+ lines of need evaluators to find routing logic in intent.go |
 | **Feature capability derivation**      | Adding new feature types; DrinkSource/Bed bools become redundant                  |
 | **Action log retention policy**        | Implementing character memory; May need world time vs real time consideration     |
-| **UI color style map**                 | Adding new colors frequently; Switch statement maintenance becomes tedious        |
 | **Cobra CLI migration**                | Next time we want to add a flag; Current flag parsing becomes unwieldy            |
 | **Knowledge/Learning pattern review** | Enhanced Learning phase begins; Adding new knowledge types or transmission methods |
 | **UI extensibility refactoring** | UI structure blocks adding new activities or features; Area selection pattern needs generalization |
@@ -175,6 +174,10 @@ The current approach (direct intent clearing + action log entry) works well for 
 ---
 
 **Vessel-excluded vs bundleable split:** ✓ Resolved in Step 4 (Construction phase, DD-20). Split into `VesselExcludedTypes` and `MaxBundleSize`. Triggered by brick and clay needing vessel exclusion without bundling.
+
+---
+
+**UI color style map:** ✓ Resolved in Step 5a (Construction phase). Extracted `colorToStyle(color types.Color) lipgloss.Style` helper in `renderCell()` (`ui/view.go`), shared by both item and construct rendering. Adding a new color now requires one case in `colorToStyle` — no per-caller switch duplication. Triggered by construct rendering needing the same color-to-style resolution as items.
 
 ---
 

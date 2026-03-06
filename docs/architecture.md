@@ -134,7 +134,7 @@ Crafted items (like vessels) differ from natural items:
 
 When adding new item types (tools, materials, resources):
 
-1. `entity/item.go` — Add `NewX()` constructor. Set `Color` (required for rendering via `styledSymbol`). Set `Name` if the auto-generated `Description()` isn't right (e.g., "lump of clay" vs "earthy clay").
+1. `entity/item.go` — Add `NewX()` constructor. Set `Color` (required for rendering via `styledSymbol`). Confirm with user how the item should appear in the details panel — set `Name` if the auto-generated `Description()` (color + itemType) isn't right.
 2. `config/config.go` — Add character constant (`CharX`). If edible, add to `ItemMealSize`.
 3. `types/types.go` — Add new `Color` constant if needed (e.g., `ColorEarthy`).
 4. `ui/styles.go` — Add rendering style for the new color if it doesn't have one.
@@ -149,6 +149,21 @@ When adding new item types (tools, materials, resources):
 3. `ui/styles.go` — Add terrain style.
 4. `ui/view.go` — Add terrain rendering in `renderCell()` (check rendering order: water → clay → tilled). Add terrain fill behind entities. Add terrain annotation in details panel (both empty-tile "Type:" section and entity-on-terrain annotation).
 5. `save/state.go` — Add positions field to `SaveState`. Add serialization in `ui/serialize.go` (both `ToSaveState` and `FromSaveState`).
+
+### Adding a New Construct Type
+
+Constructs are player-built structures stored as a slice on the `Map`. Each has a `ConstructType` (broad category, e.g., "structure") and `Kind` (specific type, e.g., "fence").
+
+1. `entity/construct.go` — Add `NewX()` constructor. Set `ConstructType`, `Kind`, `Material`, `MaterialColor`, `Passable`, and `Movable`. The constructor is the source of truth for these values.
+2. `config/config.go` — Add a character symbol constant if the construct needs a distinct glyph (e.g., `CharFence = '╬'`).
+3. `types/types.go` — Add new `Color` constant if needed.
+4. `ui/styles.go` — Add rendering style for any new color.
+5. `ui/view.go` — Add construct rendering in `renderCell()`. Constructs use `colorToStyle(color)` (the shared color-to-style helper extracted during Step 5a) for consistent color resolution. Add details panel display (DisplayName, type label, "Not passable" when `!Passable`). Constructs appear in both the empty-tile and entity-on-tile rendering paths.
+6. `system/movement.go` — If the new type can be impassable: verify `IsBlocked`, `MoveCharacter`, and all three `nextStepBFSCore` call sites already handle constructs via `ConstructAt`. No per-type changes needed if `Passable` is false — the existing checks suffice.
+7. `save/state.go` — Add fields to `ConstructSave` struct if the new type has additional properties not already covered.
+8. `ui/serialize.go` — Add constructor call in `FromSaveState` construct restoration if the new type needs distinct restoration logic. Uniform constructs (same constructor path) need no changes.
+
+**`colorToStyle` helper**: `renderCell()` uses a shared `colorToStyle(color types.Color) lipgloss.Style` helper to resolve Color constants to lipgloss styles. Both item rendering and construct rendering call this helper — when adding a new color for any entity type, add a case to `colorToStyle` rather than duplicating style logic per entity.
 
 ## Item Lifecycle
 
@@ -567,9 +582,15 @@ Rendering: `═══` fill for empty tilled tiles, `═X═` fill around entiti
 
 ### Features
 
-Features are map elements that aren't items or characters. Currently only leaf piles (passable, used as beds). Springs migrated to water terrain.
+Features are natural map elements that aren't items or characters. Currently only leaf piles (passable, used as beds). Springs migrated to water terrain.
 
 Features have a `Passable` boolean — impassable features are handled by `IsBlocked()` and pathfinding automatically.
+
+### Constructs
+
+Constructs are player-built structures. They are a distinct entity type from Features (natural world elements) — see DD-4 in `construction-design.md`. Constructs have a `ConstructType` (e.g., "structure") and `Kind` (e.g., "fence") hierarchy mirroring ItemType/Kind. The `Passable` boolean on a Construct determines whether characters can move through it; impassable constructs are respected by `IsBlocked()`, `MoveCharacter`, and all three call sites of `nextStepBFSCore`. The `Movable` boolean reserves future furniture-relocation behavior.
+
+Construct storage on `Map`: the `constructs []Construct` slice with `AddConstruct`, `AddConstructDirect`, `ConstructAt`, `Constructs`, `RemoveConstruct`, and ID-generation methods.
 
 ### Movement & Pathfinding
 
@@ -583,7 +604,7 @@ Features have a `Passable` boolean — impassable features are handled by `IsBlo
 
 **Perpendicular displacement on character collision**: When `MoveCharacter` fails due to another character (not terrain), the blocked character enters displacement mode: 3 perpendicular sidesteps before resuming BFS. Direction is chosen randomly from the two perpendiculars; if blocked, tries the opposite. If both blocked, displacement is skipped. Displacement state (`DisplacementStepsLeft`, `DisplacementDX`, `DisplacementDY`) is ephemeral — not serialized. On save/load, displacement clears and the character re-pathfinds normally. This extends `findAlternateStep`'s reactive-routing pattern to multi-step intentional routing without modifying BFS semantics or treating characters as obstacles in pathfinding.
 
-**Movement blocking**: `IsBlocked(pos)` returns true if character, water tile, or impassable feature occupies the position.
+**Movement blocking**: `IsBlocked(pos)` returns true if character, water tile, impassable feature, or impassable construct occupies the position.
 
 ## Area Selection UI Pattern
 
