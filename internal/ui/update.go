@@ -365,7 +365,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "down":
 			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 {
 				if m.step2ActivityID == "plant" {
-					plantTypes := game.GetPlantableTypes()
+					plantTypes := game.GetPlantableTypes(m.gameMap.Items(), m.gameMap.Characters())
 					if m.selectedPlantTypeIndex < len(plantTypes)-1 {
 						m.selectedPlantTypeIndex++
 					}
@@ -1148,7 +1148,7 @@ func (m *Model) applyOrdersConfirm() {
 			}
 		} else if m.ordersAddStep == 2 {
 			if m.step2ActivityID == "plant" {
-				plantTypes := game.GetPlantableTypes()
+				plantTypes := game.GetPlantableTypes(m.gameMap.Items(), m.gameMap.Characters())
 				if m.selectedPlantTypeIndex < len(plantTypes) {
 					order := entity.NewOrder(m.nextOrderID, "plant", plantTypes[m.selectedPlantTypeIndex].TargetType)
 					m.nextOrderID++

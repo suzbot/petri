@@ -106,34 +106,71 @@ type PlantableTypeEntry struct {
 	TargetType  string // value stored in order.TargetType: "gourd seed" for seeds, "berry" for direct
 }
 
-// GetPlantableTypes returns the list of plantable types derived from item type configs.
-// Includes directly plantable types (berry, mushroom) and seed-producing types (gourd → "gourd seed").
-func GetPlantableTypes() []PlantableTypeEntry {
-	configs := GetItemTypeConfigs()
+// GetPlantableTypes scans items and character inventories for plantable items.
+// Returns a deduplicated, sorted list for the plant order UI menu.
+// Seeds are keyed by Kind ("flower seed", "tall grass seed"); direct plantables by ItemType ("berry").
+func GetPlantableTypes(items []*entity.Item, chars []*entity.Character) []PlantableTypeEntry {
+	seen := make(map[string]bool)
 	var entries []PlantableTypeEntry
 
-	// Collect sorted keys for deterministic ordering
-	var keys []string
-	for k := range configs {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	addPlantable := func(itemType, kind string) {
+		key := kind
+		if key == "" {
+			key = itemType
+		}
+		if seen[key] {
+			return
+		}
+		seen[key] = true
 
-	for _, itemType := range keys {
-		cfg := configs[itemType]
-		if cfg.CanProduceSeeds {
-			entries = append(entries, PlantableTypeEntry{
-				DisplayName: capitalize(itemType) + " seeds",
-				TargetType:  itemType + " seed",
-			})
+		var displayName string
+		if kind != "" {
+			displayName = capitalize(kind) + "s"
+		} else {
+			displayName = capitalize(entity.Pluralize(itemType))
 		}
-		if cfg.Plantable {
-			entries = append(entries, PlantableTypeEntry{
-				DisplayName: capitalize(entity.Pluralize(itemType)),
-				TargetType:  itemType,
-			})
+		entries = append(entries, PlantableTypeEntry{
+			DisplayName: displayName,
+			TargetType:  key,
+		})
+	}
+
+	// Scan ground items and ground vessel contents
+	for _, item := range items {
+		if item.Plantable {
+			addPlantable(item.ItemType, item.Kind)
+		}
+		if item.Container != nil {
+			for _, stack := range item.Container.Contents {
+				if stack.Variety != nil && stack.Count > 0 && stack.Variety.Plantable {
+					addPlantable(stack.Variety.ItemType, stack.Variety.Kind)
+				}
+			}
 		}
 	}
+
+	// Scan character inventories and carried vessel contents
+	for _, char := range chars {
+		for _, item := range char.Inventory {
+			if item == nil {
+				continue
+			}
+			if item.Plantable {
+				addPlantable(item.ItemType, item.Kind)
+			}
+			if item.Container != nil {
+				for _, stack := range item.Container.Contents {
+					if stack.Variety != nil && stack.Count > 0 && stack.Variety.Plantable {
+						addPlantable(stack.Variety.ItemType, stack.Variety.Kind)
+					}
+				}
+			}
+		}
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].TargetType < entries[j].TargetType
+	})
 
 	return entries
 }

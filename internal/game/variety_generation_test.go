@@ -615,3 +615,208 @@ func TestGetExtractableItemTypes_ExcludesSprouts(t *testing.T) {
 		t.Errorf("Expected 0 extractable types for sprouts, got %d", len(result))
 	}
 }
+
+// =============================================================================
+// GetPlantableTypes — world scan tests
+// =============================================================================
+
+func TestGetPlantableTypes_FindsGroundPlantableItems(t *testing.T) {
+	t.Parallel()
+
+	items := []*entity.Item{
+		{ItemType: "berry", Color: types.ColorRed, Plantable: true},
+		{ItemType: "mushroom", Color: types.ColorBrown, Plantable: true},
+	}
+
+	result := GetPlantableTypes(items, nil)
+	if len(result) != 2 {
+		t.Fatalf("Expected 2 plantable types, got %d", len(result))
+	}
+
+	// Should be sorted: Berries, Mushrooms
+	if result[0].TargetType != "berry" {
+		t.Errorf("Expected first entry 'berry', got %q", result[0].TargetType)
+	}
+	if result[1].TargetType != "mushroom" {
+		t.Errorf("Expected second entry 'mushroom', got %q", result[1].TargetType)
+	}
+}
+
+func TestGetPlantableTypes_FindsSeedsByKind(t *testing.T) {
+	t.Parallel()
+
+	items := []*entity.Item{
+		entity.NewSeed(1, 1, "flower", "flower-red", "", types.ColorRed, "", ""),
+		entity.NewSeed(2, 2, "grass", "tall grass-pale green", "tall grass", types.ColorPaleGreen, "", ""),
+		entity.NewSeed(3, 3, "gourd", "gourd-green", "", types.ColorGreen, "", ""),
+	}
+
+	result := GetPlantableTypes(items, nil)
+	if len(result) != 3 {
+		t.Fatalf("Expected 3 plantable types, got %d", len(result))
+	}
+
+	// Sorted by key: "flower seed", "gourd seed", "tall grass seed"
+	if result[0].TargetType != "flower seed" {
+		t.Errorf("Expected 'flower seed', got %q", result[0].TargetType)
+	}
+	if result[0].DisplayName != "Flower seeds" {
+		t.Errorf("Expected display name 'Flower seeds', got %q", result[0].DisplayName)
+	}
+	if result[1].TargetType != "gourd seed" {
+		t.Errorf("Expected 'gourd seed', got %q", result[1].TargetType)
+	}
+	if result[2].TargetType != "tall grass seed" {
+		t.Errorf("Expected 'tall grass seed', got %q", result[2].TargetType)
+	}
+	if result[2].DisplayName != "Tall grass seeds" {
+		t.Errorf("Expected display name 'Tall grass seeds', got %q", result[2].DisplayName)
+	}
+}
+
+func TestGetPlantableTypes_DeduplicatesMultipleSameType(t *testing.T) {
+	t.Parallel()
+
+	items := []*entity.Item{
+		{ItemType: "berry", Color: types.ColorRed, Plantable: true},
+		{ItemType: "berry", Color: types.ColorBlue, Plantable: true},
+		{ItemType: "berry", Color: types.ColorRed, Plantable: true},
+	}
+
+	result := GetPlantableTypes(items, nil)
+	if len(result) != 1 {
+		t.Errorf("Expected 1 deduplicated entry, got %d", len(result))
+	}
+}
+
+func TestGetPlantableTypes_FindsInVesselContents(t *testing.T) {
+	t.Parallel()
+
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{
+				{
+					Variety: &entity.ItemVariety{
+						ItemType:  "seed",
+						Kind:      "flower seed",
+						Color:     types.ColorRed,
+						Plantable: true,
+					},
+					Count: 3,
+				},
+			},
+		},
+	}
+	items := []*entity.Item{vessel}
+
+	result := GetPlantableTypes(items, nil)
+	if len(result) != 1 {
+		t.Fatalf("Expected 1 plantable type from vessel, got %d", len(result))
+	}
+	if result[0].TargetType != "flower seed" {
+		t.Errorf("Expected 'flower seed', got %q", result[0].TargetType)
+	}
+}
+
+func TestGetPlantableTypes_FindsInCharacterInventory(t *testing.T) {
+	t.Parallel()
+
+	char := &entity.Character{}
+	seed := entity.NewSeed(0, 0, "grass", "tall grass-pale green", "tall grass", types.ColorPaleGreen, "", "")
+	char.AddToInventory(seed)
+
+	result := GetPlantableTypes(nil, []*entity.Character{char})
+	if len(result) != 1 {
+		t.Fatalf("Expected 1 plantable type from inventory, got %d", len(result))
+	}
+	if result[0].TargetType != "tall grass seed" {
+		t.Errorf("Expected 'tall grass seed', got %q", result[0].TargetType)
+	}
+}
+
+func TestGetPlantableTypes_FindsInCarriedVesselContents(t *testing.T) {
+	t.Parallel()
+
+	char := &entity.Character{}
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{
+				{
+					Variety: &entity.ItemVariety{
+						ItemType:  "seed",
+						Kind:      "gourd seed",
+						Color:     types.ColorGreen,
+						Plantable: true,
+					},
+					Count: 2,
+				},
+			},
+		},
+	}
+	char.AddToInventory(vessel)
+
+	result := GetPlantableTypes(nil, []*entity.Character{char})
+	if len(result) != 1 {
+		t.Fatalf("Expected 1 plantable type from carried vessel, got %d", len(result))
+	}
+	if result[0].TargetType != "gourd seed" {
+		t.Errorf("Expected 'gourd seed', got %q", result[0].TargetType)
+	}
+}
+
+func TestGetPlantableTypes_ReturnsEmptyWhenNoneExist(t *testing.T) {
+	t.Parallel()
+
+	// Non-plantable items
+	items := []*entity.Item{
+		{ItemType: "stick"},
+		{ItemType: "shell"},
+	}
+
+	result := GetPlantableTypes(items, nil)
+	if len(result) != 0 {
+		t.Errorf("Expected 0 plantable types, got %d", len(result))
+	}
+}
+
+func TestGetPlantableTypes_FullWorldList(t *testing.T) {
+	t.Parallel()
+
+	// Simulate a world with all plantable types present
+	items := []*entity.Item{
+		{ItemType: "berry", Color: types.ColorRed, Plantable: true},
+		{ItemType: "mushroom", Color: types.ColorBrown, Plantable: true},
+		entity.NewSeed(1, 1, "flower", "flower-red", "", types.ColorRed, "", ""),
+		entity.NewSeed(2, 2, "gourd", "gourd-green", "", types.ColorGreen, "", ""),
+		entity.NewSeed(3, 3, "grass", "tall grass-pale green", "tall grass", types.ColorPaleGreen, "", ""),
+	}
+
+	result := GetPlantableTypes(items, nil)
+	if len(result) != 5 {
+		t.Fatalf("Expected 5 plantable types, got %d", len(result))
+	}
+
+	// Verify sorted order and expected entries
+	expected := []struct {
+		targetType  string
+		displayName string
+	}{
+		{"berry", "Berries"},
+		{"flower seed", "Flower seeds"},
+		{"gourd seed", "Gourd seeds"},
+		{"mushroom", "Mushrooms"},
+		{"tall grass seed", "Tall grass seeds"},
+	}
+	for i, exp := range expected {
+		if result[i].TargetType != exp.targetType {
+			t.Errorf("Entry %d: expected target %q, got %q", i, exp.targetType, result[i].TargetType)
+		}
+		if result[i].DisplayName != exp.displayName {
+			t.Errorf("Entry %d: expected display %q, got %q", i, exp.displayName, result[i].DisplayName)
+		}
+	}
+}

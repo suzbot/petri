@@ -1516,7 +1516,7 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 		} else if m.ordersAddStep == 2 {
 			if m.step2ActivityID == "plant" {
 				// Step 2 (plant): show plantable type selection
-				plantTypes := game.GetPlantableTypes()
+				plantTypes := game.GetPlantableTypes(m.gameMap.Items(), m.gameMap.Characters())
 				lines = append(lines, indent+"Select type to plant:", "")
 				for i, pt := range plantTypes {
 					prefix := selectIndent
