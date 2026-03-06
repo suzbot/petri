@@ -272,13 +272,14 @@ func findTillSoilIntent(char *entity.Character, pos types.Position, items []*ent
 // Flow: find empty tilled tile → check for accessible plantable item → procure if needed → plant.
 // Returns nil when no empty tilled tiles (order complete) or no plantable items (abandon/complete).
 func findPlantIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
-	// Step 1: Find nearest empty tilled tile (no item at position)
+	// Step 1: Find nearest plantable tilled tile (no growing plant at position)
+	// Tiles with loose non-growing items are still available — items get pushed aside during planting.
 	var nearestTile *types.Position
 	nearestTileDist := int(^uint(0) >> 1)
 
 	for _, tpos := range gameMap.TilledPositions() {
-		if gameMap.ItemAt(tpos) != nil {
-			continue // Tile already has a plant/sprout
+		if tileHasGrowingPlant(tpos, gameMap) {
+			continue // Tile already has a growing plant or sprout
 		}
 		dist := pos.DistanceTo(tpos)
 		if dist < nearestTileDist {
@@ -351,8 +352,15 @@ func isMultiStepOrderComplete(char *entity.Character, order *entity.Order, gameM
 		// One bundle per order — complete when character has a full bundle of the target type
 		return hasFullBundle(char, order.TargetType)
 	case "extract":
-		// Complete when locked to a variety and no more extractable plants of that variety exist
-		return order.LockedVariety != "" && !extractableItemExists(gameMap.Items(), order.TargetType, order.LockedVariety)
+		if order.LockedVariety == "" {
+			return false
+		}
+		// Complete when no more extractable plants of that variety exist
+		if !extractableItemExists(gameMap.Items(), order.TargetType, order.LockedVariety) {
+			return true
+		}
+		// Safety net: complete when inventory full and no vessel can accept seeds
+		return !char.HasInventorySpace() && char.GetCarriedVessel() == nil
 	case "dig":
 		// Complete when both inventory slots have clay
 		clayCount := 0
@@ -590,7 +598,7 @@ func IsOrderFeasible(order *entity.Order, items []*entity.Item, gameMap *game.Ma
 	case "tillSoil":
 		return itemExistsInWorld("hoe", chars, items) && HasUnfilledTillingPositions(gameMap), false
 	case "plant":
-		return PlantableItemExists(items, chars, order.TargetType), false
+		return PlantableItemExists(items, chars, order.TargetType) && plantableTilledTileExists(gameMap), false
 	case "waterGarden":
 		return waterGardenFeasible(chars, items, gameMap), false
 	case "gather":
@@ -670,6 +678,30 @@ func isPlantableMatch(item *entity.Item, targetType string) bool {
 	return item.Plantable && (item.ItemType == targetType || item.Kind == targetType)
 }
 
+// tileHasGrowingPlant checks if any item at the position is a growing plant.
+// Used to determine if a tilled tile is available for planting — tiles with only
+// non-growing loose items (seeds, vessels) are still plantable.
+func tileHasGrowingPlant(pos types.Position, gameMap *game.Map) bool {
+	for _, item := range gameMap.ItemsAt(pos) {
+		if item.Plant != nil && item.Plant.IsGrowing {
+			return true
+		}
+	}
+	return false
+}
+
+// plantableTilledTileExists checks if at least one tilled tile has no growing plant.
+// Used by IsOrderFeasible to avoid the take-abandon spam loop when seeds exist
+// but all tilled tiles are occupied by growing plants.
+func plantableTilledTileExists(gameMap *game.Map) bool {
+	for _, tpos := range gameMap.TilledPositions() {
+		if !tileHasGrowingPlant(tpos, gameMap) {
+			return true
+		}
+	}
+	return false
+}
+
 // growingItemExists checks if any growing item of the given type exists on the map.
 func growingItemExists(items []*entity.Item, itemType string) bool {
 	for _, item := range items {
@@ -731,12 +763,7 @@ func HasUnfilledTillingPositions(gameMap *game.Map) bool {
 
 // HasEmptyTilledTile checks if any tilled tile on the map has no item on it.
 func HasEmptyTilledTile(gameMap *game.Map) bool {
-	for _, tpos := range gameMap.TilledPositions() {
-		if gameMap.ItemAt(tpos) == nil {
-			return true
-		}
-	}
-	return false
+	return plantableTilledTileExists(gameMap)
 }
 
 // waterGardenFeasible checks if Water Garden can be fulfilled:

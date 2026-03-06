@@ -3962,6 +3962,152 @@ func TestApplyExtract_FullFlow_ExtractsSeedToVessel(t *testing.T) {
 	}
 }
 
+func TestApplyExtract_CompletesOrderWhenInventoryFullNoVessel(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+
+	// Register seed variety
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:        "flower seed-yellow",
+		ItemType:  "seed",
+		Kind:      "flower seed",
+		Color:     types.ColorYellow,
+		Plantable: true,
+		Sym:       '·',
+	})
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"extract"}
+	gameMap.AddCharacter(char)
+
+	// Fill first inventory slot with existing seed — no vessel
+	existingSeed := entity.NewSeed(0, 0, "flower", "flower-yellow", "", types.ColorYellow, "", "")
+	char.AddToInventory(existingSeed)
+
+	// Place flower on character's tile
+	flower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 5, Y: 5, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	gameMap.AddItem(flower)
+
+	// Assign extract order, already locked
+	order := entity.NewOrder(1, "extract", "flower")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	order.LockedVariety = entity.GenerateVarietyID("flower", "", types.ColorYellow, "", "")
+	char.AssignedOrderID = order.ID
+
+	// Set extract intent at the flower
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionExtract,
+		Target:     types.Position{X: 5, Y: 5},
+		Dest:       types.Position{X: 5, Y: 5},
+		TargetItem: flower,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	// Extract completes — seed goes to inventory slot 2, filling it
+	m.applyIntent(char, config.ActionDurationShort+0.1)
+
+	// Inventory should be full (2 seeds)
+	if char.HasInventorySpace() {
+		t.Error("Expected inventory to be full after extraction")
+	}
+
+	// Order should be completed (inline check: inventory full, no vessel)
+	if order.Status != entity.OrderCompleted {
+		t.Errorf("Expected order completed, got status %v", order.Status)
+	}
+
+	// Character should be unassigned
+	if char.AssignedOrderID != 0 {
+		t.Error("Expected character unassigned from order after completion")
+	}
+}
+
+func TestApplyExtract_ContinuesWhenVesselHasSpace(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:        "flower seed-yellow",
+		ItemType:  "seed",
+		Kind:      "flower seed",
+		Color:     types.ColorYellow,
+		Plantable: true,
+		Sym:       '·',
+	})
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"extract"}
+	gameMap.AddCharacter(char)
+
+	// Give character a vessel with space
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	char.AddToInventory(vessel)
+
+	flower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 5, Y: 5, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	gameMap.AddItem(flower)
+
+	order := entity.NewOrder(1, "extract", "flower")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	order.LockedVariety = entity.GenerateVarietyID("flower", "", types.ColorYellow, "", "")
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionExtract,
+		Target:     types.Position{X: 5, Y: 5},
+		Dest:       types.Position{X: 5, Y: 5},
+		TargetItem: flower,
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	m.applyIntent(char, config.ActionDurationShort+0.1)
+
+	// Seed should be in vessel
+	if len(vessel.Container.Contents) == 0 {
+		t.Fatal("Expected seed in vessel after extraction")
+	}
+
+	// Order should NOT be completed — vessel still has space
+	if order.Status == entity.OrderCompleted {
+		t.Error("Expected order to continue when vessel has space")
+	}
+}
+
 // =============================================================================
 // Step 3b: applyDig handler
 // =============================================================================
@@ -4049,6 +4195,55 @@ func TestApplyDig_ClearsIntent(t *testing.T) {
 	// Intent should be cleared (ordered action one-tick-idle pattern)
 	if char.Intent != nil {
 		t.Error("Expected intent cleared after dig completes")
+	}
+}
+
+func TestPushLooseItemsAside_MovesNonGrowingItems(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+
+	// Place a loose seed on a tilled tile
+	tilePos := types.Position{X: 5, Y: 5}
+	gameMap.SetTilled(tilePos)
+	looseSeed := entity.NewSeed(tilePos.X, tilePos.Y, "gourd", "gourd-green", "", types.ColorGreen, types.PatternNone, types.TextureNone)
+	gameMap.AddItem(looseSeed)
+
+	charPos := types.Position{X: 5, Y: 4} // Character is north of tile
+
+	pushLooseItemsAside(tilePos, charPos, gameMap)
+
+	// Seed should have been moved off the tile
+	seedPos := looseSeed.Pos()
+	if seedPos == tilePos {
+		t.Error("Expected loose seed to be pushed off the tile")
+	}
+	// Should be cardinal-adjacent to original position
+	dist := tilePos.DistanceTo(seedPos)
+	if dist != 1 {
+		t.Errorf("Expected seed to be 1 tile away, got distance %d (at %v)", dist, seedPos)
+	}
+}
+
+func TestPushLooseItemsAside_LeavesGrowingPlantsInPlace(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+
+	// Place a growing berry on a tile
+	tilePos := types.Position{X: 5, Y: 5}
+	gameMap.SetTilled(tilePos)
+	growingBerry := entity.NewBerry(tilePos.X, tilePos.Y, types.ColorRed, false, false)
+	gameMap.AddItem(growingBerry)
+
+	charPos := types.Position{X: 5, Y: 4}
+
+	pushLooseItemsAside(tilePos, charPos, gameMap)
+
+	// Growing berry should NOT have moved
+	berryPos := growingBerry.Pos()
+	if berryPos != tilePos {
+		t.Errorf("Expected growing berry to stay at %v, but moved to %v", tilePos, berryPos)
 	}
 }
 

@@ -651,6 +651,9 @@ func (m *Model) applyPlant(char *entity.Character, delta float64) {
 			return
 		}
 
+		// Push aside any loose items on the tile before planting
+		pushLooseItemsAside(dest, cpos, m.gameMap)
+
 		// Create sprout from the parent variety
 		sprout := entity.CreateSprout(dest.X, dest.Y, parentVariety)
 		m.gameMap.AddItem(sprout)
@@ -1163,6 +1166,46 @@ func findEmptyCardinalTile(center types.Position, avoidPos types.Position, gameM
 	return avoidPos
 }
 
+// pushLooseItemsAside moves any non-growing items at the given position to an adjacent empty tile.
+// Used during planting to clear loose items (seeds, vessels) from a tilled tile before placing a sprout.
+func pushLooseItemsAside(pos types.Position, charPos types.Position, gameMap *game.Map) {
+	items := gameMap.ItemsAt(pos)
+	for _, item := range items {
+		if item.Plant != nil && item.Plant.IsGrowing {
+			continue // Don't push growing plants
+		}
+		adjPos := findEmptyAdjacentTile(pos, charPos, gameMap)
+		if adjPos != pos {
+			item.X = adjPos.X
+			item.Y = adjPos.Y
+		}
+	}
+}
+
+// findEmptyAdjacentTile finds a cardinal-adjacent tile with no items, characters, or blocking features.
+// Used for pushing loose items aside during planting. Falls back to the original position if no empty tile found.
+func findEmptyAdjacentTile(center types.Position, avoidPos types.Position, gameMap *game.Map) types.Position {
+	cardinalDirs := [4][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+	for _, dir := range cardinalDirs {
+		pos := types.Position{X: center.X + dir[0], Y: center.Y + dir[1]}
+		if pos == avoidPos {
+			continue
+		}
+		if !gameMap.IsValid(pos) || gameMap.IsWater(pos) {
+			continue
+		}
+		if f := gameMap.FeatureAt(pos); f != nil && !f.IsPassable() {
+			continue
+		}
+		if gameMap.ItemAt(pos) != nil {
+			continue
+		}
+		return pos
+	}
+	// No empty tile found — leave item in place (best effort)
+	return center
+}
+
 // moveWithCollision handles speed accumulation and collision-aware movement for self-managing actions.
 // Used by ActionFillVessel and ActionTillSoil-style actions that handle their own movement.
 func (m *Model) moveWithCollision(char *entity.Character, cpos types.Position, delta float64) {
@@ -1480,6 +1523,15 @@ func (m *Model) applyExtract(char *entity.Character, delta float64) {
 	if m.actionLog != nil {
 		m.actionLog.Add(char.ID, char.Name, "activity",
 			fmt.Sprintf("Extracted %s from %s", seed.Kind, plant.Description()))
+	}
+
+	// Check if extract order is complete: inventory full and no vessel can accept more seeds
+	if char.AssignedOrderID != 0 {
+		if order := m.findOrderByID(char.AssignedOrderID); order != nil && order.ActivityID == "extract" {
+			if !char.HasInventorySpace() && system.FindCarriedVesselFor(char, seed, m.gameMap.Varieties()) == nil {
+				system.CompleteOrder(char, order, m.actionLog)
+			}
+		}
 	}
 
 	// Clear intent — ordered action pattern: next tick re-evaluates via findExtractIntent

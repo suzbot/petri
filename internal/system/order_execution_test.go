@@ -1702,6 +1702,9 @@ func TestIsOrderFeasible_PlantFeasible_WhenPlantableSeedExistsByKind(t *testing.
 	seed := entity.NewSeed(7, 5, "gourd", "gourd-green", "", types.ColorGreen, types.PatternNone, types.TextureNone)
 	gameMap.AddItem(seed)
 
+	// Need an available tilled tile
+	gameMap.SetTilled(types.Position{X: 3, Y: 3})
+
 	// Target is the Kind "gourd seed", not the ItemType "seed"
 	order := entity.NewOrder(1, "plant", "gourd seed")
 	items := gameMap.Items()
@@ -1729,6 +1732,9 @@ func TestIsOrderFeasible_PlantFeasible_WhenPlantableBerryExists(t *testing.T) {
 		Plantable: true,
 	}
 	gameMap.AddItem(berry)
+
+	// Need an available tilled tile
+	gameMap.SetTilled(types.Position{X: 3, Y: 3})
 
 	order := entity.NewOrder(1, "plant", "berry")
 	items := gameMap.Items()
@@ -1761,6 +1767,9 @@ func TestIsOrderFeasible_PlantFeasible_WhenPlantableBerryInVessel(t *testing.T) 
 	}
 	char.Inventory = []*entity.Item{vessel}
 	gameMap.AddCharacter(char)
+
+	// Need an available tilled tile
+	gameMap.SetTilled(types.Position{X: 3, Y: 3})
 
 	order := entity.NewOrder(1, "plant", "berry")
 	items := gameMap.Items()
@@ -2033,7 +2042,7 @@ func TestFindPlantIntent_WithLockedVariety_OnlySeeksMatchingVariety(t *testing.T
 	}
 }
 
-func TestFindPlantIntent_SkipsTilledTilesWithItems(t *testing.T) {
+func TestFindPlantIntent_SkipsTilledTilesWithGrowingPlants(t *testing.T) {
 	t.Parallel()
 
 	gameMap := game.NewMap(10, 10)
@@ -2072,6 +2081,92 @@ func TestFindPlantIntent_SkipsTilledTilesWithItems(t *testing.T) {
 	// Should target the empty tile, not the occupied one
 	if intent.Dest.X != emptyPos.X || intent.Dest.Y != emptyPos.Y {
 		t.Errorf("Expected Dest %v, got (%d,%d)", emptyPos, intent.Dest.X, intent.Dest.Y)
+	}
+}
+
+func TestFindPlantIntent_AllowsTilledTilesWithLooseItems(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	berry := entity.NewBerry(0, 0, types.ColorRed, false, false)
+	berry.Plantable = true
+	char.AddToInventory(berry)
+	gameMap.AddCharacter(char)
+
+	// One tilled tile with a loose seed on it (not growing)
+	tilePos := types.Position{X: 6, Y: 5}
+	gameMap.SetTilled(tilePos)
+	looseSeed := entity.NewSeed(tilePos.X, tilePos.Y, "gourd", "gourd-green", "", types.ColorGreen, types.PatternNone, types.TextureNone)
+	gameMap.AddItem(looseSeed)
+
+	order := entity.NewOrder(1, "plant", "berry")
+	items := gameMap.Items()
+
+	intent := findPlantIntent(char, char.Pos(), items, order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected intent — tilled tile with loose item should be available for planting")
+	}
+	if intent.Dest.X != tilePos.X || intent.Dest.Y != tilePos.Y {
+		t.Errorf("Expected Dest %v, got (%d,%d)", tilePos, intent.Dest.X, intent.Dest.Y)
+	}
+}
+
+func TestIsOrderFeasible_PlantUnfeasible_WhenNoEmptyTilledTiles(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	// Seed exists (so PlantableItemExists is true)
+	seed := entity.NewSeed(7, 5, "gourd", "gourd-green", "", types.ColorGreen, types.PatternNone, types.TextureNone)
+	gameMap.AddItem(seed)
+
+	// One tilled tile, but occupied by a growing plant
+	tilePos := types.Position{X: 3, Y: 3}
+	gameMap.SetTilled(tilePos)
+	growingBerry := entity.NewBerry(tilePos.X, tilePos.Y, types.ColorRed, false, false)
+	gameMap.AddItem(growingBerry)
+
+	order := entity.NewOrder(1, "plant", "gourd seed")
+	items := gameMap.Items()
+
+	feasible, _ := IsOrderFeasible(order, items, gameMap)
+
+	if feasible {
+		t.Error("Plant should be unfeasible when all tilled tiles have growing plants")
+	}
+}
+
+func TestIsOrderFeasible_PlantFeasible_WhenTilledTileHasLooseItem(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"plant"}
+	gameMap.AddCharacter(char)
+
+	// Seed exists
+	seed := entity.NewSeed(7, 5, "gourd", "gourd-green", "", types.ColorGreen, types.PatternNone, types.TextureNone)
+	gameMap.AddItem(seed)
+
+	// One tilled tile with a loose item (not a growing plant)
+	tilePos := types.Position{X: 3, Y: 3}
+	gameMap.SetTilled(tilePos)
+	looseItem := entity.NewStick(tilePos.X, tilePos.Y)
+	gameMap.AddItem(looseItem)
+
+	order := entity.NewOrder(1, "plant", "gourd seed")
+	items := gameMap.Items()
+
+	feasible, _ := IsOrderFeasible(order, items, gameMap)
+
+	if !feasible {
+		t.Error("Plant should be feasible — tilled tile has only a loose item (not a growing plant)")
 	}
 }
 
@@ -4313,6 +4408,87 @@ func TestExtractFeasibility_InfeasibleWhenAllOnCooldown(t *testing.T) {
 	feasible, _ := IsOrderFeasible(order, gameMap.Items(), gameMap)
 	if feasible {
 		t.Error("Expected extract order to be infeasible when all flowers are on seed cooldown")
+	}
+}
+
+// =============================================================================
+// Extract order: inventory-full completion
+// =============================================================================
+
+func TestExtractOrderCompletion_CompletesWhenInventoryFullNoVessel(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Character has 2 seeds in inventory (full, no vessel)
+	seed1 := entity.NewSeed(0, 0, "flower", "flower-yellow", "", types.ColorYellow, "", "")
+	seed2 := entity.NewSeed(0, 0, "flower", "flower-yellow", "", types.ColorYellow, "", "")
+	char.AddToInventory(seed1)
+	char.AddToInventory(seed2)
+
+	// Extractable flower still exists on map
+	flower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 15, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	gameMap.AddItem(flower)
+
+	order := entity.NewOrder(1, "extract", "flower")
+	order.LockedVariety = entity.GenerateVarietyID("flower", "", types.ColorYellow, "", "")
+
+	// Should complete: locked variety set + inventory full + no vessel
+	if !isMultiStepOrderComplete(char, order, gameMap) {
+		t.Error("Expected extract order to complete when inventory full and no vessel")
+	}
+}
+
+func TestExtractOrderCompletion_DoesNotCompleteWhenVesselHasSpace(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 10, 10, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Character has a vessel with space for seeds
+	registry := game.NewVarietyRegistry()
+	registry.Register(&entity.ItemVariety{
+		ID:        "flower seed-yellow",
+		ItemType:  "seed",
+		Kind:      "flower seed",
+		Color:     types.ColorYellow,
+		Plantable: true,
+		Sym:       '·',
+	})
+	gameMap.SetVarieties(registry)
+
+	vessel := &entity.Item{
+		ItemType: "vessel",
+		Container: &entity.ContainerData{
+			Capacity: 1,
+			Contents: []entity.Stack{},
+		},
+	}
+	char.AddToInventory(vessel)
+
+	// Extractable flower still exists
+	flower := &entity.Item{
+		BaseEntity: entity.BaseEntity{X: 15, Y: 10, Sym: '✿', EType: entity.TypeItem},
+		ItemType:   "flower",
+		Color:      types.ColorYellow,
+		Plant:      &entity.PlantProperties{IsGrowing: true, SeedTimer: 0},
+	}
+	gameMap.AddItem(flower)
+
+	order := entity.NewOrder(1, "extract", "flower")
+	order.LockedVariety = entity.GenerateVarietyID("flower", "", types.ColorYellow, "", "")
+
+	// Should NOT complete: vessel can still accept seeds
+	if isMultiStepOrderComplete(char, order, gameMap) {
+		t.Error("Expected extract order NOT to complete when vessel has space for seeds")
 	}
 }
 
