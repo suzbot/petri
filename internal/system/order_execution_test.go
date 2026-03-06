@@ -4924,3 +4924,240 @@ func TestIsOrderFeasible_CraftBrick_NoKnowHow(t *testing.T) {
 		t.Error("noKnowHow should be true when clay exists but no character knows craftBrick")
 	}
 }
+
+// =============================================================================
+// Step 4b: findCraftIntent for craftBrick
+// =============================================================================
+
+func TestFindCraftIntent_CraftBrick_FindsClayOnGround(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftBrick"}
+	char.KnownRecipes = []string{"clay-brick"}
+	gameMap.AddCharacter(char)
+
+	clay := entity.NewClay(7, 5)
+	clay.ID = gameMap.NextItemID()
+	gameMap.AddItem(clay)
+
+	order := entity.NewOrder(1, "craftBrick", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	log := NewActionLog(100)
+	intent := FindCraftIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected pickup intent targeting clay, got nil")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Expected ActionPickup, got %v", intent.Action)
+	}
+	if intent.TargetItem != clay {
+		t.Errorf("Expected TargetItem to be clay, got %v", intent.TargetItem)
+	}
+}
+
+func TestFindCraftIntent_CraftBrick_ReturnsActionCraft(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftBrick"}
+	char.KnownRecipes = []string{"clay-brick"}
+	gameMap.AddCharacter(char)
+
+	// Character already has clay in inventory
+	clay := entity.NewClay(5, 5)
+	clay.ID = gameMap.NextItemID()
+	char.AddToInventory(clay)
+
+	order := entity.NewOrder(1, "craftBrick", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	log := NewActionLog(100)
+	intent := FindCraftIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected ActionCraft intent, got nil")
+	}
+	if intent.Action != entity.ActionCraft {
+		t.Errorf("Expected ActionCraft, got %v", intent.Action)
+	}
+	if intent.RecipeID != "clay-brick" {
+		t.Errorf("Expected RecipeID 'clay-brick', got %q", intent.RecipeID)
+	}
+}
+
+// =============================================================================
+// Step 4b: isMultiStepOrderComplete for craftBrick
+// =============================================================================
+
+func TestIsMultiStepOrderComplete_CraftBrick_ClayExists(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// Clay on the ground — order not complete
+	clay := entity.NewClay(3, 3)
+	clay.ID = gameMap.NextItemID()
+	gameMap.AddItem(clay)
+
+	order := entity.NewOrder(1, "craftBrick", "")
+
+	if IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Error("Expected craftBrick order NOT complete when clay exists on ground")
+	}
+}
+
+func TestIsMultiStepOrderComplete_CraftBrick_NoClay(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	// No clay on ground — order complete
+	order := entity.NewOrder(1, "craftBrick", "")
+
+	if !IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Error("Expected craftBrick order complete when no clay on ground")
+	}
+}
+
+// =============================================================================
+// Step 4b: TestCraftBrickOrder_EndToEnd
+// =============================================================================
+
+// TestCraftBrickOrder_EndToEnd traces the full brick craft flow:
+// character picks up clay → crafts brick (brick appears on map) →
+// picks up next clay → crafts another brick → no more clay →
+// isMultiStepOrderComplete true → CompleteOrder.
+// Follows TestGatherOrder_InventoryPath_FullBundle_EndToEnd pattern.
+func TestCraftBrickOrder_EndToEnd(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftBrick"}
+	char.KnownRecipes = []string{"clay-brick"}
+	gameMap.AddCharacter(char)
+
+	// Place two clay items on the ground
+	clay1 := entity.NewClay(5, 5)
+	clay1.ID = gameMap.NextItemID()
+	gameMap.AddItem(clay1)
+	clay2 := entity.NewClay(6, 5)
+	clay2.ID = gameMap.NextItemID()
+	gameMap.AddItem(clay2)
+
+	order := entity.NewOrder(1, "craftBrick", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	log := NewActionLog(100)
+
+	// --- Phase 1: findCraftIntent returns pickup targeting first clay ---
+	intent := FindCraftIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+	if intent == nil || intent.Action != entity.ActionPickup {
+		t.Fatalf("Phase 1: Expected pickup intent, got %v", intent)
+	}
+
+	// --- Phase 2: Pick up first clay ---
+	registry := game.GenerateVarieties()
+	gameMap.SetVarieties(registry)
+	result := Pickup(char, clay1, gameMap, log, registry)
+	if result == PickupFailed {
+		t.Fatal("Phase 2: Expected successful pickup of clay1")
+	}
+	gameMap.RemoveItem(clay1)
+
+	// --- Phase 3: findCraftIntent returns ActionCraft (clay in inventory) ---
+	intent = FindCraftIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+	if intent == nil || intent.Action != entity.ActionCraft {
+		t.Fatalf("Phase 3: Expected ActionCraft intent, got %v", intent)
+	}
+	if intent.RecipeID != "clay-brick" {
+		t.Errorf("Phase 3: Expected RecipeID 'clay-brick', got %q", intent.RecipeID)
+	}
+
+	// --- Phase 4: Simulate craft — consume clay, produce brick ---
+	consumed := char.ConsumeAccessibleItem("clay")
+	if consumed == nil {
+		t.Fatal("Phase 4: Expected clay to be consumed from inventory")
+	}
+	brick1 := CreateBrick(consumed, entity.RecipeRegistry["clay-brick"])
+	brick1.X, brick1.Y = char.X, char.Y
+	brick1.ID = gameMap.NextItemID()
+	gameMap.AddItem(brick1)
+
+	// Order should NOT be complete — clay2 still on ground
+	if IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Fatal("Phase 4: Order should not be complete while clay2 is on ground")
+	}
+
+	// --- Phase 5: findCraftIntent returns pickup targeting clay2 ---
+	intent = FindCraftIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+	if intent == nil || intent.Action != entity.ActionPickup {
+		t.Fatalf("Phase 5: Expected pickup intent for clay2, got %v", intent)
+	}
+	if intent.TargetItem != clay2 {
+		t.Errorf("Phase 5: Expected TargetItem clay2, got %v", intent.TargetItem)
+	}
+
+	// --- Phase 6: Pick up clay2 ---
+	result = Pickup(char, clay2, gameMap, log, registry)
+	if result == PickupFailed {
+		t.Fatal("Phase 6: Expected successful pickup of clay2")
+	}
+	gameMap.RemoveItem(clay2)
+
+	// --- Phase 7: Craft second brick ---
+	consumed = char.ConsumeAccessibleItem("clay")
+	if consumed == nil {
+		t.Fatal("Phase 7: Expected clay2 to be consumed")
+	}
+	brick2 := CreateBrick(consumed, entity.RecipeRegistry["clay-brick"])
+	brick2.X, brick2.Y = char.X, char.Y
+	brick2.ID = gameMap.NextItemID()
+	gameMap.AddItem(brick2)
+
+	// --- Phase 8: No more clay — findCraftIntent returns nil ---
+	intent = FindCraftIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+	if intent != nil {
+		t.Error("Phase 8: Expected nil intent when no clay remains")
+	}
+
+	// --- Phase 9: isMultiStepOrderComplete returns true ---
+	if !IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Fatal("Phase 9: Expected order complete when no clay on ground")
+	}
+
+	// --- Phase 10: CompleteOrder ---
+	CompleteOrder(char, order, log)
+
+	// Verify: 2 bricks on map, order completed
+	brickCount := 0
+	for _, item := range gameMap.Items() {
+		if item.ItemType == "brick" {
+			brickCount++
+		}
+	}
+	if brickCount != 2 {
+		t.Errorf("Final: Expected 2 bricks on map, got %d", brickCount)
+	}
+	if order.Status != entity.OrderCompleted {
+		t.Errorf("Final: Expected order completed, got %s", order.Status)
+	}
+	if char.AssignedOrderID != 0 {
+		t.Error("Final: Expected character unassigned from order")
+	}
+}

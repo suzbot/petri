@@ -4257,3 +4257,155 @@ func countItemType(char *entity.Character, itemType string) int {
 	}
 	return count
 }
+
+// =============================================================================
+// Step 4b: applyCraft for craftBrick
+// =============================================================================
+
+func TestApplyCraft_CraftBrick_CreatesBrick(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftBrick"}
+	char.KnownRecipes = []string{"clay-brick"}
+	gameMap.AddCharacter(char)
+
+	// Character has clay in inventory
+	clay := entity.NewClay(5, 5)
+	char.AddToInventory(clay)
+
+	order := entity.NewOrder(1, "craftBrick", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action:   entity.ActionCraft,
+		Target:   types.Position{X: 5, Y: 5},
+		Dest:     types.Position{X: 5, Y: 5},
+		RecipeID: "clay-brick",
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	recipe := entity.RecipeRegistry["clay-brick"]
+	if recipe == nil {
+		t.Fatal("clay-brick recipe not found")
+	}
+	iterations := int(recipe.Duration/0.1) + 5
+	for i := 0; i < iterations; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Clay should be consumed
+	if char.HasAccessibleItem("clay") {
+		t.Error("Clay should have been consumed after crafting")
+	}
+
+	// Brick should be on the map at character's position
+	var brick *entity.Item
+	for _, item := range gameMap.Items() {
+		if item.ItemType == "brick" && item.X == 5 && item.Y == 5 {
+			brick = item
+			break
+		}
+	}
+	if brick == nil {
+		t.Fatal("Expected brick on map at character position after crafting")
+	}
+}
+
+func TestApplyCraft_CraftBrick_DoesNotCompleteOrder(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftBrick"}
+	char.KnownRecipes = []string{"clay-brick"}
+	gameMap.AddCharacter(char)
+
+	clay := entity.NewClay(5, 5)
+	char.AddToInventory(clay)
+
+	order := entity.NewOrder(1, "craftBrick", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action:   entity.ActionCraft,
+		Target:   types.Position{X: 5, Y: 5},
+		Dest:     types.Position{X: 5, Y: 5},
+		RecipeID: "clay-brick",
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	recipe := entity.RecipeRegistry["clay-brick"]
+	iterations := int(recipe.Duration/0.1) + 5
+	for i := 0; i < iterations; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Order should NOT be completed — Repeatable skips inline CompleteOrder
+	if order.Status == entity.OrderCompleted {
+		t.Error("Repeatable craft order should NOT be marked completed after one brick")
+	}
+	if char.AssignedOrderID != order.ID {
+		t.Error("Character should still be assigned to the repeatable order")
+	}
+}
+
+func TestApplyCraft_NonRepeatable_CompletesOrder(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftVessel"}
+	char.KnownRecipes = []string{"hollow-gourd"}
+	gameMap.AddCharacter(char)
+
+	gourd := entity.NewGourd(5, 5, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
+	char.AddToInventory(gourd)
+
+	order := entity.NewOrder(1, "craftVessel", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action:   entity.ActionCraft,
+		Target:   types.Position{X: 5, Y: 5},
+		Dest:     types.Position{X: 5, Y: 5},
+		RecipeID: "hollow-gourd",
+	}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    []*entity.Order{order},
+	}
+
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	iterations := int(recipe.Duration/0.1) + 5
+	for i := 0; i < iterations; i++ {
+		m.applyIntent(char, 0.1)
+	}
+
+	// Non-repeatable order SHOULD be completed after one craft
+	if order.Status != entity.OrderCompleted {
+		t.Errorf("Non-repeatable craft order should be completed, got %s", order.Status)
+	}
+}

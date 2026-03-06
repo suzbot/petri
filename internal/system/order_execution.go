@@ -370,6 +370,9 @@ func isMultiStepOrderComplete(char *entity.Character, order *entity.Order, gameM
 			}
 		}
 		return clayCount >= 2
+	case "craftBrick":
+		// Complete when no clay items remain on the ground
+		return !groundItemOfTypeExists(gameMap.Items(), "clay")
 	default:
 		return false
 	}
@@ -1020,6 +1023,11 @@ func FindHarvestIntentForTest(char *entity.Character, pos types.Position, items 
 // IsMultiStepOrderCompleteForTest is an exported wrapper for tests.
 func IsMultiStepOrderCompleteForTest(char *entity.Character, order *entity.Order, gameMap *game.Map) bool {
 	return isMultiStepOrderComplete(char, order, gameMap)
+}
+
+// FindCraftIntentForTest is an exported wrapper for integration tests in other packages.
+func FindCraftIntentForTest(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	return findCraftIntent(char, pos, items, order, log, gameMap)
 }
 
 // FindNextGatherTarget finds the next item to gather for order continuation.

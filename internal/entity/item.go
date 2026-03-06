@@ -217,6 +217,7 @@ func NewBrick(x, y int) *Item {
 			Sym:   config.CharBrick,
 			EType: TypeItem,
 		},
+		Name:     "brick",
 		ItemType: "brick",
 		Color:    types.ColorTerracotta,
 	}

@@ -8,6 +8,35 @@ import (
 	"petri/internal/types"
 )
 
+// =============================================================================
+// Step 4b: CreateBrick
+// =============================================================================
+
+func TestCreateBrick_Properties(t *testing.T) {
+	t.Parallel()
+
+	clay := entity.NewClay(3, 7)
+	recipe := entity.RecipeRegistry["clay-brick"]
+	if recipe == nil {
+		t.Fatal("clay-brick recipe not found")
+	}
+
+	brick := CreateBrick(clay, recipe)
+
+	if brick.ItemType != "brick" {
+		t.Errorf("Expected ItemType 'brick', got %q", brick.ItemType)
+	}
+	if brick.Color != types.ColorTerracotta {
+		t.Errorf("Expected Color ColorTerracotta, got %v", brick.Color)
+	}
+	if brick.Sym != config.CharBrick {
+		t.Errorf("Expected Sym %c (CharBrick), got %c", config.CharBrick, brick.Sym)
+	}
+	if brick.X != clay.X || brick.Y != clay.Y {
+		t.Errorf("Expected position (%d,%d), got (%d,%d)", clay.X, clay.Y, brick.X, brick.Y)
+	}
+}
+
 func TestCreateVessel_InheritsGourdAttributes(t *testing.T) {
 	t.Parallel()
 

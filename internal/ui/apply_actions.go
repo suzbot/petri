@@ -507,6 +507,8 @@ func (m *Model) applyCraft(char *entity.Character, delta float64) {
 			crafted = system.CreateVessel(consumed["gourd"], recipe)
 		case "shell-hoe":
 			crafted = system.CreateHoe(consumed["shell"], recipe)
+		case "clay-brick":
+			crafted = system.CreateBrick(consumed["clay"], recipe)
 		}
 
 		if crafted != nil {
@@ -520,8 +522,8 @@ func (m *Model) applyCraft(char *entity.Character, delta float64) {
 			m.actionLog.Add(char.ID, char.Name, "activity", "Crafted "+recipe.Name)
 		}
 
-		// Complete the order
-		if char.AssignedOrderID != 0 {
+		// Complete the order (skip for repeatable recipes — order loops until world-state condition is met)
+		if char.AssignedOrderID != 0 && !recipe.Repeatable {
 			if order := m.findOrderByID(char.AssignedOrderID); order != nil {
 				system.CompleteOrder(char, order, m.actionLog)
 			}

@@ -35,3 +35,9 @@ func CreateVessel(input *entity.Item, recipe *entity.Recipe) *entity.Item {
 func CreateHoe(shell *entity.Item, recipe *entity.Recipe) *entity.Item {
 	return entity.NewHoe(shell.X, shell.Y, shell.Color)
 }
+
+// CreateBrick creates a brick item from a consumed clay input.
+// Bricks are uniform — position is taken from the clay item.
+func CreateBrick(clay *entity.Item, recipe *entity.Recipe) *entity.Item {
+	return entity.NewBrick(clay.X, clay.Y)
+}
