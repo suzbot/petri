@@ -674,3 +674,69 @@ func TestDigDiscovery_PickupClay(t *testing.T) {
 		t.Error("Expected character to know dig after picking up clay")
 	}
 }
+
+// =============================================================================
+// craftBrick discovery tests
+// =============================================================================
+
+func TestCraftBrickDiscovery_LookAtClay(t *testing.T) {
+	t.Parallel()
+
+	// Character already knows dig (also triggered by ActionLook on clay) to isolate craftBrick recipe discovery
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{"dig"},
+		KnownRecipes:    []string{},
+	}
+	clay := entity.NewClay(0, 0)
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionLook, clay, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected craftBrick discovery from looking at clay")
+	}
+	if !char.KnowsActivity("craftBrick") {
+		t.Error("Expected character to know craftBrick after looking at clay")
+	}
+}
+
+func TestCraftBrickDiscovery_PickupClay(t *testing.T) {
+	t.Parallel()
+
+	// Character already knows dig (also triggered by ActionPickup on clay) to isolate craftBrick recipe discovery
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{"dig"},
+		KnownRecipes:    []string{},
+	}
+	clay := entity.NewClay(0, 0)
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionPickup, clay, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected craftBrick discovery from picking up clay")
+	}
+	if !char.KnowsActivity("craftBrick") {
+		t.Error("Expected character to know craftBrick after picking up clay")
+	}
+}
+
+func TestCraftBrickDiscovery_DigClay(t *testing.T) {
+	t.Parallel()
+
+	char := &entity.Character{
+		Name:            "Test",
+		KnownActivities: []string{},
+		KnownRecipes:    []string{},
+	}
+	clay := entity.NewClay(0, 0)
+
+	discovered := TryDiscoverKnowHow(char, entity.ActionDig, clay, nil, 1.0)
+
+	if !discovered {
+		t.Error("Expected craftBrick discovery from digging clay")
+	}
+	if !char.KnowsActivity("craftBrick") {
+		t.Error("Expected character to know craftBrick after digging clay")
+	}
+}

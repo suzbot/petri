@@ -1905,6 +1905,54 @@ func TestCanVesselAccept_VesselExcluded_ReturnsFalse(t *testing.T) {
 	}
 }
 
+func TestAddToVessel_VesselExcluded_Clay_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	vessel := createTestVessel()
+	clay := entity.NewClay(0, 0)
+
+	if AddToVessel(vessel, clay, registry) {
+		t.Error("AddToVessel should return false for vessel-excluded item (clay)")
+	}
+}
+
+func TestAddToVessel_VesselExcluded_Brick_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	vessel := createTestVessel()
+	brick := entity.NewBrick(0, 0)
+
+	if AddToVessel(vessel, brick, registry) {
+		t.Error("AddToVessel should return false for vessel-excluded item (brick)")
+	}
+}
+
+func TestCanVesselAccept_VesselExcluded_Clay_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	vessel := createTestVessel()
+	clay := entity.NewClay(0, 0)
+
+	if CanVesselAccept(vessel, clay, registry) {
+		t.Error("CanVesselAccept should return false for vessel-excluded item (clay)")
+	}
+}
+
+func TestCanVesselAccept_VesselExcluded_Brick_ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	vessel := createTestVessel()
+	brick := entity.NewBrick(0, 0)
+
+	if CanVesselAccept(vessel, brick, registry) {
+		t.Error("CanVesselAccept should return false for vessel-excluded item (brick)")
+	}
+}
+
 // =============================================================================
 // CanPickUpMore Bundle Tests
 // =============================================================================

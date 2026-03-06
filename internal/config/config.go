@@ -43,6 +43,7 @@ const (
 	CharSleeping   = 'z'
 	CharClay       = '☗'
 	CharClayTile   = '░'
+	CharBrick      = '▬'
 
 	// Speed system
 	BaseSpeed              = 50 // baseline speed (0-100 scale)
@@ -208,11 +209,20 @@ func GetStackSize(itemType string) int {
 }
 
 // MaxBundleSize maps bundleable item types to their max bundle count.
-// Items in this map are also vessel-excluded (too large for vessels).
-// If these concepts diverge, split into separate sets — see triggered-enhancements.md.
+// Used only for bundle logic (merging, capacity checks, rendering).
+// For vessel exclusion, see VesselExcludedTypes.
 var MaxBundleSize = map[string]int{
 	"stick": 6,
 	"grass": 6,
+}
+
+// VesselExcludedTypes is the set of item types that cannot be stored in vessels.
+// Distinct from MaxBundleSize — items can be vessel-excluded without being bundleable (clay, brick).
+var VesselExcludedTypes = map[string]bool{
+	"stick": true,
+	"grass": true,
+	"clay":  true,
+	"brick": true,
 }
 
 // GroundSpawnCount maps ground-spawned item types to their initial world-gen count.

@@ -163,7 +163,7 @@ func findHarvestIntent(char *entity.Character, pos types.Position, items []*enti
 	}
 
 	// Only do vessel procurement for non-vessel-excluded types
-	if config.MaxBundleSize[target.ItemType] == 0 {
+	if !config.VesselExcludedTypes[target.ItemType] {
 		// dropConflict=true: orders take priority, drop incompatible vessels
 		if intent := EnsureHasVesselFor(char, target, items, gameMap, log, true, "order"); intent != nil {
 			return intent
@@ -954,8 +954,8 @@ func findGatherIntent(char *entity.Character, pos types.Position, items []*entit
 	}
 
 	// Vessel-excluded types skip vessel procurement regardless of variety
-	if config.MaxBundleSize[target.ItemType] > 0 {
-		// Bundleable — direct pickup, check capacity
+	if config.VesselExcludedTypes[target.ItemType] {
+		// Bundleable or vessel-excluded — direct pickup, check capacity
 		if !canGatherMore(char, order.TargetType) && !hasNonTargetToDrop(char, order.TargetType) {
 			return nil
 		}

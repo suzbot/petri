@@ -208,6 +208,20 @@ func NewClay(x, y int) *Item {
 	}
 }
 
+// NewBrick creates a new brick item (non-edible, non-plant, non-bundleable, no variety, DD-21)
+func NewBrick(x, y int) *Item {
+	return &Item{
+		BaseEntity: BaseEntity{
+			X:     x,
+			Y:     y,
+			Sym:   config.CharBrick,
+			EType: TypeItem,
+		},
+		ItemType: "brick",
+		Color:    types.ColorTerracotta,
+	}
+}
+
 // NewNut creates a new nut item (edible, non-plant)
 func NewNut(x, y int) *Item {
 	return &Item{

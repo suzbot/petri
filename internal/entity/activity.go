@@ -159,6 +159,14 @@ var ActivityRegistry = map[string]Activity{
 			{Action: ActionPickup, ItemType: "clay"},
 		},
 	},
+	"craftBrick": {
+		ID:              "craftBrick",
+		Name:            "Brick",
+		Category:        "craft",
+		IntentFormation: IntentOrderable,
+		Availability:    AvailabilityKnowHow,
+		// No DiscoveryTriggers - discovered via recipe triggers (clay-brick recipe)
+	},
 }
 
 // GetDiscoverableActivities returns all activities that require know-how

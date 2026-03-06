@@ -23,12 +23,27 @@ type Recipe struct {
 	Inputs            []RecipeInput
 	Output            RecipeOutput
 	Duration          float64            // Craft time in game seconds
+	Repeatable        bool               // When true, craft order loops until world-state completion condition is met (DD-19)
 	DiscoveryTriggers []DiscoveryTrigger // Triggers for discovering this recipe
 	BundledActivities []string           // Additional activities granted on recipe discovery
 }
 
 // RecipeRegistry contains all defined recipes
 var RecipeRegistry = map[string]*Recipe{
+	"clay-brick": {
+		ID:         "clay-brick",
+		ActivityID: "craftBrick",
+		Name:       "Clay Brick",
+		Inputs:     []RecipeInput{{ItemType: "clay", Count: 1}},
+		Output:     RecipeOutput{ItemType: "brick"},
+		Duration:   config.ActionDurationLong,
+		Repeatable: true,
+		DiscoveryTriggers: []DiscoveryTrigger{
+			{Action: ActionLook, ItemType: "clay"},
+			{Action: ActionPickup, ItemType: "clay"},
+			{Action: ActionDig, ItemType: "clay"},
+		},
+	},
 	"hollow-gourd": {
 		ID:         "hollow-gourd",
 		ActivityID: "craftVessel",

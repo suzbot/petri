@@ -131,7 +131,7 @@ func TestDigActivity_InRegistry(t *testing.T) {
 func TestCraftActivities_HaveCategory(t *testing.T) {
 	t.Parallel()
 
-	craftActivities := []string{"craftVessel", "craftHoe"}
+	craftActivities := []string{"craftVessel", "craftHoe", "craftBrick"}
 	for _, id := range craftActivities {
 		activity, ok := ActivityRegistry[id]
 		if !ok {
@@ -141,5 +141,32 @@ func TestCraftActivities_HaveCategory(t *testing.T) {
 		if activity.Category != "craft" {
 			t.Errorf("activity %q Category: got %q, want %q", id, activity.Category, "craft")
 		}
+	}
+}
+
+// TestCraftBrickActivity_InRegistry verifies craftBrick activity exists with correct properties
+func TestCraftBrickActivity_InRegistry(t *testing.T) {
+	t.Parallel()
+
+	activity, ok := ActivityRegistry["craftBrick"]
+	if !ok {
+		t.Fatal("craftBrick activity not found in ActivityRegistry")
+	}
+
+	if activity.Name != "Brick" {
+		t.Errorf("craftBrick Name: got %q, want %q", activity.Name, "Brick")
+	}
+	if activity.Category != "craft" {
+		t.Errorf("craftBrick Category: got %q, want %q", activity.Category, "craft")
+	}
+	if activity.IntentFormation != IntentOrderable {
+		t.Errorf("craftBrick IntentFormation: got %q, want %q", activity.IntentFormation, IntentOrderable)
+	}
+	if activity.Availability != AvailabilityKnowHow {
+		t.Errorf("craftBrick Availability: got %q, want %q", activity.Availability, AvailabilityKnowHow)
+	}
+	// Discovery is via recipe triggers, not activity triggers
+	if len(activity.DiscoveryTriggers) != 0 {
+		t.Errorf("craftBrick DiscoveryTriggers: got %d, want 0 (discovery is via recipe)", len(activity.DiscoveryTriggers))
 	}
 }

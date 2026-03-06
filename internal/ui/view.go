@@ -705,6 +705,8 @@ func (m Model) styledSymbol(e entity.Entity) string {
 			return paleGreenStyle.Render(sym)
 		case types.ColorEarthy:
 			return earthyStyle.Render(sym)
+		case types.ColorTerracotta:
+			return terracottaStyle.Render(sym)
 		}
 
 	case *entity.Feature:

@@ -4852,3 +4852,75 @@ func TestDigOrder_EndToEnd(t *testing.T) {
 		t.Error("Final: Expected character unassigned from order")
 	}
 }
+
+// =============================================================================
+// Step 4a: IsOrderFeasible for craftBrick
+// =============================================================================
+
+func TestIsOrderFeasible_CraftBrick_ClayExists(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftBrick"}
+	char.KnownRecipes = []string{"clay-brick"}
+	gameMap.AddCharacter(char)
+
+	clay := entity.NewClay(3, 3)
+	clay.ID = gameMap.NextItemID()
+	gameMap.AddItem(clay)
+
+	order := entity.NewOrder(1, "craftBrick", "")
+	feasible, noKnowHow := IsOrderFeasible(order, gameMap.Items(), gameMap)
+
+	if !feasible {
+		t.Error("craftBrick order should be feasible when clay exists on the ground")
+	}
+	if noKnowHow {
+		t.Error("noKnowHow should be false when character knows craftBrick")
+	}
+}
+
+func TestIsOrderFeasible_CraftBrick_NoClay(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftBrick"}
+	char.KnownRecipes = []string{"clay-brick"}
+	gameMap.AddCharacter(char)
+
+	// No clay on map
+	order := entity.NewOrder(1, "craftBrick", "")
+	feasible, noKnowHow := IsOrderFeasible(order, gameMap.Items(), gameMap)
+
+	if feasible {
+		t.Error("craftBrick order should be unfeasible when no clay exists")
+	}
+	if noKnowHow {
+		t.Error("noKnowHow should be false (clay missing, not know-how missing)")
+	}
+}
+
+func TestIsOrderFeasible_CraftBrick_NoKnowHow(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(10, 10)
+	// Character has no craftBrick know-how
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	clay := entity.NewClay(3, 3)
+	clay.ID = gameMap.NextItemID()
+	gameMap.AddItem(clay)
+
+	order := entity.NewOrder(1, "craftBrick", "")
+	feasible, noKnowHow := IsOrderFeasible(order, gameMap.Items(), gameMap)
+
+	if feasible {
+		t.Error("craftBrick order should be unfeasible when no character knows craftBrick")
+	}
+	if !noKnowHow {
+		t.Error("noKnowHow should be true when clay exists but no character knows craftBrick")
+	}
+}

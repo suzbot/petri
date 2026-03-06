@@ -97,6 +97,8 @@ See `config.GroundSpawnInterval` for intervals.
 - **Shells**: Colored `<`; non-edible, crafting material. Multiple color variants. Washes up adjacent to ponds.
 - **Grass**: Pale green `W`; non-edible, construction material. Kind "tall grass". Grows and spreads across the world; fastest lifecycle (fast maturation and reproduction). Has a death timer so it doesn't take over the map. Harvested into bundles; color changes to pale yellow on harvest, representing drying.
 - **Seeds**: Dot `.` in parent's color; not edible, plantable. Carries the parent plant's variety ID so planted seeds grow into the correct variety with full fidelity. Kind reflects parent Kind when present (e.g., "tall grass seed", "flower seed", "gourd seed"). Auto-dropped when a gourd is consumed.
+- **Clay**: Earthy `░` lump; non-edible, construction material. No varieties. Obtained via Dig Clay orders. Cannot be placed in vessels.
+- **Bricks**: Terracotta `▬`; non-edible, construction material. No varieties. Crafted from clay via Craft Bricks orders. Cannot be placed in vessels.
 
 ### Varieties
 
@@ -460,12 +462,14 @@ Orders are abandoned if no items matching the target type exist on the map, or i
 
 - **hollow-gourd**: 1 gourd → 1 vessel (container). Vessel inherits gourd's appearance.
 - **shell-hoe**: 1 stick + 1 shell → 1 hoe (tool for tilling soil). Hoe inherits shell's color.
+- **clay-brick**: 1 clay → 1 brick. Repeatable — order continues until no loose clay remains on the map.
 
 ### Discovery
 
 Crafting know-how and recipes are discovered together:
 - **craftVessel + hollow-gourd**: Discovered via gourd interaction (look, pickup, eat) or drinking at a spring
 - **craftHoe + shell-hoe**: Discovered via stick or shell interaction (look, pickup)
+- **craftBrick + clay-brick**: Discovered via clay interaction (look, pickup, dig)
 
 Discovery chance depends on mood (same as other know-how discovery — see [Know-how](#know-how)).
 
@@ -475,7 +479,8 @@ Discovery chance depends on mood (same as other know-how discovery — see [Know
 2. Character with relevant know-how takes the order
 3. If missing inputs: drops non-recipe items, seeks missing components
 4. Crafting takes recipe duration (see `config.ActionDurationLong`)
-5. On completion: crafted item drops on ground, order completed
+5. On completion: crafted item drops on ground
+6. For repeatable recipes (clay-brick): order continues until the completion condition is met (no more loose clay on the map); for non-repeatable recipes: order completes immediately
 
 ## Inventory & Vessels
 

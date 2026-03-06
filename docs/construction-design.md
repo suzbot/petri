@@ -76,7 +76,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 ---
 
 ### Step 4: Craft Bricks
-**Status:** Planned
+**Status:** In Progress (4a complete)
 
 **Anchor story:** A character picks up some clay and has a moment of insight — they could shape this into bricks! The player creates a Craft > Bricks order. The character picks up clay, shapes it into a terracotta brick, sets it down, and goes for the next lump. When no more loose clay remains, the order completes.
 

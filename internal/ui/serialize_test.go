@@ -1189,3 +1189,31 @@ func TestFromSaveState_RestoresClayItemSymbol(t *testing.T) {
 		t.Errorf("Clay symbol not restored: got %c, want %c", found.Sym, config.CharClay)
 	}
 }
+
+func TestFromSaveState_RestoresBrickItemSymbol(t *testing.T) {
+	m := createTestModel()
+
+	// Add a brick item
+	brick := entity.NewBrick(3, 3)
+	brick.ID = m.gameMap.NextItemID()
+	m.gameMap.AddItem(brick)
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Find the brick item
+	var found *entity.Item
+	for _, item := range restored.gameMap.Items() {
+		if item.ItemType == "brick" {
+			found = item
+			break
+		}
+	}
+	if found == nil {
+		t.Fatal("Brick item not found after round-trip")
+	}
+	if found.Sym != config.CharBrick {
+		t.Errorf("Brick symbol not restored: got %c, want %c", found.Sym, config.CharBrick)
+	}
+}

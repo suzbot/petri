@@ -579,7 +579,7 @@ func AddToVessel(vessel, item *entity.Item, registry *game.VarietyRegistry) bool
 	}
 
 	// Vessel-excluded items cannot go in vessels
-	if config.MaxBundleSize[item.ItemType] > 0 {
+	if config.VesselExcludedTypes[item.ItemType] {
 		return false
 	}
 
@@ -687,7 +687,7 @@ func CanVesselAccept(vessel, item *entity.Item, registry *game.VarietyRegistry) 
 	}
 
 	// Vessel-excluded items cannot go in vessels
-	if config.MaxBundleSize[item.ItemType] > 0 {
+	if config.VesselExcludedTypes[item.ItemType] {
 		return false
 	}
 
@@ -1079,7 +1079,7 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 	itemName := item.Description()
 
 	// Vessel-excluded types skip the vessel path entirely
-	if config.MaxBundleSize[item.ItemType] == 0 {
+	if !config.VesselExcludedTypes[item.ItemType] {
 		// Try to add to any vessel that can accept the item
 		for _, vessel := range char.Inventory {
 			if vessel == nil || vessel.Container == nil {

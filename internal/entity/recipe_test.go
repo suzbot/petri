@@ -108,3 +108,71 @@ func TestCraftHoeActivity_Registered(t *testing.T) {
 		t.Errorf("craftHoe Availability: got %q, want %q", activity.Availability, AvailabilityKnowHow)
 	}
 }
+
+// TestCraftBrickRecipe_InRegistry verifies clay-brick recipe exists with correct properties (DD-19)
+func TestCraftBrickRecipe_InRegistry(t *testing.T) {
+	t.Parallel()
+
+	recipe, ok := RecipeRegistry["clay-brick"]
+	if !ok {
+		t.Fatal("clay-brick recipe not found in RecipeRegistry")
+	}
+
+	if recipe.ActivityID != "craftBrick" {
+		t.Errorf("clay-brick ActivityID: got %q, want %q", recipe.ActivityID, "craftBrick")
+	}
+
+	// Verify input: 1 clay
+	if len(recipe.Inputs) != 1 {
+		t.Fatalf("clay-brick Inputs count: got %d, want 1", len(recipe.Inputs))
+	}
+	if recipe.Inputs[0].ItemType != "clay" {
+		t.Errorf("clay-brick Input ItemType: got %q, want %q", recipe.Inputs[0].ItemType, "clay")
+	}
+	if recipe.Inputs[0].Count != 1 {
+		t.Errorf("clay-brick Input Count: got %d, want 1", recipe.Inputs[0].Count)
+	}
+
+	// Verify output
+	if recipe.Output.ItemType != "brick" {
+		t.Errorf("clay-brick Output.ItemType: got %q, want %q", recipe.Output.ItemType, "brick")
+	}
+
+	// Verify duration
+	if recipe.Duration != config.ActionDurationLong {
+		t.Errorf("clay-brick Duration: got %v, want %v", recipe.Duration, config.ActionDurationLong)
+	}
+
+	// Verify Repeatable — crafting loops until no clay remains (DD-19)
+	if !recipe.Repeatable {
+		t.Error("clay-brick Repeatable: got false, want true (processes all available clay)")
+	}
+
+	// Verify discovery triggers exist for clay
+	if len(recipe.DiscoveryTriggers) == 0 {
+		t.Fatal("clay-brick DiscoveryTriggers: got empty, want triggers for clay")
+	}
+	hasLookClay := false
+	hasPickupClay := false
+	hasDigClay := false
+	for _, trigger := range recipe.DiscoveryTriggers {
+		if trigger.Action == ActionLook && trigger.ItemType == "clay" {
+			hasLookClay = true
+		}
+		if trigger.Action == ActionPickup && trigger.ItemType == "clay" {
+			hasPickupClay = true
+		}
+		if trigger.Action == ActionDig && trigger.ItemType == "clay" {
+			hasDigClay = true
+		}
+	}
+	if !hasLookClay {
+		t.Error("clay-brick DiscoveryTriggers: missing ActionLook clay trigger")
+	}
+	if !hasPickupClay {
+		t.Error("clay-brick DiscoveryTriggers: missing ActionPickup clay trigger")
+	}
+	if !hasDigClay {
+		t.Error("clay-brick DiscoveryTriggers: missing ActionDig clay trigger")
+	}
+}

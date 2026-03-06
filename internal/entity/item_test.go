@@ -699,6 +699,49 @@ func TestItem_Description_KindWithMultipleAttributes(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// Brick tests
+// =============================================================================
+
+// TestNewBrick_Properties verifies NewBrick creates brick with correct properties (DD-21)
+func TestNewBrick_Properties(t *testing.T) {
+	t.Parallel()
+
+	item := NewBrick(5, 7)
+
+	pos := item.Pos()
+	if pos.X != 5 || pos.Y != 7 {
+		t.Errorf("NewBrick Pos(): got (%d, %d), want (5, 7)", pos.X, pos.Y)
+	}
+	if item.ItemType != "brick" {
+		t.Errorf("NewBrick ItemType: got %q, want %q", item.ItemType, "brick")
+	}
+	if item.Kind != "" {
+		t.Errorf("NewBrick Kind: got %q, want empty (no Kind until multiple brick types)", item.Kind)
+	}
+	if item.Symbol() != config.CharBrick {
+		t.Errorf("NewBrick Symbol(): got %c, want %c", item.Symbol(), config.CharBrick)
+	}
+	if item.Color != types.ColorTerracotta {
+		t.Errorf("NewBrick Color: got %q, want %q", item.Color, types.ColorTerracotta)
+	}
+	if item.Plant != nil {
+		t.Error("NewBrick Plant: got non-nil, want nil")
+	}
+	if item.Container != nil {
+		t.Error("NewBrick Container: got non-nil, want nil")
+	}
+	if item.Edible != nil {
+		t.Error("NewBrick Edible: got non-nil, want nil")
+	}
+	if item.BundleCount != 0 {
+		t.Errorf("NewBrick BundleCount: got %d, want 0 (brick is not bundled)", item.BundleCount)
+	}
+	if item.Type() != TypeItem {
+		t.Errorf("NewBrick Type(): got %d, want %d", item.Type(), TypeItem)
+	}
+}
+
 func TestNewClay_Properties(t *testing.T) {
 	clay := NewClay(3, 4)
 	if clay.ItemType != "clay" {

@@ -94,7 +94,9 @@ Functional attributes live in optional property structs (`EdibleProperties`, `Pl
 
 **EdibleProperties** marks items as edible with optional effects. Items with `Edible != nil` can be eaten; Poisonous/Healing determine effects.
 
-**BundleCount** (`int` field on Item, default 0 for non-bundleable items, 1 for bundleable items): tracks how many units are in this bundle slot. Constructors for bundleable types (e.g., `NewStick()`, `NewGrass()`) set `BundleCount: 1`. `Pickup()` increments BundleCount when merging. `Description()` uses BundleCount to produce "bundle of sticks (N)" display text; when Kind is set, uses `Pluralize(Kind)` for the bundle name (e.g., "bundle of tall grass (N)"). The bundle format shows for `BundleCount >= 2` (single items use their normal description); growing plants also keep their normal description. Items with `BundleCount >= 2` render as `X` on the map (`config.CharBundle`). `config.IsBundleable(itemType)` and `config.MaxBundleSize` drive bundle eligibility and capacity. Bundleable types are also listed in `config.VesselExcludedTypes` — they cannot go in vessels. This is an explicit config check, replacing the prior implicit exclusion (variety absence) for sticks.
+**BundleCount** (`int` field on Item, default 0 for non-bundleable items, 1 for bundleable items): tracks how many units are in this bundle slot. Constructors for bundleable types (e.g., `NewStick()`, `NewGrass()`) set `BundleCount: 1`. `Pickup()` increments BundleCount when merging. `Description()` uses BundleCount to produce "bundle of sticks (N)" display text; when Kind is set, uses `Pluralize(Kind)` for the bundle name (e.g., "bundle of tall grass (N)"). The bundle format shows for `BundleCount >= 2` (single items use their normal description); growing plants also keep their normal description. Items with `BundleCount >= 2` render as `X` on the map (`config.CharBundle`). `config.IsBundleable(itemType)` and `config.MaxBundleSize` drive bundle eligibility and capacity.
+
+**VesselExcludedTypes** (`config.VesselExcludedTypes map[string]bool`): explicit set of item types that cannot be placed in vessels (sticks, grass, clay, brick). This is distinct from bundle logic — non-bundleable items (clay, brick) can still be vessel-excluded. Checked in `AddToVessel`, `CanVesselAccept`, and gather/harvest order vessel-procurement branching. **Decision rule**: if a new item type should never go in a vessel, add it here. Do not rely on variety absence as implicit exclusion.
 
 ### Kind Pattern for Subtypes
 
@@ -507,12 +509,17 @@ Recipes define how to craft items from components.
 4. Once all components accessible: perform crafting action
 5. On completion: consume all inputs, create output item via recipe-specific creation function
 
+### Repeatable Recipes
+
+Recipes with `Repeatable: true` loop after each craft cycle instead of completing the order. After crafting one output, `applyCraft` clears intent (no inline `CompleteOrder`). The next tick, `selectOrderActivity` re-evaluates: if `findCraftIntent` finds more inputs, it crafts again; if `isMultiStepOrderComplete` returns true (e.g., no clay on map), the order completes. This enables "process all available material" orders (e.g., clay-brick) without quantity selection UI. Non-repeatable recipes complete the order immediately after one craft.
+
 ### Adding a New Recipe
 
-1. Add recipe to `RecipeRegistry` in `entity/recipe.go`
+1. Add recipe to `RecipeRegistry` in `entity/recipe.go`. Set `Repeatable: true` if the order should loop until a world-state condition is met.
 2. Add activity to `ActivityRegistry` for the crafting activity (if new)
 3. Add creation function in `system/crafting.go` (e.g., `CreateHoe`)
 4. Add case to the `ActionCraft` handler in `apply_actions.go` dispatch (by recipe ID)
+5. If `Repeatable`: add completion case to `isMultiStepOrderComplete` in `order_execution.go`
 
 ## World & Terrain
 
