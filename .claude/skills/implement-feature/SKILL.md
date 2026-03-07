@@ -51,6 +51,7 @@ Set up dependencies so each task blocks the next. Wait for user confirmation bef
 **Pattern alignment (targeted, not comprehensive):**
 - Grep for key functions the spec references to confirm signatures and call sites — do not read the whole file
 - When the spec changes a shared function, grep all callers to verify the spec addresses each one
+- When the spec adds a field to a shared predicate, verify both directions: what the new field matches, and what it causes the predicate to reject in existing call sites
 - New visual indicators: grep for the analogous existing pattern; read only those lines
 
 **Report the readiness result to the user before proceeding to task 3. Wait for explicit user confirmation before writing any code.**
@@ -80,7 +81,7 @@ When modifying a shared function, grep for callers before writing code — new r
 #### Test Patterns Reference
 
 - **No brittle string assertions** — don't assert on exact display text. Remove existing brittle assertions rather than updating them.
-- **No absence assertions** — don't test that unrequired attributes aren't set. Test the outcome, not what didn't happen.
+- **No absence assertions; no untouched-path regressions** — don't test that unrequired attributes aren't set. Don't write regression tests for code paths this step didn't modify. Surface to user if the spec prescribes one for an unmodified path.
 - **Ordered-action integration tests:** Test loop must mirror `continueIntent`: (1) recalculate `char.Intent.Target` each tick via `NextStepBFS`, (2) rebuild intent when nil. `IsWet()` uses 8-directional adjacency — dry tiles must be >1 tile from water.
 - **Flow-level anchor tests for procurement chains:** Chain system functions in handler order: `findXxxIntent` → `Pickup` → `FindNextTarget` → repeat → nil.
 - **Game-loop integration tests:** Call `CalculateIntent` every tick (not only when intent is nil) — the real loop runs it each tick for `continueIntent`.

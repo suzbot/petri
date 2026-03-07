@@ -4,14 +4,15 @@ description: "Post-feature reflection to identify process changes that reduce fu
 user-invocable: true
 argument-hint: Brief context about what was just completed (optional)
 model: sonnet
-agent: true
+context: fork
+agent: general-purpose
 allowed-tools:
   - Read
   - Glob
   - Grep
 ---
 
-**Note for caller (not the retro agent):** Before invoking this skill, ask the user if they want conversation history searched for uncaptured friction. If yes, search history using the process in "Conversation History Search" at the bottom of this file, then pass findings as part of the retro arguments. After the retro completes and proposals are resolved, update `memory/last-retro.txt` with the current ISO timestamp.
+**Note for caller (not the retro agent):** Before invoking this skill, ask the user if they want conversation history searched for uncaptured friction. If the user says yes, **always run the search** — even if the last retro was recent. The user knows what sessions exist; a recent timestamp does not mean there's nothing to find. Search history using the process in "Conversation History Search" at the bottom of this file, then pass findings as part of the retro arguments. After the retro completes and proposals are resolved, update `memory/last-retro.txt` with the current ISO timestamp.
 
 ## Retro Skill
 
@@ -153,20 +154,22 @@ Read `memory/last-retro.txt` for the last retro timestamp. Search sessions modif
 
 ### 2. Find and scan sessions (single command)
 
-Run one command that finds recent sessions and extracts friction signals. This avoids multiple approval prompts.
+Run one command that finds recent sessions and extracts friction signals. This avoids multiple approval prompts. Note: `last-retro.txt` stores UTC timestamps but file mtimes are local — the script converts UTC cutoff to local time for comparison.
 
 ```bash
 python3 -c "
 import json, glob, os, sys
+from datetime import datetime, timezone
 project_dir = os.path.expanduser('~/.claude/projects/-Users-suzanneerin-projects-petri')
-cutoff = sys.argv[1] if len(sys.argv) > 1 else None
+cutoff_str = sys.argv[1].strip() if len(sys.argv) > 1 and sys.argv[1].strip() else None
 files = sorted(glob.glob(os.path.join(project_dir, '*.jsonl')), key=os.path.getmtime, reverse=True)
-if cutoff:
-    from datetime import datetime
-    files = [f for f in files if datetime.fromtimestamp(os.path.getmtime(f)).isoformat() > cutoff]
+if cutoff_str:
+    cutoff_utc = datetime.fromisoformat(cutoff_str.replace('Z', '+00:00'))
+    cutoff_epoch = cutoff_utc.timestamp()
+    files = [f for f in files if os.path.getmtime(f) > cutoff_epoch]
 else:
     files = files[:3]
-friction_words = ['no, ', 'not what', 'already', 'don\\'t forget', 'we discussed', 'did we', 'does the skill', 'friction', 'missed', 'should have', 'too strong', 'too weak', 'that\\'s not', 'I meant']
+friction_words = ['no, ', 'not what', 'already', 'don\\'t forget', 'we discussed', 'did we', 'does the skill', 'friction', 'missed', 'should have', 'too strong', 'too weak', 'that\\'s not', 'I meant', 'confused', 'why are', 'I don', 'wait,', 'wrong', 'actually', 'problem', 'issue', 'stuck', 'churn']
 for fpath in files:
     signals = []
     with open(fpath) as f:
@@ -179,7 +182,8 @@ for fpath in files:
                         signals.append(content[:300])
             except: pass
     if signals:
-        print(f'\n=== {os.path.basename(fpath)} ===')
+        mtime = datetime.fromtimestamp(os.path.getmtime(fpath)).strftime('%Y-%m-%d %H:%M')
+        print(f'\n=== {os.path.basename(fpath)[:12]}... ({mtime}) — {len(signals)} signals ===')
         for s in signals:
             print(s); print('---')
 " "$(cat memory/last-retro.txt 2>/dev/null || echo '')"

@@ -4,7 +4,8 @@ description: "Create a test world with specific preconditions, when asking user 
 user-invocable: true
 argument-hint: "Structured world spec — read this skill's Caller Requirements before invoking"
 model: sonnet
-agent: true
+context: fork
+agent: general-purpose
 allowed-tools:
   - Read
   - Write

@@ -47,6 +47,7 @@ Surface any drift in conversation so it gets discussed, not silently carried for
 - Describe each option's implications — for player experience, structural alignment with vision (code structure mirrors character knowledge per VISION.txt), scalability, performance. Don't describe options in implementation jargon (function signatures, parameter patterns). If the user can't evaluate the difference without reading code, the description needs translating.
 - If an option has no evaluable implications (purely code-organizational), decide unilaterally and note it in passing rather than presenting it as a choice.
 - If you realize mid-explanation that you haven't actually surfaced a question, pause and reframe
+- If you catch yourself revisiting the same scope/ordering concern twice within your own reasoning (before surfacing to the user), that's churning — stop immediately and surface the specific blocker. State what's causing the concern and what tradeoff you see. The user may have a simple solution. Check existing patterns (architecture.md, analogous features) before raising scope concerns.
 - When a step involves multiple related items (similar names, overlapping systems), ensure each item is explicitly delineated in both the step spec and updated to be clearly separate concerns in the design document, to prevent conflation within and across implementation sessions.
 
 **Anti-pattern:** Stating an interpretation as if it's an open question without naming the alternatives.
@@ -71,6 +72,7 @@ Before writing the step spec, grep existing symbol constants and helper function
 - For new entity fields: trace all code paths that read or write the parent struct, including ToSaveState/FromSaveState for any fields that touch serialized state.
 
 - For borrowed algorithms: when the plan reuses an existing algorithm for a new context (e.g., SpawnPonds logic for SpawnClay), trace the original's constraints and verify they hold in the new context. Different entity types often have different spatial or adjacency constraints that make the algorithm fail silently or produce degenerate results.
+- When the plan adds a discriminating field to a shared predicate, trace both directions: what the new field matches *and* what it causes the predicate to reject in existing call sites. If the predicate is called from multiple contexts, verify rejection behavior is correct in each.
 
 This is targeted reads (3-5 files the plan already names), not broad exploration. The goal is to identify assumptions in the plan that don't match the code — the class of bugs where the plan describes the right behavior but misses a code-level detail (like Target needing to be a BFS step, not a destination).
 

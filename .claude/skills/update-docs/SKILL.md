@@ -4,7 +4,8 @@ description: Update project documentation after feature implementation. Use at [
 user-invocable: true
 argument-hint: Brief summary of what changed (e.g., "Added sticks, nuts, shells; BFS pathfinding fix")
 model: sonnet
-agent: true
+context: fork
+agent: general-purpose
 allowed-tools:
   - Read
   - Edit
