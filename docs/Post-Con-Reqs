@@ -1,0 +1,18 @@
+Post Construction Enhancements - Requirements
+
+1. Ability to look at terrain, ability to trigger discovery from looking at terrain
+	Story: A character gazes out over the pond. They realize they like ponds. A character studies clay terrain. They realize they could dig clay up, and find a use for it.
+2. Clay Pot crafting (new vessel recipe)
+3. Wicker Bin for wet clay and bundle storage: bins are a new kind of container that can hold bigger things, bins are placed, a bin is awkward, and slows movement while being carried. a bin can't be carried unless it is empty. Capacity
+	- loose gourds (8) (make it so a gourd can no longer go in a vessel)
+	- loose clay (8)
+	- vessels (8)
+	- bundles (4)
+4. Drying Pallet: for sun-drying bricks and clay pots. 
+	- instead of a full duration for a completed brick - you instead have a medium duration crafting time, wet item is placed on drying pallet, after 3 days it is now ready to use and is no longer wet
+	- same for pots
+5. Hut door placement and rotation: Allow the player to rotate the hut orientation when placing (door faces N/E/S/W) and/or choose which wall tile becomes the door. V1 uses a fixed south-facing door.
+6. **Poison preference reinforcement on repeat consumption** — Poison items push toward dislike on first consumption, but if a character's opinion later changes (e.g., from looking at the item), eating the poison again doesn't re-form the negative preference. Repeated poison consumption should reinforce dislike even if opinion changed in the interim.
+7. Limit shell varieties to 2 per world generation
+8. Allow gourds to drop 2 seeds (need to decide whether some of the time or all the time)
+9. Review which colors exist, and add more to mushroom variety eligibility.

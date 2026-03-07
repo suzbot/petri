@@ -112,7 +112,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 - Test with pre-placed constructs via test-world
 
 **Open questions:**
-- Door passability mechanism: currently passability is boolean. Doors need "character-passable but creature-impassable" (for future Threats phase). May need a passability enum or just Passable=true until creatures exist. (Deferred — relevant to Step 8 huts, not Step 5.)
+- Door passability mechanism: currently passability is boolean. Doors need "character-passable but creature-impassable" (for future Threats phase). May need a passability enum or just Passable=true until creatures exist. (Deferred — relevant to Step 10 hut execution, not Step 5.)
 
 ---
 
@@ -125,7 +125,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 - buildFence activity in ActivityRegistry, "Construction" order UI category
 - Three fence recipes in RecipeRegistry: thatch (1 grass bundle of 6), stick (1 stick bundle of 6), brick (6 bricks) — per-recipe discovery, custom execution path (DD-23, DD-27)
 - Fence placement UI: line/series tile marking (DD-24)
-- Character-driven material selection: nearest available for v1, preference-based deferred to Step 10 — no player sub-menu (DD-22, DD-31)
+- Character-driven material selection: nearest available for v1, preference-based deferred to Step 12 — no player sub-menu (DD-22, DD-31)
 - Material lock via line ID: per-line marking with material propagation on first build (DD-25)
 - Material procurement: bundle gathering for grass/sticks, multi-trip supply-drop for bricks (DD-23, DD-30)
 - Build fence handler with adjacent-tile building, layered collision handling (DD-26, DD-28)
@@ -170,27 +170,76 @@ Characters gather materials and construct small buildings from grass, sticks, or
 
 ---
 
-### Step 8: Build Hut
-**Status:** Planned
+### Step 8: Construct Discovery + Hut Placement UI
+**Status:** Refining
 
-**Anchor story:** The player selects Construction > Build Hut > Thatch Hut and enters area selection mode. They position a 4x4 footprint and confirm. Marked tiles appear. A character begins the long process of building — dropping bundles of grass on each of the 16 tiles, then working each tile one by one. Eventually a hut stands: a 4x4 outline of thatch walls with a 3x3 interior space accessible through a single door tile. Characters can walk through the door but not through walls.
+**Anchor story:** A character wanders past a stick fence and pauses to look at it. They form a preference, and also have a moment of insight — they realize they could build a stick hut! "Discovered: Build Hut" appears in the action log. Another character who already knows how to build looks at a brick fence and discovers the brick hut recipe specifically. The player selects Construction > Build Hut and enters placement mode. A 5×5 footprint preview follows the cursor. They confirm — 16 perimeter tiles are marked for construction. No character can build yet, but the order and marks exist.
 
 **Scope:**
-- Build Hut activity with three recipes (thatch, stick, brick — per-tile material costs)
-- Area selection for hut placement (fixed 4x4 footprint, reusing tilling's area selection UI)
-- Hut validator (clear 4x4 space, no water/existing constructs)
-- Marked-for-construction pool (parallel to marked-for-tilling)
-- Multi-phase build per tile: supply dropping phase, then working phase
-- Door tile: one outline tile that's character-passable
-- Order becomes unfulfillable when materials run out, re-fulfillable when available again
 
-**Open questions:**
-- Hut supply management: how does the worker distribute supplies across tiles? Per-tile drops then per-tile work, or all supplies then all work?
-- Multiple hut materials: can a single hut mix materials (some thatch, some brick)? Reqs imply one material per hut.
+*Construct discovery (formerly Step 8):*
+- `ConstructKind string` field on `DiscoveryTrigger` (DD-37)
+- `tryDiscoverFromConstruct` function called from `CompleteLookAtConstruct` — mirrors `TryDiscoverKnowHow` structure (tries activities then recipes)
+- buildHut activity in ActivityRegistry with `AvailabilityKnowHow`, Category "construction"
+- Three hut recipes in RecipeRegistry (thatch-hut, stick-hut, brick-hut) with per-tile inputs and discovery triggers: `ActionLook` + `ConstructKind: "fence"`
+- First recipe discovery auto-grants buildHut activity know-how (same pattern as fence recipes)
+
+*Hut placement UI (formerly Step 10):*
+- Demo program to evaluate placement UI options (fixed footprint preview, validation highlighting)
+- `ConstructKind string` field on `ConstructionMark` to distinguish fence vs hut marks (DD-41)
+- Retroactive: fence marks carry `ConstructKind: "fence"`
+- Fixed 5×5 footprint placement mode (DD-38) — cursor positions top-left corner, `p` confirms
+- Hut validator: full 5×5 area clear of water, existing constructs, impassable features, map edges
+- Marks 16 perimeter tiles with `ConstructKind: "hut"`, shared LineID, material initially empty
+- `HasUnbuiltConstructionPositions`, `isMultiStepOrderComplete`, `IsOrderFeasible` filter by ConstructKind
+- `findOrderIntent` case for buildHut (returns nil — execution deferred to Step 10)
+- Save/load: `ConstructKind` in serialized `ConstructionMark`
+
+**Rationale for merge:** The buildHut activity and recipes must land alongside the order pipeline (`findOrderIntent` case, `IsOrderFeasible`, area selection UI) to avoid a gap where recipes exist but `findOrderIntent`'s default branch routes them to `findCraftIntent`. This mirrors how fence recipes were added in Step 6 alongside the full fence pipeline.
 
 ---
 
-### Step 9: Activity Preferences
+### Step 9: Hut Construct Types + Rendering
+**Status:** Planned
+
+**Anchor story:** The player creates a test world with a completed hut. The hut renders as a clean 5×5 enclosure using line-drawing characters — corners (┌┐└┘), horizontal edges (─), vertical edges (│), and a door on the south wall. The walls are colored by material (brown for stick, pale yellow for thatch, terracotta for brick). Characters path around the walls but walk freely through the door. The details panel shows "Stick Hut Wall" or "Stick Hut Door" with "Structure" and passability info.
+
+**Scope:**
+- Demo program to evaluate line-drawing character options for walls and door symbols (DD-42)
+- New construct constructors: `NewHutWall(x, y, material, materialColor, wallRole)` and `NewHutDoor(x, y, material, materialColor)` — wallRole determines symbol (corner-TL, corner-TR, corner-BL, corner-BR, edge-H, edge-V)
+- Wall segments: Kind "hut wall", impassable, position-aware symbols
+- Door: Kind "hut door", `Passable: true`, distinct symbol
+- Construct rendering, details panel, movement blocking (follows Adding a New Construct Type checklist)
+- Save/load serialization for new construct kinds and wall role field
+- Test with pre-placed constructs via test-world
+
+**Open questions:**
+- Hut wall/door visual symbols: line-drawing Unicode characters for walls, door symbol TBD — resolve via demo program during step refinement
+
+---
+
+### Step 10: Build Hut Execution
+**Status:** Planned
+
+**Anchor story:** A character who knows how to build huts takes a Build Hut order. They choose stick material (nearest available), and the material is stamped across all 16 hut marks. They carry bundles of sticks to the nearest unbuilt wall tile, dropping 2 full bundles, then work the tile into a wall segment. They move to the next tile. Another character joins and works from the other end. Eventually all 16 tiles are built — walls and a door. Characters walk through the door into the 3×3 interior.
+
+**Scope:**
+- `findBuildHutIntent` in order_execution.go — follows fence pattern: nearest unbuilt hut mark, material selection (DD-40), supply-drop procurement
+- Material costs per tile: thatch = 2 bundles of 6 grass, stick = 2 bundles of 6 sticks, brick = 12 bricks (DD-39)
+- `applyBuildHut` handler — walk-then-act, supply delivery, build phase, construct placement with position-aware wall role
+- Multiple workers, no tile claiming (same as fences DD-29)
+- Collision handling: skip/abandon/displace layers (same as fences DD-28)
+- Item displacement after construct placement (same as fences DD-33)
+- Order feasibility: unbuilt hut marks exist AND hut materials exist on map
+- Order completion: no unbuilt hut marks remain
+
+**Open questions:**
+- ~~Hut supply management~~ → DD-39 (per-tile sequential)
+- ~~Multiple hut materials~~ → DD-40 (no mixing; character selects, same as fences)
+
+---
+
+### Step 11: Activity Preferences
 **Status:** Planned
 
 **Anchor story:** A character finishes a gardening order while in a good mood and develops a fondness for gardening. The next time they work a garden order, their mood improves slightly faster. Another character who disliked their construction work finds their mood dipping while building. The player opens the preferences panel and sees a new section: "Activity Preferences" showing which work each character enjoys or dislikes.
@@ -205,7 +254,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 
 ---
 
-### Step 10: Phase Wrap-Up
+### Step 12: Phase Wrap-Up
 **Status:** Planned
 
 **Scope:**
@@ -214,9 +263,12 @@ Characters gather materials and construct small buildings from grass, sticks, or
 - Update triggered-enhancements.md and randomideas.md
 - Tuning: extraction duration and seed yield (ActionDurationShort may be too fast; tune duration and yield together)
 - Evaluate: preference-weighted target selection → unified item-seeking in picking.go (moved from triggered-enhancements.md — construction's multiple craft recipes with varied inputs meets the trigger)
+- **Tall grass variety display name** — When a tall grass seed sprout matures, the resulting plant's display name may need review. Discuss whether "pale green tall grass" is the right phrasing vs. just "tall grass" (since all tall grass is pale green — the color is redundant).
 - Evaluate: dried grass/thatch color — ColorPaleYellow (ANSI 229) may be too washed out for thatch fences/huts. Consider gold/wheat range (ANSI 178, 179, or 186). Moved from triggered-enhancements.md — thatch constructs make the color more prominent and worth reassessing.
 - Polish: brick display name in action log — messages say "terracotta brick" but should just say "brick" (color is redundant). Applies to pickup, drop, and look messages.
 - Polish: show cooldown timer on abandoned orders in the orders panel (e.g., "Abandoned (1:53)").
+- Polish: "Gather clays" → "Gather clay" or "Gather lumps of clay" (pluralization issue).
+- Polish: sticks should display as "stick" not "brown stick" (color is redundant, same issue as brick).
 
 ---
 
@@ -353,7 +405,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 ### DD-23: Bricks stay individual — supply-drop for brick fences
 **Context:** Brick fences require 6 bricks. Characters have 2 inventory slots. Options: (A) make bricks bundleable at 6 for one-trip carry, (B) multi-trip supply-drop where character carries 2 at a time, drops at build site, repeats.
 **Decision:** Bricks stay individual (not bundled). Characters carry 2 bricks per trip, drop at build site, return for more until 6 are accumulated, then build. This creates a visible, narrative supply chain — characters shuttle materials to a construction site.
-**Rationale:** The original requirements describe bricks as "6 bricks" distinct from "1 bundle of 6." The multi-trip pattern is isomorphic to real construction — materials are stockpiled before building. This pattern is also needed for huts (Step 8: "supplies dropped on tiles, then worked"). Introducing it at fence scale (one tile, 6 items) before hut scale (16 tiles, 12+ items each) follows **Start With the Simpler Rule** for infrastructure introduction.
+**Rationale:** The original requirements describe bricks as "6 bricks" distinct from "1 bundle of 6." The multi-trip pattern is isomorphic to real construction — materials are stockpiled before building. This pattern is also needed for huts (Step 10: "supplies dropped on tiles, then worked"). Introducing it at fence scale (one tile, 6 items) before hut scale (16 tiles, 12+ items each) follows **Start With the Simpler Rule** for infrastructure introduction.
 **Affects:** Step 6, Step 8
 
 ### DD-24: Fence placement uses line drawing with anchor/confirm
@@ -400,8 +452,8 @@ Characters gather materials and construct small buildings from grass, sticks, or
 
 ### DD-31: Material selection — nearest available for v1
 **Context:** When a line's material is unset and the first tile needs to be built, how does the character choose which material to use? DD-22 says character chooses based on preference and availability.
-**Decision:** For v1, the character selects the nearest available material. "Available" means enough material exists in the world to build one fence tile (6+ of any fence material type). The character picks the material type whose nearest instance is closest. Preference-based selection (characters favoring materials they like) is deferred to Step 10 alongside the broader preference-weighted target selection enhancement.
-**Rationale:** Follows **Start With the Simpler Rule** — nearest-distance selection works and produces reasonable results. Preference-based selection is already scoped for Step 10 where it can be done properly across all item-seeking activities.
+**Decision:** For v1, the character selects the nearest available material. "Available" means enough material exists in the world to build one fence tile (6+ of any fence material type). The character picks the material type whose nearest instance is closest. Preference-based selection (characters favoring materials they like) is deferred to Step 12 alongside the broader preference-weighted target selection enhancement.
+**Rationale:** Follows **Start With the Simpler Rule** — nearest-distance selection works and produces reasonable results. Preference-based selection is already scoped for Step 12 where it can be done properly across all item-seeking activities.
 **Affects:** Step 6
 
 ### DD-32: findOrderIntent restructure — switch first, recipe fallback in default
@@ -426,13 +478,49 @@ Characters gather materials and construct small buildings from grass, sticks, or
 **Context:** What preference attributes form when looking at constructs? The requirements say "form a like/dislike materials in the construction." Options: (A) material only as ItemType ("Likes sticks"), (B) material+construct combo as Kind ("Likes stick fences"), (C) new Preference field for construct attributes.
 **Decision:** Use the existing `Kind` field on Preference for the construct's recipe-level identity: "stick fence", "thatch fence", "brick fence". This parallels how crafted items use Kind for recipe subtypes ("shell hoe", "hollow gourd"). Color maps to `MaterialColor`. Formation roll picks from: solo Kind ("Likes stick fences"), solo Color ("Likes brown"), or Kind+Color combo ("Likes brown stick fences"). No generic "likes fences" level — that doesn't help differentiate recipes, which is the primary use case for these preferences. Add `MatchesConstruct(*Construct)` on Preference and `NetPreferenceForConstruct(*Construct)` on Character. `TryFormConstructPreference` handles construct-specific formation rolls.
 **Rationale:** "Stick fence" is a recipe identity, just like "shell hoe." Kind already serves this purpose — no new fields needed. This lays the foundation for preference-weighted recipe selection (Step 10): a character who "likes stick fences" will prefer the stick-fence recipe. Follows **Follow the Existing Shape** (Kind for recipe identity), **Isomorphism** (preferences about constructs reflect the recipe that produced them), and **Consider Extensibility** (future construct types like huts produce "stick hut", "brick hut" preferences using the same mechanism).
-**Affects:** Step 7, Step 10
+**Affects:** Step 7, Step 12
 
-### DD-36: Discovery from looking at constructs — deferred
+### DD-36: Discovery from looking at constructs — deferred from Step 7, resolved in DD-37
 **Context:** `CompleteLook` currently calls `TryDiscoverKnowHow` for item-based discovery triggers. Should looking at constructs also trigger discovery?
-**Decision:** Skip construct-based discovery triggers for Step 7. No requirements call for it. Looking at constructs only forms preferences and adjusts mood.
-**Rationale:** Follows **Start With the Simpler Rule**. Construct-based discovery is likely needed for Step 8 (huts — looking at a fence could trigger "build hut" know-how) but not for Step 7. Adding it now would be speculative.
-**Affects:** Step 7; revisit for Step 8
+**Decision:** Skipped for Step 7. Resolved for Step 8 in DD-37 — `ConstructKind` field on `DiscoveryTrigger`, with `CompleteLookAtConstruct` calling construct-specific discovery.
+**Rationale:** Follows **Start With the Simpler Rule** for Step 7 (no requirements). Step 8 hut discovery provides the concrete use case.
+**Affects:** Step 7 (skipped); Step 8 (resolved via DD-37)
+
+### DD-37: Discovery from looking at constructs — construct-based triggers
+**Context:** DD-36 deferred construct-based discovery to Step 8. Characters need to discover hut recipes by looking at fences. Current discovery triggers use `ActionType` + `ItemType` + optional requirements. Constructs aren't items, so item-based triggers can't express "looked at a fence." Options: (A) add `ConstructKind` field to `DiscoveryTrigger`, (B) overload `ItemType` for construct material.
+**Decision:** Add `ConstructKind string` field to `DiscoveryTrigger`, parallel to `ItemType`. `CompleteLookAtConstruct` calls a new `tryDiscoverFromConstruct(char, ActionLook, constructKind)` function that checks triggers with matching `ConstructKind`. Each hut recipe has a discovery trigger: `ActionLook` + `ConstructKind: "fence"` — looking at any fence can trigger discovery of hut recipes. Discovery of the first hut recipe auto-grants "buildHut" activity know-how (same pattern as fence recipes granting "buildFence" activity).
+**Rationale:** Clean parallel to `ItemType` — constructs get their own trigger field rather than being shoehorned into item triggers. Follows **Isomorphism** — constructs are not items. Follows **Follow the Existing Shape** — same trigger mechanism, new field. Follows **Consider Extensibility** — future construct-triggered discoveries (e.g., looking at a hut triggers furniture recipes) use the same field.
+**Affects:** Step 8
+
+### DD-38: Hut uses 5×5 footprint with 16 perimeter tiles and 3×3 interior
+**Context:** Original design doc said "4×4 outline ... 3×3 opening inside" but a 4×4 grid has only a 2×2 interior (12 perimeter tiles). The requirements say "16 tiles" for material costs. A 5×5 grid has 16 perimeter tiles and a 3×3 interior — matching both "16 tiles" and "3×3 opening."
+**Decision:** Hut footprint is 5×5. 16 perimeter tiles are marked for construction (walls + door). 9 interior tiles (3×3) are open space. Area selection uses a fixed 5×5 footprint positioned by cursor (top-left corner). Player positions and presses `p` to confirm — marks all 16 perimeter tiles. Validator checks the full 5×5 area: no water, no existing constructs, no impassable features.
+**Rationale:** Reconciles "16 tiles" with "3×3 opening." Follows **Follow the Existing Shape** — reuses area selection infrastructure (DD-6). Fixed footprint (not free-form) because huts have structural requirements (walls must form a complete enclosure).
+**Affects:** Step 8
+
+### DD-39: Per-tile sequential supply-drop and build
+**Context:** How does the worker distribute supplies? Options: (A) drop all supplies on all tiles first, then build all tiles; (B) per-tile: drop supplies for one tile, build it, move to next.
+**Decision:** Per-tile sequential. Worker picks the nearest unbuilt marked tile, delivers supplies until the tile has the required amount (2 full bundles for thatch/stick, 12 bricks for brick), then builds that tile, then moves to the next. Material costs per tile: thatch = 2 full bundles of 6 grass, stick = 2 full bundles of 6 sticks, brick = 12 bricks. Characters carry materials using existing inventory (2 slots), making multiple trips per tile as needed. For bundles: 1 bundle per slot, 2 trips minimum per tile (could be 1 trip if character has 2 full bundles). For bricks: 2 per trip, 6 trips per tile.
+**Rationale:** Matches fence pattern (get materials → build → next tile) — **Follow the Existing Shape**. Per-tile produces visible incremental progress (each completed wall segment is immediately visible). Global "drop everything first" would require dozens of trips before any construction happens.
+**Affects:** Step 8
+
+### DD-40: Character selects hut material — same as fences, no player sub-menu
+**Context:** Should the player select hut material via sub-menu, or should the character choose? Huts are large (16 tiles, major investment). Fences use character choice (DD-22).
+**Decision:** Same as fences — no material sub-menu. Character selects material based on known recipes and nearest availability. Material is stamped across all hut perimeter marks (same line-ID mechanism as fences). One material per hut — no mixing.
+**Rationale:** Consistency with fence pattern (DD-22) — the player says *what* to build, the character decides *how*. Follows **Follow the Existing Shape**. Character agency in material choice is a core game vision element. If the player wants a specific material, they ensure it's the most available — indirect control through world state, not direct micromanagement.
+**Affects:** Step 8
+
+### DD-41: ConstructKind field on ConstructionMark — distinguishes fence vs hut marks
+**Context:** `isMultiStepOrderComplete` and `IsOrderFeasible` currently check ALL marked-for-construction positions. With both fences and huts sharing the pool, a fence order shouldn't complete based on hut marks, and vice versa. Options: (A) add `ConstructKind` to `ConstructionMark`, (B) separate pools.
+**Decision:** Add `ConstructKind string` field to `ConstructionMark` ("fence" or "hut"). `HasUnbuiltConstructionPositions`, `isMultiStepOrderComplete`, and `IsOrderFeasible` filter by kind. Fence orders only see fence marks; hut orders only see hut marks. The shared `markedForConstruction` pool stays unified — kind is a filter, not a separate data structure.
+**Rationale:** Follows **Follow the Existing Shape** — extends the existing pool rather than creating a parallel one. Follows **Consider Extensibility** — future construct types (watchtower, workshop) add kind values, not new pools. Follows **Source of Truth Clarity** — the mark carries its own identity.
+**Affects:** Step 8; retroactively updates fence marks to carry `ConstructKind: "fence"`
+
+### DD-42: Hut wall segments use line-drawing characters; door on south wall center
+**Context:** Hut walls need visual distinction from fences (`╬`). Requirements call for a 5×5 enclosure with one door. Options for wall rendering: (A) single character for all walls (like fences), (B) line-drawing Unicode characters with corners and edges.
+**Decision:** Hut walls use line-drawing Unicode characters: `┌` `─` `┐` for top edge, `│` for side edges, `└` `─` `┘` for bottom edge (exact characters TBD via demo program during step refinement). Each wall segment is a separate Construct with position-aware symbol selection. Door is at the center of the south wall (bottom edge, middle tile of 5-wide wall). Door construct has `Passable: true`, distinct symbol (TBD via demo). Door rotation/position choice deferred to Post-Con-Reqs item 5.
+**Rationale:** Line-drawing characters create a clean, recognizable enclosure that reads as a building — visually distinct from a fence grid. Follows **Isomorphism** — walls have structural roles (corner, edge, door) and the rendering reflects that. Position-aware symbols require each wall segment to know its role, stored on the Construct.
+**Affects:** Step 8
 
 ### DD-21: Brick is uniform with terracotta color
 **Context:** Brick appearance properties. Only one brick type exists (from clay). Options: inherit clay's earthy color, or give bricks a distinct color.
