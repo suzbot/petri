@@ -49,12 +49,13 @@ type ConstructionMarkSave struct {
 
 // OrderSave represents an order for serialization
 type OrderSave struct {
-	ID            int    `json:"id"`
-	ActivityID    string `json:"activity_id"`
-	TargetType    string `json:"target_type"`
-	LockedVariety string `json:"locked_variety,omitempty"`
-	Status        string `json:"status"`
-	AssignedTo    int    `json:"assigned_to"`
+	ID              int     `json:"id"`
+	ActivityID      string  `json:"activity_id"`
+	TargetType      string  `json:"target_type"`
+	LockedVariety   string  `json:"locked_variety,omitempty"`
+	Status          string  `json:"status"`
+	AssignedTo      int     `json:"assigned_to"`
+	AbandonCooldown float64 `json:"abandon_cooldown,omitempty"`
 }
 
 // WorldMeta contains display info for world selection (separate from full state)

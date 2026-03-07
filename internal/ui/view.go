@@ -1720,7 +1720,9 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 				}
 				// Check feasibility for unfulfillable display
 				feasible, noKnowHow := system.IsOrderFeasible(order, items, m.gameMap)
-				if !feasible {
+				if order.Status == entity.OrderAbandoned {
+					lines = append(lines, unfulfillableStyle.Render(fmt.Sprintf("%s%d. %s [%s]", prefix, i+1, order.DisplayName(), statusStr)))
+				} else if !feasible {
 					if noKnowHow {
 						statusStr = "No one knows how"
 					} else {
@@ -1761,7 +1763,9 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 				}
 				// Check feasibility for unfulfillable display
 				feasible, noKnowHow := system.IsOrderFeasible(order, items, m.gameMap)
-				if !feasible {
+				if order.Status == entity.OrderAbandoned {
+					lines = append(lines, unfulfillableStyle.Render(fmt.Sprintf("%s%s [%s]", indent, order.DisplayName(), statusStr)))
+				} else if !feasible {
 					if noKnowHow {
 						statusStr = "No one knows how"
 					} else {

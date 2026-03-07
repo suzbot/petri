@@ -589,6 +589,17 @@ func (m Model) updateGame(now time.Time) (Model, tea.Cmd) {
 	// Update ground spawning (sticks, nuts, shells)
 	system.UpdateGroundSpawning(m.gameMap, delta, &m.groundSpawnTimers)
 
+	// Tick down abandoned order cooldowns
+	for _, order := range m.orders {
+		if order.Status == entity.OrderAbandoned && order.AbandonCooldown > 0 {
+			order.AbandonCooldown -= delta
+			if order.AbandonCooldown <= 0 {
+				order.AbandonCooldown = 0
+				order.Status = entity.OrderOpen
+			}
+		}
+	}
+
 	// Calculate intents (Phase II ready: can parallelize this)
 	items := m.gameMap.Items()
 	for _, char := range m.gameMap.Characters() {

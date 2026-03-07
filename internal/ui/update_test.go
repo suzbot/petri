@@ -4409,3 +4409,332 @@ func TestApplyCraft_NonRepeatable_CompletesOrder(t *testing.T) {
 		t.Errorf("Non-repeatable craft order should be completed, got %s", order.Status)
 	}
 }
+
+// =============================================================================
+// applyBuildFence — Brick Supply-Drop Tests
+// =============================================================================
+
+func TestApplyBuildFence_DeliveryMode_DropsBricksAndClearsIntent(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 8, 5, "TestChar", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	buildPos := types.Position{X: 8, Y: 5} // Same as char position = delivery mode
+	char.AddToInventory(entity.NewBrick(0, 0))
+	char.AddToInventory(entity.NewBrick(0, 0))
+
+	gameMap.MarkForConstruction(buildPos, 1)
+	gameMap.SetLineMaterial(1, "brick")
+
+	char.Intent = &entity.Intent{
+		Action:         entity.ActionBuildFence,
+		Target:         buildPos,
+		Dest:           buildPos,
+		TargetBuildPos: &buildPos,
+	}
+
+	m := Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, 0.1)
+
+	// Bricks should be dropped at build tile
+	bricksAtSite := 0
+	for _, item := range gameMap.ItemsAt(buildPos) {
+		if item.ItemType == "brick" {
+			bricksAtSite++
+		}
+	}
+	if bricksAtSite != 2 {
+		t.Errorf("Expected 2 bricks dropped at build site, got %d", bricksAtSite)
+	}
+
+	// Inventory should be empty
+	invCount := 0
+	for _, inv := range char.Inventory {
+		if inv != nil {
+			invCount++
+		}
+	}
+	if invCount != 0 {
+		t.Errorf("Expected empty inventory after delivery, got %d items", invCount)
+	}
+
+	// Intent should be cleared
+	if char.Intent != nil {
+		t.Error("Expected intent cleared after delivery")
+	}
+}
+
+func TestApplyBuildFence_BrickBuild_ConsumesBricksAndPlacesFence(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	adjPos := types.Position{X: 7, Y: 5}
+	char := entity.NewCharacter(1, adjPos.X, adjPos.Y, "TestChar", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	buildPos := types.Position{X: 8, Y: 5}
+	gameMap.MarkForConstruction(buildPos, 1)
+	gameMap.SetLineMaterial(1, "brick")
+
+	// 8 bricks at build site (6 needed, 2 excess)
+	for i := 0; i < 8; i++ {
+		gameMap.AddItem(entity.NewBrick(buildPos.X, buildPos.Y))
+	}
+
+	char.Intent = &entity.Intent{
+		Action:         entity.ActionBuildFence,
+		Target:         adjPos,
+		Dest:           adjPos,
+		TargetBuildPos: &buildPos,
+	}
+
+	// Apply with enough delta to complete
+	m := Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, config.ActionDurationMedium+0.1)
+
+	// Fence should be placed
+	construct := gameMap.ConstructAt(buildPos)
+	if construct == nil {
+		t.Fatal("Expected fence construct at build position")
+	}
+	if construct.Material != "brick" {
+		t.Errorf("Expected brick material, got %s", construct.Material)
+	}
+	if construct.MaterialColor != types.ColorTerracotta {
+		t.Errorf("Expected ColorTerracotta, got %v", construct.MaterialColor)
+	}
+
+	// Tile should be unmarked
+	if gameMap.IsMarkedForConstruction(buildPos) {
+		t.Error("Build tile should be unmarked after construction")
+	}
+
+	// 6 bricks consumed, 2 excess displaced to adjacent tiles (not at build pos — fence is there)
+	bricksAtBuild := 0
+	for _, item := range gameMap.ItemsAt(buildPos) {
+		if item.ItemType == "brick" {
+			bricksAtBuild++
+		}
+	}
+	if bricksAtBuild != 0 {
+		t.Errorf("Expected 0 bricks at build site (displaced), got %d", bricksAtBuild)
+	}
+
+	// 2 excess bricks should exist somewhere on the map
+	totalBricks := 0
+	for _, item := range gameMap.Items() {
+		if item.ItemType == "brick" {
+			totalBricks++
+		}
+	}
+	if totalBricks != 2 {
+		t.Errorf("Expected 2 excess bricks on map, got %d", totalBricks)
+	}
+
+	// Intent should be cleared
+	if char.Intent != nil {
+		t.Error("Expected intent cleared after build")
+	}
+}
+
+func TestApplyBuildFence_BrickBuild_AbandonsWhenOccupantOnBuildTile(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	adjPos := types.Position{X: 7, Y: 5}
+	char := entity.NewCharacter(1, adjPos.X, adjPos.Y, "TestChar", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	buildPos := types.Position{X: 8, Y: 5}
+	gameMap.MarkForConstruction(buildPos, 1)
+	gameMap.SetLineMaterial(1, "brick")
+
+	// Character standing on build tile (DD-28 layer 2: abandon and re-evaluate)
+	occupant := entity.NewCharacter(2, buildPos.X, buildPos.Y, "Other", "berry", types.ColorBlue)
+	gameMap.AddCharacter(occupant)
+
+	for i := 0; i < 6; i++ {
+		gameMap.AddItem(entity.NewBrick(buildPos.X, buildPos.Y))
+	}
+
+	char.Intent = &entity.Intent{
+		Action:         entity.ActionBuildFence,
+		Target:         adjPos,
+		Dest:           adjPos,
+		TargetBuildPos: &buildPos,
+	}
+
+	m := Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, config.ActionDurationMedium+0.1)
+
+	// Intent should be cleared — builder abandons this tile (DD-28 layer 2)
+	if char.Intent != nil {
+		t.Error("Expected intent cleared when occupant on build tile (DD-28 layer 2)")
+	}
+	// No fence should have been placed
+	if gameMap.ConstructAt(buildPos) != nil {
+		t.Error("No fence should be placed when build tile is occupied")
+	}
+}
+
+func TestApplyBuildFence_BundleRegression_StillWorksAfterBrickChanges(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	adjPos := types.Position{X: 7, Y: 5}
+	char := entity.NewCharacter(1, adjPos.X, adjPos.Y, "TestChar", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	buildPos := types.Position{X: 8, Y: 5}
+	gameMap.MarkForConstruction(buildPos, 1)
+	gameMap.SetLineMaterial(1, "stick")
+
+	// Full bundle in inventory
+	bundle := entity.NewStick(0, 0)
+	bundle.BundleCount = 6
+	char.AddToInventory(bundle)
+
+	char.Intent = &entity.Intent{
+		Action:         entity.ActionBuildFence,
+		Target:         adjPos,
+		Dest:           adjPos,
+		TargetBuildPos: &buildPos,
+	}
+
+	m := Model{gameMap: gameMap, actionLog: system.NewActionLog(100)}
+	m.applyIntent(char, config.ActionDurationMedium+0.1)
+
+	// Fence should be placed with stick material
+	construct := gameMap.ConstructAt(buildPos)
+	if construct == nil {
+		t.Fatal("Expected fence construct at build position")
+	}
+	if construct.Material != "stick" {
+		t.Errorf("Expected stick material, got %s", construct.Material)
+	}
+}
+
+func TestBrickSupplyDrop_IntegrationLoop(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildFence"}
+	char.KnownRecipes = []string{"brick-fence"}
+	gameMap.AddCharacter(char)
+
+	buildPos := types.Position{X: 8, Y: 5}
+	gameMap.MarkForConstruction(buildPos, 1)
+	gameMap.SetLineMaterial(1, "brick")
+
+	for i := 0; i < 8; i++ {
+		gameMap.AddItem(entity.NewBrick(6, 5))
+	}
+
+	order := entity.NewOrder(1, "buildFence", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+	orders := []*entity.Order{order}
+
+	actionLog := system.NewActionLog(100)
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: actionLog,
+		orders:    orders,
+	}
+
+	// Run 200 ticks mirroring the real game loop
+	deliveredBricks := 0
+	for tick := 0; tick < 200; tick++ {
+		// Real game loop: CalculateIntent every tick (includes continueIntent)
+		oldIntent := char.Intent
+		char.Intent = system.CalculateIntent(char, gameMap.Items(), gameMap, actionLog, orders)
+		if oldIntent == nil || char.Intent == nil || (oldIntent.Action != char.Intent.Action) {
+			char.ActionProgress = 0
+		}
+		if char.Intent == nil {
+			continue
+		}
+
+		action := char.Intent.Action
+		dest := char.Intent.Dest
+		m.applyIntent(char, 0.5) // Half-second ticks
+
+		// Count bricks at build site
+		bricksAtSite := 0
+		for _, item := range gameMap.ItemsAt(buildPos) {
+			if item.ItemType == "brick" {
+				bricksAtSite++
+			}
+		}
+
+		if bricksAtSite > deliveredBricks || tick < 20 {
+			deliveredBricks = bricksAtSite
+			t.Logf("Tick %d: action=%v, dest=%v, pos=%v, bricks_at_site=%d, inv=%d", tick, action, dest, char.Pos(), bricksAtSite, countBricksInInventory(char))
+		}
+
+		// Check for fence
+		if gameMap.ConstructAt(buildPos) != nil {
+			t.Logf("Tick %d: FENCE BUILT at %v", tick, buildPos)
+			return
+		}
+	}
+
+	t.Fatalf("Fence not built after 100 ticks. Bricks at site: %d, inv: %d, pos: %v",
+		deliveredBricks, countBricksInInventory(char), char.Pos())
+}
+
+func countBricksInInventory(char *entity.Character) int {
+	count := 0
+	for _, inv := range char.Inventory {
+		if inv != nil && inv.ItemType == "brick" {
+			count++
+		}
+	}
+	return count
+}
+
+func TestApplyPickup_BuildFence_BrickPickup_ClearsIntent(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "TestChar", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildFence"}
+	char.KnownRecipes = []string{"brick-fence"}
+	gameMap.AddCharacter(char)
+
+	brick := entity.NewBrick(5, 5)
+	gameMap.AddItem(brick)
+
+	order := entity.NewOrder(1, "buildFence", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	char.Intent = &entity.Intent{
+		Action:     entity.ActionPickup,
+		Target:     types.Position{X: 5, Y: 5},
+		Dest:       types.Position{X: 5, Y: 5},
+		TargetItem: brick,
+	}
+
+	m := Model{
+		gameMap:   gameMap,
+		actionLog: system.NewActionLog(100),
+		orders:    []*entity.Order{order},
+	}
+	m.applyIntent(char, config.ActionDurationShort+0.1)
+
+	// Brick should be in inventory
+	if char.FindInInventory(func(item *entity.Item) bool { return item.ItemType == "brick" }) == nil {
+		t.Error("Expected brick in inventory after pickup")
+	}
+
+	// Intent should be cleared so findBuildFenceIntent can re-evaluate
+	if char.Intent != nil {
+		t.Error("Expected intent cleared after brick pickup for buildFence order")
+	}
+}

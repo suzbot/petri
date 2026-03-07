@@ -458,6 +458,8 @@ When a fully grown extractable plant (flower or tall grass) has seeds available,
 
 Orders are abandoned if no items matching the target type exist on the map, or if cancelled by the player while assigned.
 
+When an order is abandoned (not cancelled), it enters a **cooldown period** (see `config.OrderAbandonCooldown`) before it can be retaken. During cooldown the order appears greyed out with an "Abandoned" status in the orders panel. Once the cooldown expires the order returns to "Open" and becomes available again. This prevents a rapid take/abandon loop when materials are temporarily unavailable.
+
 ## Crafting
 
 ### Recipes
@@ -621,6 +623,12 @@ The character assigns a material to the line when they begin building the first 
 
 ### Building
 
-When taking a fence order, a character selects the nearest fence material with enough supply (6+ items), picks up a full bundle of 6, and walks to a cardinally adjacent tile to build. Characters always build from an adjacent tile — never from the build tile itself — to avoid being blocked inside finished sections. After the fence is placed, any items remaining on that tile are displaced to nearby clear tiles.
+When taking a fence order, a character selects the nearest fence material with enough supply (6+ items) and walks to build.
+
+**Bundle materials (grass, sticks):** The character picks up a full bundle of 6 in one trip and builds immediately.
+
+**Non-bundle materials (bricks):** The character uses a multi-trip supply-drop pattern — carrying 2 bricks per trip to the build site, dropping them, and returning for more until 6 are accumulated. They then build from a cardinally adjacent tile.
+
+Characters always build from an adjacent tile — never from the build tile itself — to avoid being blocked inside finished sections. After the fence is placed, any items remaining on that tile are displaced to nearby clear tiles.
 
 Multiple characters can work the same fence order simultaneously. Each worker picks the nearest unbuilt tile independently — no tile claiming occurs.

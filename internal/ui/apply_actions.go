@@ -1596,7 +1596,13 @@ func (m *Model) applyBuildFence(char *entity.Character, delta float64) {
 	dest := char.Intent.Dest
 	cpos := char.Pos()
 
-	// Walking phase: not yet at standing tile
+	// Delivery mode: character is at the build tile with bricks in inventory (supply-drop)
+	if cpos == buildPos && m.hasMaterialInInventory(char, "brick") {
+		m.deliverBricks(char, buildPos)
+		return
+	}
+
+	// Walking phase: not yet at destination
 	if cpos != dest {
 		m.moveWithCollision(char, cpos, delta)
 		return
@@ -1618,7 +1624,8 @@ func (m *Model) applyBuildFence(char *entity.Character, delta float64) {
 	}
 	char.ActionProgress = 0
 
-	// Find the bundle in inventory
+	// Determine material source: bundle in inventory or bricks on ground
+	var material string
 	var bundle *entity.Item
 	for _, inv := range char.Inventory {
 		if inv != nil && inv.BundleCount > 0 {
@@ -1626,24 +1633,43 @@ func (m *Model) applyBuildFence(char *entity.Character, delta float64) {
 			break
 		}
 	}
-	if bundle == nil {
-		char.Intent = nil
-		return
+
+	if bundle != nil {
+		// Bundle build: consume from inventory
+		material = bundle.ItemType
+		char.RemoveFromInventory(bundle)
+	} else {
+		// Brick build: consume 6 bricks from ground at build position
+		mark, ok := m.gameMap.GetConstructionMark(buildPos)
+		if !ok {
+			char.Intent = nil
+			return
+		}
+		material = mark.Material
+		consumed := 0
+		for _, item := range m.gameMap.ItemsAt(buildPos) {
+			if item.ItemType == material && consumed < 6 {
+				m.gameMap.RemoveItem(item)
+				consumed++
+			}
+		}
+		if consumed < 6 {
+			char.Intent = nil
+			return
+		}
 	}
 
-	material := bundle.ItemType
 	var materialColor types.Color
 	switch material {
 	case "grass":
 		materialColor = types.ColorPaleYellow
 	case "stick":
 		materialColor = types.ColorBrown
+	case "brick":
+		materialColor = types.ColorTerracotta
 	default:
 		materialColor = types.ColorBrown
 	}
-
-	// Consume bundle from inventory
-	char.RemoveFromInventory(bundle)
 
 	// Place fence
 	fence := entity.NewFence(buildPos.X, buildPos.Y, material, materialColor)
@@ -1678,5 +1704,32 @@ func (m *Model) applyBuildFence(char *entity.Character, delta float64) {
 	}
 
 	// Clear intent — ordered action pattern: next tick re-evaluates via findBuildFenceIntent
+	char.Intent = nil
+}
+
+// hasMaterialInInventory checks if a character has any items of the given type in inventory.
+func (m *Model) hasMaterialInInventory(char *entity.Character, material string) bool {
+	for _, inv := range char.Inventory {
+		if inv != nil && inv.ItemType == material {
+			return true
+		}
+	}
+	return false
+}
+
+// deliverBricks drops all bricks from inventory at the current position and clears intent.
+func (m *Model) deliverBricks(char *entity.Character, buildPos types.Position) {
+	var toDrop []*entity.Item
+	for _, inv := range char.Inventory {
+		if inv != nil && inv.ItemType == "brick" {
+			toDrop = append(toDrop, inv)
+		}
+	}
+	for _, item := range toDrop {
+		char.RemoveFromInventory(item)
+		item.X = buildPos.X
+		item.Y = buildPos.Y
+		m.gameMap.AddItem(item)
+	}
 	char.Intent = nil
 }

@@ -144,6 +144,9 @@ const (
 	// Auto-save
 	AutoSaveInterval = 60.0 // seconds of game time between auto-saves
 
+	// Order abandonment cooldown (one world day = 2 real minutes = 120 seconds)
+	OrderAbandonCooldown = 120.0
+
 	// Food seeking - gradient scoring
 	// Score = (NetPreference × PrefWeight) - (Distance × DistWeight)
 	// At Moderate: only consider items with NetPreference >= 0

@@ -483,7 +483,7 @@ func isRecipeFeasible(char *entity.Character, recipe *entity.Recipe, items []*en
 	return true
 }
 
-// abandonOrder removes an order that cannot be fulfilled and clears the character's assignment.
+// abandonOrder marks an order as abandoned with a cooldown and clears the character's assignment.
 func abandonOrder(char *entity.Character, order *entity.Order, orders []*entity.Order, log *ActionLog) {
 	if log != nil {
 		log.Add(char.ID, char.Name, "order", fmt.Sprintf("Abandoning order: %s (no items available)", order.DisplayName()))
@@ -492,13 +492,10 @@ func abandonOrder(char *entity.Character, order *entity.Order, orders []*entity.
 	// Clear character's assignment
 	char.AssignedOrderID = 0
 
-	// Mark order for removal by setting a special status
-	// The UI layer will need to clean up removed orders
-	order.Status = entity.OrderOpen
+	// Set abandoned status with cooldown — prevents take/abandon spam
+	order.Status = entity.OrderAbandoned
 	order.AssignedTo = 0
-
-	// Note: Actually removing from the slice should be done by the caller
-	// to avoid issues with slice modification during iteration
+	order.AbandonCooldown = config.OrderAbandonCooldown
 }
 
 // findOrderByID returns the order with the given ID, or nil if not found.
@@ -1348,8 +1345,8 @@ func findBuildFenceIntent(char *entity.Character, pos types.Position, items []*e
 		if gameMap.ConstructAt(mpos) != nil {
 			continue // Already built
 		}
-		if gameMap.CharacterAt(mpos) != nil {
-			continue // Occupied — skip per DD-28
+		if occ := gameMap.CharacterAt(mpos); occ != nil && occ != char {
+			continue // Occupied by another character — skip per DD-28
 		}
 		candidates = append(candidates, mpos)
 	}
@@ -1383,37 +1380,15 @@ func findBuildFenceIntent(char *entity.Character, pos types.Position, items []*e
 		DropItem(char, item, gameMap, log)
 	}
 
+	// Branch: brick (non-bundle) materials use supply-drop pattern (DD-23)
+	_, isBundleMaterial := config.MaxBundleSize[material]
+	if !isBundleMaterial {
+		return findBrickFenceIntent(char, pos, items, nearest, candidates, material, gameMap, log)
+	}
+
 	// Step 4: Build phase — character has a full bundle
 	if hasFullBundle(char, material) {
-		for _, candidate := range candidates {
-			cm, _ := gameMap.GetConstructionMark(candidate)
-			if cm.Material != "" && cm.Material != material {
-				continue // Different line with different material
-			}
-			adjPos := findAdjacentStandingTile(candidate, gameMap)
-			if adjPos == nil {
-				continue // All adjacent tiles blocked — try next candidate
-			}
-			buildPos := candidate
-			nx, ny, usedBFS := nextStepBFSCore(pos.X, pos.Y, adjPos.X, adjPos.Y, gameMap, char.UsingBFS)
-			if usedBFS {
-				char.UsingBFS = true
-			}
-			newActivity := "Building fence"
-			if pos != *adjPos {
-				newActivity = "Moving to build fence"
-			}
-			if char.CurrentActivity != newActivity {
-				char.CurrentActivity = newActivity
-			}
-			return &entity.Intent{
-				Target:         types.Position{X: nx, Y: ny},
-				Dest:           *adjPos,
-				Action:         entity.ActionBuildFence,
-				TargetBuildPos: &buildPos,
-			}
-		}
-		return nil // No viable candidate (all adjacent tiles blocked)
+		return findBundleBuildIntent(char, pos, candidates, material, gameMap)
 	}
 
 	// Step 5: Procurement phase
@@ -1439,6 +1414,112 @@ func findBuildFenceIntent(char *entity.Character, pos types.Position, items []*e
 	}
 
 	return createItemPickupIntent(char, pos, target, gameMap, log)
+}
+
+// findBundleBuildIntent returns a build intent for bundle materials (grass/sticks).
+// Extracted from findBuildFenceIntent for clarity.
+func findBundleBuildIntent(char *entity.Character, pos types.Position, candidates []types.Position, material string, gameMap *game.Map) *entity.Intent {
+	for _, candidate := range candidates {
+		cm, _ := gameMap.GetConstructionMark(candidate)
+		if cm.Material != "" && cm.Material != material {
+			continue // Different line with different material
+		}
+		adjPos := findAdjacentStandingTile(candidate, gameMap)
+		if adjPos == nil {
+			continue // All adjacent tiles blocked — try next candidate
+		}
+		buildPos := candidate
+		nx, ny, usedBFS := nextStepBFSCore(pos.X, pos.Y, adjPos.X, adjPos.Y, gameMap, char.UsingBFS)
+		if usedBFS {
+			char.UsingBFS = true
+		}
+		newActivity := "Building fence"
+		if pos != *adjPos {
+			newActivity = "Moving to build fence"
+		}
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+		}
+		return &entity.Intent{
+			Target:         types.Position{X: nx, Y: ny},
+			Dest:           *adjPos,
+			Action:         entity.ActionBuildFence,
+			TargetBuildPos: &buildPos,
+		}
+	}
+	return nil // No viable candidate (all adjacent tiles blocked)
+}
+
+// findBrickFenceIntent handles the brick supply-drop pattern (DD-23).
+// Brick materials are not bundled — characters carry 2 at a time, drop at build site, repeat.
+func findBrickFenceIntent(char *entity.Character, pos types.Position, items []*entity.Item, nearest types.Position, candidates []types.Position, material string, gameMap *game.Map, log *ActionLog) *entity.Intent {
+	// Phase 1: Check build-ready — 6+ bricks at target build position
+	bricksAtSite := countItemsAtPosition(items, material, nearest)
+	if bricksAtSite >= 6 {
+		return findBundleBuildIntent(char, pos, candidates, material, gameMap)
+	}
+
+	// Phase 2: Delivery — character has bricks in inventory → deliver to build site
+	hasBricks := false
+	for _, inv := range char.Inventory {
+		if inv != nil && inv.ItemType == material {
+			hasBricks = true
+			break
+		}
+	}
+	if hasBricks {
+		buildPos := nearest
+		nx, ny, usedBFS := nextStepBFSCore(pos.X, pos.Y, buildPos.X, buildPos.Y, gameMap, char.UsingBFS)
+		if usedBFS {
+			char.UsingBFS = true
+		}
+		newActivity := "Delivering materials"
+		if pos == buildPos {
+			newActivity = "Dropping materials"
+		}
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+		}
+		return &entity.Intent{
+			Target:         types.Position{X: nx, Y: ny},
+			Dest:           buildPos,
+			Action:         entity.ActionBuildFence,
+			TargetBuildPos: &buildPos,
+		}
+	}
+
+	// Phase 3: Pickup — find nearest brick NOT at a construction site
+	// Bricks stockpiled at marked-for-construction positions are reserved for building.
+	var target *entity.Item
+	bestDist := int(^uint(0) >> 1)
+	for _, item := range items {
+		if item.ItemType != material {
+			continue
+		}
+		if gameMap.IsMarkedForConstruction(item.Pos()) {
+			continue
+		}
+		d := pos.DistanceTo(item.Pos())
+		if d < bestDist {
+			bestDist = d
+			target = item
+		}
+	}
+	if target == nil {
+		return nil // No bricks → triggers abandonment
+	}
+	return createItemPickupIntent(char, pos, target, gameMap, log)
+}
+
+// countItemsAtPosition counts items of a specific type at a given position.
+func countItemsAtPosition(items []*entity.Item, itemType string, pos types.Position) int {
+	count := 0
+	for _, item := range items {
+		if item.ItemType == itemType && item.Pos() == pos {
+			count++
+		}
+	}
+	return count
 }
 
 // selectFenceMaterial picks the best available fence material for a character.

@@ -117,7 +117,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 ---
 
 ### Step 6: Build Fence
-**Status:** In Progress (6a, 6b complete: stick/grass fence building)
+**Status:** Complete
 
 **Anchor story:** The player creates a Construction > Fence order. They enter a line-placement mode and mark several contiguous tiles for fence construction. A character takes the order and decides to use sticks. They find a bundle of 6 sticks (open question: gather their own bundle or rely on pre-gathered full bundles), walk to one of the marked tiles, and build. Another character takes a fence construction order and starts building from the other end. The line already has a material choice — sticks — so they build their section out of sticks too. For a brick fence segment, a character makes multiple trips — carrying 2 bricks at a time, dropping them at the build site, and returning for more until 6 are accumulated, then building.
 
@@ -211,6 +211,8 @@ Characters gather materials and construct small buildings from grass, sticks, or
 - Tuning: extraction duration and seed yield (ActionDurationShort may be too fast; tune duration and yield together)
 - Evaluate: preference-weighted target selection → unified item-seeking in picking.go (moved from triggered-enhancements.md — construction's multiple craft recipes with varied inputs meets the trigger)
 - Evaluate: dried grass/thatch color — ColorPaleYellow (ANSI 229) may be too washed out for thatch fences/huts. Consider gold/wheat range (ANSI 178, 179, or 186). Moved from triggered-enhancements.md — thatch constructs make the color more prominent and worth reassessing.
+- Polish: brick display name in action log — messages say "terracotta brick" but should just say "brick" (color is redundant). Applies to pickup, drop, and look messages.
+- Polish: show cooldown timer on abandoned orders in the orders panel (e.g., "Abandoned (1:53)").
 
 ---
 

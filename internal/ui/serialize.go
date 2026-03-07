@@ -47,12 +47,13 @@ func ordersToSave(orders []*entity.Order) []save.OrderSave {
 	result := make([]save.OrderSave, len(orders))
 	for i, o := range orders {
 		result[i] = save.OrderSave{
-			ID:            o.ID,
-			ActivityID:    o.ActivityID,
-			TargetType:    o.TargetType,
-			LockedVariety: o.LockedVariety,
-			Status:        string(o.Status),
-			AssignedTo:    o.AssignedTo,
+			ID:              o.ID,
+			ActivityID:      o.ActivityID,
+			TargetType:      o.TargetType,
+			LockedVariety:   o.LockedVariety,
+			Status:          string(o.Status),
+			AssignedTo:      o.AssignedTo,
+			AbandonCooldown: o.AbandonCooldown,
 		}
 	}
 	return result
@@ -505,12 +506,13 @@ func ordersFromSave(orders []save.OrderSave) []*entity.Order {
 	result := make([]*entity.Order, len(orders))
 	for i, os := range orders {
 		result[i] = &entity.Order{
-			ID:            os.ID,
-			ActivityID:    os.ActivityID,
-			TargetType:    os.TargetType,
-			LockedVariety: os.LockedVariety,
-			Status:        entity.OrderStatus(os.Status),
-			AssignedTo:    os.AssignedTo,
+			ID:              os.ID,
+			ActivityID:      os.ActivityID,
+			TargetType:      os.TargetType,
+			LockedVariety:   os.LockedVariety,
+			Status:          entity.OrderStatus(os.Status),
+			AssignedTo:      os.AssignedTo,
+			AbandonCooldown: os.AbandonCooldown,
 		}
 	}
 	return result

@@ -10,16 +10,18 @@ const (
 	OrderAssigned  OrderStatus = "assigned"  // Currently being worked on
 	OrderPaused    OrderStatus = "paused"    // Interrupted by character needs
 	OrderCompleted OrderStatus = "completed" // Finished — swept up and removed by game loop
+	OrderAbandoned OrderStatus = "abandoned" // Abandoned — cooling down before retry
 )
 
 // Order represents a player-issued work order
 type Order struct {
-	ID            int         // Unique identifier
-	ActivityID    string      // Activity to perform (e.g., "harvest")
-	TargetType    string      // Item type to target (e.g., "berry", "gourd")
-	LockedVariety string      // Specific variety locked in at planting time (used by plant orders)
-	Status        OrderStatus // Current status
-	AssignedTo    int         // Character ID working on this order, 0 if unassigned
+	ID              int         // Unique identifier
+	ActivityID      string      // Activity to perform (e.g., "harvest")
+	TargetType      string      // Item type to target (e.g., "berry", "gourd")
+	LockedVariety   string      // Specific variety locked in at planting time (used by plant orders)
+	Status          OrderStatus // Current status
+	AssignedTo      int         // Character ID working on this order, 0 if unassigned
+	AbandonCooldown float64     // Seconds remaining before abandoned order can be retried
 }
 
 // NewOrder creates a new order with the given activity and target
@@ -71,6 +73,8 @@ func (o *Order) StatusDisplay() string {
 		return "Paused"
 	case OrderCompleted:
 		return "Completed"
+	case OrderAbandoned:
+		return "Abandoned"
 	default:
 		return string(o.Status)
 	}
