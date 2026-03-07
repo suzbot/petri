@@ -12,7 +12,7 @@ model: sonnet
 
 ### Step 1: Read Spec → Create Task List → Show User
 
-This is the only step before work begins. Do all three in sequence, with no codebase reading in between.
+This is the only step before work begins. Do all three in sequence, with no codebase reading in between. **No Grep or file reads until the task list is confirmed.**
 
 1. **Read the plan**: Read `docs/step-spec.md` and the phase design doc (DD entries that affect this step only). Do not read `architecture.md` or any source files yet.
 2. **Create the task list** based on the spec. For each sub-step, create these tasks in order:
@@ -82,6 +82,7 @@ When modifying a shared function, grep for callers before writing code — new r
 - **No brittle string assertions** — don't assert on exact display text. Remove existing brittle assertions rather than updating them.
 - **Ordered-action integration tests:** Test loop must mirror `continueIntent`: (1) recalculate `char.Intent.Target` each tick via `NextStepBFS`, (2) rebuild intent when nil. `IsWet()` uses 8-directional adjacency — dry tiles must be >1 tile from water.
 - **Flow-level anchor tests for procurement chains:** Chain system functions in handler order: `findXxxIntent` → `Pickup` → `FindNextTarget` → repeat → nil.
+- **Game-loop integration tests:** Call `CalculateIntent` every tick (not only when intent is nil) — the real loop runs it each tick for `continueIntent`.
 - **`continueIntent` and TargetItem rules:** Read the "`continueIntent` Rules" and "Self-Managing Actions" sections in architecture.md when adding/modifying item-targeting actions.
 
 ---

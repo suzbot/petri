@@ -13,9 +13,10 @@ Investigate and fix a bug or gap reported during human testing. The goal is to a
 
 **Do this BEFORE forming any hypothesis about the cause. Do NOT propose solutions or read implementation code during this step.**
 
+**Run this first, before anything else:** `ls -t ~/.petri/worlds/*/state.json | head -1` then read that file. Do not form hypotheses until you have read it.
+
 - Read the relevant section of `docs/architecture.md` for the affected system — establishes the intended pattern before any code is read
 - Read `docs/game-mechanics.md` for the expected player-visible behavior — anchors the correct-behavior baseline before hypothesizing
-- Examine the most recently modified save file: `ls -t ~/.petri/worlds/*/state.json | head -1`
 - Check logs, add `t.Logf` or `-v` to relevant tests if needed
 - Never guess what the game state is — read it
 
