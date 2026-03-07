@@ -80,6 +80,7 @@ When modifying a shared function, grep for callers before writing code — new r
 #### Test Patterns Reference
 
 - **No brittle string assertions** — don't assert on exact display text. Remove existing brittle assertions rather than updating them.
+- **No absence assertions** — don't test that unrequired attributes aren't set. Test the outcome, not what didn't happen.
 - **Ordered-action integration tests:** Test loop must mirror `continueIntent`: (1) recalculate `char.Intent.Target` each tick via `NextStepBFS`, (2) rebuild intent when nil. `IsWet()` uses 8-directional adjacency — dry tiles must be >1 tile from water.
 - **Flow-level anchor tests for procurement chains:** Chain system functions in handler order: `findXxxIntent` → `Pickup` → `FindNextTarget` → repeat → nil.
 - **Game-loop integration tests:** Call `CalculateIntent` every tick (not only when intent is nil) — the real loop runs it each tick for `continueIntent`.

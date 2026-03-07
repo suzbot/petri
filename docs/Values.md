@@ -8,7 +8,7 @@ Every phase of work — planning, refinement, implementation, testing, fixing �
 
 **Planning and refinement:** Prefer to break work into iterative chunks of deliverable value, over technical layers. Each chunk should have an anchor story — a 1-2 sentence narrative of what the player or character experiences — that grounds implementation details in "why" and gives testing a north star.
 
-**Testing:** A test that validates "returns ActionPickup" checks code structure; "vessel gets filled with water after action completes" validates intent. Anchor tests to the story, not the implementation path.
+**Testing:** A test that validates "returns ActionPickup" checks code structure; "vessel gets filled with water after action completes" validates intent. Anchor tests to the story, not the implementation path. Test that the right thing happened — don't assert absence of attributes that aren't prohibited, just unimplemented.
 
 **Fixing:** A bug fix that changes what the player experiences is a feature change, not a fix. A plan whose causal model is wrong produces correct code that addresses the wrong cause. Describe any proposed change in terms of what the player experiences — a fix that sounds neutral technically ("sort map keys") may be a behavior change in gameplay terms ("every character discovers activities in the same fixed order").
 

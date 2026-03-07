@@ -10,6 +10,8 @@ argument-hint: Feature or step to refine (e.g., "Step 3" or "clay terrain")
 **Do NOT enter plan mode.** Work within the existing planning documents in `docs/` and discuss as conversation.
 
 ### Step 1: Build Context (REQUIRED)
+**Create your task list before reading anything.** Use TaskCreate to set up tasks for each skill step (Build Context, Discussion, Document Decisions, Trace Execution, Update Plan) so progress is tracked from the start.
+
 Read these before discussing approach:
 - **Original requirements document** for full context (linked at top of design doc). Proposals that contradict or miss requirements waste discussion time.
 - **Phase design doc** in `docs/` (e.g., `docs/construction-design.md`) — read the step's anchor story, scope, open questions, and triggered enhancements. Also read the Design Decisions section for prior decisions that affect this step.
