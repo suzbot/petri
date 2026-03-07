@@ -706,6 +706,183 @@ func TestMarkForTilling_AlreadyTilledIsNoOp(t *testing.T) {
 	}
 }
 
+// Marked-for-Construction Tests
+
+func TestMarkForConstruction_BasicRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+
+	ok := m.MarkForConstruction(pos, 1)
+
+	if !ok {
+		t.Error("MarkForConstruction() should return true for new position")
+	}
+	if !m.IsMarkedForConstruction(pos) {
+		t.Error("IsMarkedForConstruction() should return true after MarkForConstruction()")
+	}
+	mark, found := m.GetConstructionMark(pos)
+	if !found {
+		t.Error("GetConstructionMark() should return true for marked position")
+	}
+	if mark.LineID != 1 {
+		t.Errorf("GetConstructionMark() LineID: got %d, want 1", mark.LineID)
+	}
+	if mark.Material != "" {
+		t.Errorf("GetConstructionMark() Material: got %q, want empty string", mark.Material)
+	}
+}
+
+func TestMarkForConstruction_ReturnsFalseIfAlreadyMarked(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+	m.MarkForConstruction(pos, 1)
+
+	ok := m.MarkForConstruction(pos, 2)
+
+	if ok {
+		t.Error("MarkForConstruction() should return false for already-marked position")
+	}
+	// Original mark should be preserved
+	mark, _ := m.GetConstructionMark(pos)
+	if mark.LineID != 1 {
+		t.Errorf("MarkForConstruction() should not overwrite existing mark, LineID: got %d, want 1", mark.LineID)
+	}
+}
+
+func TestMarkForConstruction_ReturnsFalseIfConstructExists(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+	fence := entity.NewFence(5, 5, "stick", types.ColorBrown)
+	m.AddConstruct(fence)
+
+	ok := m.MarkForConstruction(pos, 1)
+
+	if ok {
+		t.Error("MarkForConstruction() should return false when construct already exists at position")
+	}
+}
+
+func TestUnmarkForConstruction_RemovesMark(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+	m.MarkForConstruction(pos, 1)
+
+	m.UnmarkForConstruction(pos)
+
+	if m.IsMarkedForConstruction(pos) {
+		t.Error("IsMarkedForConstruction() should return false after UnmarkForConstruction()")
+	}
+	_, found := m.GetConstructionMark(pos)
+	if found {
+		t.Error("GetConstructionMark() should return false after UnmarkForConstruction()")
+	}
+}
+
+func TestSetLineMaterial_StampsAllMatchingMarks(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	// Three tiles with lineID 1, one with lineID 2
+	m.MarkForConstruction(types.Position{X: 3, Y: 3}, 1)
+	m.MarkForConstruction(types.Position{X: 4, Y: 3}, 1)
+	m.MarkForConstruction(types.Position{X: 5, Y: 3}, 1)
+	m.MarkForConstruction(types.Position{X: 7, Y: 7}, 2)
+
+	m.SetLineMaterial(1, "stick")
+
+	for _, x := range []int{3, 4, 5} {
+		mark, _ := m.GetConstructionMark(types.Position{X: x, Y: 3})
+		if mark.Material != "stick" {
+			t.Errorf("SetLineMaterial() pos (%d,3): got %q, want %q", x, mark.Material, "stick")
+		}
+	}
+	// LineID 2 should be unaffected
+	mark, _ := m.GetConstructionMark(types.Position{X: 7, Y: 7})
+	if mark.Material != "" {
+		t.Errorf("SetLineMaterial() should not affect different lineID, got %q", mark.Material)
+	}
+}
+
+func TestHasUnbuiltConstructionPositions_TrueWhenMarkNoConstruct(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	m.MarkForConstruction(types.Position{X: 5, Y: 5}, 1)
+
+	if !m.HasUnbuiltConstructionPositions() {
+		t.Error("HasUnbuiltConstructionPositions() should return true when marked tile has no construct")
+	}
+}
+
+func TestHasUnbuiltConstructionPositions_FalseWhenEmpty(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+
+	if m.HasUnbuiltConstructionPositions() {
+		t.Error("HasUnbuiltConstructionPositions() should return false when no marks")
+	}
+}
+
+func TestHasUnbuiltConstructionPositions_FalseWhenAllBuilt(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+	m.MarkForConstruction(pos, 1)
+	// Placing a construct means the tile is built (mark still present but construct exists)
+	fence := entity.NewFence(5, 5, "stick", types.ColorBrown)
+	m.AddConstruct(fence)
+	// Unmark the tile as the build handler would do
+	m.UnmarkForConstruction(pos)
+
+	if m.HasUnbuiltConstructionPositions() {
+		t.Error("HasUnbuiltConstructionPositions() should return false after tile is built and unmarked")
+	}
+}
+
+func TestNextConstructionLineID_Increments(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+
+	id1 := m.NextConstructionLineID()
+	id2 := m.NextConstructionLineID()
+	id3 := m.NextConstructionLineID()
+
+	if id1 != 1 {
+		t.Errorf("NextConstructionLineID() first call: got %d, want 1", id1)
+	}
+	if id2 != 2 {
+		t.Errorf("NextConstructionLineID() second call: got %d, want 2", id2)
+	}
+	if id3 != 3 {
+		t.Errorf("NextConstructionLineID() third call: got %d, want 3", id3)
+	}
+}
+
+func TestMarkedForConstructionPositions_ReturnsAll(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(20, 20)
+	m.MarkForConstruction(types.Position{X: 3, Y: 3}, 1)
+	m.MarkForConstruction(types.Position{X: 4, Y: 3}, 1)
+	m.MarkForConstruction(types.Position{X: 5, Y: 3}, 1)
+
+	positions := m.MarkedForConstructionPositions()
+	if len(positions) != 3 {
+		t.Errorf("MarkedForConstructionPositions() should return 3 positions, got %d", len(positions))
+	}
+}
+
 func TestIsBlocked_MarkedTile(t *testing.T) {
 	t.Parallel()
 

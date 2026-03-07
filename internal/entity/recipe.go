@@ -30,6 +30,39 @@ type Recipe struct {
 
 // RecipeRegistry contains all defined recipes
 var RecipeRegistry = map[string]*Recipe{
+	"thatch-fence": {
+		ID:         "thatch-fence",
+		ActivityID: "buildFence",
+		Name:       "Thatch Fence",
+		Inputs:     []RecipeInput{{ItemType: "grass", Count: 6}},
+		Output:     RecipeOutput{ItemType: "fence"}, // display only; actual output is a construct
+		DiscoveryTriggers: []DiscoveryTrigger{
+			{Action: ActionLook, ItemType: "grass"},
+			{Action: ActionPickup, ItemType: "grass"},
+		},
+	},
+	"stick-fence": {
+		ID:         "stick-fence",
+		ActivityID: "buildFence",
+		Name:       "Stick Fence",
+		Inputs:     []RecipeInput{{ItemType: "stick", Count: 6}},
+		Output:     RecipeOutput{ItemType: "fence"},
+		DiscoveryTriggers: []DiscoveryTrigger{
+			{Action: ActionLook, ItemType: "stick"},
+			{Action: ActionPickup, ItemType: "stick"},
+		},
+	},
+	"brick-fence": {
+		ID:         "brick-fence",
+		ActivityID: "buildFence",
+		Name:       "Brick Fence",
+		Inputs:     []RecipeInput{{ItemType: "brick", Count: 6}},
+		Output:     RecipeOutput{ItemType: "fence"},
+		DiscoveryTriggers: []DiscoveryTrigger{
+			{Action: ActionLook, ItemType: "brick"},
+			{Action: ActionPickup, ItemType: "brick"},
+		},
+	},
 	"clay-brick": {
 		ID:         "clay-brick",
 		ActivityID: "craftBrick",

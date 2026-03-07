@@ -453,7 +453,8 @@ func TestTryDiscoverKnowHow_BundledActivityAlreadyKnown(t *testing.T) {
 	char := &entity.Character{
 		Name:            "Test",
 		KnownActivities: []string{"tillSoil"}, // already knows tilling
-		KnownRecipes:    []string{},
+		// Pre-grant fence recipes so stick-fence isn't discovered instead of shell-hoe
+		KnownRecipes: []string{"stick-fence", "thatch-fence", "brick-fence"},
 	}
 	item := &entity.Item{
 		ItemType: "stick",

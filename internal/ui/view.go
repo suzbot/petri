@@ -607,6 +607,50 @@ func (m Model) renderCell(x, y int) string {
 		}
 	}
 
+	// Line preview and existing marks during buildFence step 2
+	if m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID == "buildFence" {
+		if m.areaSelectAnchor != nil && !isCursor {
+			cursor := types.Position{X: m.cursorX, Y: m.cursorY}
+			if isOnLine(pos, *m.areaSelectAnchor, cursor) {
+				var validator func(types.Position, *game.Map) bool
+				var bgStyle lipgloss.Style
+				if m.areaSelectUnmarkMode {
+					validator = isValidUnmarkFenceTarget
+					bgStyle = areaUnselectStyle
+				} else {
+					validator = isValidFenceTarget
+					bgStyle = constructionSelectStyle
+				}
+				if validator(pos, m.gameMap) {
+					hasEntity := m.gameMap.CharacterAt(pos) != nil || m.gameMap.ItemAt(pos) != nil || m.gameMap.FeatureAt(pos) != nil
+					if hasEntity {
+						bg := bgStyle.Render(" ")
+						return bg + sym + bg
+					}
+					padded := " " + sym + " "
+					if fill != "" {
+						padded = fill + sym + fill
+					}
+					return bgStyle.Render(padded)
+				}
+			}
+		}
+
+		// Highlight existing marked-for-construction tiles (only visible during marking phase)
+		if m.gameMap.IsMarkedForConstruction(pos) && !isCursor {
+			hasEntity := m.gameMap.CharacterAt(pos) != nil || m.gameMap.ItemAt(pos) != nil || m.gameMap.FeatureAt(pos) != nil
+			if hasEntity {
+				bg := markedForConstructionStyle.Render(" ")
+				return bg + sym + bg
+			}
+			padded := " " + sym + " "
+			if fill != "" {
+				padded = fill + sym + fill
+			}
+			return markedForConstructionStyle.Render(padded)
+		}
+	}
+
 	if isCursor {
 		return "[" + sym + "]"
 	}
@@ -763,6 +807,12 @@ func (m Model) renderDetails() string {
 			lines = append(lines, " Type: "+growingStyle.Render("Tilled soil"))
 		} else if m.gameMap.IsMarkedForTilling(cursorPos) {
 			lines = append(lines, " Type: "+growingStyle.Render("Marked for tilling"))
+		} else if mark, ok := m.gameMap.GetConstructionMark(cursorPos); ok {
+			label := "Marked for construction"
+			if mark.Material != "" {
+				label += " (" + mark.Material[0:1] + strings.ToUpper(mark.Material[1:]) + ")"
+			}
+			lines = append(lines, " Type: "+markedForConstructionStyle.Render(label))
 		} else {
 			lines = append(lines, " Type: Empty")
 		}
@@ -987,6 +1037,13 @@ func (m Model) renderDetails() string {
 			lines = append(lines, " "+growingStyle.Render("On tilled soil"))
 		} else if m.gameMap.IsMarkedForTilling(cursorPos) {
 			lines = append(lines, " "+growingStyle.Render("Marked for tilling"))
+		}
+		if mark, ok := m.gameMap.GetConstructionMark(cursorPos); ok {
+			label := "Marked for construction"
+			if mark.Material != "" {
+				label += " (" + mark.Material[0:1] + strings.ToUpper(mark.Material[1:]) + ")"
+			}
+			lines = append(lines, " "+markedForConstructionStyle.Render(label))
 		}
 		if m.gameMap.IsManuallyWatered(cursorPos) {
 			label := "Watered"
@@ -1508,6 +1565,23 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 		lines = append(lines, indent+"tab: toggle mark/unmark")
 		lines = append(lines, indent+"enter: done  esc: cancel")
 		lines = append(lines, "")
+	} else if m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID == "buildFence" {
+		// Line marking hints
+		modeName := "Mark"
+		if m.areaSelectUnmarkMode {
+			modeName = "Unmark"
+		}
+		lines = append(lines, indent+markedForConstructionStyle.Render("Fence: "+modeName), "")
+		if m.areaSelectAnchor == nil {
+			lines = append(lines, indent+"arrows: move cursor")
+			lines = append(lines, indent+"p: set anchor")
+		} else {
+			lines = append(lines, indent+"arrows: draw line")
+			lines = append(lines, indent+"p: confirm line")
+		}
+		lines = append(lines, indent+"tab: toggle mark/unmark")
+		lines = append(lines, indent+"enter: done  esc: cancel")
+		lines = append(lines, "")
 	} else if m.ordersAddMode || m.ordersCancelMode {
 		lines = append(lines, indent+"enter: confirm  esc: back", "")
 	} else {
@@ -1723,8 +1797,9 @@ func (m Model) renderOrdersPanel() string {
 
 // categoryDisplayName maps category IDs to their display names in the order UI
 var categoryDisplayName = map[string]string{
-	"craft":  "Craft",
-	"garden": "Garden",
+	"craft":        "Craft",
+	"garden":       "Garden",
+	"construction": "Construction",
 }
 
 // getOrderableActivities returns activities that can be ordered

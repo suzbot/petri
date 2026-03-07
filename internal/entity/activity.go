@@ -167,6 +167,14 @@ var ActivityRegistry = map[string]Activity{
 		Availability:    AvailabilityKnowHow,
 		// No DiscoveryTriggers - discovered via recipe triggers (clay-brick recipe)
 	},
+	"buildFence": {
+		ID:              "buildFence",
+		Name:            "Fence",
+		Category:        "construction",
+		IntentFormation: IntentOrderable,
+		Availability:    AvailabilityKnowHow,
+		// No DiscoveryTriggers - discovered via fence recipe triggers (DD-27)
+	},
 }
 
 // GetDiscoverableActivities returns all activities that require know-how

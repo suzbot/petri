@@ -1271,3 +1271,78 @@ func TestConstructSerialization_RoundTrip(t *testing.T) {
 		t.Errorf("EType not restored: got %d, want %d", found.Type(), entity.TypeConstruct)
 	}
 }
+
+func TestConstructionMarkSerialization_RoundTrip(t *testing.T) {
+	m := createTestModel()
+
+	// Mark several tiles with two different line IDs, one with a material stamped
+	m.gameMap.MarkForConstruction(types.Position{X: 3, Y: 3}, 1)
+	m.gameMap.MarkForConstruction(types.Position{X: 4, Y: 3}, 1)
+	m.gameMap.SetLineMaterial(1, "stick")
+	m.gameMap.MarkForConstruction(types.Position{X: 7, Y: 7}, 2)
+	// line 2 has no material yet
+
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Verify tile (3,3): lineID=1, material="stick"
+	mark1, found := restored.gameMap.GetConstructionMark(types.Position{X: 3, Y: 3})
+	if !found {
+		t.Fatal("ConstructionMark at (3,3) not restored after round-trip")
+	}
+	if mark1.LineID != 1 {
+		t.Errorf("(3,3) LineID: got %d, want 1", mark1.LineID)
+	}
+	if mark1.Material != "stick" {
+		t.Errorf("(3,3) Material: got %q, want %q", mark1.Material, "stick")
+	}
+
+	// Verify tile (4,3): lineID=1, material="stick" (stamped via SetLineMaterial)
+	mark2, found := restored.gameMap.GetConstructionMark(types.Position{X: 4, Y: 3})
+	if !found {
+		t.Fatal("ConstructionMark at (4,3) not restored after round-trip")
+	}
+	if mark2.LineID != 1 {
+		t.Errorf("(4,3) LineID: got %d, want 1", mark2.LineID)
+	}
+	if mark2.Material != "stick" {
+		t.Errorf("(4,3) Material: got %q, want %q", mark2.Material, "stick")
+	}
+
+	// Verify tile (7,7): lineID=2, material="" (no material set)
+	mark3, found := restored.gameMap.GetConstructionMark(types.Position{X: 7, Y: 7})
+	if !found {
+		t.Fatal("ConstructionMark at (7,7) not restored after round-trip")
+	}
+	if mark3.LineID != 2 {
+		t.Errorf("(7,7) LineID: got %d, want 2", mark3.LineID)
+	}
+	if mark3.Material != "" {
+		t.Errorf("(7,7) Material: got %q, want empty string", mark3.Material)
+	}
+
+	// Verify total count
+	positions := restored.gameMap.MarkedForConstructionPositions()
+	if len(positions) != 3 {
+		t.Errorf("MarkedForConstructionPositions() after round-trip: got %d, want 3", len(positions))
+	}
+}
+
+func TestGetOrderableActivities_IncludesConstructionCategory(t *testing.T) {
+	m := createTestModel()
+	char := m.gameMap.Characters()[0]
+	char.LearnActivity("buildFence")
+
+	activities := m.getOrderableActivities()
+
+	found := false
+	for _, a := range activities {
+		if a.ID == "category:construction" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("getOrderableActivities() should include category:construction when a character knows buildFence")
+	}
+}

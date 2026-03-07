@@ -117,29 +117,30 @@ Characters gather materials and construct small buildings from grass, sticks, or
 ---
 
 ### Step 6: Build Fence
-**Status:** Refining
+**Status:** In Progress (6a complete: infrastructure, marking UI, discovery)
 
 **Anchor story:** The player creates a Construction > Fence order. They enter a line-placement mode and mark several contiguous tiles for fence construction. A character takes the order and decides to use sticks. They find a bundle of 6 sticks (open question: gather their own bundle or rely on pre-gathered full bundles), walk to one of the marked tiles, and build. Another character takes a fence construction order and starts building from the other end. The line already has a material choice — sticks — so they build their section out of sticks too. For a brick fence segment, a character makes multiple trips — carrying 2 bricks at a time, dropping them at the build site, and returning for more until 6 are accumulated, then building.
 
 **Scope:**
 - buildFence activity in ActivityRegistry, "Construction" order UI category
-- Three fence recipes: thatch (1 grass bundle of 6), stick (1 stick bundle of 6), brick (6 bricks) (DD-23)
+- Three fence recipes in RecipeRegistry: thatch (1 grass bundle of 6), stick (1 stick bundle of 6), brick (6 bricks) — per-recipe discovery, custom execution path (DD-23, DD-27)
 - Fence placement UI: line/series tile marking (DD-24)
-- Character-driven material/recipe selection based on preference and availability — no player sub-menu for material (DD-22)
-- Material lock for contiguous fence segments (DD-25)
-- Material procurement: bundle gathering for grass/sticks, multi-trip supply-drop for bricks (DD-23)
-- Build fence handler with adjacent-tile building (DD-26)
-- Order feasibility, completion, multiple workers on same fence line
-- Discovery triggers for buildFence know-how
+- Character-driven material selection: nearest available for v1, preference-based deferred to Step 10 — no player sub-menu (DD-22, DD-31)
+- Material lock via line ID: per-line marking with material propagation on first build (DD-25)
+- Material procurement: bundle gathering for grass/sticks, multi-trip supply-drop for bricks (DD-23, DD-30)
+- Build fence handler with adjacent-tile building, layered collision handling (DD-26, DD-28)
+- Order feasibility, completion, multiple workers with no tile claiming (DD-29)
+- Details panel shows material on marked-for-construction tiles
+- Discovery triggers on fence recipes (activity know-how auto-granted on first recipe discovery)
 
 **Open questions:**
 - ~~Material sub-menu~~ → DD-22 (character chooses, no player sub-menu)
 - ~~Brick bundleability~~ → DD-23 (bricks stay individual, supply-drop pattern)
-- Bundle procurement: does the character gather items one at a time into a bundle (like gather orders), or find a pre-gathered full bundle on the ground, or both?
-- Line selection UI: what does the placement mode look like? Single-tile 'p' presses, or click-and-drag line drawing? How do non-contiguous fence segments interact with material lock?
-- Material lock mechanism: what defines a "line" or "segment"? When does the lock form — first tile built, or at marking time? Storage: data on marked tiles, on order, or derived from placed constructs? What happens when the locked material runs out?
-- Build position collision: what happens when another character stands on or walks into the build tile during construction? Options include waiting, displacement, or building-on-tile with post-build displacement.
-- Multiple workers: can two workers supply-drop bricks to the same tile, or is each tile claimed by one worker?
+- ~~Bundle procurement~~ → DD-30 (gather one-by-one using existing pickup/merge; full bundles picked up in one step)
+- ~~Line selection UI~~ → DD-24 (line drawing with anchor/confirm, cardinal snap)
+- ~~Material lock mechanism~~ → DD-25 (line ID on marked tiles; material set when first tile built, propagated to all tiles with same line ID)
+- ~~Build position collision~~ → DD-28 (skip occupied tiles, abandon if occupied during build, displace as safety net)
+- ~~Multiple workers~~ → DD-29 (no tile claiming; overlap benign for bundles; excess bricks reusable for next tile)
 
 **Triggered enhancements:**
 - `continueIntent` early-return block consolidation — already at 6 blocks, trigger threshold was met before Step 5 (not worsened by fence building, which uses position-based intent with no new block). Evaluate independently of construction.
@@ -209,6 +210,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 - Update triggered-enhancements.md and randomideas.md
 - Tuning: extraction duration and seed yield (ActionDurationShort may be too fast; tune duration and yield together)
 - Evaluate: preference-weighted target selection → unified item-seeking in picking.go (moved from triggered-enhancements.md — construction's multiple craft recipes with varied inputs meets the trigger)
+- Evaluate: dried grass/thatch color — ColorPaleYellow (ANSI 229) may be too washed out for thatch fences/huts. Consider gold/wheat range (ANSI 178, 179, or 186). Moved from triggered-enhancements.md — thatch constructs make the color more prominent and worth reassessing.
 
 ---
 
@@ -348,22 +350,64 @@ Characters gather materials and construct small buildings from grass, sticks, or
 **Rationale:** The original requirements describe bricks as "6 bricks" distinct from "1 bundle of 6." The multi-trip pattern is isomorphic to real construction — materials are stockpiled before building. This pattern is also needed for huts (Step 8: "supplies dropped on tiles, then worked"). Introducing it at fence scale (one tile, 6 items) before hut scale (16 tiles, 12+ items each) follows **Start With the Simpler Rule** for infrastructure introduction.
 **Affects:** Step 6, Step 8
 
-### DD-24: Fence placement uses line/series tile marking
+### DD-24: Fence placement uses line drawing with anchor/confirm
 **Context:** Fences are linear structures — walls, borders, enclosures. Placement UI options: single-tile orders with TargetPosition, rectangle area selection (like tilling), or line/series marking.
-**Decision:** Fence placement uses a line/series marking mode. Player marks individual tiles or draws lines of tiles for fence construction. Contiguous marked tiles form fence segments. Details of the line-drawing UX are an open question.
-**Rationale:** Fences are lines, not rectangles. Single-tile placement creates order clutter for realistic fence lengths. Line marking matches the structural intent. Follows **Isomorphism** — the placement tool mirrors what the player is building.
+**Decision:** Fence placement uses a line-drawing mode that reuses the area selection infrastructure with a line constraint. UX flow: press `p` to anchor start point → move cursor → preview shows a cardinal line (horizontal or vertical; diagonal cursor movement snaps to the axis with the larger delta) → press `p` to confirm, marking all valid tiles along the line. Single-tile marking is the degenerate case (anchor and confirm on the same tile). Tab toggles mark/unmark mode. Player can draw multiple lines before pressing Enter to create the order. Validator rejects tiles with water, existing constructs, or impassable features.
+**Rationale:** Fences are lines, not rectangles. Line drawing gives good UX for walls and borders while reusing area selection infrastructure. Cardinal-only lines prevent awkward diagonal fences. The snap behavior (larger axis wins) is simple and predictable. Follows **Isomorphism** — the placement tool mirrors what the player is building. Follows **Follow the Existing Shape** — reuses area selection's anchor/confirm/mode-toggle pattern.
 **Affects:** Step 6
 
-### DD-25: Material lock for contiguous fence segments
+### DD-25: Material lock via line ID on marked tiles
 **Context:** When a character builds a fence line, contiguous tiles should use the same material — a wall shouldn't alternate between thatch and brick. But the character chooses the material (DD-22), not the player. How is consistency enforced?
-**Decision:** Mechanism TBD — multiple options under discussion. The constraint is: contiguous marked fence tiles should be built with the same material. A second character working on the same line respects the existing material choice. The central design question is what defines a "line" or "segment" — this determines how the lock scopes and propagates. Open questions: segment definition, when the lock forms (first tile built vs marking time), what happens when materials run out, and the storage mechanism (data on marked tiles, on the order, or derived from placed constructs).
-**Rationale:** Visual and structural consistency in built structures. Follows **Isomorphism** — a real fence section is one material.
+**Decision:** Each line-drawing operation assigns a shared Line ID (incrementing counter) to all marked tiles. Storage: `markedForConstruction map[Position]ConstructionMark` where `ConstructionMark` has `LineID int` and `Material string`. Material starts as `""` (unset). When the first character builds any tile in the line, they pick a material (nearest available for v1) and that material is stamped onto all `ConstructionMark` entries with the same Line ID. Subsequent workers on the same line see the material already set. Cross-line adjacency does NOT enforce consistency — two separately-drawn lines that meet at a corner can have different materials (interesting emergent behavior). When the locked material runs out, the order becomes unfulfillable via `IsOrderFeasible`. Details panel shows the material on marked tiles (e.g., "Marked for construction (Stick)").
+**Rationale:** The line-drawing operation is a natural unit of player intent — one draw = one wall = one material. Line ID captures this cleanly without complex adjacency scanning or multi-axis analysis. Visual and structural consistency within a drawn line. Follows **Isomorphism** — a real fence section is one material. Follows **Source of Truth Clarity** — the line ID is the single source of truth for which tiles share a material constraint.
 **Affects:** Step 6
 
 ### DD-26: Building from adjacent tile
 **Context:** Should a character stand on the build tile or work from adjacent? Standing on the tile and placing an impassable construct creates a "trapped inside my own fence" problem.
 **Decision:** Characters build from a cardinally adjacent tile, not the build tile itself. Handler checks `char.Pos().IsCardinallyAdjacentTo(buildPos)`. Additional collision scenarios (another character on the build tile, blocked access) are open questions.
 **Rationale:** Follows **Follow the Existing Shape** — water drinking uses adjacent-tile interaction for impassable targets.
+**Affects:** Step 6
+
+### DD-27: Fence material requirements use RecipeRegistry — custom execution path
+**Context:** Fence building requires specific materials per tile (1 grass bundle of 6, 1 stick bundle of 6, or 6 bricks). Options: (A) define material requirements as ad-hoc config data with a single "buildFence" activity, (B) define as RecipeRegistry entries with per-recipe discovery.
+**Decision:** Fence material requirements are RecipeRegistry entries (thatch-fence, stick-fence, brick-fence), each with its own DiscoveryTriggers. Characters discover each fence recipe independently — a character who's worked with sticks might know stick fences but not brick fences. The existing `tryDiscoverRecipe` mechanism automatically grants the "buildFence" activity when the first fence recipe is discovered. However, `findOrderIntent` routes "buildFence" to a custom `findBuildFenceIntent` (not `findCraftIntent`), because the procurement pattern (bundle gathering, multi-trip supply-drop) and output type (construct, not item) don't fit the craft execution path. The recipes serve as the data/discovery/knowledge-display layer; execution is handled by the buildFence action's own intent finder and handler.
+**Rationale:** Recipes are the game's mental model for "what do I need to create this thing?" — this applies equally to items and constructs. Per-recipe discovery gives characters individual knowledge about specific building methods, which is richer than all-or-nothing activity discovery. The existing recipe discovery system (`tryDiscoverRecipe` grants activity + recipe) handles this with no new plumbing. Custom execution is necessary because fence building is fundamentally different from crafting: position-based with adjacent-tile building (DD-26), multi-phase procurement (DD-23), and construct output. Follows **Follow the Existing Shape** for discovery, **Isomorphism** for separating craft from construction execution.
+**Affects:** Step 6
+
+### DD-28: Build position collision — layered skip/abandon/displace
+**Context:** What happens when another character stands on or walks into the fence build tile during construction?
+**Decision:** Three layers of handling, increasing in rarity: (1) **Skip** — the builder's intent finder skips marked tiles that have a character standing on them, targeting the next available tile instead. (2) **Abandon** — if a character moves onto the build tile during the build action (between ticks), the builder abandons that tile and re-evaluates on the next tick. (3) **Displace** — safety net for race conditions: if a construct is placed and a character happens to be at that position (simultaneous movement), displace the occupant to the nearest empty cardinally-adjacent tile. Layer 3 should be rare given layers 1 and 2.
+**Rationale:** Belt-and-suspenders approach prevents edge cases without complex mutex logic. Primary avoidance (skip) handles the common case; abandonment handles mid-build changes; displacement handles the timing edge case. Follows **Start With the Simpler Rule** — each layer is simple, combined they cover all cases.
+**Affects:** Step 6
+
+### DD-29: Multiple workers — no tile claiming
+**Context:** Can two workers supply-drop bricks to the same tile, or is each tile claimed by one worker?
+**Decision:** No tile claiming mechanism. Workers independently target the nearest unbuilt marked tile. For bundle materials (grass/sticks), each worker carries one full bundle per tile — no overlap issues since the bundle is consumed atomically at build time. For bricks, two workers might both deliver to the same tile, but excess bricks stay on the ground and are picked up for the next tile. Materials are never wasted, just relocated.
+**Rationale:** Follows **Start With the Simpler Rule** — claiming requires tracking state that isn't necessary. The worst case (two workers delivering bricks to the same tile) is self-correcting — excess materials are reused.
+**Affects:** Step 6
+
+### DD-30: Bundle procurement with enhanced Pickup merge
+**Context:** Fence building with bundle materials (grass/sticks) requires a full bundle of 6. Characters have 2 inventory slots. How does the character assemble the bundle?
+**Decision:** The intent finder searches for the nearest bundle-compatible item on the ground (including full and partial bundles), then falls back to individual items. `Pickup()` is enhanced to merge by the picked-up item's `BundleCount` (not always +1): `carried.BundleCount += item.BundleCount`, with guard `carried.BundleCount + item.BundleCount <= maxSize` (skip if merge would overflow — no partial splitting in v1). This makes partial and full bundle pickup work correctly everywhere (gather, fence, any future bundle user). Full bundles on the ground go into empty inventory slots without merging. The intent finder loops (intent cleared after pickup → re-evaluated next tick → next pickup) until the character has a full bundle of 6, then transitions to the build phase.
+**Rationale:** Fixing `Pickup()` to merge by actual BundleCount is a general improvement — partial bundles dropped by one character can be efficiently picked up by another. The fence-specific search (including full bundles) is needed because `findNearestItemByType` skips full bundles by design (correct for gather, wrong for fence procurement). Follows **Follow the Existing Shape** — pickup/merge pattern, component procurement flow.
+**Affects:** Step 6 (also improves gather behavior globally)
+
+### DD-31: Material selection — nearest available for v1
+**Context:** When a line's material is unset and the first tile needs to be built, how does the character choose which material to use? DD-22 says character chooses based on preference and availability.
+**Decision:** For v1, the character selects the nearest available material. "Available" means enough material exists in the world to build one fence tile (6+ of any fence material type). The character picks the material type whose nearest instance is closest. Preference-based selection (characters favoring materials they like) is deferred to Step 10 alongside the broader preference-weighted target selection enhancement.
+**Rationale:** Follows **Start With the Simpler Rule** — nearest-distance selection works and produces reasonable results. Preference-based selection is already scoped for Step 10 where it can be done properly across all item-seeking activities.
+**Affects:** Step 6
+
+### DD-32: findOrderIntent restructure — switch first, recipe fallback in default
+**Context:** `findOrderIntent` currently checks for recipes first and routes all recipe-having activities to `findCraftIntent`. This means every non-craft activity with recipes (fence building, future cooking) needs a hardcoded exception before the recipe check. This doesn't scale.
+**Decision:** Restructure `findOrderIntent` to put the switch statement first, with the recipe check in the default case. Specific activities (harvest, tillSoil, buildFence, future cook) get their custom intent finders via switch cases. Only truly generic craft activities (craftVessel, craftHoe, craftBrick) fall through to `findCraftIntent` via the default case. Adding a new recipe-using activity category just adds a switch case — no exceptions, no new fields.
+**Rationale:** Follows **Consider Extensibility** — the dispatch structure accommodates future recipe categories (cooking, alchemy) with no structural changes. Follows **Isomorphism** — activities with distinct execution patterns (crafting vs building vs cooking) get distinct handlers, with recipes as shared data infrastructure.
+**Affects:** Step 6
+
+### DD-33: Item displacement when fence is placed
+**Context:** When a fence construct is placed on a tile, items may exist on that tile (excess bricks from supply-drop, food someone dropped, etc.). An impassable construct would make these items inaccessible.
+**Decision:** After placing a fence, displace all remaining items at the build position to nearest cardinally-adjacent empty tiles. Follows the `applyTillSoil` pattern which displaces non-growing items when tilling. For brick fences, the handler consumes exactly 6 bricks from the tile first, then displaces any remainder.
+**Rationale:** Follows **Follow the Existing Shape** — `applyTillSoil` already handles item displacement on terrain change. Items trapped under impassable constructs would be permanently inaccessible — displacement prevents item loss.
 **Affects:** Step 6
 
 ### DD-21: Brick is uniform with terracotta color

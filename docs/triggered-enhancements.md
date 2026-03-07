@@ -39,7 +39,8 @@ Technical and Feature items analyzed and consciously deferred until trigger cond
 | **Discovery short-circuit randomization** | Multiple discoverable activities/recipes share the same trigger (e.g., ActionLook on clay triggers both `dig` and `craftBrick`); Discovery feels deterministic — activity triggers always win over recipe triggers; Want characters to sometimes discover recipes first. *Context: `TryDiscoverKnowHow` runs `tryDiscoverActivity` then `tryDiscoverRecipe` with early return — the first match always wins. Consider shuffling candidates or rolling independently for each, so overlapping triggers don't create a fixed discovery order.* |
 | **Character event/signal system**      | Helping needs richer reactions (gratitude, relationship changes); Multiple systems need to signal between characters; Current intent-clearing is too coarse for nuanced responses |
 | **Harvest PickupToInventory handler clarity** | A second vessel-excluded harvestable type is added; The `GetCarriedVessel() == nil` check in applyPickup's harvest PickupToInventory path becomes confusing during debugging |
-| **Dried grass color reassessment** | A new color in the gold/wheat range (ANSI 178, 179, or 186) is added to styles.go for any purpose; Pale yellow (ANSI 229) feels too washed out for dried grass/thatch in practice. Currently using ColorPaleYellow for harvested grass — reassess whether gold/wheat would better represent dried grass material. |
+| **Partial bundle splitting on Pickup overflow** | Character frequently encounters bundles too large to merge (e.g., carrying 4, finds bundle of 4); Gather or fence procurement feels inefficient because useful bundles are skipped; Want "take what I can carry, leave the rest" behavior |
+| **Dried grass color reassessment** | ✓ Moved to Construction Phase Step 10 (Phase Wrap-Up) — thatch constructs make the color prominent enough to evaluate there. |
 
 ### Future Enhancement Details
 

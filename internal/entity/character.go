@@ -90,6 +90,7 @@ type Intent struct {
 	TargetItem      *Item           // The specific item being pursued (nil if none)
 	TargetFeature   *Feature        // The specific feature being pursued (nil if none)
 	TargetWaterPos  *types.Position // Water tile being targeted for drinking (nil if none)
+	TargetBuildPos  *types.Position // Fence tile being targeted for construction (nil if none, ephemeral)
 	TargetCharacter *Character      // The character being pursued for talking (nil if none)
 	RecipeID        string          // Recipe to craft (for ActionCraft)
 	DrivingStat     types.StatType  // Which stat is driving this intent
@@ -118,6 +119,7 @@ const (
 	ActionHelpWater   // Delivering water to a character in crisis thirst (self-managing, idle override)
 	ActionExtract     // Extracting seeds from a living plant (ordered, walk-then-act)
 	ActionDig         // Digging material from terrain (ordered, walk-then-act)
+	ActionBuildFence  // Building a fence on a marked tile (ordered, walk-then-act)
 )
 
 // NewCharacter creates a new character with the given preferences

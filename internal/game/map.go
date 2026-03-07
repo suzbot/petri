@@ -39,34 +39,45 @@ type Map struct {
 	// Marked-for-tilling pool (user's tilling plan, independent of orders)
 	markedForTilling map[types.Position]bool
 
+	// Marked-for-construction pool (fence/hut placement plan, independent of orders)
+	markedForConstruction map[types.Position]ConstructionMark
+
 	// Manually watered tiles with decay timers (seconds remaining)
 	wateredTimers map[types.Position]float64
 
 	// ID counters for save/load
-	nextItemID      int
-	nextFeatureID   int
-	nextConstructID int
+	nextItemID             int
+	nextFeatureID          int
+	nextConstructID        int
+	nextConstructionLineID int
 
 	// Variety registry for this world (determines poison/healing for item types)
 	varieties *VarietyRegistry
 }
 
+// ConstructionMark records that a tile has been designated for fence construction.
+type ConstructionMark struct {
+	LineID   int    // All marks from one line-drawing operation share a LineID
+	Material string // Empty until first character starts building this line
+}
+
 // NewMap creates a new map with the given dimensions
 func NewMap(width, height int) *Map {
 	return &Map{
-		Width:            width,
-		Height:           height,
-		entities:         make(map[types.Position]entity.Entity),
-		characters:       make([]*entity.Character, 0),
-		characterByPos:   make(map[types.Position]*entity.Character),
-		items:            make([]*entity.Item, 0),
-		features:         make([]*entity.Feature, 0),
-		constructs:       make([]*entity.Construct, 0),
-		water:            make(map[types.Position]WaterType),
-		clay:             make(map[types.Position]bool),
-		tilled:           make(map[types.Position]bool),
-		markedForTilling: make(map[types.Position]bool),
-		wateredTimers:    make(map[types.Position]float64),
+		Width:                 width,
+		Height:                height,
+		entities:              make(map[types.Position]entity.Entity),
+		characters:            make([]*entity.Character, 0),
+		characterByPos:        make(map[types.Position]*entity.Character),
+		items:                 make([]*entity.Item, 0),
+		features:              make([]*entity.Feature, 0),
+		constructs:            make([]*entity.Construct, 0),
+		water:                 make(map[types.Position]WaterType),
+		clay:                  make(map[types.Position]bool),
+		tilled:                make(map[types.Position]bool),
+		markedForTilling:      make(map[types.Position]bool),
+		markedForConstruction: make(map[types.Position]ConstructionMark),
+		wateredTimers:         make(map[types.Position]float64),
 	}
 }
 
@@ -593,6 +604,89 @@ func (m *Map) MarkedForTillingPositions() []types.Position {
 		positions = append(positions, pos)
 	}
 	return positions
+}
+
+// MarkForConstruction adds a position to the marked-for-construction pool with the given lineID.
+// Returns false if the position is already marked or has an existing construct.
+func (m *Map) MarkForConstruction(pos types.Position, lineID int) bool {
+	if _, exists := m.markedForConstruction[pos]; exists {
+		return false
+	}
+	if m.ConstructAt(pos) != nil {
+		return false
+	}
+	m.markedForConstruction[pos] = ConstructionMark{LineID: lineID}
+	return true
+}
+
+// UnmarkForConstruction removes a position from the marked-for-construction pool.
+func (m *Map) UnmarkForConstruction(pos types.Position) {
+	delete(m.markedForConstruction, pos)
+}
+
+// IsMarkedForConstruction returns true if the position is in the marked-for-construction pool.
+func (m *Map) IsMarkedForConstruction(pos types.Position) bool {
+	_, exists := m.markedForConstruction[pos]
+	return exists
+}
+
+// GetConstructionMark returns the construction mark at pos, if any.
+func (m *Map) GetConstructionMark(pos types.Position) (ConstructionMark, bool) {
+	mark, exists := m.markedForConstruction[pos]
+	return mark, exists
+}
+
+// MarkedForConstructionPositions returns all positions in the marked-for-construction pool.
+func (m *Map) MarkedForConstructionPositions() []types.Position {
+	positions := make([]types.Position, 0, len(m.markedForConstruction))
+	for pos := range m.markedForConstruction {
+		positions = append(positions, pos)
+	}
+	return positions
+}
+
+// SetLineMaterialAt stamps the given material onto the construction mark at pos (used by save/load).
+func (m *Map) SetLineMaterialAt(pos types.Position, material string) {
+	if mark, exists := m.markedForConstruction[pos]; exists {
+		mark.Material = material
+		m.markedForConstruction[pos] = mark
+	}
+}
+
+// SetLineMaterial stamps the given material onto all construction marks with the matching lineID.
+func (m *Map) SetLineMaterial(lineID int, material string) {
+	for pos, mark := range m.markedForConstruction {
+		if mark.LineID == lineID {
+			mark.Material = material
+			m.markedForConstruction[pos] = mark
+		}
+	}
+}
+
+// HasUnbuiltConstructionPositions returns true if any marked-for-construction position has no construct yet.
+func (m *Map) HasUnbuiltConstructionPositions() bool {
+	for pos := range m.markedForConstruction {
+		if m.ConstructAt(pos) == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// NextConstructionLineID increments and returns the next construction line ID.
+func (m *Map) NextConstructionLineID() int {
+	m.nextConstructionLineID++
+	return m.nextConstructionLineID
+}
+
+// SetConstructionLineID sets the line ID counter (used by save/load).
+func (m *Map) SetConstructionLineID(id int) {
+	m.nextConstructionLineID = id
+}
+
+// ConstructionLineID returns the current line ID counter (used by save/load).
+func (m *Map) ConstructionLineID() int {
+	return m.nextConstructionLineID
 }
 
 // SetManuallyWatered marks a position as manually watered with the full duration timer.

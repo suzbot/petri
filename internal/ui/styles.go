@@ -64,10 +64,12 @@ var (
 	terracottaStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("166")).Bold(true) // warm reddish-brown (bricks)
 
 	// UI highlight (background)
-	highlightStyle        = lipgloss.NewStyle().Background(lipgloss.Color("23")).Foreground(lipgloss.Color("255")) // dark cyan bg, white text
-	areaSelectStyle       = lipgloss.NewStyle().Background(lipgloss.Color("30"))                                   // teal bg for active area selection
-	markedForTillingStyle = lipgloss.NewStyle().Background(lipgloss.Color("108"))                                  // sage bg for confirmed marked-for-tilling tiles
-	areaUnselectStyle     = lipgloss.NewStyle().Background(lipgloss.Color("52"))                                   // dark red bg for unmark selection
+	highlightStyle             = lipgloss.NewStyle().Background(lipgloss.Color("23")).Foreground(lipgloss.Color("255")) // dark cyan bg, white text
+	areaSelectStyle            = lipgloss.NewStyle().Background(lipgloss.Color("30"))                                   // teal bg for active area selection
+	markedForTillingStyle      = lipgloss.NewStyle().Background(lipgloss.Color("108"))                                  // sage bg for confirmed marked-for-tilling tiles
+	areaUnselectStyle          = lipgloss.NewStyle().Background(lipgloss.Color("52"))                                   // dark red bg for unmark selection
+	markedForConstructionStyle = lipgloss.NewStyle().Background(lipgloss.Color("58"))                                   // olive/amber bg for confirmed marked-for-construction tiles
+	constructionSelectStyle    = lipgloss.NewStyle().Background(lipgloss.Color("94"))                                   // warm brown bg for active construction line preview
 
 	// Unfulfillable order style (dimmed)
 	unfulfillableStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // gray

@@ -106,7 +106,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Orders add mode: back one level
 			if m.showOrdersPanel && m.ordersAddMode {
 				if m.ordersAddStep == 2 {
-					if m.step2ActivityID == "tillSoil" && m.areaSelectAnchor != nil {
+					if (m.step2ActivityID == "tillSoil" || m.step2ActivityID == "buildFence") && m.areaSelectAnchor != nil {
 						// Clear anchor first, then back to step 1 on next esc
 						m.areaSelectAnchor = nil
 					} else {
@@ -222,8 +222,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "tab":
-			// Toggle mark/unmark mode during area selection (tillSoil only)
-			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID == "tillSoil" {
+			// Toggle mark/unmark mode during area selection (tillSoil and buildFence)
+			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 &&
+				(m.step2ActivityID == "tillSoil" || m.step2ActivityID == "buildFence") {
 				m.areaSelectUnmarkMode = !m.areaSelectUnmarkMode
 				m.areaSelectAnchor = nil // Reset anchor when toggling mode
 				return m, nil
@@ -286,7 +287,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.logScrollOffset = 0
 			}
 		case "p":
-			// Plot: anchor/confirm rectangle during area selection (tillSoil only)
+			// Plot: anchor/confirm during area selection (tillSoil = rectangle, buildFence = line)
 			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID == "tillSoil" {
 				if m.areaSelectAnchor == nil {
 					anchor := types.Position{X: m.cursorX, Y: m.cursorY}
@@ -305,6 +306,28 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						}
 					}
 					m.areaSelectAnchor = nil // Clear anchor, stay in step 2
+				}
+				return m, nil
+			}
+			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID == "buildFence" {
+				if m.areaSelectAnchor == nil {
+					anchor := types.Position{X: m.cursorX, Y: m.cursorY}
+					m.areaSelectAnchor = &anchor
+				} else {
+					cursor := types.Position{X: m.cursorX, Y: m.cursorY}
+					if m.areaSelectUnmarkMode {
+						positions := getValidLinePositions(*m.areaSelectAnchor, cursor, m.gameMap, isValidUnmarkFenceTarget)
+						for _, pos := range positions {
+							m.gameMap.UnmarkForConstruction(pos)
+						}
+					} else {
+						lineID := m.gameMap.NextConstructionLineID()
+						positions := getValidLinePositions(*m.areaSelectAnchor, cursor, m.gameMap, isValidFenceTarget)
+						for _, pos := range positions {
+							m.gameMap.MarkForConstruction(pos, lineID)
+						}
+					}
+					m.areaSelectAnchor = nil // Clear anchor, stay in step 2 for next line
 				}
 				return m, nil
 			}
@@ -1102,6 +1125,11 @@ func (m *Model) applyOrdersConfirm() {
 							m.ordersAddStep = 2
 							m.step2ActivityID = "plant"
 							m.selectedPlantTypeIndex = 0
+						} else if catActivity.ID == "buildFence" {
+							m.ordersAddStep = 2
+							m.step2ActivityID = "buildFence"
+							m.areaSelectAnchor = nil
+							m.areaSelectUnmarkMode = false
 						} else {
 							order := entity.NewOrder(m.nextOrderID, catActivity.ID, "")
 							m.nextOrderID++
@@ -1158,6 +1186,18 @@ func (m *Model) applyOrdersConfirm() {
 					m.ordersAddStep = 1
 					m.selectedTargetIndex = 0
 				}
+			} else if m.step2ActivityID == "buildFence" {
+				// buildFence: Enter = done, create order if tiles marked
+				if len(m.gameMap.MarkedForConstructionPositions()) > 0 {
+					order := entity.NewOrder(m.nextOrderID, "buildFence", "")
+					m.nextOrderID++
+					m.orders = append(m.orders, order)
+					m.setOrderFlash(order.DisplayName())
+				}
+				m.ordersAddStep = 1
+				m.selectedTargetIndex = 0
+				m.areaSelectAnchor = nil
+				m.areaSelectUnmarkMode = false
 			} else {
 				// tillSoil: Enter = done, create order if tiles marked
 				if len(m.gameMap.MarkedForTillingPositions()) > 0 {

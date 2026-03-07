@@ -14,24 +14,26 @@ import (
 // ToSaveState converts the current game state to a SaveState for serialization
 func (m Model) ToSaveState() *save.SaveState {
 	state := &save.SaveState{
-		Version:                   save.CurrentVersion,
-		SavedAt:                   time.Now(),
-		ElapsedGameTime:           m.elapsedGameTime,
-		MapWidth:                  m.gameMap.Width,
-		MapHeight:                 m.gameMap.Height,
-		Varieties:                 varietiesToSave(m.gameMap.Varieties()),
-		Characters:                charactersToSave(m.gameMap.Characters()),
-		Items:                     itemsToSave(m.gameMap.Items()),
-		Features:                  featuresToSave(m.gameMap.Features()),
-		Constructs:                constructsToSave(m.gameMap.Constructs()),
-		WaterTiles:                waterTilesToSave(m.gameMap),
-		ClayPositions:             m.gameMap.ClayPositions(),
-		TilledPositions:           m.gameMap.TilledPositions(),
-		MarkedForTillingPositions: m.gameMap.MarkedForTillingPositions(),
-		WateredTiles:              wateredTilesToSaveManual(m.gameMap),
-		ActionLogs:                actionLogsToSave(m.actionLog),
-		Orders:                    ordersToSave(m.orders),
-		NextOrderID:               m.nextOrderID,
+		Version:                    save.CurrentVersion,
+		SavedAt:                    time.Now(),
+		ElapsedGameTime:            m.elapsedGameTime,
+		MapWidth:                   m.gameMap.Width,
+		MapHeight:                  m.gameMap.Height,
+		Varieties:                  varietiesToSave(m.gameMap.Varieties()),
+		Characters:                 charactersToSave(m.gameMap.Characters()),
+		Items:                      itemsToSave(m.gameMap.Items()),
+		Features:                   featuresToSave(m.gameMap.Features()),
+		Constructs:                 constructsToSave(m.gameMap.Constructs()),
+		WaterTiles:                 waterTilesToSave(m.gameMap),
+		ClayPositions:              m.gameMap.ClayPositions(),
+		TilledPositions:            m.gameMap.TilledPositions(),
+		MarkedForTillingPositions:  m.gameMap.MarkedForTillingPositions(),
+		MarkedForConstructionTiles: constructionMarksToSave(m.gameMap),
+		ConstructionLineID:         m.gameMap.ConstructionLineID(),
+		WateredTiles:               wateredTilesToSaveManual(m.gameMap),
+		ActionLogs:                 actionLogsToSave(m.actionLog),
+		Orders:                     ordersToSave(m.orders),
+		NextOrderID:                m.nextOrderID,
 
 		GroundSpawnStick: m.groundSpawnTimers.Stick,
 		GroundSpawnNut:   m.groundSpawnTimers.Nut,
@@ -301,6 +303,20 @@ func constructsToSave(constructs []*entity.Construct) []save.ConstructSave {
 }
 
 // waterTilesToSave converts water tiles to save format
+func constructionMarksToSave(gameMap *game.Map) []save.ConstructionMarkSave {
+	positions := gameMap.MarkedForConstructionPositions()
+	result := make([]save.ConstructionMarkSave, len(positions))
+	for i, pos := range positions {
+		mark, _ := gameMap.GetConstructionMark(pos)
+		result[i] = save.ConstructionMarkSave{
+			Position: pos,
+			LineID:   mark.LineID,
+			Material: mark.Material,
+		}
+	}
+	return result
+}
+
 func waterTilesToSave(gameMap *game.Map) []save.WaterTileSave {
 	positions := gameMap.WaterPositions()
 	result := make([]save.WaterTileSave, len(positions))
@@ -400,6 +416,16 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 	for _, pos := range state.MarkedForTillingPositions {
 		m.gameMap.MarkForTilling(pos)
 	}
+
+	// Restore marked-for-construction positions
+	for _, cms := range state.MarkedForConstructionTiles {
+		m.gameMap.MarkForConstruction(cms.Position, cms.LineID)
+		if cms.Material != "" {
+			// Stamp the material directly on this individual mark
+			m.gameMap.SetLineMaterialAt(cms.Position, cms.Material)
+		}
+	}
+	m.gameMap.SetConstructionLineID(state.ConstructionLineID)
 
 	// Restore manually watered tiles
 	for _, wt := range state.WateredTiles {

@@ -101,7 +101,7 @@ func tryDiscoverRecipe(char *entity.Character, action entity.ActionType, item *e
 					activity := entity.ActivityRegistry[recipe.ActivityID]
 					if activityLearned {
 						log.Add(char.ID, char.Name, "discovery",
-							fmt.Sprintf("Discovered how to craft %s!", activity.Name))
+							fmt.Sprintf("Discovered how to %s %s!", activityCategoryVerb(activity.Category), activity.Name))
 					}
 					log.Add(char.ID, char.Name, "discovery",
 						fmt.Sprintf("Learned %s recipe!", recipe.Name))
@@ -124,6 +124,16 @@ func tryDiscoverRecipe(char *entity.Character, action entity.ActionType, item *e
 	}
 
 	return false
+}
+
+// activityCategoryVerb returns a verb suitable for "Discovered how to [verb] [name]!" messages.
+func activityCategoryVerb(category string) string {
+	switch category {
+	case "construction":
+		return "build"
+	default:
+		return "craft"
+	}
 }
 
 // triggerMatches checks if a discovery trigger matches the current action and item

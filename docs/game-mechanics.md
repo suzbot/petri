@@ -379,6 +379,7 @@ Know-how represents activity skills discovered through experience. Unlike facts,
 - **Plant**: Discovered when picking up or looking at plantable items (berries, mushrooms, gourd seeds)
 - **Extract**: Discovered when looking at a flower or tall grass, or when picking up or looking at a seed
 - **Dig Clay**: Discovered when looking at or picking up a clay item
+- **Build Fence**: Discovered per recipe — see [Fence Recipes](#fence-recipes)
 - **Crafting know-how**: See [Crafting Discovery](#discovery)
 
 **Discovery chance depends on mood:**
@@ -590,3 +591,30 @@ Selecting a tile that contains a construct shows:
 ### Rendering
 
 Fences render using their material's color. A horizontal fence segment fills the full tile width (`╬╬╬`); a vertical segment is centered (`  ╬  `).
+
+### Fence Recipes
+
+Three fence recipes exist. Each is discovered independently:
+
+| Recipe | Material | Discovery trigger |
+|--------|----------|-------------------|
+| Thatch Fence | 6 grass (one bundle) | Looking at or picking up harvested grass |
+| Stick Fence | 6 sticks (one bundle) | Looking at or picking up a stick |
+| Brick Fence | 6 bricks | Looking at or picking up a brick |
+
+Discovering any fence recipe also grants **Build Fence** know-how. Characters learn individual recipes based on which materials they encounter — a character who has only handled sticks may know stick fences but not brick fences.
+
+### Construction Orders
+
+**Build Fence** appears under a **Construction** category in the orders panel (requires at least one character to know a fence recipe).
+
+**Marking fence tiles** (step 2 of order creation):
+1. Press `p` to anchor a start point
+2. Move cursor — a cardinal line preview (horizontal or vertical, snapping to the larger axis) highlights valid tiles
+3. Press `p` to confirm the line
+4. Press `Tab` to toggle mark/unmark mode
+5. Draw additional lines as needed; press `Enter` to create the order
+
+Marked-for-construction tiles are only highlighted during this marking phase. In regular select mode, move the cursor over a tile to see "Marked for construction" in the details panel.
+
+The character assigns a material to the line when they begin building the first tile — selecting whichever fence material is nearest and available. Once one tile in a line is built, all remaining tiles in that line use the same material.

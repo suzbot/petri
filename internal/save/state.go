@@ -18,24 +18,33 @@ type SaveState struct {
 	MapWidth  int `json:"map_width"`
 	MapHeight int `json:"map_height"`
 
-	Varieties                 []VarietySave       `json:"varieties"` // Full variety registry
-	Characters                []CharacterSave     `json:"characters"`
-	Items                     []ItemSave          `json:"items"`
-	Features                  []FeatureSave       `json:"features"`
-	Constructs                []ConstructSave     `json:"constructs,omitempty"`
-	WaterTiles                []WaterTileSave     `json:"water_tiles,omitempty"`
-	ClayPositions             []types.Position    `json:"clay_positions,omitempty"`
-	TilledPositions           []types.Position    `json:"tilled_positions,omitempty"`
-	MarkedForTillingPositions []types.Position    `json:"marked_for_tilling,omitempty"`
-	WateredTiles              []WateredTileSave   `json:"watered_tiles_manual,omitempty"`
-	ActionLogs                map[int][]EventSave `json:"action_logs"` // Per-character event logs, keyed by char ID
-	Orders                    []OrderSave         `json:"orders,omitempty"`
-	NextOrderID               int                 `json:"next_order_id,omitempty"`
+	Varieties                  []VarietySave          `json:"varieties"` // Full variety registry
+	Characters                 []CharacterSave        `json:"characters"`
+	Items                      []ItemSave             `json:"items"`
+	Features                   []FeatureSave          `json:"features"`
+	Constructs                 []ConstructSave        `json:"constructs,omitempty"`
+	WaterTiles                 []WaterTileSave        `json:"water_tiles,omitempty"`
+	ClayPositions              []types.Position       `json:"clay_positions,omitempty"`
+	TilledPositions            []types.Position       `json:"tilled_positions,omitempty"`
+	MarkedForTillingPositions  []types.Position       `json:"marked_for_tilling,omitempty"`
+	MarkedForConstructionTiles []ConstructionMarkSave `json:"marked_for_construction,omitempty"`
+	ConstructionLineID         int                    `json:"construction_line_id,omitempty"`
+	WateredTiles               []WateredTileSave      `json:"watered_tiles_manual,omitempty"`
+	ActionLogs                 map[int][]EventSave    `json:"action_logs"` // Per-character event logs, keyed by char ID
+	Orders                     []OrderSave            `json:"orders,omitempty"`
+	NextOrderID                int                    `json:"next_order_id,omitempty"`
 
 	// Ground spawning timers
 	GroundSpawnStick float64 `json:"ground_spawn_stick,omitempty"`
 	GroundSpawnNut   float64 `json:"ground_spawn_nut,omitempty"`
 	GroundSpawnShell float64 `json:"ground_spawn_shell,omitempty"`
+}
+
+// ConstructionMarkSave represents a marked-for-construction tile for serialization
+type ConstructionMarkSave struct {
+	Position types.Position `json:"position"`
+	LineID   int            `json:"line_id"`
+	Material string         `json:"material,omitempty"`
 }
 
 // OrderSave represents an order for serialization

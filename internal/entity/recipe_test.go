@@ -176,3 +176,142 @@ func TestCraftBrickRecipe_InRegistry(t *testing.T) {
 		t.Error("clay-brick DiscoveryTriggers: missing ActionDig clay trigger")
 	}
 }
+
+// Fence recipe tests
+
+func TestFenceRecipes_AllThreeRegistered(t *testing.T) {
+	t.Parallel()
+
+	for _, id := range []string{"thatch-fence", "stick-fence", "brick-fence"} {
+		if _, ok := RecipeRegistry[id]; !ok {
+			t.Errorf("recipe %q not found in RecipeRegistry", id)
+		}
+	}
+}
+
+func TestThatchFenceRecipe_Properties(t *testing.T) {
+	t.Parallel()
+
+	recipe, ok := RecipeRegistry["thatch-fence"]
+	if !ok {
+		t.Fatal("thatch-fence recipe not found in RecipeRegistry")
+	}
+	if recipe.ActivityID != "buildFence" {
+		t.Errorf("ActivityID: got %q, want %q", recipe.ActivityID, "buildFence")
+	}
+	if len(recipe.Inputs) == 0 || recipe.Inputs[0].ItemType != "grass" {
+		t.Error("thatch-fence Inputs: want grass input")
+	}
+	if len(recipe.DiscoveryTriggers) == 0 {
+		t.Fatal("thatch-fence DiscoveryTriggers: got empty, want triggers for grass")
+	}
+	hasLookGrass, hasPickupGrass := false, false
+	for _, trigger := range recipe.DiscoveryTriggers {
+		if trigger.Action == ActionLook && trigger.ItemType == "grass" {
+			hasLookGrass = true
+		}
+		if trigger.Action == ActionPickup && trigger.ItemType == "grass" {
+			hasPickupGrass = true
+		}
+	}
+	if !hasLookGrass {
+		t.Error("thatch-fence DiscoveryTriggers: missing ActionLook grass trigger")
+	}
+	if !hasPickupGrass {
+		t.Error("thatch-fence DiscoveryTriggers: missing ActionPickup grass trigger")
+	}
+}
+
+func TestStickFenceRecipe_Properties(t *testing.T) {
+	t.Parallel()
+
+	recipe, ok := RecipeRegistry["stick-fence"]
+	if !ok {
+		t.Fatal("stick-fence recipe not found in RecipeRegistry")
+	}
+	if recipe.ActivityID != "buildFence" {
+		t.Errorf("ActivityID: got %q, want %q", recipe.ActivityID, "buildFence")
+	}
+	if len(recipe.Inputs) == 0 || recipe.Inputs[0].ItemType != "stick" {
+		t.Error("stick-fence Inputs: want stick input")
+	}
+	hasLookStick, hasPickupStick := false, false
+	for _, trigger := range recipe.DiscoveryTriggers {
+		if trigger.Action == ActionLook && trigger.ItemType == "stick" {
+			hasLookStick = true
+		}
+		if trigger.Action == ActionPickup && trigger.ItemType == "stick" {
+			hasPickupStick = true
+		}
+	}
+	if !hasLookStick {
+		t.Error("stick-fence DiscoveryTriggers: missing ActionLook stick trigger")
+	}
+	if !hasPickupStick {
+		t.Error("stick-fence DiscoveryTriggers: missing ActionPickup stick trigger")
+	}
+}
+
+func TestBrickFenceRecipe_Properties(t *testing.T) {
+	t.Parallel()
+
+	recipe, ok := RecipeRegistry["brick-fence"]
+	if !ok {
+		t.Fatal("brick-fence recipe not found in RecipeRegistry")
+	}
+	if recipe.ActivityID != "buildFence" {
+		t.Errorf("ActivityID: got %q, want %q", recipe.ActivityID, "buildFence")
+	}
+	if len(recipe.Inputs) == 0 || recipe.Inputs[0].ItemType != "brick" {
+		t.Error("brick-fence Inputs: want brick input")
+	}
+	hasLookBrick, hasPickupBrick := false, false
+	for _, trigger := range recipe.DiscoveryTriggers {
+		if trigger.Action == ActionLook && trigger.ItemType == "brick" {
+			hasLookBrick = true
+		}
+		if trigger.Action == ActionPickup && trigger.ItemType == "brick" {
+			hasPickupBrick = true
+		}
+	}
+	if !hasLookBrick {
+		t.Error("brick-fence DiscoveryTriggers: missing ActionLook brick trigger")
+	}
+	if !hasPickupBrick {
+		t.Error("brick-fence DiscoveryTriggers: missing ActionPickup brick trigger")
+	}
+}
+
+func TestFenceRecipeDiscovery_GrantsBuildFenceKnowHow(t *testing.T) {
+	t.Parallel()
+
+	// When any fence recipe is discovered, the character should learn buildFence activity.
+	// This is automatic via tryDiscoverRecipe granting recipe.ActivityID.
+	// Verify recipe.ActivityID is "buildFence" for all fence recipes (the mechanism handles the rest).
+	for _, id := range []string{"thatch-fence", "stick-fence", "brick-fence"} {
+		recipe := RecipeRegistry[id]
+		if recipe.ActivityID != "buildFence" {
+			t.Errorf("recipe %q ActivityID: got %q, want %q — discovery won't grant buildFence", id, recipe.ActivityID, "buildFence")
+		}
+	}
+
+	// Verify buildFence activity exists in the registry (required for auto-grant to work)
+	if _, ok := ActivityRegistry["buildFence"]; !ok {
+		t.Error("buildFence activity not found in ActivityRegistry — recipe discovery cannot grant it")
+	}
+}
+
+func TestBuildFenceActivity_NoDiscoveryTriggers(t *testing.T) {
+	t.Parallel()
+
+	activity, ok := ActivityRegistry["buildFence"]
+	if !ok {
+		t.Fatal("buildFence activity not found in ActivityRegistry")
+	}
+	if len(activity.DiscoveryTriggers) != 0 {
+		t.Errorf("buildFence DiscoveryTriggers: got %d, want 0 (discovery is via recipe triggers)", len(activity.DiscoveryTriggers))
+	}
+	if activity.Category != "construction" {
+		t.Errorf("buildFence Category: got %q, want %q", activity.Category, "construction")
+	}
+}

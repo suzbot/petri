@@ -396,7 +396,7 @@ Activities are the named behaviors that characters learn and perform. The regist
 | `Availability` | `AvailabilityDefault` (all characters) or `AvailabilityKnowHow` (must discover) |
 | `DiscoveryTriggers` | What experience unlocks this activity |
 
-**Category field**: Groups orderable activities for the order UI menu hierarchy. `getOrderableActivities()` generates synthetic category entries (e.g., "Craft", "Garden") when any known activity has that category. Uncategorized activities (e.g., Harvest) appear at the top level.
+**Category field**: Groups orderable activities for the order UI menu hierarchy. `getOrderableActivities()` generates synthetic category entries (e.g., "Craft", "Garden", "Construction") when any known activity has that category. Uncategorized activities (e.g., Harvest) appear at the top level. Known categories: `"craft"`, `"garden"`, `"construction"`.
 
 ### Discovery Triggers
 
@@ -439,6 +439,16 @@ Tilling separates the player's plan from worker assignments:
 - Cancelling an order removes the worker, not the plan. Unmarking tiles removes from plan (via area selection in unmark mode).
 
 Pool is serialized in `SaveState.MarkedForTillingPositions`.
+
+### Marked-for-Construction Pool
+
+Construction uses a parallel pool following the same separation of plan from worker:
+- **Marked tiles** (`gameMap.markedForConstruction map[Position]ConstructionMark`): User's construction plan. Each `ConstructionMark` carries a `LineID int` (which line-drawing operation created it) and `Material string` (empty until first tile is built).
+- **Build Fence orders**: Worker assignments. Multiple orders = multiple workers on the same pool.
+- **Line ID**: All tiles from one line-drawing operation share a `LineID`. When the first tile in a line is built, the chosen material is stamped onto all tiles with the same `LineID` — ensuring visual consistency within a drawn line.
+- **Material lock**: Once set, a line's material is read by subsequent workers. If the locked material runs out, the order becomes unfulfillable.
+
+Pool is serialized in `SaveState.MarkedForConstructionTiles`. Line ID counter in `SaveState.ConstructionLineID`.
 
 ## Item Acquisition
 
@@ -608,25 +618,31 @@ Construct storage on `Map`: the `constructs []Construct` slice with `AddConstruc
 
 ## Area Selection UI Pattern
 
-Area selection enables players to define rectangular regions for terrain modification (tilling, future construction).
+Area selection enables players to define regions for terrain modification or construction. Two selection shapes are supported:
 
-**Flow:**
+- **Rectangle** (tillSoil): anchor + move cursor → fills rectangle between anchor and cursor
+- **Line** (buildFence): anchor + move cursor → snaps to a cardinal line (horizontal or vertical, whichever axis has the larger delta); diagonal cursor movement resolves to the dominant axis
+
+**Flow (both shapes):**
 1. Player selects activity → enters area selection mode
-2. Move cursor, press `p` to anchor first corner
-3. Move cursor to resize rectangle (valid tiles highlighted)
-4. Press `p` to confirm (marks tiles / creates order)
+2. Move cursor, press `p` to anchor start point
+3. Move cursor to resize selection (valid tiles highlighted)
+4. Press `p` to confirm (marks tiles)
 5. Press `Tab` to toggle mark/unmark mode
 6. Press `Enter` when done, `Esc` to cancel
 
-**Rendering**: Rectangle highlight uses full background for empty tiles, padding-only for entities (avoids ANSI nesting). Three distinct color states map directly to workflow progression: active selection (teal) → confirmed pending (sage) → completed work (dusky earth). Each state should be visually distinct from the others — reusing a color across states collapses workflow stages the player needs to distinguish.
+**Rendering**: Selection highlight uses full background for empty tiles, padding-only for entities (avoids ANSI nesting). Three distinct color states map directly to workflow progression: active selection (teal/warm brown) → confirmed pending (sage/olive) → completed work (dusky earth). Each state should be visually distinct from the others — reusing a color across states collapses workflow stages the player needs to distinguish.
+
+**Confirmed marks visibility**: Confirmed marks are only highlighted during the active marking phase for their activity (step 2). In regular select mode, the cursor over a marked tile reveals the status in the details panel. This matches the principle that persistent UI state should not clutter the default view.
 
 ### Reuse for Future Activities
 
-When adding new area-based orders (e.g., fence placement, building zones):
+When adding new area-based orders:
 1. Add activity check in step 1 Enter handler
-2. Write activity-specific validator function (like `isValidTillTarget`)
-3. Reuse `getValidPositions` with custom validator
-4. Handle plot confirm logic in `p` key handler
+2. Write activity-specific validator function (like `isValidTillTarget` or `isValidFenceTarget`)
+3. Reuse `getValidPositions` (rectangles) or `getValidLinePositions` (lines) with custom validator
+4. Handle confirm logic in `p` key handler
+5. Add confirmed-marks rendering inside the `m.ordersAddMode && step2 && activityID == X` block (not outside it)
 
 ## Save/Load Serialization
 
