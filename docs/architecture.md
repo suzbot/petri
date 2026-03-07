@@ -474,7 +474,11 @@ Action handler pseudocode:
 
 1. **Action-specific early returns** — actions where `TargetItem` can be in different locations across phases (ground vs inventory) handle their own path recalculation and return before reaching the generic logic.
 
-2. **Generic fallthrough** — all other actions use the shared path: verify target item still exists on map, recalculate path toward target, apply arrival transitions.
+2. **Generic fallthrough** — all other actions use the shared path: verify target still exists, recalculate path toward target, apply arrival transitions. Adding a new target field to Intent requires updating **four touchpoints** across `CalculateIntent` and `continueIntent`:
+   1. **`CalculateIntent` continuation gate** — the `if/else if` chain that decides whether to call `continueIntent` for non-need intents (checks `TargetItem != nil`, `TargetConstruct != nil`, `TargetBuildPos != nil`, `TargetCharacter != nil`). A missing entry means the intent falls through to full re-evaluation every tick — the character picks a new intent each tick and never completes the action.
+   2. **Target recalculation chain** (in `continueIntent`) — the `if/else if` block that maps target fields to navigation coordinates (tx, ty). A missing entry causes the fallthrough to use `intent.Target` (a single BFS step) as the destination, which produces a no-op path.
+   3. **Arrival detection** (in `continueIntent`) — action-specific blocks that detect adjacency/co-location and transition the intent to the "stay and act" phase (e.g., item-look adjacency, construct-look adjacency, talk adjacency, bed co-location). A missing block means the character walks to the target but never transitions.
+   4. **Final return intent** (in `continueIntent`) — the struct literal at the bottom that preserves all target fields for the next tick. A missing field means the target is silently dropped after one tick.
 
 **The decision rule for new actions:**
 
@@ -482,7 +486,7 @@ Action handler pseudocode:
   - Examples: `ActionConsume` (food in inventory), `ActionDrink` (carried vessel), `ActionFillVessel` (vessel moves ground → inventory), `ActionWaterGarden` (vessel moves ground → inventory), `ActionHelpFeed` (food moves ground → inventory during procurement), `ActionHelpWater` (vessel moves ground → inventory; three navigation targets across phases)
 
 - **Uses the generic path if:** Your action's `TargetItem` stays on the map throughout, targets a character, targets a position, or has no `TargetItem`.
-  - Examples: `ActionLook` (item stays on map), `ActionTalk` (targets character via Dest), `ActionTillSoil` (targets position), `ActionPickup` (item on map until picked up), `ActionConsume` targeting a ground food vessel (vessel stays on map; arrival detected in the handler)
+  - Examples: `ActionLook` (item stays on map, or construct via `TargetConstruct`), `ActionTalk` (targets character via Dest), `ActionTillSoil` (targets position), `ActionPickup` (item on map until picked up), `ActionConsume` targeting a ground food vessel (vessel stays on map; arrival detected in the handler)
 
 - **Adjacent-tile position-based ordered actions** (e.g., `ActionBuildFence`): A variant where the character stands on a cardinally adjacent tile rather than the work tile. These use `TargetBuildPos` (the work tile) and `Dest` (the standing tile). The generic `continueIntent` fallthrough navigates toward `Dest` when `TargetBuildPos` is set, and preserves `TargetBuildPos` in the returned intent. **Critical:** `CalculateIntent`'s non-need continuation gate must include `TargetBuildPos != nil` as a condition to call `continueIntent` — without it, the intent falls through to full re-evaluation every tick, causing the character to thrash by selecting a new target tile each tick instead of walking toward the current one.
 

@@ -59,6 +59,13 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 			// Target gone (e.g., taken by another character), fall through to re-evaluate
 		}
 
+		// Continue looking at construct if no urgent needs
+		if char.Intent.TargetConstruct != nil && maxTier < entity.TierModerate {
+			if result := continueIntent(char, cx, cy, gameMap, log); result != nil {
+				return result
+			}
+		}
+
 		// Continue building if no urgent needs (adjacent-tile interaction pattern)
 		if char.Intent.TargetBuildPos != nil && maxTier < entity.TierModerate {
 			if result := continueIntent(char, cx, cy, gameMap, log); result != nil {
@@ -633,6 +640,9 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 	} else if intent.TargetFeature != nil {
 		tpos := intent.TargetFeature.Pos()
 		tx, ty = tpos.X, tpos.Y
+	} else if intent.TargetConstruct != nil {
+		tpos := intent.TargetConstruct.Pos()
+		tx, ty = tpos.X, tpos.Y
 	} else if intent.TargetCharacter != nil {
 		tpos := intent.TargetCharacter.Pos()
 		tx, ty = tpos.X, tpos.Y
@@ -763,6 +773,22 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		}
 	}
 
+	// Check if we've arrived adjacent to a construct for looking
+	if intent.Action == entity.ActionLook && intent.TargetConstruct != nil {
+		if isAdjacent(cx, cy, tx, ty) {
+			newActivity := "Looking at " + intent.TargetConstruct.DisplayName()
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+			}
+			return &entity.Intent{
+				Target:          types.Position{X: cx, Y: cy}, // Stay in place
+				Dest:            types.Position{X: cx, Y: cy}, // Already at destination (adjacent to construct)
+				Action:          entity.ActionLook,
+				TargetConstruct: intent.TargetConstruct,
+			}
+		}
+	}
+
 	// Check if we've arrived adjacent to a character for talking
 	if intent.TargetCharacter != nil {
 		if isAdjacent(cx, cy, tx, ty) {
@@ -810,6 +836,7 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		Action:          intent.Action,
 		TargetItem:      intent.TargetItem,
 		TargetFeature:   intent.TargetFeature,
+		TargetConstruct: intent.TargetConstruct,
 		TargetWaterPos:  intent.TargetWaterPos,
 		TargetBuildPos:  intent.TargetBuildPos,
 		TargetCharacter: intent.TargetCharacter,
@@ -1401,18 +1428,37 @@ func canFulfillHealth(char *entity.Character, items []*entity.Item) bool {
 // findLookIntent creates an intent to look at the nearest item.
 // Called by selectDiscretionaryActivity when looking is selected.
 func findLookIntent(char *entity.Character, pos types.Position, items []*entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
-	// Find nearest item, excluding last looked item
-	target := findNearestItemExcluding(pos.X, pos.Y, items, char.LastLookedX, char.LastLookedY, char.HasLastLooked)
-	if target == nil {
+	// Find nearest item, excluding last looked position
+	nearestItem := findNearestItemExcluding(pos.X, pos.Y, items, char.LastLookedX, char.LastLookedY, char.HasLastLooked)
+	itemDist := int(^uint(0) >> 1)
+	if nearestItem != nil {
+		itemDist = pos.DistanceTo(nearestItem.Pos())
+	}
+
+	// Find nearest construct, excluding last looked position
+	nearestConstruct := findNearestConstructExcluding(pos, gameMap.Constructs(), char.LastLookedX, char.LastLookedY, char.HasLastLooked)
+	constructDist := int(^uint(0) >> 1)
+	if nearestConstruct != nil {
+		constructDist = pos.DistanceTo(nearestConstruct.Pos())
+	}
+
+	if nearestItem == nil && nearestConstruct == nil {
 		return nil
 	}
 
+	// Pick the closer target; prefer item on tie
+	if nearestConstruct != nil && (nearestItem == nil || constructDist < itemDist) {
+		return buildLookIntentForConstruct(char, pos, nearestConstruct, gameMap, log)
+	}
+	return buildLookIntentForItem(char, pos, nearestItem, gameMap, log)
+}
+
+// buildLookIntentForItem creates a look intent targeting an item
+func buildLookIntentForItem(char *entity.Character, pos types.Position, target *entity.Item, gameMap *game.Map, log *ActionLog) *entity.Intent {
 	tpos := target.Pos()
 	tx, ty := tpos.X, tpos.Y
 
-	// Check if already adjacent to target
 	if isAdjacent(pos.X, pos.Y, tx, ty) {
-		// Start looking immediately
 		newActivity := "Looking at " + target.Description()
 		if char.CurrentActivity != newActivity {
 			char.CurrentActivity = newActivity
@@ -1421,20 +1467,18 @@ func findLookIntent(char *entity.Character, pos types.Position, items []*entity.
 			}
 		}
 		return &entity.Intent{
-			Target:     pos, // Stay in place
-			Dest:       pos, // Already at destination (adjacent to item)
+			Target:     pos,
+			Dest:       pos,
 			Action:     entity.ActionLook,
 			TargetItem: target,
 		}
 	}
 
-	// Find closest adjacent tile to target
 	adjX, adjY := findClosestAdjacentTile(pos.X, pos.Y, tx, ty, gameMap)
 	if adjX == -1 {
-		return nil // No accessible adjacent tile
+		return nil
 	}
 
-	// Move toward adjacent tile
 	nx, ny := NextStepBFS(pos.X, pos.Y, adjX, adjY, gameMap)
 
 	newActivity := "Moving to look at " + target.Description()
@@ -1447,10 +1491,76 @@ func findLookIntent(char *entity.Character, pos types.Position, items []*entity.
 
 	return &entity.Intent{
 		Target:     types.Position{X: nx, Y: ny},
-		Dest:       types.Position{X: adjX, Y: adjY}, // Destination is adjacent to the item
+		Dest:       types.Position{X: adjX, Y: adjY},
 		Action:     entity.ActionLook,
 		TargetItem: target,
 	}
+}
+
+// buildLookIntentForConstruct creates a look intent targeting a construct
+func buildLookIntentForConstruct(char *entity.Character, pos types.Position, target *entity.Construct, gameMap *game.Map, log *ActionLog) *entity.Intent {
+	tpos := target.Pos()
+	tx, ty := tpos.X, tpos.Y
+
+	if isAdjacent(pos.X, pos.Y, tx, ty) {
+		newActivity := "Looking at " + target.DisplayName()
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+			if log != nil {
+				log.Add(char.ID, char.Name, "activity", "Looking at "+target.DisplayName())
+			}
+		}
+		return &entity.Intent{
+			Target:          pos,
+			Dest:            pos,
+			Action:          entity.ActionLook,
+			TargetConstruct: target,
+		}
+	}
+
+	adjX, adjY := findClosestAdjacentTile(pos.X, pos.Y, tx, ty, gameMap)
+	if adjX == -1 {
+		return nil
+	}
+
+	nx, ny := NextStepBFS(pos.X, pos.Y, adjX, adjY, gameMap)
+
+	newActivity := "Moving to look at " + target.DisplayName()
+	if char.CurrentActivity != newActivity {
+		char.CurrentActivity = newActivity
+		if log != nil {
+			log.Add(char.ID, char.Name, "movement", "Moving to look at "+target.DisplayName())
+		}
+	}
+
+	return &entity.Intent{
+		Target:          types.Position{X: nx, Y: ny},
+		Dest:            types.Position{X: adjX, Y: adjY},
+		Action:          entity.ActionLook,
+		TargetConstruct: target,
+	}
+}
+
+// findNearestConstructExcluding finds the closest construct, optionally excluding a specific position
+func findNearestConstructExcluding(pos types.Position, constructs []*entity.Construct, excludeX, excludeY int, hasExclude bool) *entity.Construct {
+	var nearest *entity.Construct
+	nearestDist := int(^uint(0) >> 1)
+
+	for _, c := range constructs {
+		cpos := c.Pos()
+
+		if hasExclude && cpos.X == excludeX && cpos.Y == excludeY {
+			continue
+		}
+
+		dist := pos.DistanceTo(cpos)
+		if dist < nearestDist {
+			nearestDist = dist
+			nearest = c
+		}
+	}
+
+	return nearest
 }
 
 // findNearestItem finds the closest item of any type to the given position

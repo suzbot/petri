@@ -232,16 +232,24 @@ Characters start with two positive preferences based on character creation: like
 
 ### Formation
 
-Preferences form dynamically when consuming or looking at items, based on current mood:
+Preferences form dynamically when consuming or looking at items and constructs, based on current mood:
 - **Joyful/Happy**: chance to form positive preference (likes)
 - **Neutral**: no formation
 - **Unhappy/Miserable**: chance to form negative preference (dislikes)
 
-Formation types:
+**From items:**
 - **Solo**: Single attribute (ItemType, Color, Pattern, or Texture)
 - **Combo**: ItemType + 1-2 other attributes (max 3 total)
 
+**From constructs:**
+- **Solo**: Recipe identity (e.g., "stick fence"), material (e.g., "stick"), or color (e.g., "brown")
+- **Combo**: Recipe identity + color, or material + color
+
 If a character already has the exact same preference with opposite valence, the existing preference is removed instead of creating a new one.
+
+### Cross-Application
+
+Preferences formed from one source can affect mood when encountering another. Material preferences (ItemType) match constructs by their building material — "Likes sticks" boosts mood when looking at a stick fence. Color preferences also cross-apply between items and constructs.
 
 ### Viewing Preferences
 
@@ -307,7 +315,7 @@ If the selected activity isn't possible, the system falls back to the next optio
 
 ### Looking
 
-Characters look at nearby items, which provides opportunity for preference formation (based on mood) and adjusts mood based on existing preferences. Avoids looking at the same item twice in a row.
+Characters look at nearby items and constructs, which provides opportunity for preference formation (based on mood) and adjusts mood based on existing preferences. Characters pick the nearest lookable target (item or construct) and walk to an adjacent tile. Avoids looking at the same target twice in a row.
 
 ### Talking
 

@@ -1056,6 +1056,77 @@ func TestContinueIntent_ActionLookReroutesWhenOnSameTile(t *testing.T) {
 	}
 }
 
+func TestContinueIntent_ActionLookConstructWalkingContinues(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPos(types.Position{X: 0, Y: 0}) // Not adjacent to construct at (5,5)
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	fence := entity.NewFence(5, 5, "stick", types.ColorBrown)
+	gameMap.AddConstruct(fence)
+
+	char.Intent = &entity.Intent{
+		Target:          types.Position{X: 1, Y: 0},
+		Dest:            types.Position{X: 4, Y: 5}, // Adjacent tile to construct
+		Action:          entity.ActionLook,
+		TargetConstruct: fence,
+	}
+
+	intent := continueIntent(char, 0, 0, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Should continue ActionLook intent when walking toward construct")
+	}
+	if intent.Action != entity.ActionLook {
+		t.Errorf("Action: got %d, want ActionLook", intent.Action)
+	}
+	if intent.TargetConstruct != fence {
+		t.Error("Should maintain same target construct")
+	}
+	// Should recalculate path toward destination, not stay at origin
+	if intent.Target.X == 0 && intent.Target.Y == 0 {
+		t.Error("Target should be recalculated toward destination, not stay at origin")
+	}
+}
+
+func TestContinueIntent_ActionLookConstructArrivesAdjacent(t *testing.T) {
+	t.Parallel()
+
+	char := newTestCharacter()
+	char.SetPos(types.Position{X: 4, Y: 5}) // Adjacent to construct at (5,5)
+
+	gameMap := game.NewMap(config.MapWidth, config.MapHeight)
+	fence := entity.NewFence(5, 5, "stick", types.ColorBrown)
+	gameMap.AddConstruct(fence)
+
+	char.Intent = &entity.Intent{
+		Target:          types.Position{X: 5, Y: 5},
+		Dest:            types.Position{X: 4, Y: 5},
+		Action:          entity.ActionLook,
+		TargetConstruct: fence,
+	}
+
+	intent := continueIntent(char, 4, 5, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Should return look intent when adjacent to construct")
+	}
+	if intent.Action != entity.ActionLook {
+		t.Errorf("Action: got %d, want ActionLook", intent.Action)
+	}
+	if intent.TargetConstruct != fence {
+		t.Error("Should maintain target construct")
+	}
+	// Should stay in place — ready for look duration
+	if intent.Target.X != 4 || intent.Target.Y != 5 {
+		t.Errorf("Target: got (%d,%d), want (4,5) — should stay in place", intent.Target.X, intent.Target.Y)
+	}
+	if intent.Dest.X != 4 || intent.Dest.Y != 5 {
+		t.Errorf("Dest: got (%d,%d), want (4,5) — should stay in place", intent.Dest.X, intent.Dest.Y)
+	}
+}
+
 func TestContinueIntent_TalkReroutesWhenOnSameTile(t *testing.T) {
 	t.Parallel()
 

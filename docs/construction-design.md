@@ -150,19 +150,23 @@ Characters gather materials and construct small buildings from grass, sticks, or
 ---
 
 ### Step 7: Construct Interaction
-**Status:** Refining
+**Status:** Complete
 
-**Anchor story:** A character wanders past a stick fence and pauses to look at it. They decide they like the look of stick construction — "Likes sticks" appears in their preferences panel. Another character, in a bad mood, looks at a brick fence and develops "Dislikes brick walls."
+**Anchor story:** A character wanders past a stick fence and pauses to look at it. They decide they like the look of stick fences — "Likes stick fences" appears in their preferences panel. Another character, in a bad mood, looks at a brick fence and develops "Dislikes brick fences."
 
 **Scope:**
-- Extend Look idle activity to target constructs (new TargetConstruct on Intent or similar)
-- Material preference formation from looking at constructs
-- Construct-specific preference attributes (e.g., "Likes brick walls") — extensibility for future attributes
-- Details panel shows construct information when selected
+- Extend Look idle activity to target constructs: `findLookIntent` searches both items and constructs, picks nearest (DD-34)
+- `TargetConstruct *Construct` on Intent (ephemeral, not serialized) (DD-34)
+- `applyLook` branches on TargetConstruct vs TargetItem (DD-34)
+- `CompleteLookAtConstruct` handles construct-specific mood adjustment and preference formation (DD-34)
+- Material preference formation using existing Preference.Kind field — "stick fence", "thatch fence", "brick fence" as recipe-level identities (DD-35)
+- `MatchesConstruct`, `NetPreferenceForConstruct` for preference matching against constructs (DD-35)
+- `TryFormConstructPreference` for construct-specific formation rolls (DD-35)
+- Discovery from looking at constructs: skipped for now (DD-36)
 
 **Open questions:**
-- How should Look be extended to target constructs? Structural implications: TargetConstruct field on Intent vs alternative approaches. Isomorphism considerations — constructs are not items, should Look treat them differently?
-- Preference scope: should characters form preferences about the material only ("Likes sticks"), the construct+material combo ("Likes brick walls"), or both? What about extensibility for future construct attributes (size, craftsmanship, etc.)?
+- ~~How should Look be extended to target constructs?~~ → DD-34
+- ~~Preference scope: material only, construct+material combo, or both?~~ → DD-35
 
 ---
 
@@ -411,6 +415,24 @@ Characters gather materials and construct small buildings from grass, sticks, or
 **Decision:** After placing a fence, displace all remaining items at the build position to nearest cardinally-adjacent empty tiles. Follows the `applyTillSoil` pattern which displaces non-growing items when tilling. For brick fences, the handler consumes exactly 6 bricks from the tile first, then displaces any remainder.
 **Rationale:** Follows **Follow the Existing Shape** — `applyTillSoil` already handles item displacement on terrain change. Items trapped under impassable constructs would be permanently inaccessible — displacement prevents item loss.
 **Affects:** Step 6
+
+### DD-34: Look targets both items and constructs via nearest-lookable search
+**Context:** Look currently only targets items via `findNearestItemExcluding`. Constructs need to be lookable for preference formation. Options: separate "look at construct" activity, or extend existing Look to search both entity types.
+**Decision:** Extend `findLookIntent` to search both items and constructs, picking the nearest lookable entity. Add `TargetConstruct *Construct` to Intent (ephemeral, not serialized — follows `TargetBuildPos` pattern). `applyLook` branches: if `TargetConstruct != nil`, walk to it and call `CompleteLookAtConstruct`; otherwise use existing item path. The "exclude last-looked" mechanism already works by position, so it naturally prevents looking at the same construct twice in a row.
+**Rationale:** Follows **Follow the Existing Shape** — Intent already has typed target fields per entity type (`TargetItem`, `TargetFeature`, `TargetCharacter`). Adding `TargetConstruct` is the same pattern. Follows **Isomorphism** — constructs are not items, so they get their own target field and completion handler.
+**Affects:** Step 7
+
+### DD-35: Construct preferences use Kind field — recipe-level identity
+**Context:** What preference attributes form when looking at constructs? The requirements say "form a like/dislike materials in the construction." Options: (A) material only as ItemType ("Likes sticks"), (B) material+construct combo as Kind ("Likes stick fences"), (C) new Preference field for construct attributes.
+**Decision:** Use the existing `Kind` field on Preference for the construct's recipe-level identity: "stick fence", "thatch fence", "brick fence". This parallels how crafted items use Kind for recipe subtypes ("shell hoe", "hollow gourd"). Color maps to `MaterialColor`. Formation roll picks from: solo Kind ("Likes stick fences"), solo Color ("Likes brown"), or Kind+Color combo ("Likes brown stick fences"). No generic "likes fences" level — that doesn't help differentiate recipes, which is the primary use case for these preferences. Add `MatchesConstruct(*Construct)` on Preference and `NetPreferenceForConstruct(*Construct)` on Character. `TryFormConstructPreference` handles construct-specific formation rolls.
+**Rationale:** "Stick fence" is a recipe identity, just like "shell hoe." Kind already serves this purpose — no new fields needed. This lays the foundation for preference-weighted recipe selection (Step 10): a character who "likes stick fences" will prefer the stick-fence recipe. Follows **Follow the Existing Shape** (Kind for recipe identity), **Isomorphism** (preferences about constructs reflect the recipe that produced them), and **Consider Extensibility** (future construct types like huts produce "stick hut", "brick hut" preferences using the same mechanism).
+**Affects:** Step 7, Step 10
+
+### DD-36: Discovery from looking at constructs — deferred
+**Context:** `CompleteLook` currently calls `TryDiscoverKnowHow` for item-based discovery triggers. Should looking at constructs also trigger discovery?
+**Decision:** Skip construct-based discovery triggers for Step 7. No requirements call for it. Looking at constructs only forms preferences and adjusts mood.
+**Rationale:** Follows **Start With the Simpler Rule**. Construct-based discovery is likely needed for Step 8 (huts — looking at a fence could trigger "build hut" know-how) but not for Step 7. Adding it now would be speculative.
+**Affects:** Step 7; revisit for Step 8
 
 ### DD-21: Brick is uniform with terracotta color
 **Context:** Brick appearance properties. Only one brick type exists (from clay). Options: inherit clay's earthy color, or give bricks a distinct color.

@@ -670,3 +670,103 @@ func TestFormDislikeFromKnowledge_PartialMatchLike_NotRemoved(t *testing.T) {
 		t.Error("Specific dislike for spotted brown mushrooms should be created")
 	}
 }
+
+// =============================================================================
+// Construct Preference Formation
+// =============================================================================
+
+func TestTryFormConstructPreference_NeutralMood_NoFormation(t *testing.T) {
+	t.Parallel()
+
+	char := &entity.Character{ID: 1, Name: "Test", Mood: 50} // Neutral
+	fence := entity.NewFence(5, 5, "stick", types.ColorBrown)
+
+	result, _ := TryFormConstructPreference(char, fence, nil)
+	if result != FormationNone {
+		t.Errorf("Expected FormationNone for neutral mood, got %v", result)
+	}
+}
+
+func TestTryFormConstructPreference_HappyMood_FormsPreference(t *testing.T) {
+	t.Parallel()
+
+	fence := entity.NewFence(5, 5, "brick", types.ColorTerracotta)
+
+	formed := false
+	for i := 0; i < 50; i++ {
+		char := &entity.Character{ID: 1, Name: "Test", Mood: 95} // Joyful
+		result, pref := TryFormConstructPreference(char, fence, nil)
+		if result == FormationNew {
+			formed = true
+			if pref.Valence != 1 {
+				t.Errorf("Expected positive valence, got %d", pref.Valence)
+			}
+			// Just verify some attribute was set (specific values tested elsewhere)
+			if pref.Kind == "" && pref.ItemType == "" && pref.Color == "" {
+				t.Error("Expected at least one attribute to be set")
+			}
+			break
+		}
+	}
+	if !formed {
+		t.Skip("No preference formed in 50 attempts (probabilistic)")
+	}
+}
+
+func TestTryFormConstructPreference_RemovesOpposite(t *testing.T) {
+	t.Parallel()
+
+	fence := entity.NewFence(5, 5, "stick", types.ColorBrown)
+
+	// Run until we get a Kind-based formation to test removal
+	for i := 0; i < 100; i++ {
+		char := &entity.Character{
+			ID:   1,
+			Name: "Test",
+			Mood: 5, // Miserable — negative
+			Preferences: []entity.Preference{
+				{Valence: 1, Kind: "stick fence"}, // Existing like
+			},
+		}
+		result, _ := TryFormConstructPreference(char, fence, nil)
+		if result == FormationRemoved {
+			// Opposite preference should be removed
+			if len(char.Preferences) != 0 {
+				t.Errorf("Expected existing preference removed, got %d remaining", len(char.Preferences))
+			}
+			return
+		}
+	}
+	t.Skip("No opposite removal in 100 attempts (probabilistic)")
+}
+
+func TestRollConstructPreferenceType_ProducesValidAttributes(t *testing.T) {
+	t.Parallel()
+
+	fence := entity.NewFence(5, 5, "grass", types.ColorPaleYellow)
+	seenKind := false
+	seenColor := false
+
+	for i := 0; i < 100; i++ {
+		pref := rollConstructPreferenceType(fence, 1)
+		if pref.Kind != "" {
+			seenKind = true
+			if pref.Kind != "thatch fence" {
+				t.Errorf("Expected Kind='thatch fence', got %q", pref.Kind)
+			}
+		}
+		if pref.Color != "" {
+			seenColor = true
+			if pref.Color != types.ColorPaleYellow {
+				t.Errorf("Expected Color=pale yellow, got %q", pref.Color)
+			}
+		}
+	}
+
+	if !seenKind {
+		t.Error("Expected to see Kind set at least once in 100 rolls")
+	}
+	if !seenColor {
+		t.Error("Expected to see Color set at least once in 100 rolls")
+	}
+}

@@ -237,23 +237,33 @@ func (m *Model) applySleep(char *entity.Character, delta float64) {
 
 // applyLook handles ActionLook: walk to target then observe it.
 func (m *Model) applyLook(char *entity.Character, delta float64) {
-	// Walking phase: not yet adjacent to target item
-	if char.Intent.TargetItem != nil {
+	cpos := char.Pos()
+
+	// Walking phase: not yet adjacent to target
+	if char.Intent.TargetConstruct != nil {
+		tpos := char.Intent.TargetConstruct.Pos()
+		if !cpos.IsAdjacentTo(tpos) {
+			m.moveWithCollision(char, cpos, delta)
+			return
+		}
+	} else if char.Intent.TargetItem != nil {
 		ipos := char.Intent.TargetItem.Pos()
-		cpos := char.Pos()
 		if !cpos.IsAdjacentTo(ipos) {
 			m.moveWithCollision(char, cpos, delta)
 			return
 		}
 	}
-	// Looking phase: already adjacent (or no target item)
+
+	// Looking phase: already adjacent
 	char.ActionProgress += delta
 	if char.ActionProgress >= config.LookDuration {
 		char.ActionProgress = 0
-		system.CompleteLook(char, char.Intent.TargetItem, m.actionLog)
-		// Clear intent so CalculateIntent will re-evaluate next tick
+		if char.Intent.TargetConstruct != nil {
+			system.CompleteLookAtConstruct(char, char.Intent.TargetConstruct, m.actionLog)
+		} else {
+			system.CompleteLook(char, char.Intent.TargetItem, m.actionLog)
+		}
 		char.Intent = nil
-		// Set idle cooldown so we don't immediately try another idle activity
 		char.IdleCooldown = config.IdleCooldown
 	}
 }

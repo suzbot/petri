@@ -306,3 +306,134 @@ func TestFindLookIntent_ReturnsLookIntentWhenNotAdjacent(t *testing.T) {
 		t.Error("TargetItem should be set for move toward item")
 	}
 }
+
+// =============================================================================
+// Anchor test: Look at construct → preference formation + mood adjustment
+// =============================================================================
+
+func TestLookAtConstruct_FormsPreferenceAndAdjustsMood(t *testing.T) {
+	t.Parallel()
+
+	// --- Part 1: Happy character looks at stick fence, forms preference ---
+	fence := entity.NewFence(6, 5, "stick", types.ColorBrown)
+
+	// Run multiple times since formation is probabilistic
+	formed := false
+	var formedPref *entity.Preference
+	for i := 0; i < 50; i++ {
+		char := &entity.Character{
+			ID:   1,
+			Name: "Test",
+			Mood: 95, // Joyful — positive preference formation
+		}
+		CompleteLookAtConstruct(char, fence, nil)
+
+		if len(char.Preferences) > 0 {
+			formed = true
+			formedPref = &char.Preferences[0]
+			break
+		}
+	}
+
+	if !formed {
+		t.Skip("No preference formed in 50 attempts (probabilistic)")
+	}
+
+	// Preference should be about the construct's recipe identity
+	// Kind should be "stick fence" (not "stick", not "fence")
+	if formedPref.Kind != "stick fence" && formedPref.Color != types.ColorBrown {
+		t.Errorf("Expected preference with Kind='stick fence' or Color='brown', got Kind=%q Color=%q",
+			formedPref.Kind, formedPref.Color)
+	}
+	if formedPref.Valence != 1 {
+		t.Errorf("Expected positive valence from happy character, got %d", formedPref.Valence)
+	}
+
+	// --- Part 2: Existing preference adjusts mood when looking at matching construct ---
+	char2 := &entity.Character{
+		ID:   2,
+		Name: "Test2",
+		Mood: 50, // Neutral mood
+		Preferences: []entity.Preference{
+			{Valence: 1, Kind: "stick fence"}, // Likes stick fences
+		},
+	}
+
+	moodBefore := char2.Mood
+	CompleteLookAtConstruct(char2, fence, nil)
+
+	if char2.Mood <= moodBefore {
+		t.Errorf("Expected mood to increase from looking at liked construct, mood before=%v after=%v",
+			moodBefore, char2.Mood)
+	}
+
+	// --- Part 3: findLookIntent targets constructs when no items exist ---
+	gameMap := game.NewMap(10, 10)
+	gameMap.AddConstruct(entity.NewFence(6, 5, "stick", types.ColorBrown))
+
+	char3 := &entity.Character{
+		ID:   3,
+		Name: "Test3",
+		Mood: 50,
+	}
+	char3.SetPos(types.Position{X: 5, Y: 5})
+
+	intent := findLookIntent(char3, types.Position{X: 5, Y: 5}, nil, gameMap, nil)
+	if intent == nil {
+		t.Fatal("Expected look intent targeting construct, got nil")
+	}
+	if intent.Action != entity.ActionLook {
+		t.Errorf("Expected ActionLook, got %v", intent.Action)
+	}
+	if intent.TargetConstruct == nil {
+		t.Error("Expected TargetConstruct to be set when looking at a construct")
+	}
+	if intent.TargetItem != nil {
+		t.Error("Expected TargetItem to be nil when targeting a construct")
+	}
+}
+
+func TestFindLookIntent_PrefersCloserTarget(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	charPos := types.Position{X: 10, Y: 10}
+
+	// Construct is closer (distance 2) than item (distance 5)
+	gameMap.AddConstruct(entity.NewFence(12, 10, "stick", types.ColorBrown))
+	farItem := entity.NewFlower(15, 10, types.ColorPurple)
+	items := []*entity.Item{farItem}
+
+	char := &entity.Character{ID: 1, Name: "Test"}
+
+	intent := findLookIntent(char, charPos, items, gameMap, nil)
+	if intent == nil {
+		t.Fatal("Expected look intent, got nil")
+	}
+	if intent.TargetConstruct == nil {
+		t.Error("Expected TargetConstruct (closer) to be chosen over farther item")
+	}
+}
+
+func TestFindLookIntent_ExcludesLastLookedConstruct(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	charPos := types.Position{X: 10, Y: 10}
+
+	// Only one construct on the map
+	gameMap.AddConstruct(entity.NewFence(12, 10, "stick", types.ColorBrown))
+
+	char := &entity.Character{
+		ID:            1,
+		Name:          "Test",
+		LastLookedX:   12,
+		LastLookedY:   10,
+		HasLastLooked: true,
+	}
+
+	intent := findLookIntent(char, charPos, nil, gameMap, nil)
+	if intent != nil {
+		t.Error("Expected nil intent when only construct is excluded by last-looked")
+	}
+}

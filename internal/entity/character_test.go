@@ -1287,6 +1287,32 @@ func TestNetPreferenceForVariety_MushroomWithPatternTexture(t *testing.T) {
 	}
 }
 
+func TestNetPreferenceForConstruct(t *testing.T) {
+	t.Parallel()
+
+	stickFence := NewFence(0, 0, "stick", types.ColorBrown)
+
+	// Likes stick fences (+1) and likes brown (+1) = +2
+	c := &Character{
+		Preferences: []Preference{
+			{Valence: 1, Kind: "stick fence"},
+			{Valence: 1, Color: types.ColorBrown},
+		},
+	}
+
+	got := c.NetPreferenceForConstruct(stickFence)
+	if got != 2 {
+		t.Errorf("NetPreferenceForConstruct() with two matches: got %d, want 2", got)
+	}
+
+	// Brick fence only matches neither preference = 0
+	brickFence := NewFence(0, 0, "brick", types.ColorTerracotta)
+	got = c.NetPreferenceForConstruct(brickFence)
+	if got != 0 {
+		t.Errorf("NetPreferenceForConstruct() with no match: got %d, want 0", got)
+	}
+}
+
 // TestKnowsVarietyIsHealing verifies healing knowledge check for varieties
 func TestKnowsVarietyIsHealing(t *testing.T) {
 	t.Parallel()

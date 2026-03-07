@@ -844,6 +844,138 @@ func TestPreference_KindDescription(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// MatchesConstruct / MatchScoreConstruct
+// =============================================================================
+
+func TestPreference_MatchesConstruct_KindOnly(t *testing.T) {
+	t.Parallel()
+
+	pref := Preference{Valence: 1, Kind: "stick fence"}
+	stickFence := NewFence(0, 0, "stick", types.ColorBrown)
+	brickFence := NewFence(0, 0, "brick", types.ColorTerracotta)
+
+	if !pref.MatchesConstruct(stickFence) {
+		t.Error("Kind preference should match stick fence")
+	}
+	if pref.MatchesConstruct(brickFence) {
+		t.Error("Kind preference should not match brick fence")
+	}
+}
+
+func TestPreference_MatchesConstruct_ColorOnly(t *testing.T) {
+	t.Parallel()
+
+	pref := Preference{Valence: 1, Color: types.ColorBrown}
+	stickFence := NewFence(0, 0, "stick", types.ColorBrown)
+	brickFence := NewFence(0, 0, "brick", types.ColorTerracotta)
+
+	if !pref.MatchesConstruct(stickFence) {
+		t.Error("Color preference should match brown construct")
+	}
+	if pref.MatchesConstruct(brickFence) {
+		t.Error("Color preference should not match terracotta construct")
+	}
+}
+
+func TestPreference_MatchesConstruct_KindPlusColor(t *testing.T) {
+	t.Parallel()
+
+	pref := Preference{Valence: 1, Kind: "stick fence", Color: types.ColorBrown}
+	stickFence := NewFence(0, 0, "stick", types.ColorBrown)
+
+	if !pref.MatchesConstruct(stickFence) {
+		t.Error("Kind+Color combo should match stick fence")
+	}
+}
+
+func TestPreference_MatchesConstruct_ItemTypeMatchesMaterial(t *testing.T) {
+	t.Parallel()
+
+	// "Likes sticks" should match a stick fence (ItemType matches Material)
+	pref := Preference{Valence: 1, ItemType: "stick"}
+	stickFence := NewFence(0, 0, "stick", types.ColorBrown)
+
+	if !pref.MatchesConstruct(stickFence) {
+		t.Error("ItemType preference should match construct with same material")
+	}
+}
+
+func TestPreference_MatchesConstruct_ItemTypeDoesNotMatchDifferentMaterial(t *testing.T) {
+	t.Parallel()
+
+	// "Likes berries" should NOT match a stick fence
+	pref := Preference{Valence: 1, ItemType: "berry"}
+	stickFence := NewFence(0, 0, "stick", types.ColorBrown)
+
+	if pref.MatchesConstruct(stickFence) {
+		t.Error("ItemType preference should not match construct with different material")
+	}
+}
+
+func TestPreference_MatchesConstruct_EmptyPreference(t *testing.T) {
+	t.Parallel()
+
+	pref := Preference{Valence: 1}
+	fence := NewFence(0, 0, "stick", types.ColorBrown)
+
+	if pref.MatchesConstruct(fence) {
+		t.Error("Empty preference should not match anything")
+	}
+}
+
+func TestPreference_MatchScoreConstruct(t *testing.T) {
+	t.Parallel()
+
+	fence := NewFence(0, 0, "stick", types.ColorBrown)
+
+	tests := []struct {
+		name     string
+		pref     Preference
+		expected int
+	}{
+		{"positive Kind match", Preference{Valence: 1, Kind: "stick fence"}, 1},
+		{"negative Kind match", Preference{Valence: -1, Kind: "stick fence"}, -1},
+		{"positive combo match", Preference{Valence: 1, Kind: "stick fence", Color: types.ColorBrown}, 2},
+		{"positive material match", Preference{Valence: 1, ItemType: "stick"}, 1},
+		{"material+color combo", Preference{Valence: 1, ItemType: "stick", Color: types.ColorBrown}, 2},
+		{"no match", Preference{Valence: 1, Kind: "brick fence"}, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.pref.MatchScoreConstruct(fence)
+			if got != tt.expected {
+				t.Errorf("MatchScoreConstruct(): got %d, want %d", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestConstruct_PreferenceKind(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		material string
+		color    types.Color
+		expected string
+	}{
+		{"stick", types.ColorBrown, "stick fence"},
+		{"grass", types.ColorPaleYellow, "thatch fence"},
+		{"brick", types.ColorTerracotta, "brick fence"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.material, func(t *testing.T) {
+			fence := NewFence(0, 0, tt.material, tt.color)
+			got := fence.PreferenceKind()
+			if got != tt.expected {
+				t.Errorf("PreferenceKind(): got %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestPreference_MatchScoreVariety(t *testing.T) {
 	t.Parallel()
 

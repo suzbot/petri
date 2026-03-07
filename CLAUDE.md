@@ -108,6 +108,7 @@ internal/
 
 - Add regression tests when making bug fixes
 - No tests needed for UI rendering, Bubble Tea integration, brittle string matching (log wording, display names, UI text), configuration constants
+- Don't test for absence unless requirements call for prevention
 - Headless simulation tests for measuring game balance. Located in `internal/simulation/observation_test.go`.
 
 ## Development Roadmap

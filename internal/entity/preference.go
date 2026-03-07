@@ -124,6 +124,47 @@ func (p Preference) MatchScoreVariety(v *ItemVariety) int {
 	return p.Valence * p.AttributeCount()
 }
 
+// MatchesConstruct returns true if the construct matches all set attributes of this preference.
+// Kind is matched against the construct's PreferenceKind (e.g., "stick fence").
+// ItemType is matched against the construct's Material (e.g., "stick") — so material
+// preferences cross-apply between items and constructs.
+// Color is matched against the construct's MaterialColor.
+// Pattern, Texture: if set, return false (constructs don't have these).
+func (p Preference) MatchesConstruct(c *Construct) bool {
+	if p.ItemType == "" && p.Kind == "" && p.Color == "" && p.Pattern == "" && p.Texture == "" {
+		return false
+	}
+
+	// Constructs don't have Pattern or Texture
+	if p.Pattern != "" || p.Texture != "" {
+		return false
+	}
+
+	if p.ItemType != "" && p.ItemType != c.Material {
+		return false
+	}
+
+	if p.Kind != "" && p.Kind != c.PreferenceKind() {
+		return false
+	}
+
+	if p.Color != "" && p.Color != c.MaterialColor {
+		return false
+	}
+
+	return true
+}
+
+// MatchScoreConstruct returns the preference score for a construct.
+// Returns 0 if the preference doesn't match the construct.
+// Otherwise returns Valence × AttributeCount.
+func (p Preference) MatchScoreConstruct(c *Construct) int {
+	if !p.MatchesConstruct(c) {
+		return 0
+	}
+	return p.Valence * p.AttributeCount()
+}
+
 // Description returns a human-readable description of what this preference targets.
 // Examples: "berries", "red", "red berries", "spotted mushrooms", "slimy red mushrooms"
 // Solo Pattern/Texture use noun forms: "Spots", "Slime"

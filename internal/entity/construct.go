@@ -65,3 +65,18 @@ func (c *Construct) Description() string {
 	}
 	return c.ConstructType
 }
+
+// PreferenceKind returns the lowercase composed identity for preference matching.
+// Maps material to its display name and combines with Kind: "stick fence", "thatch fence", "brick fence".
+func (c *Construct) PreferenceKind() string {
+	materialDisplay := c.Material
+	switch c.Material {
+	case "grass":
+		materialDisplay = "thatch"
+	case "stick":
+		materialDisplay = "stick"
+	case "brick":
+		materialDisplay = "brick"
+	}
+	return materialDisplay + " " + c.Kind
+}

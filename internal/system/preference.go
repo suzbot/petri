@@ -204,6 +204,71 @@ func logPreferenceRemoved(char *entity.Character, pref entity.Preference, log *A
 	log.Add(char.ID, char.Name, "preference", verb+" "+pref.Description())
 }
 
+// TryFormConstructPreference attempts to form a preference based on the character's mood
+// while looking at a construct. Returns the result and the preference involved (if any).
+func TryFormConstructPreference(char *entity.Character, construct *entity.Construct, log *ActionLog) (PreferenceFormationResult, *entity.Preference) {
+	chance, valence := getFormationParams(char.MoodTier())
+	if chance == 0 {
+		return FormationNone, nil
+	}
+
+	if rand.Float64() >= chance {
+		return FormationNone, nil
+	}
+
+	candidate := rollConstructPreferenceType(construct, valence)
+
+	// Check for existing preference with exact match
+	for i, existing := range char.Preferences {
+		if existing.ExactMatch(candidate) {
+			if existing.Valence == candidate.Valence {
+				return FormationNoChange, &candidate
+			}
+			// Opposite valence - remove existing preference
+			char.Preferences = append(char.Preferences[:i], char.Preferences[i+1:]...)
+			logPreferenceRemoved(char, existing, log)
+			return FormationRemoved, &existing
+		}
+	}
+
+	// No existing match - add new preference
+	char.Preferences = append(char.Preferences, candidate)
+	logPreferenceFormed(char, candidate, log)
+	return FormationNew, &candidate
+}
+
+// rollConstructPreferenceType randomly selects which type of preference to form
+// from a construct's attributes: Kind (recipe identity) and Color (material color).
+func rollConstructPreferenceType(construct *entity.Construct, valence int) entity.Preference {
+	roll := rand.Float64()
+
+	if roll < config.PrefFormationWeightSingle {
+		// Solo attribute - pick one of Kind, ItemType (material), or Color
+		switch rand.Intn(3) {
+		case 0:
+			return entity.Preference{Valence: valence, Kind: construct.PreferenceKind()}
+		case 1:
+			return entity.Preference{Valence: valence, ItemType: construct.Material}
+		default:
+			return entity.Preference{Valence: valence, Color: construct.MaterialColor}
+		}
+	}
+
+	// Combo - type slot (Kind or ItemType) + Color
+	if rand.Intn(2) == 0 {
+		return entity.Preference{
+			Valence: valence,
+			Kind:    construct.PreferenceKind(),
+			Color:   construct.MaterialColor,
+		}
+	}
+	return entity.Preference{
+		Valence:  valence,
+		ItemType: construct.Material,
+		Color:    construct.MaterialColor,
+	}
+}
+
 // FormDislikeFromKnowledge creates a dislike preference for the full variety of an item.
 // Used when a character learns an item is poisonous.
 // Returns the formation result:

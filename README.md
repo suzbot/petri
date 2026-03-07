@@ -36,6 +36,7 @@ Core process innovations developed over the course of this project:
 
 ## Latest Updates
 
+- **Construct preferences**: Characters look at fences and form opinions about materials and recipes, affecting mood.
 - **Build Fence orders**: Characters gather materials and build stick, grass, or brick fences on player-marked tiles.
 - **Craft Bricks orders**: Characters shape loose clay into bricks, repeating until all dug clay is used.
 - **Dig Clay orders**: Direct characters to dig clay from deposits.

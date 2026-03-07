@@ -89,6 +89,7 @@ type Intent struct {
 	Action          ActionType
 	TargetItem      *Item           // The specific item being pursued (nil if none)
 	TargetFeature   *Feature        // The specific feature being pursued (nil if none)
+	TargetConstruct *Construct      // The specific construct being looked at (nil if none, ephemeral)
 	TargetWaterPos  *types.Position // Water tile being targeted for drinking (nil if none)
 	TargetBuildPos  *types.Position // Fence tile being targeted for construction (nil if none, ephemeral)
 	TargetCharacter *Character      // The character being pursued for talking (nil if none)
@@ -167,6 +168,16 @@ func (c *Character) NetPreferenceForVariety(v *ItemVariety) int {
 	sum := 0
 	for _, pref := range c.Preferences {
 		sum += pref.MatchScoreVariety(v)
+	}
+	return sum
+}
+
+// NetPreferenceForConstruct returns the total preference score for a construct.
+// Positive = character likes the construct, negative = dislikes, zero = neutral.
+func (c *Character) NetPreferenceForConstruct(construct *Construct) int {
+	sum := 0
+	for _, pref := range c.Preferences {
+		sum += pref.MatchScoreConstruct(construct)
 	}
 	return sum
 }
