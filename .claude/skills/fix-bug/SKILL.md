@@ -1,6 +1,6 @@
 ---
 name: fix-bug
-description: "Investigate and fix bugs or gaps surfaced during human testing. Evidence first, agree on the problem, scan siblings, then fix. Trigger phrases: 'fix bug', 'investigate issue', 'something went wrong'."
+description: "Investigate and fix bugs or gaps surfaced during human testing. Evidence first, agree on the problem, scan siblings, then fix. Trigger phrases: 'fix bug', 'investigate issue', 'something went wrong', or any problem/issue report during a [TEST] checkpoint."
 user-invocable: true
 argument-hint: Description of the observed bug or unexpected behavior
 ---
@@ -11,7 +11,7 @@ Investigate and fix a bug or gap reported during human testing. The goal is to a
 
 ### Step 1: Gather Evidence
 
-**Do this BEFORE forming any hypothesis about the cause.**
+**Do this BEFORE forming any hypothesis about the cause. Do NOT propose solutions or read implementation code during this step.**
 
 - Read the relevant section of `docs/architecture.md` for the affected system — establishes the intended pattern before any code is read
 - Read `docs/game-mechanics.md` for the expected player-visible behavior — anchors the correct-behavior baseline before hypothesizing

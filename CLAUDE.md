@@ -101,7 +101,7 @@ internal/
 - **Before writing code**: Load the relevant skill, check architecture.md, discuss approach. Use project skills (`/refine-feature`, `/implement-feature`, `/new-phase`, `/retro`) — not generic plan mode. Phase design docs and step specs live in `docs/`.
 - **Frame the problem first**: Before solving, confirm the problem — is this actually a problem? Is it worth solving now? Specify current state and desired state in functional terms. Consider impact on the larger system. Confirm alignment before implementing. When human testing surfaces a new gap mid-implementation, that's a new problem to scope and discuss, not a defect to fix in place.
 - **Communication**: Functional terms, not code mechanics. Prose for tradeoffs, not multiple-choice. Recommend with options. Qualify claims precisely. When claiming alignment with patterns or docs, cite specific evidence — assertions aren't demonstrations.
-- **When things go wrong**: Gather evidence first — examine the save file, add logging, ask what the user observes — before reasoning about causes. The cost of one diagnostic is always lower than three rounds of speculation. Second bug in the same feature = step back and restate the intended flow before patching further. Surface when stuck.
+- **When things go wrong**: Gather evidence first — examine the save file, add logging, ask what the user observes — before reasoning about causes. Don't be dismissive of user reports. The cost of one diagnostic is always lower than three rounds of speculation. Second bug in the same feature = step back and restate the intended flow before patching further. Surface when stuck.
 - **Quality gates**: TDD. User must test before marking complete. Keep docs current.
 
 ## Testing

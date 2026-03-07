@@ -23,7 +23,7 @@ Specify all of the following in the skill argument:
 - **Map items**: what's on the ground, with full variety attributes (item_type, color, pattern, texture, kind, edible, poisonous, healing); for plants, specify growth state (mature, sprout, gone-to-seed)
 - **Orders**: activity ID, target type, status, assignment (if pre-assigned)
 - **Varieties to register**: every unique item_type/color/kind combination that appears anywhere — inventory, container contents, map items, seeds. If an item exists anywhere in the world, its variety must be listed here.
-- **Support infrastructure**: water tile positions, leaf piles, other needs-satisfying features
+- **Support infrastructure**: water tile positions, leaf piles, food items, other needs-satisfying features. **Default: always include food, water tiles, and leaf pile beds unless the caller explicitly says not to.** Survival interruptions will obscure the target behavior if needs aren't saturated.
 - **What to observe**: the specific behavior the user should watch for
 
 Do not leave entity attributes for the skill to infer. If a vessel contains water, specify `"item_type": "liquid", "color": "", "kind": "water"`. If a vessel contains berries, specify the exact color. The skill will translate this spec into a valid save file.
@@ -48,7 +48,7 @@ Based on the test description, determine:
 - What behavior needs verification?
 - What preconditions make it observable? (character positions, stat levels, items, knowledge)
 - If testing orderable activities, ensure characters have the required `known_activities` AND `known_recipes`. Check ActivityRegistry and RecipeRegistry for the activity's prerequisites.
-- What items/features are needed for supporting needs (water for thirst, leaf piles for sleep)?
+- What items/features are needed for supporting needs? **Include food items, water tiles, and leaf pile beds by default** — omit only if the test explicitly targets survival behavior.
 - What should be excluded to isolate the behavior?
 - **Observability:** For behavioral sequences (A does X before B does Y), ensure the world forces the intended sequence — use position and stat asymmetry so the behavior can't play out ambiguously. Prefer one item, one actor for the key narrative. Ask: "Could a race condition obscure what I'm testing?"
 
