@@ -139,6 +139,8 @@ func findOrderIntent(char *entity.Character, pos types.Position, items []*entity
 		return findDigIntent(char, pos, items, order, log, gameMap)
 	case "buildFence":
 		return findBuildFenceIntent(char, pos, items, order, log, gameMap)
+	case "buildHut":
+		return nil // stub — replaced with findBuildHutIntent in Step 10
 	default:
 		// Recipe-based activities (craftVessel, craftHoe, craftBrick, etc.) use generic craft handler
 		if len(entity.GetRecipesForActivity(order.ActivityID)) > 0 {
@@ -591,10 +593,13 @@ func IsOrderFeasible(order *entity.Order, items []*entity.Item, gameMap *game.Ma
 	// Check components per activity type
 	chars := gameMap.Characters()
 
-	// buildFence uses recipes for discovery only — check construction-specific feasibility
+	// Construction activities use recipes for discovery only — check construction-specific feasibility
 	// before the generic recipe check intercepts it.
 	if order.ActivityID == "buildFence" {
 		return gameMap.HasUnbuiltConstructionPositions() && fenceMaterialExistsOnMap(gameMap.Items()), false
+	}
+	if order.ActivityID == "buildHut" {
+		return false, false // stub — replaced with real feasibility check in sub-step 8b
 	}
 
 	// Recipe-based activities (craft): check if any recipe's inputs all exist in world

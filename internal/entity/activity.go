@@ -24,6 +24,7 @@ const (
 type DiscoveryTrigger struct {
 	Action              ActionType // The action that can trigger discovery
 	ItemType            string     // Specific item type required (empty = any)
+	ConstructKind       string     // Construct kind required (empty = item trigger only)
 	RequiresEdible      bool       // Only trigger if item is edible
 	RequiresPlantable   bool       // Only trigger if item is plantable
 	RequiresHarvestable bool       // Only trigger if item is a growing non-sprout plant
@@ -174,6 +175,14 @@ var ActivityRegistry = map[string]Activity{
 		IntentFormation: IntentOrderable,
 		Availability:    AvailabilityKnowHow,
 		// No DiscoveryTriggers - discovered via fence recipe triggers (DD-27)
+	},
+	"buildHut": {
+		ID:              "buildHut",
+		Name:            "Hut",
+		Category:        "construction",
+		IntentFormation: IntentOrderable,
+		Availability:    AvailabilityKnowHow,
+		// No DiscoveryTriggers - discovered via hut recipe triggers (DD-27)
 	},
 }
 

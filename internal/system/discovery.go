@@ -136,9 +136,114 @@ func activityCategoryVerb(category string) string {
 	}
 }
 
+// TryDiscoverFromConstruct is the entry point for construct-based discovery.
+// Mirrors TryDiscoverKnowHow: tries activities then recipes.
+func TryDiscoverFromConstruct(char *entity.Character, action entity.ActionType, constructKind string, log *ActionLog, chance float64) bool {
+	if tryDiscoverActivityFromConstruct(char, action, constructKind, log, chance) {
+		return true
+	}
+
+	if tryDiscoverRecipeFromConstruct(char, action, constructKind, log, chance) {
+		return true
+	}
+
+	return false
+}
+
+// tryDiscoverActivityFromConstruct attempts to discover activities with construct-based triggers
+func tryDiscoverActivityFromConstruct(char *entity.Character, action entity.ActionType, constructKind string, log *ActionLog, chance float64) bool {
+	for _, activity := range entity.GetDiscoverableActivities() {
+		if char.KnowsActivity(activity.ID) {
+			continue
+		}
+
+		if len(activity.DiscoveryTriggers) == 0 {
+			continue
+		}
+
+		for _, trigger := range activity.DiscoveryTriggers {
+			if !constructTriggerMatches(trigger, action, constructKind) {
+				continue
+			}
+
+			if rand.Float64() < chance {
+				char.LearnActivity(activity.ID)
+				if log != nil {
+					log.Add(char.ID, char.Name, "discovery",
+						fmt.Sprintf("Discovered how to %s!", activity.Name))
+				}
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// tryDiscoverRecipeFromConstruct attempts to discover recipes with construct-based triggers
+func tryDiscoverRecipeFromConstruct(char *entity.Character, action entity.ActionType, constructKind string, log *ActionLog, chance float64) bool {
+	for _, recipe := range entity.GetDiscoverableRecipes() {
+		if char.KnowsRecipe(recipe.ID) {
+			continue
+		}
+
+		for _, trigger := range recipe.DiscoveryTriggers {
+			if !constructTriggerMatches(trigger, action, constructKind) {
+				continue
+			}
+
+			if rand.Float64() < chance {
+				activityLearned := char.LearnActivity(recipe.ActivityID)
+				char.LearnRecipe(recipe.ID)
+
+				if log != nil {
+					activity := entity.ActivityRegistry[recipe.ActivityID]
+					if activityLearned {
+						log.Add(char.ID, char.Name, "discovery",
+							fmt.Sprintf("Discovered how to %s %s!", activityCategoryVerb(activity.Category), activity.Name))
+					}
+					log.Add(char.ID, char.Name, "discovery",
+						fmt.Sprintf("Learned %s recipe!", recipe.Name))
+				}
+
+				for _, bundledID := range recipe.BundledActivities {
+					if char.LearnActivity(bundledID) {
+						if log != nil {
+							bundledActivity := entity.ActivityRegistry[bundledID]
+							log.Add(char.ID, char.Name, "discovery",
+								fmt.Sprintf("Discovered how to %s!", bundledActivity.Name))
+						}
+					}
+				}
+
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// constructTriggerMatches checks if a discovery trigger matches a construct interaction.
+// A trigger with empty ConstructKind never matches construct interactions (it's an item trigger).
+func constructTriggerMatches(trigger entity.DiscoveryTrigger, action entity.ActionType, constructKind string) bool {
+	if trigger.ConstructKind == "" {
+		return false
+	}
+	if trigger.Action != action {
+		return false
+	}
+	return trigger.ConstructKind == constructKind
+}
+
 // triggerMatches checks if a discovery trigger matches the current action and item
 // item can be nil for actions like ActionDrink that don't involve items
 func triggerMatches(trigger entity.DiscoveryTrigger, action entity.ActionType, item *entity.Item) bool {
+	// Construct-only triggers never match item interactions
+	if trigger.ConstructKind != "" {
+		return false
+	}
+
 	// Action must match
 	if trigger.Action != action {
 		return false

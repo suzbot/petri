@@ -109,6 +109,36 @@ var RecipeRegistry = map[string]*Recipe{
 		},
 		BundledActivities: []string{"tillSoil"}, // inventing a hoe implies knowing how to till
 	},
+	"thatch-hut": {
+		ID:         "thatch-hut",
+		ActivityID: "buildHut",
+		Name:       "Thatch Hut",
+		Inputs:     []RecipeInput{{ItemType: "grass", Count: 12}},
+		Output:     RecipeOutput{ItemType: "hut"}, // display only; actual output is a construct
+		DiscoveryTriggers: []DiscoveryTrigger{
+			{Action: ActionLook, ConstructKind: "fence"},
+		},
+	},
+	"stick-hut": {
+		ID:         "stick-hut",
+		ActivityID: "buildHut",
+		Name:       "Stick Hut",
+		Inputs:     []RecipeInput{{ItemType: "stick", Count: 12}},
+		Output:     RecipeOutput{ItemType: "hut"},
+		DiscoveryTriggers: []DiscoveryTrigger{
+			{Action: ActionLook, ConstructKind: "fence"},
+		},
+	},
+	"brick-hut": {
+		ID:         "brick-hut",
+		ActivityID: "buildHut",
+		Name:       "Brick Hut",
+		Inputs:     []RecipeInput{{ItemType: "brick", Count: 12}},
+		Output:     RecipeOutput{ItemType: "hut"},
+		DiscoveryTriggers: []DiscoveryTrigger{
+			{Action: ActionLook, ConstructKind: "fence"},
+		},
+	},
 }
 
 // GetRecipesForActivity returns all recipes that belong to a given activity

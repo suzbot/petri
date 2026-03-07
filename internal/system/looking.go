@@ -108,4 +108,7 @@ func CompleteLookAtConstruct(char *entity.Character, construct *entity.Construct
 
 	// Try to form a preference based on mood
 	TryFormConstructPreference(char, construct, log)
+
+	// Try construct-based discovery (e.g., looking at fence → hut recipes)
+	TryDiscoverFromConstruct(char, entity.ActionLook, construct.Kind, log, GetDiscoveryChance(char))
 }

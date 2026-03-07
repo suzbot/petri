@@ -388,6 +388,7 @@ Know-how represents activity skills discovered through experience. Unlike facts,
 - **Extract**: Discovered when looking at a flower or tall grass, or when picking up or looking at a seed
 - **Dig Clay**: Discovered when looking at or picking up a clay item
 - **Build Fence**: Discovered per recipe — see [Fence Recipes](#fence-recipes)
+- **Build Hut**: Discovered per recipe — discovered by looking at a fence (any material)
 - **Crafting know-how**: See [Crafting Discovery](#discovery)
 
 **Discovery chance depends on mood:**

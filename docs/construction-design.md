@@ -254,14 +254,11 @@ Characters gather materials and construct small buildings from grass, sticks, or
 
 ---
 
-### Step 12: Phase Wrap-Up
+### Step 12: Deferred Items and Polish
 **Status:** Planned
 
 **Scope:**
-- Final documentation pass (CLAUDE.md roadmap, game-mechanics.md, architecture.md with Construct entity)
-- Full-phase retro
-- Update triggered-enhancements.md and randomideas.md
-- Tuning: extraction duration and seed yield (ActionDurationShort may be too fast; tune duration and yield together)
+
 - Evaluate: preference-weighted target selection → unified item-seeking in picking.go (moved from triggered-enhancements.md — construction's multiple craft recipes with varied inputs meets the trigger)
 - **Tall grass variety display name** — When a tall grass seed sprout matures, the resulting plant's display name may need review. Discuss whether "pale green tall grass" is the right phrasing vs. just "tall grass" (since all tall grass is pale green — the color is redundant).
 - Evaluate: dried grass/thatch color — ColorPaleYellow (ANSI 229) may be too washed out for thatch fences/huts. Consider gold/wheat range (ANSI 178, 179, or 186). Moved from triggered-enhancements.md — thatch constructs make the color more prominent and worth reassessing.
@@ -269,6 +266,10 @@ Characters gather materials and construct small buildings from grass, sticks, or
 - Polish: show cooldown timer on abandoned orders in the orders panel (e.g., "Abandoned (1:53)").
 - Polish: "Gather clays" → "Gather clay" or "Gather lumps of clay" (pluralization issue).
 - Polish: sticks should display as "stick" not "brown stick" (color is redundant, same issue as brick).
+- Polish: Order menu should say 'Build Hut' and 'Build Fence'... evaluate how we handle downstream labels and messages with this change, because I think we might end up with 'Build build fence' or soemething if we do this without checking how we want to do it. May need to evaluaate how we consistantly show verbs inside and outside the order menu.
+- Trigger: isn't there a triggered enhacnement about activities always getting discovered before recipes? Lets evaluate whether we want to take care of that. It has been an annoyance through this phase.
+- Tuning: extraction duration and seed yield (ActionDurationShort may be too fast; tune duration and yield together)
+
 
 ---
 
@@ -394,6 +395,12 @@ Characters gather materials and construct small buildings from grass, sticks, or
 **Context:** `MaxBundleSize` map served double duty as both "bundleable" and "vessel-excluded" (DD-2). Triggered enhancement said to split when concepts diverge. Brick and clay are vessel-excluded but not bundleable — trigger condition met.
 **Decision:** Add `VesselExcludedTypes map[string]bool` to config (stick, grass, clay, brick). Update vessel exclusion checks in `AddToVessel`, `CanVesselAccept`, `Pickup`, `findHarvestIntent`, and `findGatherIntent` to use `VesselExcludedTypes` instead of `MaxBundleSize`. Bundle logic (bundle merge, canGatherMore, hasFullBundle, DropCompletedBundle) stays on `MaxBundleSize`.
 **Rationale:** Follows **Source of Truth Clarity** — each config set means one thing. Follows **Isomorphism** — vessel exclusion and bundleability are different concepts now that items can have one without the other.
+**Affects:** Step 4
+
+### DD-21: Brick is uniform with terracotta color
+**Context:** Brick appearance properties. Only one brick type exists (from clay). Options: inherit clay's earthy color, or give bricks a distinct color.
+**Decision:** Brick uses new `ColorTerracotta` (warm reddish-brown, distinct from clay's earthy), symbol `▬` (`CharBrick`), ItemType "brick", no Kind, no variety. Uniform item like clay (DD-14).
+**Rationale:** Terracotta is visually distinct from raw clay — shaped bricks look different from loose lumps. Follows **Isomorphism** — the transformation from clay to brick should be visible. Follows **Start With the Simpler Rule** — no Kind until multiple brick types exist.
 **Affects:** Step 4
 
 ### DD-22: Character chooses fence material — no player sub-menu
@@ -522,8 +529,4 @@ Characters gather materials and construct small buildings from grass, sticks, or
 **Rationale:** Line-drawing characters create a clean, recognizable enclosure that reads as a building — visually distinct from a fence grid. Follows **Isomorphism** — walls have structural roles (corner, edge, door) and the rendering reflects that. Position-aware symbols require each wall segment to know its role, stored on the Construct.
 **Affects:** Step 8
 
-### DD-21: Brick is uniform with terracotta color
-**Context:** Brick appearance properties. Only one brick type exists (from clay). Options: inherit clay's earthy color, or give bricks a distinct color.
-**Decision:** Brick uses new `ColorTerracotta` (warm reddish-brown, distinct from clay's earthy), symbol `▬` (`CharBrick`), ItemType "brick", no Kind, no variety. Uniform item like clay (DD-14).
-**Rationale:** Terracotta is visually distinct from raw clay — shaped bricks look different from loose lumps. Follows **Isomorphism** — the transformation from clay to brick should be visible. Follows **Start With the Simpler Rule** — no Kind until multiple brick types exist.
-**Affects:** Step 4
+

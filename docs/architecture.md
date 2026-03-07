@@ -564,7 +564,9 @@ Know-how activities are discovered through experience. Each trigger specifies an
 
 `RequiresHarvestable` gates discovery on any growing non-sprout plant (`Plant != nil && Plant.IsGrowing && !Plant.IsSprout`). This enables non-edible plants like grass and flowers to trigger harvest know-how. `RequiresEdible` and `RequiresPlantable` follow the same bool-gate pattern.
 
-Example: Harvest is discovered by foraging/eating edible items, or by picking up or looking at any harvestable plant (including non-edible plants like grass and flowers). Plant is discovered by picking up or looking at plantable items.
+**Construct-triggered discovery:** A trigger with `ConstructKind` set is a construct-only trigger — it fires when a character looks at a construct of that kind, and is explicitly rejected during item interactions. `CompleteLookAtConstruct` calls `TryDiscoverFromConstruct`, which runs the same activity-then-recipe search as item-based discovery but matches only triggers with a `ConstructKind` field. This is a parallel path to item-based discovery, not an extension of it.
+
+Example: Harvest is discovered by foraging/eating edible items, or by picking up or looking at any harvestable plant (including non-edible plants like grass and flowers). Plant is discovered by picking up or looking at plantable items. Hut recipes are discovered by looking at a fence (`ConstructKind: "fence"` on the recipe's discovery trigger).
 
 ### Adding a New Activity
 
@@ -706,6 +708,7 @@ Recipes with `Repeatable: true` loop after each craft cycle instead of completin
 3. Add creation function in `system/crafting.go` (e.g., `CreateHoe`)
 4. Add case to the `ActionCraft` handler in `apply_actions.go` dispatch (by recipe ID)
 5. If `Repeatable`: add completion case to `isMultiStepOrderComplete` in `order_execution.go`
+6. If discovery is triggered by looking at a construct: set `ConstructKind` on the recipe's `DiscoveryTrigger` (see [Construct-triggered discovery](#discovery-triggers) above). These triggers fire from `TryDiscoverFromConstruct` (called by `CompleteLookAtConstruct`), not from item interactions.
 
 ## Area Selection UI Pattern
 
