@@ -58,6 +58,8 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		m.applyExtract(char, delta)
 	case entity.ActionDig:
 		m.applyDig(char, delta)
+	case entity.ActionBuildFence:
+		m.applyBuildFence(char, delta)
 	}
 }
 
@@ -343,6 +345,11 @@ func (m *Model) applyPickup(char *entity.Character, delta float64) {
 				if result == system.PickupToBundle {
 					if char.AssignedOrderID != 0 {
 						if order := m.findOrderByID(char.AssignedOrderID); order != nil {
+							if order.ActivityID == "buildFence" {
+								// Procurement pickup — clear intent, findBuildFenceIntent re-evaluates next tick
+								char.Intent = nil
+								return
+							}
 							var nextIntent *entity.Intent
 							switch order.ActivityID {
 							case "harvest":
@@ -1574,5 +1581,102 @@ func (m *Model) applyDig(char *entity.Character, delta float64) {
 	}
 
 	// Clear intent — ordered action pattern: next tick re-evaluates via findDigIntent
+	char.Intent = nil
+}
+
+// applyBuildFence handles ActionBuildFence: walk to adjacent tile, build fence on marked tile.
+// Walk-then-act pattern with ActionDurationMedium. Ordered action pattern: clear intent after
+// building so next tick re-evaluates via findBuildFenceIntent.
+func (m *Model) applyBuildFence(char *entity.Character, delta float64) {
+	if char.Intent.TargetBuildPos == nil {
+		char.Intent = nil
+		return
+	}
+	buildPos := *char.Intent.TargetBuildPos
+	dest := char.Intent.Dest
+	cpos := char.Pos()
+
+	// Walking phase: not yet at standing tile
+	if cpos != dest {
+		m.moveWithCollision(char, cpos, delta)
+		return
+	}
+
+	// Arrival check (DD-28 layer 2): if a character now occupies the build tile, re-evaluate
+	if m.gameMap.CharacterAt(buildPos) != nil {
+		char.Intent = nil
+		return
+	}
+
+	// Working phase: accumulate progress
+	if char.CurrentActivity != "Building fence" {
+		char.CurrentActivity = "Building fence"
+	}
+	char.ActionProgress += delta
+	if char.ActionProgress < config.ActionDurationMedium {
+		return
+	}
+	char.ActionProgress = 0
+
+	// Find the bundle in inventory
+	var bundle *entity.Item
+	for _, inv := range char.Inventory {
+		if inv != nil && inv.BundleCount > 0 {
+			bundle = inv
+			break
+		}
+	}
+	if bundle == nil {
+		char.Intent = nil
+		return
+	}
+
+	material := bundle.ItemType
+	var materialColor types.Color
+	switch material {
+	case "grass":
+		materialColor = types.ColorPaleYellow
+	case "stick":
+		materialColor = types.ColorBrown
+	default:
+		materialColor = types.ColorBrown
+	}
+
+	// Consume bundle from inventory
+	char.RemoveFromInventory(bundle)
+
+	// Place fence
+	fence := entity.NewFence(buildPos.X, buildPos.Y, material, materialColor)
+	m.gameMap.AddConstruct(fence)
+	m.gameMap.UnmarkForConstruction(buildPos)
+
+	// DD-28 layer 3: displace any character standing on the build tile (safety net)
+	cardinalDirs := [4][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+	if occupant := m.gameMap.CharacterAt(buildPos); occupant != nil {
+		for _, dir := range cardinalDirs {
+			adj := types.Position{X: buildPos.X + dir[0], Y: buildPos.Y + dir[1]}
+			if m.gameMap.MoveCharacter(occupant, adj) {
+				break
+			}
+		}
+	}
+
+	// DD-33: displace items at build tile to adjacent tiles
+	for _, item := range m.gameMap.ItemsAt(buildPos) {
+		for _, dir := range cardinalDirs {
+			adj := types.Position{X: buildPos.X + dir[0], Y: buildPos.Y + dir[1]}
+			if !m.gameMap.IsBlocked(adj) {
+				item.X = adj.X
+				item.Y = adj.Y
+				break
+			}
+		}
+	}
+
+	if m.actionLog != nil {
+		m.actionLog.Add(char.ID, char.Name, "activity", fmt.Sprintf("Built %s fence", material))
+	}
+
+	// Clear intent — ordered action pattern: next tick re-evaluates via findBuildFenceIntent
 	char.Intent = nil
 }

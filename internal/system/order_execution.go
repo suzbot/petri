@@ -2,6 +2,7 @@ package system
 
 import (
 	"fmt"
+	"sort"
 
 	"petri/internal/config"
 	"petri/internal/entity"
@@ -35,6 +36,7 @@ func selectOrderActivity(char *entity.Character, pos types.Position, items []*en
 			if isMultiStepOrderComplete(char, order, gameMap) {
 				DropCompletedBundle(char, order, gameMap, log)
 				DropCompletedDigItems(char, order, gameMap, log)
+				DropCompletedFenceMaterials(char, order, gameMap, log)
 				CompleteOrder(char, order, log)
 				return nil
 			}
@@ -118,13 +120,8 @@ func canExecuteOrder(char *entity.Character, order *entity.Order) bool {
 
 // findOrderIntent creates an intent for executing an order based on its activity type.
 // Dispatches to activity-specific intent finding logic.
-// Recipe-based activities (any activity with registered recipes) route to findCraftIntent.
+// Generic recipe-based activities (craftVessel, craftHoe, craftBrick) fall through to findCraftIntent.
 func findOrderIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
-	// Check if this activity has recipes — route to generic craft handler
-	if len(entity.GetRecipesForActivity(order.ActivityID)) > 0 {
-		return findCraftIntent(char, pos, items, order, log, gameMap)
-	}
-
 	switch order.ActivityID {
 	case "harvest":
 		return findHarvestIntent(char, pos, items, order, log, gameMap)
@@ -140,8 +137,13 @@ func findOrderIntent(char *entity.Character, pos types.Position, items []*entity
 		return findExtractIntent(char, pos, items, order, log, gameMap)
 	case "dig":
 		return findDigIntent(char, pos, items, order, log, gameMap)
+	case "buildFence":
+		return findBuildFenceIntent(char, pos, items, order, log, gameMap)
 	default:
-		// Unknown activity type - cannot create intent
+		// Recipe-based activities (craftVessel, craftHoe, craftBrick, etc.) use generic craft handler
+		if len(entity.GetRecipesForActivity(order.ActivityID)) > 0 {
+			return findCraftIntent(char, pos, items, order, log, gameMap)
+		}
 		return nil
 	}
 }
@@ -373,6 +375,8 @@ func isMultiStepOrderComplete(char *entity.Character, order *entity.Order, gameM
 	case "craftBrick":
 		// Complete when no clay items remain on the ground
 		return !groundItemOfTypeExists(gameMap.Items(), "clay")
+	case "buildFence":
+		return !gameMap.HasUnbuiltConstructionPositions()
 	default:
 		return false
 	}
@@ -589,6 +593,12 @@ func IsOrderFeasible(order *entity.Order, items []*entity.Item, gameMap *game.Ma
 
 	// Check components per activity type
 	chars := gameMap.Characters()
+
+	// buildFence uses recipes for discovery only — check construction-specific feasibility
+	// before the generic recipe check intercepts it.
+	if order.ActivityID == "buildFence" {
+		return gameMap.HasUnbuiltConstructionPositions() && fenceMaterialExistsOnMap(gameMap.Items()), false
+	}
 
 	// Recipe-based activities (craft): check if any recipe's inputs all exist in world
 	if len(entity.GetRecipesForActivity(order.ActivityID)) > 0 {
@@ -1279,6 +1289,24 @@ func findDigIntent(char *entity.Character, pos types.Position, items []*entity.I
 	}
 }
 
+// DropCompletedFenceMaterials drops any remaining fence materials from inventory when a
+// buildFence order completes. Called from selectOrderActivity before CompleteOrder.
+func DropCompletedFenceMaterials(char *entity.Character, order *entity.Order, gameMap *game.Map, log *ActionLog) {
+	if order.ActivityID != "buildFence" {
+		return
+	}
+	fenceMaterials := map[string]bool{"grass": true, "stick": true, "brick": true}
+	var toDrop []*entity.Item
+	for _, item := range char.Inventory {
+		if item != nil && fenceMaterials[item.ItemType] {
+			toDrop = append(toDrop, item)
+		}
+	}
+	for _, item := range toDrop {
+		DropItem(char, item, gameMap, log)
+	}
+}
+
 // DropCompletedDigItems drops all clay items from inventory when a dig order completes.
 // Called from selectOrderActivity before CompleteOrder. No-op for other order types.
 func DropCompletedDigItems(char *entity.Character, order *entity.Order, gameMap *game.Map, log *ActionLog) {
@@ -1300,4 +1328,239 @@ func DropCompletedDigItems(char *entity.Character, order *entity.Order, gameMap 
 // FindDigIntentForTest is an exported wrapper for integration tests in other packages.
 func FindDigIntentForTest(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
 	return findDigIntent(char, pos, items, order, log, gameMap)
+}
+
+// =============================================================================
+// Build Fence
+// =============================================================================
+
+// findBuildFenceIntent creates an intent to build a fence on a marked tile.
+// Phase detection flow (position-based ordered action, re-evaluated each tick):
+// 1. Find nearest unbuilt marked tile not occupied by a character (DD-28).
+// 2. Determine material for that tile's line; stamp if not yet set.
+// 3. Drop non-material inventory items.
+// 4. If character has full bundle → build phase (find adjacent standing tile).
+// 5. Otherwise → procurement phase (find nearest material item).
+func findBuildFenceIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	// Step 1: Collect unbuilt marked tiles not occupied by a character (DD-28)
+	var candidates []types.Position
+	for _, mpos := range gameMap.MarkedForConstructionPositions() {
+		if gameMap.ConstructAt(mpos) != nil {
+			continue // Already built
+		}
+		if gameMap.CharacterAt(mpos) != nil {
+			continue // Occupied — skip per DD-28
+		}
+		candidates = append(candidates, mpos)
+	}
+	if len(candidates) == 0 {
+		return nil // No work → triggers completion check
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		return pos.DistanceTo(candidates[i]) < pos.DistanceTo(candidates[j])
+	})
+	nearest := candidates[0]
+
+	// Step 2: Determine material for the nearest tile's line
+	mark, _ := gameMap.GetConstructionMark(nearest)
+	material := mark.Material
+	if material == "" {
+		material = selectFenceMaterial(char, pos, items, gameMap)
+		if material == "" {
+			return nil // No material available → triggers abandonment
+		}
+		gameMap.SetLineMaterial(mark.LineID, material)
+	}
+
+	// Step 3: Drop non-material inventory items (procurement drop pattern)
+	var toDrop []*entity.Item
+	for _, inv := range char.Inventory {
+		if inv != nil && inv.ItemType != material {
+			toDrop = append(toDrop, inv)
+		}
+	}
+	for _, item := range toDrop {
+		DropItem(char, item, gameMap, log)
+	}
+
+	// Step 4: Build phase — character has a full bundle
+	if hasFullBundle(char, material) {
+		for _, candidate := range candidates {
+			cm, _ := gameMap.GetConstructionMark(candidate)
+			if cm.Material != "" && cm.Material != material {
+				continue // Different line with different material
+			}
+			adjPos := findAdjacentStandingTile(candidate, gameMap)
+			if adjPos == nil {
+				continue // All adjacent tiles blocked — try next candidate
+			}
+			buildPos := candidate
+			nx, ny, usedBFS := nextStepBFSCore(pos.X, pos.Y, adjPos.X, adjPos.Y, gameMap, char.UsingBFS)
+			if usedBFS {
+				char.UsingBFS = true
+			}
+			newActivity := "Building fence"
+			if pos != *adjPos {
+				newActivity = "Moving to build fence"
+			}
+			if char.CurrentActivity != newActivity {
+				char.CurrentActivity = newActivity
+			}
+			return &entity.Intent{
+				Target:         types.Position{X: nx, Y: ny},
+				Dest:           *adjPos,
+				Action:         entity.ActionBuildFence,
+				TargetBuildPos: &buildPos,
+			}
+		}
+		return nil // No viable candidate (all adjacent tiles blocked)
+	}
+
+	// Step 5: Procurement phase
+	// Only search for full/partial bundles when character has no bundle yet (DD-30 overflow guard)
+	hasPartialBundle := false
+	for _, inv := range char.Inventory {
+		if inv != nil && inv.ItemType == material && inv.BundleCount > 0 {
+			hasPartialBundle = true
+			break
+		}
+	}
+
+	var target *entity.Item
+	if !hasPartialBundle {
+		target = findNearestBundleByType(pos.X, pos.Y, items, material)
+	}
+	if target == nil {
+		// Fallback: individual items (findNearestItemByType skips full bundles)
+		target = findNearestItemByType(pos.X, pos.Y, items, material, false)
+	}
+	if target == nil {
+		return nil // No materials → triggers abandonment
+	}
+
+	return createItemPickupIntent(char, pos, target, gameMap, log)
+}
+
+// selectFenceMaterial picks the best available fence material for a character.
+// Checks each known fence recipe; returns the material type with 6+ items whose
+// nearest item is closest. Returns "" if no material has sufficient supply.
+func selectFenceMaterial(char *entity.Character, pos types.Position, items []*entity.Item, gameMap *game.Map) string {
+	_ = gameMap // reserved for future proximity-to-map checks
+	recipes := char.GetKnownRecipesForActivity("buildFence")
+	bestMaterial := ""
+	bestDist := int(^uint(0) >> 1)
+
+	for _, recipe := range recipes {
+		if len(recipe.Inputs) == 0 {
+			continue
+		}
+		itemType := recipe.Inputs[0].ItemType
+		required := recipe.Inputs[0].Count
+
+		if countItemsOnMap(items, itemType) < required {
+			continue
+		}
+		nearest := findNearestItemOrBundle(pos.X, pos.Y, items, itemType)
+		if nearest == nil {
+			continue
+		}
+		dist := pos.DistanceTo(nearest.Pos())
+		if dist < bestDist {
+			bestDist = dist
+			bestMaterial = itemType
+		}
+	}
+	return bestMaterial
+}
+
+// countItemsOnMap counts the total number of items of a given type on the map,
+// summing BundleCount for bundleable items.
+func countItemsOnMap(items []*entity.Item, itemType string) int {
+	total := 0
+	for _, item := range items {
+		if item.ItemType != itemType {
+			continue
+		}
+		if item.BundleCount > 0 {
+			total += item.BundleCount
+		} else {
+			total++
+		}
+	}
+	return total
+}
+
+// findNearestBundleByType finds the nearest item of a given type with BundleCount > 0,
+// including full bundles (unlike findNearestItemByType which skips full bundles).
+func findNearestBundleByType(cx, cy int, items []*entity.Item, itemType string) *entity.Item {
+	pos := types.Position{X: cx, Y: cy}
+	var nearest *entity.Item
+	nearestDist := int(^uint(0) >> 1)
+
+	for _, item := range items {
+		if item.ItemType != itemType || item.BundleCount <= 0 {
+			continue
+		}
+		dist := pos.DistanceTo(item.Pos())
+		if dist < nearestDist {
+			nearestDist = dist
+			nearest = item
+		}
+	}
+	return nearest
+}
+
+// findNearestItemOrBundle finds the nearest item of a given type regardless of bundle state.
+// Used for material availability proximity checks.
+func findNearestItemOrBundle(cx, cy int, items []*entity.Item, itemType string) *entity.Item {
+	pos := types.Position{X: cx, Y: cy}
+	var nearest *entity.Item
+	nearestDist := int(^uint(0) >> 1)
+
+	for _, item := range items {
+		if item.ItemType != itemType {
+			continue
+		}
+		dist := pos.DistanceTo(item.Pos())
+		if dist < nearestDist {
+			nearestDist = dist
+			nearest = item
+		}
+	}
+	return nearest
+}
+
+// findAdjacentStandingTile finds an empty cardinal tile adjacent to buildPos where
+// a character can stand (not blocked, not occupied by another character).
+// Returns nil if all adjacent tiles are blocked.
+func findAdjacentStandingTile(buildPos types.Position, gameMap *game.Map) *types.Position {
+	cardinalDirs := [4][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+	for _, dir := range cardinalDirs {
+		adj := types.Position{X: buildPos.X + dir[0], Y: buildPos.Y + dir[1]}
+		if gameMap.IsBlocked(adj) {
+			continue
+		}
+		if gameMap.CharacterAt(adj) != nil {
+			continue
+		}
+		return &adj
+	}
+	return nil
+}
+
+// fenceMaterialExistsOnMap returns true if any fence material (grass, stick, or brick)
+// exists on the map.
+func fenceMaterialExistsOnMap(items []*entity.Item) bool {
+	for _, item := range items {
+		switch item.ItemType {
+		case "grass", "stick", "brick":
+			return true
+		}
+	}
+	return false
+}
+
+// FindBuildFenceIntentForTest is an exported wrapper for integration tests.
+func FindBuildFenceIntentForTest(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	return findBuildFenceIntent(char, pos, items, order, log, gameMap)
 }

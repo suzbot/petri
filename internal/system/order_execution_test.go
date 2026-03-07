@@ -5161,3 +5161,391 @@ func TestCraftBrickOrder_EndToEnd(t *testing.T) {
 		t.Error("Final: Expected character unassigned from order")
 	}
 }
+
+// =============================================================================
+// findOrderIntent restructure (DD-32)
+// =============================================================================
+
+// TestFindOrderIntent_CraftVessel_RoutesToFindCraftIntent verifies that craftVessel
+// still routes to findCraftIntent via the default case after DD-32 restructure.
+func TestFindOrderIntent_CraftVessel_RoutesToFindCraftIntent(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftVessel"}
+	char.KnownRecipes = []string{"hollow-gourd"}
+	gameMap.AddCharacter(char)
+
+	gourd := entity.NewGourd(7, 5, types.ColorGreen, types.PatternNone, types.TextureNone, false, false)
+	gameMap.AddItem(gourd)
+
+	order := entity.NewOrder(1, "craftVessel", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	intent := FindCraftIntentForTest(char, char.Pos(), gameMap.Items(), order, nil, gameMap)
+	if intent == nil {
+		t.Fatal("Expected craft intent for craftVessel order, got nil")
+	}
+}
+
+// TestFindOrderIntent_CraftBrick_RoutesToFindCraftIntent verifies that craftBrick
+// still routes to findCraftIntent after DD-32 restructure.
+func TestFindOrderIntent_CraftBrick_RoutesToFindCraftIntent(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"craftBrick"}
+	char.KnownRecipes = []string{"clay-brick"}
+	gameMap.AddCharacter(char)
+
+	clay := entity.NewClay(7, 5)
+	gameMap.AddItem(clay)
+
+	order := entity.NewOrder(1, "craftBrick", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	intent := FindCraftIntentForTest(char, char.Pos(), gameMap.Items(), order, nil, gameMap)
+	if intent == nil {
+		t.Fatal("Expected craft intent for craftBrick order, got nil")
+	}
+}
+
+// =============================================================================
+// findBuildFenceIntent
+// =============================================================================
+
+func newBuildFenceChar(id, x, y int, gameMap *game.Map) *entity.Character {
+	char := entity.NewCharacter(id, x, y, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildFence"}
+	char.KnownRecipes = []string{"stick-fence"}
+	gameMap.AddCharacter(char)
+	return char
+}
+
+func TestFindBuildFenceIntent_ReturnsPickup_WhenNeedsMaterials(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := newBuildFenceChar(1, 5, 5, gameMap)
+
+	buildPos := types.Position{X: 8, Y: 5}
+	gameMap.MarkForConstruction(buildPos, 1)
+
+	for i := 0; i < 6; i++ {
+		stick := entity.NewStick(6, 5)
+		gameMap.AddItem(stick)
+	}
+
+	order := entity.NewOrder(1, "buildFence", "")
+	intent := FindBuildFenceIntentForTest(char, char.Pos(), gameMap.Items(), order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected pickup intent, got nil")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Errorf("Intent.Action: got %v, want ActionPickup", intent.Action)
+	}
+}
+
+func TestFindBuildFenceIntent_ReturnsActionBuildFence_WhenHasFullBundle(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := newBuildFenceChar(1, 5, 5, gameMap)
+
+	buildPos := types.Position{X: 8, Y: 5}
+	gameMap.MarkForConstruction(buildPos, 1)
+	gameMap.SetLineMaterial(1, "stick")
+
+	bundle := entity.NewStick(0, 0)
+	bundle.BundleCount = 6
+	char.Inventory = []*entity.Item{bundle}
+
+	order := entity.NewOrder(1, "buildFence", "")
+	intent := FindBuildFenceIntentForTest(char, char.Pos(), gameMap.Items(), order, nil, gameMap)
+
+	if intent == nil {
+		t.Fatal("Expected build fence intent, got nil")
+	}
+	if intent.Action != entity.ActionBuildFence {
+		t.Errorf("Intent.Action: got %v, want ActionBuildFence", intent.Action)
+	}
+	if intent.TargetBuildPos == nil {
+		t.Fatal("Intent.TargetBuildPos: got nil")
+	}
+	if *intent.TargetBuildPos != buildPos {
+		t.Errorf("Intent.TargetBuildPos: got %v, want %v", *intent.TargetBuildPos, buildPos)
+	}
+}
+
+func TestFindBuildFenceIntent_SkipsOccupiedTile_DD28(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := newBuildFenceChar(1, 5, 5, gameMap)
+
+	buildPos := types.Position{X: 8, Y: 5}
+	gameMap.MarkForConstruction(buildPos, 1)
+	occupant := entity.NewCharacter(2, 8, 5, "Other", "berry", types.ColorRed)
+	gameMap.AddCharacter(occupant)
+
+	bundle := entity.NewStick(0, 0)
+	bundle.BundleCount = 6
+	char.Inventory = []*entity.Item{bundle}
+	gameMap.SetLineMaterial(1, "stick")
+
+	order := entity.NewOrder(1, "buildFence", "")
+	intent := FindBuildFenceIntentForTest(char, char.Pos(), gameMap.Items(), order, nil, gameMap)
+
+	if intent != nil {
+		t.Error("Expected nil when only marked tile is occupied by character (DD-28)")
+	}
+}
+
+func TestFindBuildFenceIntent_StampsLineMaterial_DD25(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := newBuildFenceChar(1, 5, 5, gameMap)
+
+	pos1 := types.Position{X: 8, Y: 5}
+	pos2 := types.Position{X: 9, Y: 5}
+	gameMap.MarkForConstruction(pos1, 1)
+	gameMap.MarkForConstruction(pos2, 1)
+
+	for i := 0; i < 6; i++ {
+		stick := entity.NewStick(6, 5)
+		gameMap.AddItem(stick)
+	}
+
+	order := entity.NewOrder(1, "buildFence", "")
+	FindBuildFenceIntentForTest(char, char.Pos(), gameMap.Items(), order, nil, gameMap)
+
+	mark1, ok1 := gameMap.GetConstructionMark(pos1)
+	mark2, ok2 := gameMap.GetConstructionMark(pos2)
+	if !ok1 || !ok2 {
+		t.Fatal("Marks not found after intent evaluation")
+	}
+	if mark1.Material != "stick" {
+		t.Errorf("Mark1.Material: got %q, want %q", mark1.Material, "stick")
+	}
+	if mark2.Material != "stick" {
+		t.Errorf("Mark2.Material: got %q, want %q", mark2.Material, "stick")
+	}
+}
+
+func TestFindBuildFenceIntent_ReturnsNil_WhenNoMarkedTiles(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := newBuildFenceChar(1, 5, 5, gameMap)
+
+	order := entity.NewOrder(1, "buildFence", "")
+	intent := FindBuildFenceIntentForTest(char, char.Pos(), gameMap.Items(), order, nil, gameMap)
+
+	if intent != nil {
+		t.Error("Expected nil when no marked tiles exist")
+	}
+}
+
+// =============================================================================
+// isMultiStepOrderComplete — buildFence
+// =============================================================================
+
+func TestIsMultiStepOrderComplete_BuildFence_NoUnbuilt(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	buildPos := types.Position{X: 8, Y: 5}
+	gameMap.MarkForConstruction(buildPos, 1)
+	fence := entity.NewFence(8, 5, "stick", types.ColorBrown)
+	gameMap.AddConstruct(fence)
+	gameMap.UnmarkForConstruction(buildPos)
+
+	order := entity.NewOrder(1, "buildFence", "")
+	if !IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Error("Expected order complete when no unbuilt positions remain")
+	}
+}
+
+func TestIsMultiStepOrderComplete_BuildFence_HasUnbuilt(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	gameMap.AddCharacter(char)
+
+	gameMap.MarkForConstruction(types.Position{X: 8, Y: 5}, 1)
+
+	order := entity.NewOrder(1, "buildFence", "")
+	if IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Error("Expected order incomplete when unbuilt positions remain")
+	}
+}
+
+// =============================================================================
+// IsOrderFeasible — buildFence
+// =============================================================================
+
+func TestIsOrderFeasible_BuildFence_Feasible(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildFence"}
+	gameMap.AddCharacter(char)
+
+	gameMap.MarkForConstruction(types.Position{X: 8, Y: 5}, 1)
+	stick := entity.NewStick(6, 5)
+	gameMap.AddItem(stick)
+
+	order := entity.NewOrder(1, "buildFence", "")
+	feasible, noKnowHow := IsOrderFeasible(order, gameMap.Items(), gameMap)
+	if !feasible {
+		t.Error("Expected feasible when marked tiles + sticks exist")
+	}
+	if noKnowHow {
+		t.Error("Expected noKnowHow=false when character knows buildFence")
+	}
+}
+
+func TestIsOrderFeasible_BuildFence_Infeasible_NoMarkedTiles(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildFence"}
+	gameMap.AddCharacter(char)
+
+	stick := entity.NewStick(6, 5)
+	gameMap.AddItem(stick)
+
+	order := entity.NewOrder(1, "buildFence", "")
+	feasible, _ := IsOrderFeasible(order, gameMap.Items(), gameMap)
+	if feasible {
+		t.Error("Expected infeasible when no marked tiles")
+	}
+}
+
+func TestIsOrderFeasible_BuildFence_Infeasible_NoMaterials(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildFence"}
+	gameMap.AddCharacter(char)
+
+	gameMap.MarkForConstruction(types.Position{X: 8, Y: 5}, 1)
+
+	order := entity.NewOrder(1, "buildFence", "")
+	feasible, _ := IsOrderFeasible(order, gameMap.Items(), gameMap)
+	if feasible {
+		t.Error("Expected infeasible when no materials on map")
+	}
+}
+
+// TestBuildFenceOrder_EndToEnd simulates the game loop tick-by-tick and verifies
+// a fence construct is placed. Reproduces the thrashing geometry from the real bug:
+// character starts ON a build tile with multiple marked tiles in a line.
+// Without the CalculateIntent continuation fix, Dest oscillates each tick.
+func TestBuildFenceOrder_EndToEnd(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	// Character starts ON a build tile — the thrashing trigger geometry
+	char := newBuildFenceChar(1, 10, 5, gameMap)
+
+	// Three build tiles in a horizontal line (character is on the first one)
+	buildPos1 := types.Position{X: 10, Y: 5}
+	buildPos2 := types.Position{X: 11, Y: 5}
+	buildPos3 := types.Position{X: 12, Y: 5}
+	gameMap.MarkForConstruction(buildPos1, 1)
+	gameMap.MarkForConstruction(buildPos2, 1)
+	gameMap.MarkForConstruction(buildPos3, 1)
+	gameMap.SetLineMaterial(1, "stick")
+
+	// Character already has a full bundle (skip procurement)
+	bundle := entity.NewStick(0, 0)
+	bundle.BundleCount = 6
+	char.AddToInventory(bundle)
+
+	order := entity.NewOrder(1, "buildFence", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+	orders := []*entity.Order{order}
+
+	log := NewActionLog(100)
+
+	// --- Phase 1: First CalculateIntent produces build fence intent ---
+	char.Intent = CalculateIntent(char, gameMap.Items(), gameMap, log, orders)
+	if char.Intent == nil {
+		t.Fatal("Phase 1: Expected build intent, got nil")
+	}
+	if char.Intent.Action != entity.ActionBuildFence {
+		t.Fatalf("Phase 1: Expected ActionBuildFence, got %v", char.Intent.Action)
+	}
+	if char.Intent.TargetBuildPos == nil {
+		t.Fatal("Phase 1: TargetBuildPos should be set")
+	}
+	dest := char.Intent.Dest
+	buildTarget := *char.Intent.TargetBuildPos
+
+	// --- Phase 2: Walk to Dest via tick loop ---
+	// Each tick: move one step, recalculate via CalculateIntent.
+	// Without the fix, Dest oscillates because re-evaluation picks different
+	// tiles as the character moves between build positions.
+	maxTicks := 20
+	reached := false
+	for tick := 0; tick < maxTicks; tick++ {
+		if char.Pos() == dest {
+			reached = true
+			break
+		}
+		gameMap.MoveCharacter(char, char.Intent.Target)
+		char.Intent = CalculateIntent(char, gameMap.Items(), gameMap, log, orders)
+		if char.Intent == nil {
+			t.Fatalf("Phase 2 tick %d: CalculateIntent returned nil mid-walk (pos=%v)", tick, char.Pos())
+		}
+		if char.Intent.Action != entity.ActionBuildFence {
+			t.Fatalf("Phase 2 tick %d: Expected ActionBuildFence, got %v", tick, char.Intent.Action)
+		}
+		if char.Intent.Dest != dest {
+			t.Fatalf("Phase 2 tick %d: Dest shifted from %v to %v (thrashing)", tick, dest, char.Intent.Dest)
+		}
+	}
+	if !reached {
+		t.Fatalf("Phase 2: Character did not reach Dest %v after %d ticks, at %v", dest, maxTicks, char.Pos())
+	}
+
+	// --- Phase 3: At Dest, build the fence ---
+	inv := char.FindInInventory(func(item *entity.Item) bool { return item.ItemType == "stick" && item.BundleCount >= 6 })
+	if inv == nil {
+		t.Fatal("Phase 3: Expected full bundle in inventory")
+	}
+	char.RemoveFromInventory(inv)
+	fence := entity.NewFence(buildTarget.X, buildTarget.Y, "stick", types.ColorBrown)
+	gameMap.AddConstruct(fence)
+	gameMap.UnmarkForConstruction(buildTarget)
+
+	// --- Verify ---
+	if gameMap.ConstructAt(buildTarget) == nil {
+		t.Error("Verify: Expected fence construct at build position")
+	}
+	if gameMap.IsMarkedForConstruction(buildTarget) {
+		t.Error("Verify: Build position should be unmarked after construction")
+	}
+	// Two tiles remain marked — order should not be complete yet
+	if IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Error("Verify: Order should NOT be complete (2 unbuilt tiles remain)")
+	}
+}

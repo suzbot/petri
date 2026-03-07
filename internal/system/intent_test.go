@@ -3270,3 +3270,37 @@ func TestUsingBFS_ClearsWhenNoAssignedOrder(t *testing.T) {
 		t.Error("UsingBFS should be cleared when character has no assigned order")
 	}
 }
+
+func TestContinueIntent_PreservesTargetBuildPos(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := newTestCharacter()
+	char.SetPos(types.Position{X: 5, Y: 5})
+	gameMap.AddCharacter(char)
+
+	buildPos := types.Position{X: 8, Y: 5}
+	dest := types.Position{X: 7, Y: 5}
+
+	char.Intent = &entity.Intent{
+		Target:         types.Position{X: 6, Y: 5}, // BFS next step
+		Dest:           dest,
+		Action:         entity.ActionBuildFence,
+		TargetBuildPos: &buildPos,
+	}
+
+	intent := continueIntent(char, 5, 5, gameMap, nil)
+
+	if intent == nil {
+		t.Fatal("Expected intent to continue, got nil")
+	}
+	if intent.TargetBuildPos == nil {
+		t.Fatal("TargetBuildPos was lost by continueIntent")
+	}
+	if *intent.TargetBuildPos != buildPos {
+		t.Errorf("TargetBuildPos: got %v, want %v", *intent.TargetBuildPos, buildPos)
+	}
+	if intent.Dest != dest {
+		t.Errorf("Dest: got %v, want %v", intent.Dest, dest)
+	}
+}

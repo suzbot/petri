@@ -59,6 +59,13 @@ func CalculateIntent(char *entity.Character, items []*entity.Item, gameMap *game
 			// Target gone (e.g., taken by another character), fall through to re-evaluate
 		}
 
+		// Continue building if no urgent needs (adjacent-tile interaction pattern)
+		if char.Intent.TargetBuildPos != nil && maxTier < entity.TierModerate {
+			if result := continueIntent(char, cx, cy, gameMap, log); result != nil {
+				return result
+			}
+		}
+
 		// Continue talking/approaching if no urgent needs
 		if char.Intent.TargetCharacter != nil && maxTier < entity.TierModerate {
 			target := char.Intent.TargetCharacter
@@ -785,18 +792,26 @@ func continueIntent(char *entity.Character, cx, cy int, gameMap *game.Map, log *
 		}
 	}
 
-	nx, ny, usedBFS := nextStepBFSCore(cx, cy, tx, ty, gameMap, char.UsingBFS)
+	// For actions with TargetBuildPos (e.g., ActionBuildFence), navigate toward
+	// Dest (the standing tile) rather than Target (a BFS step), and preserve Dest.
+	destX, destY := tx, ty
+	if intent.TargetBuildPos != nil {
+		destX, destY = intent.Dest.X, intent.Dest.Y
+	}
+
+	nx, ny, usedBFS := nextStepBFSCore(cx, cy, destX, destY, gameMap, char.UsingBFS)
 	if usedBFS {
 		char.UsingBFS = true
 	}
 
 	return &entity.Intent{
 		Target:          types.Position{X: nx, Y: ny},
-		Dest:            types.Position{X: tx, Y: ty}, // Destination we're moving toward
+		Dest:            types.Position{X: destX, Y: destY},
 		Action:          intent.Action,
 		TargetItem:      intent.TargetItem,
 		TargetFeature:   intent.TargetFeature,
 		TargetWaterPos:  intent.TargetWaterPos,
+		TargetBuildPos:  intent.TargetBuildPos,
 		TargetCharacter: intent.TargetCharacter,
 		DrivingStat:     intent.DrivingStat,
 		DrivingTier:     intent.DrivingTier,

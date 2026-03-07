@@ -1119,8 +1119,8 @@ func Pickup(char *entity.Character, item *entity.Item, gameMap *game.Map, log *A
 			if carried == nil {
 				continue
 			}
-			if carried.ItemType == item.ItemType && carried.BundleCount > 0 && carried.BundleCount < maxSize {
-				carried.BundleCount++
+			if carried.ItemType == item.ItemType && carried.BundleCount > 0 && carried.BundleCount+item.BundleCount <= maxSize {
+				carried.BundleCount += item.BundleCount
 				gameMap.RemoveItem(item)
 
 				harvestItem(item)

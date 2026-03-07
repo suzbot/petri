@@ -2063,6 +2063,75 @@ func TestHarvestItem_NilPlantDoesNotPanic(t *testing.T) {
 	harvestItem(item) // should not panic
 }
 
+// TestPickup_Bundle_MergesBundleCount verifies DD-30: picking up a bundle of 3 when
+// carrying a bundle of 2 results in a bundle of 5 (not +1).
+func TestPickup_Bundle_MergesBundleCount(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	// Ground bundle of 3 sticks
+	groundStick := entity.NewStick(3, 3)
+	groundStick.BundleCount = 3
+	gameMap.AddItem(groundStick)
+
+	// Character carrying a bundle of 2 sticks
+	carriedStick := entity.NewStick(0, 0)
+	carriedStick.BundleCount = 2
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{carriedStick},
+	}
+	char.X = 3
+	char.Y = 3
+
+	result := Pickup(char, groundStick, gameMap, nil, registry)
+	if result != PickupToBundle {
+		t.Fatalf("Expected PickupToBundle, got %d", result)
+	}
+	if carriedStick.BundleCount != 5 {
+		t.Errorf("Bundle count: got %d, want 5 (2+3)", carriedStick.BundleCount)
+	}
+}
+
+// TestPickup_Bundle_MergeOverflow verifies DD-30: picking up a bundle of 4 when
+// carrying a bundle of 4 returns PickupFailed (would exceed max 6).
+func TestPickup_Bundle_MergeOverflow(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	gameMap := game.NewMap(10, 10)
+	gameMap.SetVarieties(registry)
+
+	// Ground bundle of 4
+	groundStick := entity.NewStick(3, 3)
+	groundStick.BundleCount = 4
+	gameMap.AddItem(groundStick)
+
+	// Character carrying a bundle of 4 (another slot to ensure it's only the bundle merge that fails)
+	carriedStick := entity.NewStick(0, 0)
+	carriedStick.BundleCount = 4
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{carriedStick, nil},
+	}
+	char.X = 3
+	char.Y = 3
+
+	// 4+4=8 > 6, so merge should fail; inventory has space so goes to PickupToInventory
+	result := Pickup(char, groundStick, gameMap, nil, registry)
+	if result == PickupToBundle {
+		t.Error("Expected merge to be skipped (4+4=8 exceeds max 6), got PickupToBundle")
+	}
+	if carriedStick.BundleCount != 4 {
+		t.Errorf("Carried bundle count should remain 4, got %d", carriedStick.BundleCount)
+	}
+}
+
 func TestPickup_GrassChangesPaleYellow(t *testing.T) {
 	t.Parallel()
 

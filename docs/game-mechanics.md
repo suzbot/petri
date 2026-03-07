@@ -618,3 +618,9 @@ Discovering any fence recipe also grants **Build Fence** know-how. Characters le
 Marked-for-construction tiles are only highlighted during this marking phase. In regular select mode, move the cursor over a tile to see "Marked for construction" in the details panel.
 
 The character assigns a material to the line when they begin building the first tile — selecting whichever fence material is nearest and available. Once one tile in a line is built, all remaining tiles in that line use the same material.
+
+### Building
+
+When taking a fence order, a character selects the nearest fence material with enough supply (6+ items), picks up a full bundle of 6, and walks to a cardinally adjacent tile to build. Characters always build from an adjacent tile — never from the build tile itself — to avoid being blocked inside finished sections. After the fence is placed, any items remaining on that tile are displaced to nearby clear tiles.
+
+Multiple characters can work the same fence order simultaneously. Each worker picks the nearest unbuilt tile independently — no tile claiming occurs.

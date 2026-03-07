@@ -1,5 +1,74 @@
 # Petri Architecture
 
+## Table of Contents
+
+- [Design Model](#design-model)
+  - [The Character's Cognitive Loop](#the-characters-cognitive-loop)
+  - [External Direction](#external-direction)
+  - [Social Awareness](#social-awareness)
+  - [Separation of Concerns by Cognitive Role](#separation-of-concerns-by-cognitive-role)
+  - [Encapsulated Workflows](#encapsulated-workflows)
+  - [Intent as the Universal Contract](#intent-as-the-universal-contract)
+- [Key Design Patterns](#key-design-patterns)
+- [Data Flow](#data-flow)
+- [World & Terrain](#world--terrain)
+  - [Water Terrain](#water-terrain)
+  - [Drinking Sources](#drinking-sources)
+  - [Food Sources](#food-sources)
+  - [Tilled Soil](#tilled-soil)
+  - [Pond Generation](#pond-generation)
+  - [Features](#features)
+  - [Constructs](#constructs)
+  - [Movement & Pathfinding](#movement--pathfinding)
+- [Position Handling](#position-handling)
+- [Item Model](#item-model)
+  - [Attribute Classification](#attribute-classification)
+  - [Kind Pattern for Subtypes](#kind-pattern-for-subtypes)
+  - [Crafted Items](#crafted-items)
+  - [Adding New Plant Types](#adding-new-plant-types)
+  - [Adding New Item Types (Non-Plant)](#adding-new-item-types-non-plant)
+  - [Adding New Terrain Types](#adding-new-terrain-types)
+  - [Adding a New Construct Type](#adding-a-new-construct-type)
+- [Item Lifecycle](#item-lifecycle)
+  - [Plant-Based Spawning](#plant-based-spawning)
+  - [Ground Spawning](#ground-spawning)
+  - [Death Timers](#death-timers)
+- [Memory & Knowledge Model](#memory--knowledge-model)
+  - [ActionLog (Working Memory)](#actionlog-working-memory)
+  - [Knowledge System](#knowledge-system)
+  - [Future: Long-Term Memory](#future-long-term-memory)
+- [Action System](#action-system)
+  - [Separation of Concerns](#separation-of-concerns)
+  - [Action Categories](#action-categories)
+  - [Self-Managing Actions](#self-managing-actions)
+  - [`continueIntent` Rules](#continueintent-rules)
+  - [Adding New Actions](#adding-new-actions)
+- [Activity Registry & Know-How Discovery](#activity-registry--know-how-discovery)
+  - [Activity Properties](#activity-properties)
+  - [Discovery Triggers](#discovery-triggers)
+  - [Adding a New Activity](#adding-a-new-activity)
+- [Orders](#orders)
+  - [Order Execution](#order-execution)
+  - [Unified Order Completion](#unified-order-completion)
+  - [Marked-for-Tilling Pool](#marked-for-tilling-pool)
+  - [Marked-for-Construction Pool](#marked-for-construction-pool)
+- [Item Acquisition](#item-acquisition)
+  - [Pickup Result Pattern](#pickup-result-pattern)
+  - [Component Procurement Flow](#component-procurement-flow)
+  - [Variety Restoration on Extraction](#variety-restoration-on-extraction)
+  - [Consumption Side Effects](#consumption-side-effects)
+  - [Look-for-Container Pattern](#look-for-container-pattern)
+  - [Future: Unified Item-Seeking](#future-unified-item-seeking)
+- [Recipe System](#recipe-system)
+  - [Crafting Flow](#crafting-flow)
+  - [Repeatable Recipes](#repeatable-recipes)
+  - [Adding a New Recipe](#adding-a-new-recipe)
+- [Area Selection UI Pattern](#area-selection-ui-pattern)
+  - [Reuse for Future Activities](#reuse-for-future-activities)
+- [Save/Load Serialization](#saveload-serialization)
+  - [Serialization Checklist](#serialization-checklist)
+- [Common Implementation Pitfalls](#common-implementation-pitfalls)
+
 ## Design Model
 
 The architecture mirrors what the game simulates (see Values.md: Isomorphism). These mental models explain *why* the code is structured the way it is.
@@ -66,6 +135,91 @@ The Intent struct is the handoff between deciding and doing. It remains the sing
 5. `View()`: render UI (Bubble Tea diffs automatically)
 
 See [docs/flow-diagrams.md](flow-diagrams.md) for visual call graphs, the intent priority hierarchy, and multi-phase action state machines.
+
+## World & Terrain
+
+### Water Terrain
+
+Water tiles (springs, ponds) are stored as map terrain (`water map[Position]WaterType`), not as features. This enables O(1) lookups and clean separation from the feature system.
+
+| Water Type | Symbol | Rendering |
+|------------|--------|-----------|
+| WaterSpring | `☉` | Single character |
+| WaterPond | `▓` | Three-character fill `▓▓▓` |
+
+Water tiles are impassable. Characters interact from cardinal-adjacent tiles. Tiles 8-directionally adjacent to any water are "wet" — computed on the fly via `IsWet(pos)`, no persistent state.
+
+Manually-watered tiles track wet status with a decay timer (see `config.WateredTileDecayTime`). `IsWet(pos)` checks both water adjacency and the watered-tile timer.
+
+### Drinking Sources
+
+Characters can drink from three source types, unified by distance scoring in `findDrinkIntent`:
+- **Terrain water** — infinite, drinks continuously until sated
+- **Carried vessel** — finite, clears intent after each drink (re-evaluate nearest source)
+- **Ground vessel** — finite, character moves to vessel and drinks in place
+
+Intent clearing for vessel drinking ensures characters naturally handle vessel depletion and re-prioritize the nearest source.
+
+### Food Sources
+
+Characters score food across four candidate pools in `FindFoodTarget`:
+- **Carried loose food** — distance 0
+- **Carried food vessel contents** — distance 0, scored by contents' variety
+- **Ground loose food** — Manhattan distance from character
+- **Ground food vessel contents** — Manhattan distance to vessel, scored by contents' variety; vessel is TargetItem
+
+Ground vessel eating follows the same eat-in-place pattern as ground vessel drinking: character walks to the vessel, consumes one unit, clears intent, and re-evaluates. The vessel stays on the map throughout — no early-return block needed in `continueIntent` (vessel never enters inventory). `ConsumeFromVessel` operates on the vessel pointer directly, whether it is in inventory or on the ground.
+
+### Tilled Soil
+
+Tilled soil is map terrain state (`tilled map[Position]bool`), following the same pattern as water. Key difference: tilled tiles are walkable and items can exist on them.
+
+Rendering: `═══` fill for empty tilled tiles, `═X═` fill around entities on tilled soil. Wet tilled soil uses distinct styles from dry.
+
+### Pond Generation
+
+`SpawnPonds()` generates 1-5 ponds of 4-16 contiguous water tiles each via blob growth. After placing all ponds, `isMapConnected()` verifies walkability via BFS. If partitioned, regenerates (max 10 retries). Ponds generate before features and items.
+
+### Features
+
+Features are natural map elements that aren't items or characters. Currently only leaf piles (passable, used as beds). Springs migrated to water terrain.
+
+Features have a `Passable` boolean — impassable features are handled by `IsBlocked()` and pathfinding automatically.
+
+### Constructs
+
+Constructs are player-built structures. They are a distinct entity type from Features (natural world elements) — see DD-4 in `construction-design.md`. Constructs have a `ConstructType` (e.g., "structure") and `Kind` (e.g., "fence") hierarchy mirroring ItemType/Kind. The `Passable` boolean on a Construct determines whether characters can move through it; impassable constructs are respected by `IsBlocked()`, `MoveCharacter`, and all three call sites of `nextStepBFSCore`. The `Movable` boolean reserves future furniture-relocation behavior.
+
+Construct storage on `Map`: the `constructs []Construct` slice with `AddConstruct`, `AddConstructDirect`, `ConstructAt`, `Constructs`, `RemoveConstruct`, and ID-generation methods.
+
+### Movement & Pathfinding
+
+**`NextStepBFS`**: Greedy-first pathfinding. Tries a greedy diagonal step (moving along the larger of X or Y delta) before running BFS. If the greedy step is clear, takes it — this produces natural zigzag paths and spreads characters heading to the same destination across different routes. BFS only runs when the greedy step hits water or an impassable feature. Falls back to greedy `NextStep` if no BFS path exists. Used by all callers with gameMap access. The public function is a thin wrapper over `nextStepBFSCore(preferBFS bool)`.
+
+**Sticky BFS (`UsingBFS` flag)**: Once a character uses BFS to navigate around an obstacle, they stay in BFS mode for the remainder of that intent. `UsingBFS bool` is an ephemeral field on Character (not serialized, like displacement fields). `continueIntent` passes `char.UsingBFS` as `preferBFS` to `nextStepBFSCore` and sets `char.UsingBFS = true` when BFS was actually used. The flag clears in two places: (a) when `Intent` is nilled in `CalculateIntent` (covers reaching target and intent changes), and (b) when `initiateDisplacement` fires (covers character collision). This follows the displacement precedent — ephemeral, not serialized, clears on save/load.
+
+**`NextStep`**: Greedy single-step toward target along larger axis delta. No obstacle awareness. Fallback only.
+
+**`findAlternateStep`**: Per-tick reactive routing around blocked tiles. Used by `MoveCharacter` when next step is occupied.
+
+**Perpendicular displacement on character collision**: When `MoveCharacter` fails due to another character (not terrain), the blocked character enters displacement mode: 3 perpendicular sidesteps before resuming BFS. Direction is chosen randomly from the two perpendiculars; if blocked, tries the opposite. If both blocked, displacement is skipped. Displacement state (`DisplacementStepsLeft`, `DisplacementDX`, `DisplacementDY`) is ephemeral — not serialized. On save/load, displacement clears and the character re-pathfinds normally. This extends `findAlternateStep`'s reactive-routing pattern to multi-step intentional routing without modifying BFS semantics or treating characters as obstacles in pathfinding.
+
+**Movement blocking**: `IsBlocked(pos)` returns true if character, water tile, impassable feature, or impassable construct occupies the position.
+
+## Position Handling
+
+All coordinates use `types.Position` struct with `X, Y int`.
+
+**Do:**
+- Use `pos.DistanceTo(other)` for distance calculations
+- Use `pos.IsAdjacentTo(other)` for 8-direction adjacency checks
+- Use `pos.IsCardinallyAdjacentTo(other)` for N/E/S/W only
+- Create Position with `types.Position{X: x, Y: y}`
+
+**Don't:**
+- Inline distance calculations like `abs(x1-x2) + abs(y1-y2)`
+- Create new position-like structs
+- Define local `abs()` or `sign()` functions — use `types.Abs` and `types.Sign`
 
 ## Item Model
 
@@ -330,6 +484,8 @@ Action handler pseudocode:
 - **Uses the generic path if:** Your action's `TargetItem` stays on the map throughout, targets a character, targets a position, or has no `TargetItem`.
   - Examples: `ActionLook` (item stays on map), `ActionTalk` (targets character via Dest), `ActionTillSoil` (targets position), `ActionPickup` (item on map until picked up), `ActionConsume` targeting a ground food vessel (vessel stays on map; arrival detected in the handler)
 
+- **Adjacent-tile position-based ordered actions** (e.g., `ActionBuildFence`): A variant where the character stands on a cardinally adjacent tile rather than the work tile. These use `TargetBuildPos` (the work tile) and `Dest` (the standing tile). The generic `continueIntent` fallthrough navigates toward `Dest` when `TargetBuildPos` is set, and preserves `TargetBuildPos` in the returned intent. **Critical:** `CalculateIntent`'s non-need continuation gate must include `TargetBuildPos != nil` as a condition to call `continueIntent` — without it, the intent falls through to full re-evaluation every tick, causing the character to thrash by selecting a new target tile each tick instead of walking toward the current one.
+
 **Same-tile rerouting:** `ActionLook` and `ActionTalk` require adjacency, not co-location. If a character is on the same tile as the target (item or character), `continueIntent` reroutes to an adjacent tile via `findClosestAdjacentTile` rather than falling through to the generic path. Without this, the generic path's `isAdjacent` check (which excludes distance zero) would never trigger, and `NextStepBFS` from the current tile to the current tile would return a no-op — creating an infinite loop. This is not an early-return block (the target doesn't move between phases); it's an adjacency-contract edge case specific to actions that observe rather than interact.
 
 **Walk-then-act pattern:** Actions like `ActionLook` and `ActionTalk` set their final action type from the start (not `ActionMove`). The intent creator owns the action type; `continueIntent` just recalculates paths via the generic fallthrough. The handler in `apply_actions.go` has a walking phase (moves via `moveWithCollision` while not yet at target) and an acting phase (performs the action when arrived). This follows **Consistency Over Local Cleverness** (Values.md) — all walk-then-act actions share the same shape.
@@ -364,7 +520,7 @@ Three checklists organized by category. Each includes every touchpoint; see the 
 
 1. Action constant in `character.go`
 2. Activity entry in `ActivityRegistry` (with `IntentOrderable` and appropriate `Category`)
-3. `findXxxIntent()` in `order_execution.go` — handles target selection on each resumption tick. **Position-based intents** (no `TargetItem`, e.g., TillSoil, Plant, Dig) bypass `continueIntent` and recalculate each tick — use `nextStepBFSCore(... char.UsingBFS)` and set `char.UsingBFS = true` when BFS is used, so sticky BFS survives across ticks. Item-based intents flow through `continueIntent` which handles this automatically.
+3. `findXxxIntent()` in `order_execution.go` — handles target selection on each resumption tick. **Position-based intents** (no `TargetItem`, e.g., TillSoil, Plant, Dig) bypass `continueIntent` and recalculate each tick — use `nextStepBFSCore(... char.UsingBFS)` and set `char.UsingBFS = true` when BFS is used, so sticky BFS survives across ticks. Item-based intents flow through `continueIntent` which handles this automatically. **Adjacent-tile variant** (e.g., BuildFence): set `TargetBuildPos` to the work tile and `Dest` to the adjacent standing tile — `continueIntent`'s generic fallthrough handles navigation toward `Dest`. See `continueIntent` Rules above for the non-need continuation gate requirement.
 4. Wire into `findOrderIntent` switch, `isMultiStepOrderComplete`, `IsOrderFeasible`
 5. Handler method in `apply_actions.go` — add a named `applyXxx` method on `Model` and a case in the `applyIntent` dispatch table; complete one work unit, clear intent, check order completion inline
 5a. **Completion criteria**: every ordered action must define and test both (a) inline completion in the handler (checked after each work unit) and (b) a safety-net case in `isMultiStepOrderComplete` (checked each tick before resuming). Missing either allows the order to loop forever if world state changes between ticks. Add a regression test that exercises the completion boundary (e.g., full inventory, no remaining targets).
@@ -414,6 +570,7 @@ This checklist covers the activity registry specifically. For the full action sy
 2. Set `Category` for grouped activities (generates synthetic category entries in order UI)
 3. Add discovery triggers if `AvailabilityKnowHow`
 4. If orderable: add case to `findOrderIntent()` switch in `order_execution.go`
+5. **If introducing a new category:** grep for all code that branches on activity category (e.g., `activityCategoryVerb`, `categoryDisplayName`). Each branch site must handle the new category, and any user-facing strings (log messages, display labels) must be explicitly stated in the step spec. If a branch site has accumulated 3+ cases, consider replacing it with a map lookup driven by the `ActivityRegistry` or a category metadata struct — prefer dynamic/data-driven over repeated switch statements.
 
 ## Orders
 
@@ -546,76 +703,6 @@ Recipes with `Repeatable: true` loop after each craft cycle instead of completin
 4. Add case to the `ActionCraft` handler in `apply_actions.go` dispatch (by recipe ID)
 5. If `Repeatable`: add completion case to `isMultiStepOrderComplete` in `order_execution.go`
 
-## World & Terrain
-
-### Water Terrain
-
-Water tiles (springs, ponds) are stored as map terrain (`water map[Position]WaterType`), not as features. This enables O(1) lookups and clean separation from the feature system.
-
-| Water Type | Symbol | Rendering |
-|------------|--------|-----------|
-| WaterSpring | `☉` | Single character |
-| WaterPond | `▓` | Three-character fill `▓▓▓` |
-
-Water tiles are impassable. Characters interact from cardinal-adjacent tiles. Tiles 8-directionally adjacent to any water are "wet" — computed on the fly via `IsWet(pos)`, no persistent state.
-
-Manually-watered tiles track wet status with a decay timer (see `config.WateredTileDecayTime`). `IsWet(pos)` checks both water adjacency and the watered-tile timer.
-
-### Drinking Sources
-
-Characters can drink from three source types, unified by distance scoring in `findDrinkIntent`:
-- **Terrain water** — infinite, drinks continuously until sated
-- **Carried vessel** — finite, clears intent after each drink (re-evaluate nearest source)
-- **Ground vessel** — finite, character moves to vessel and drinks in place
-
-Intent clearing for vessel drinking ensures characters naturally handle vessel depletion and re-prioritize the nearest source.
-
-### Food Sources
-
-Characters score food across four candidate pools in `FindFoodTarget`:
-- **Carried loose food** — distance 0
-- **Carried food vessel contents** — distance 0, scored by contents' variety
-- **Ground loose food** — Manhattan distance from character
-- **Ground food vessel contents** — Manhattan distance to vessel, scored by contents' variety; vessel is TargetItem
-
-Ground vessel eating follows the same eat-in-place pattern as ground vessel drinking: character walks to the vessel, consumes one unit, clears intent, and re-evaluates. The vessel stays on the map throughout — no early-return block needed in `continueIntent` (vessel never enters inventory). `ConsumeFromVessel` operates on the vessel pointer directly, whether it is in inventory or on the ground.
-
-### Tilled Soil
-
-Tilled soil is map terrain state (`tilled map[Position]bool`), following the same pattern as water. Key difference: tilled tiles are walkable and items can exist on them.
-
-Rendering: `═══` fill for empty tilled tiles, `═X═` fill around entities on tilled soil. Wet tilled soil uses distinct styles from dry.
-
-### Pond Generation
-
-`SpawnPonds()` generates 1-5 ponds of 4-16 contiguous water tiles each via blob growth. After placing all ponds, `isMapConnected()` verifies walkability via BFS. If partitioned, regenerates (max 10 retries). Ponds generate before features and items.
-
-### Features
-
-Features are natural map elements that aren't items or characters. Currently only leaf piles (passable, used as beds). Springs migrated to water terrain.
-
-Features have a `Passable` boolean — impassable features are handled by `IsBlocked()` and pathfinding automatically.
-
-### Constructs
-
-Constructs are player-built structures. They are a distinct entity type from Features (natural world elements) — see DD-4 in `construction-design.md`. Constructs have a `ConstructType` (e.g., "structure") and `Kind` (e.g., "fence") hierarchy mirroring ItemType/Kind. The `Passable` boolean on a Construct determines whether characters can move through it; impassable constructs are respected by `IsBlocked()`, `MoveCharacter`, and all three call sites of `nextStepBFSCore`. The `Movable` boolean reserves future furniture-relocation behavior.
-
-Construct storage on `Map`: the `constructs []Construct` slice with `AddConstruct`, `AddConstructDirect`, `ConstructAt`, `Constructs`, `RemoveConstruct`, and ID-generation methods.
-
-### Movement & Pathfinding
-
-**`NextStepBFS`**: Greedy-first pathfinding. Tries a greedy diagonal step (moving along the larger of X or Y delta) before running BFS. If the greedy step is clear, takes it — this produces natural zigzag paths and spreads characters heading to the same destination across different routes. BFS only runs when the greedy step hits water or an impassable feature. Falls back to greedy `NextStep` if no BFS path exists. Used by all callers with gameMap access. The public function is a thin wrapper over `nextStepBFSCore(preferBFS bool)`.
-
-**Sticky BFS (`UsingBFS` flag)**: Once a character uses BFS to navigate around an obstacle, they stay in BFS mode for the remainder of that intent. `UsingBFS bool` is an ephemeral field on Character (not serialized, like displacement fields). `continueIntent` passes `char.UsingBFS` as `preferBFS` to `nextStepBFSCore` and sets `char.UsingBFS = true` when BFS was actually used. The flag clears in two places: (a) when `Intent` is nilled in `CalculateIntent` (covers reaching target and intent changes), and (b) when `initiateDisplacement` fires (covers character collision). This follows the displacement precedent — ephemeral, not serialized, clears on save/load.
-
-**`NextStep`**: Greedy single-step toward target along larger axis delta. No obstacle awareness. Fallback only.
-
-**`findAlternateStep`**: Per-tick reactive routing around blocked tiles. Used by `MoveCharacter` when next step is occupied.
-
-**Perpendicular displacement on character collision**: When `MoveCharacter` fails due to another character (not terrain), the blocked character enters displacement mode: 3 perpendicular sidesteps before resuming BFS. Direction is chosen randomly from the two perpendiculars; if blocked, tries the opposite. If both blocked, displacement is skipped. Displacement state (`DisplacementStepsLeft`, `DisplacementDX`, `DisplacementDY`) is ephemeral — not serialized. On save/load, displacement clears and the character re-pathfinds normally. This extends `findAlternateStep`'s reactive-routing pattern to multi-step intentional routing without modifying BFS semantics or treating characters as obstacles in pathfinding.
-
-**Movement blocking**: `IsBlocked(pos)` returns true if character, water tile, impassable feature, or impassable construct occupies the position.
-
 ## Area Selection UI Pattern
 
 Area selection enables players to define regions for terrain modification or construction. Two selection shapes are supported:
@@ -666,21 +753,6 @@ Constructor-set fields won't be populated when deserializing directly into struc
 **Kind migration**: When a new Kind value is added to an existing item type, old saves that pre-date the Kind field have `Kind=""` for those items. Migration in `FromSaveState` (`serialize.go`) restores the expected Kind (e.g., grass items without Kind get `Kind="tall grass"` on load). Follow this pattern for any future item type that gains a Kind retroactively.
 
 **Save compatibility when changing entity storage**: When changing how entities are stored (e.g., moving data between fields, maps, or types), verify save/load round-trip in the same step. Check: (1) new state serializes, (2) old saves migrate, (3) serialize tests updated.
-
-## Position Handling
-
-All coordinates use `types.Position` struct with `X, Y int`.
-
-**Do:**
-- Use `pos.DistanceTo(other)` for distance calculations
-- Use `pos.IsAdjacentTo(other)` for 8-direction adjacency checks
-- Use `pos.IsCardinallyAdjacentTo(other)` for N/E/S/W only
-- Create Position with `types.Position{X: x, Y: y}`
-
-**Don't:**
-- Inline distance calculations like `abs(x1-x2) + abs(y1-y2)`
-- Create new position-like structs
-- Define local `abs()` or `sign()` functions — use `types.Abs` and `types.Sign`
 
 ## Common Implementation Pitfalls
 

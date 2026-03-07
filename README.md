@@ -36,6 +36,7 @@ Core process innovations developed over the course of this project:
 
 ## Latest Updates
 
+- **Build Fence orders**: Characters gather materials and build stick or grass fences on player-marked tiles.
 - **Craft Bricks orders**: Characters shape loose clay into bricks, repeating until all dug clay is used.
 - **Dig Clay orders**: Direct characters to dig clay from deposits.
 - **Seed extraction**: Characters extract seeds from flowers and tall grass via Extract orders, without harming the plant.

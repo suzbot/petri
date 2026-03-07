@@ -42,6 +42,8 @@ func (o *Order) DisplayName() string {
 	switch activity.Category {
 	case "craft":
 		return "Craft " + strings.ToLower(activity.Name)
+	case "construction":
+		return "Build " + strings.ToLower(activity.Name)
 	case "garden":
 		if o.TargetType != "" {
 			return activity.Name + " " + Pluralize(o.TargetType)
