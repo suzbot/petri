@@ -23,6 +23,7 @@ Specify all of the following in the skill argument:
 - **Characters**: count, positions, stat overrides (if any), and exact inventory contents — item type, color, kind for each item; for vessels, include container contents
 - **Map items**: what's on the ground, with full variety attributes (item_type, color, pattern, texture, kind, edible, poisonous, healing); for plants, specify growth state (mature, sprout, gone-to-seed)
 - **Orders**: activity ID, target type, status, assignment (if pre-assigned)
+- **Constructs**: construct_type, kind, material, material_color, wall_role (if hut), positions
 - **Varieties to register**: every unique item_type/color/kind combination that appears anywhere — inventory, container contents, map items, seeds. If an item exists anywhere in the world, its variety must be listed here.
 - **Support infrastructure**: water tile positions, leaf piles, food items, other needs-satisfying features. **Default: always include food, water tiles, and leaf pile beds unless the caller explicitly says not to.** Survival interruptions will obscure the target behavior if needs aren't saturated.
 - **What to observe**: the specific behavior the user should watch for
@@ -69,10 +70,6 @@ Use Bash to create: `~/.petri/worlds/world-test-<feature>/`
   "alive_count": <n>
 }
 ```
-
-### Step 4.5: Remind User to Close Game (REQUIRED)
-
-Before writing any files, remind the user: **"Close the game if it's running — auto-save on quit will overwrite the test world."** Wait for acknowledgment before proceeding to Step 5.
 
 ### Step 5: Write state.json
 
@@ -142,6 +139,7 @@ Use this as the starting structure. Add/remove characters, items, features, and 
   ],
   "tilled_positions": [],
   "watered_tiles": [],
+  "constructs": [],
   "varieties": [],
   "orders": []
 }
@@ -259,6 +257,35 @@ To put a vessel in a character's inventory, add it to the character's `"inventor
 - `"assigned"` — currently being worked on (use this when pre-assigning to a character)
 - `"paused"` — interrupted by character needs
 - `"completed"` — finished (swept up by game loop)
+
+**Construct template (fence):**
+```json
+{
+  "x": 30,
+  "y": 28,
+  "construct_type": "fence",
+  "kind": "fence",
+  "material": "stick",
+  "material_color": "brown",
+  "wall_role": ""
+}
+```
+
+**Construct template (hut wall/door):**
+```json
+{
+  "x": 30,
+  "y": 28,
+  "construct_type": "hut",
+  "kind": "hut",
+  "material": "stick",
+  "material_color": "brown",
+  "wall_role": "corner-tl"
+}
+```
+Wall roles: `corner-tl`, `corner-tr`, `corner-bl`, `corner-br`, `edge-h`, `edge-v`, `door`, `t-down`, `t-up`, `t-right`, `t-left`, `cross`
+
+**Unlisted entity types:** If the spec requires entity types not covered by templates above, read `internal/save/state.go` for the struct definition and serialize accordingly.
 
 **Variety template:**
 ```json

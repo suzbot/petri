@@ -53,6 +53,7 @@ Set up dependencies so each task blocks the next. Wait for user confirmation bef
 - When the spec changes a shared function, grep all callers to verify the spec addresses each one
 - When the spec adds a field to a shared predicate, verify both directions: what the new field matches, and what it causes the predicate to reject in existing call sites
 - New visual indicators: grep for the analogous existing pattern; read only those lines
+- When extending an existing entity type, grep for existing tests of that type — follow their patterns and conventions
 
 **Report the readiness result to the user before proceeding to task 3. Wait for explicit user confirmation before writing any code.**
 
@@ -65,6 +66,8 @@ Set up dependencies so each task blocks the next. Wait for user confirmation bef
 **Announce** what you're about to write — one sentence: "I'm about to write [these tests] and [this implementation]"
 
 **Only implement behavior specified in the step spec.** If a detail isn't specified, surface the gap, make a recommendation, and seek confirmation.
+
+**Cross-check DD entries the spec references.** When the spec cites a DD, re-read that DD before writing code. Verify every specific value, character, or field listed in the DD appears in the implementation.
 
 **Write tests immediately before code** — anchor to the step's anchor story, not implementation paths. "Ground vessel ends up filled with water" validates intent; "returns ActionPickup" validates structure.
 

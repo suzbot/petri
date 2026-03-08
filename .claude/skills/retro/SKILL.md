@@ -3,16 +3,8 @@ name: retro
 description: "Post-feature reflection to identify process changes that reduce future friction and context overhead. Run after a feature is marked complete, or mid-session when the user wants a process check-in."
 user-invocable: true
 argument-hint: Brief context about what was just completed (optional)
-model: sonnet
-context: fork
-agent: general-purpose
-allowed-tools:
-  - Read
-  - Glob
-  - Grep
+model: claude-sonnet-4-6
 ---
-
-**Note for caller (not the retro agent):** Before invoking this skill, ask the user if they want conversation history searched for uncaptured friction. If the user says yes, **always run the search** — even if the last retro was recent. The user knows what sessions exist; a recent timestamp does not mean there's nothing to find. Search history using the process in "Conversation History Search" at the bottom of this file, then pass findings as part of the retro arguments. After the retro completes and proposals are resolved, update `memory/last-retro.txt` with the current ISO timestamp.
 
 ## Retro Skill
 
@@ -31,10 +23,58 @@ Avoid speculative or "nice-to-have" improvements.
 
 ---
 
+### Step 0: Conversation History Search
+
+Ask the user if they want previous session history searched for uncaptured friction. **Always ask** — even if the last retro was recent. The user knows what sessions exist.
+
+If the user says yes, launch a **subagent** to search history autonomously:
+
+```
+Agent tool call:
+  subagent_type: general-purpose
+  description: "Search session history for friction"
+  prompt: |
+    Search conversation transcripts for friction signals from recent sessions.
+
+    1. Use Read to check /Users/suzanneerin/.claude/projects/-Users-suzanneerin-projects-petri/memory/last-retro.txt
+       for the cutoff timestamp (file may not exist — that's fine, just search recent files).
+
+    2. Use Glob to find transcript files:
+       pattern: "*.jsonl"
+       path: "/Users/suzanneerin/.claude/projects/-Users-suzanneerin-projects-petri"
+
+       Take the 5 most recent files (Glob returns sorted by modification time).
+
+    3. For each transcript file, use Grep (case insensitive) with output_mode: "content"
+       and -C: 2 for surrounding context. Search for this pattern:
+
+       (no, |not what|already|don't forget|we discussed|friction|missed|should have|too strong|too weak|that's not|I meant|confused|why are|wait,|wrong|actually|problem|issue|stuck|churn)
+
+       Focus on matches that appear in user messages (lines containing "type":"user").
+       Use head_limit: 50 per file to keep output manageable.
+
+    4. For files with interesting friction signals, use Read with offset/limit to examine
+       surrounding context more deeply. Look for patterns:
+       - User corrections or pushback
+       - Repeated attempts at the same thing
+       - Tool failures requiring workarounds
+       - User redirections or clarifications
+       - Context lost or misunderstood
+
+    5. Return a summary of friction points found, with brief context for each.
+       Only report friction — not things that went smoothly.
+       If a cutoff timestamp was found, note which signals are from after that cutoff.
+```
+
+Wait for the search agent to return, then integrate its findings into Step 1.
+
+If the user says no, proceed directly to Step 1 using only the current session's observable signals.
+
+---
+
 ### Step 1: Collaboration Assessment
 
-Reflect **only on observable signals from this session**.
-Do not infer intent beyond what the user explicitly stated or did.
+Reflect on observable signals from **this session** (you have full conversation context) and any **history search findings** from Step 0.
 
 Address the following **only if applicable**:
 
@@ -65,7 +105,7 @@ Address the following **only if applicable**:
   - Could a lightweight guardrail have prevented them?
 
 #### 5. Intensive processes
-- Were there any suspiciusly high-token or high-touch procceses for actions that were expected to be more straightforward? examples
+- Were there any suspiciously high-token or high-touch processes for actions that were expected to be more straightforward? examples
   - test world creation needing to search code and other save files to reason about how to build it
   - internal churning going back and forth over a question without surfacing it
   - many requests for user approvals/interventions on what is supposed to be largely autonomous (test world creation)
@@ -76,7 +116,7 @@ If none of items 1-5 occurred, explicitly state that **no meaningful
 collaboration friction was observed**.
 
 #### 6. Value Signals (always assess)
-Unlike items 1-6, this applies even when no friction occurred. Observe what choices the user made during the session and name the implicit value behind each:
+Unlike items 1-5, this applies even when no friction occurred. Observe what choices the user made during the session and name the implicit value behind each:
 - When the user selected between options: what did they optimize for? What criteria did the user appear to value when selecting an option?
     (e.g., simplicity, flexibility, explicitness, speed, extensibility)
 - When the user redirected an approach: what principle were they enforcing?
@@ -84,7 +124,7 @@ Unlike items 1-6, this applies even when no friction occurred. Observe what choi
 
 For each signal, state: the choice made and the value it expresses. Note if Values.md has something similar, but don't force-fit — if it feels like a distinct principle, present it as one.
 
-Carry friction insights (items 1-6) and value signals (item 7) to Step 2.
+Carry friction insights (items 1-5) and value signals (item 6) to Step 2.
 
 ---
 
@@ -133,69 +173,21 @@ A. Assess whether Step 1 insights revealed **clear, recurring, or token/context-
 
 ---
 
+### Step 3: Implement Approved Changes
+
+After presenting proposals, wait for explicit user approval.
+
+- Implement only what the user approves — use Edit/Write tools directly
+- Update `memory/last-retro.txt` with current ISO timestamp:
+  ```bash
+  date -u +"%Y-%m-%dT%H:%M:%SZ" > /Users/suzanneerin/.claude/projects/-Users-suzanneerin-projects-petri/memory/last-retro.txt
+  ```
+
+---
+
 ## Output Rules
 
 - Be concise and concrete
 - Avoid speculative suggestions
 - Present all changes as **proposals**, not decisions
-- End with a clear list of proposals for the caller to relay to the user for approval
 - All suggestions require **explicit user approval** before implementation
-- If conversation history findings were provided, integrate them into the assessment
-
----
-
-## Conversation History Search (for caller, not retro agent)
-
-When the user opts in to history search before a retro, follow this process:
-
-### 1. Determine search window
-
-Read `memory/last-retro.txt` for the last retro timestamp. Search sessions modified after that timestamp. If no timestamp file exists, fall back to the last 3 sessions.
-
-### 2. Find and scan sessions (single command)
-
-Run one command that finds recent sessions and extracts friction signals. This avoids multiple approval prompts. Note: `last-retro.txt` stores UTC timestamps but file mtimes are local — the script converts UTC cutoff to local time for comparison.
-
-```bash
-python3 -c "
-import json, glob, os, sys
-from datetime import datetime, timezone
-project_dir = os.path.expanduser('~/.claude/projects/-Users-suzanneerin-projects-petri')
-cutoff_str = sys.argv[1].strip() if len(sys.argv) > 1 and sys.argv[1].strip() else None
-files = sorted(glob.glob(os.path.join(project_dir, '*.jsonl')), key=os.path.getmtime, reverse=True)
-if cutoff_str:
-    cutoff_utc = datetime.fromisoformat(cutoff_str.replace('Z', '+00:00'))
-    cutoff_epoch = cutoff_utc.timestamp()
-    files = [f for f in files if os.path.getmtime(f) > cutoff_epoch]
-else:
-    files = files[:3]
-friction_words = ['no, ', 'not what', 'already', 'don\\'t forget', 'we discussed', 'did we', 'does the skill', 'friction', 'missed', 'should have', 'too strong', 'too weak', 'that\\'s not', 'I meant', 'confused', 'why are', 'I don', 'wait,', 'wrong', 'actually', 'problem', 'issue', 'stuck', 'churn']
-for fpath in files:
-    signals = []
-    with open(fpath) as f:
-        for line in f:
-            try:
-                obj = json.loads(line)
-                if obj.get('type') == 'user':
-                    content = obj.get('message', {}).get('content', '')
-                    if isinstance(content, str) and any(w in content.lower() for w in friction_words):
-                        signals.append(content[:300])
-            except: pass
-    if signals:
-        mtime = datetime.fromtimestamp(os.path.getmtime(fpath)).strftime('%Y-%m-%d %H:%M')
-        print(f'\n=== {os.path.basename(fpath)[:12]}... ({mtime}) — {len(signals)} signals ===')
-        for s in signals:
-            print(s); print('---')
-" "$(cat memory/last-retro.txt 2>/dev/null || echo '')"
-```
-
-### 3. Pass findings to retro
-
-Include a summary of friction signals found (with direct quotes) in the retro skill arguments.
-
-### 5. After retro completes
-
-Write current timestamp to `memory/last-retro.txt`:
-```bash
-date -u +"%Y-%m-%dT%H:%M:%SZ" > memory/last-retro.txt
-```

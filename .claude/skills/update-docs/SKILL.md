@@ -32,6 +32,7 @@ Read each of these files, then apply only the changes warranted by the summary:
 | `docs/step-spec.md` | **Current step spec** | No changes during [DOCS] — `/implement-feature` handles clearing this file on completion. |
 | `docs/randomideas.md`| **Small Feature Planning**` | Remove items that have been moved into plans or that have been completed.|
 | `docs/triggered-enhancements.md` | **Deferred Feature Planning** | Remove items that have been completed. Update items where intended approaches have changed.|
+| `.claude/skills/test-world/SKILL.md` | **Test world templates** | If the step introduced a new serializable entity type or added fields to an existing save struct, check whether the test-world skill's recipe template and entity templates need updating. Add new templates or fields so the skill can create test worlds with the new entity type without reading `state.go`. |
 
 ### game-mechanics.md Rules
 

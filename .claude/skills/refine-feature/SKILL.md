@@ -74,6 +74,8 @@ Before writing the step spec, grep existing symbol constants and helper function
 - For borrowed algorithms: when the plan reuses an existing algorithm for a new context (e.g., SpawnPonds logic for SpawnClay), trace the original's constraints and verify they hold in the new context. Different entity types often have different spatial or adjacency constraints that make the algorithm fail silently or produce degenerate results.
 - When the plan adds a discriminating field to a shared predicate, trace both directions: what the new field matches *and* what it causes the predicate to reject in existing call sites. If the predicate is called from multiple contexts, verify rejection behavior is correct in each.
 
+- When extending an existing entity type, grep for existing tests of that type — follow their patterns and conventions in the step spec's test plan.
+
 This is targeted reads (3-5 files the plan already names), not broad exploration. The goal is to identify assumptions in the plan that don't match the code — the class of bugs where the plan describes the right behavior but misses a code-level detail (like Target needing to be a BFS step, not a destination).
 
 Surface any mismatches as discussion items before proceeding to the step spec.
@@ -109,6 +111,7 @@ Design doc: [phase-design.md](phase-design.md)
 - [ ] **Reqs reconciliation:** Verify this was addressed in Step 2 discussion. Show the work: cite the requirement lines and confirm the implementation matches.
 - [ ] **Architecture alignment:** Verify this was addressed in Step 2 discussion. Show the work: name the pattern and confirm the implementation follows it.
 - [ ] **Values alignment:** Verify this was addressed in Step 2 discussion. Show the work: cite which Values.md principles apply and how the design honors them.
+- [ ] **DD completeness:** When a sub-step references a DD, enumerate every specific value from that DD in the sub-step (characters, field values, enum members). Don't reference a DD by number alone — the spec must be self-contained enough that implementation doesn't need to re-derive DD details.
 
 **If the feature resolved open design questions during Step 2, explicitly document:**
 - [ ] Deferred scope (what was descoped and where is it tracked?)
