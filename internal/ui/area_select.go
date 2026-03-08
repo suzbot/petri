@@ -147,6 +147,79 @@ func isInRect(pos, corner1, corner2 types.Position) bool {
 	return pos.X >= minX && pos.X <= maxX && pos.Y >= minY && pos.Y <= maxY
 }
 
+// isValidHutFootprint checks if a 5×5 hut footprint can be placed with top-left at (cursorX, cursorY).
+// All tiles block on: water, built constructs, impassable features, map edges.
+// Interior tiles block on existing hut marks (no walls inside a room).
+// Interior fence marks are allowed (erased during placement).
+// Perimeter tiles allow all existing construction marks (shared walls / fence overwrite).
+func isValidHutFootprint(cursorX, cursorY int, gameMap *game.Map) bool {
+	for dy := 0; dy < 5; dy++ {
+		for dx := 0; dx < 5; dx++ {
+			pos := types.Position{X: cursorX + dx, Y: cursorY + dy}
+			if !gameMap.IsValid(pos) {
+				return false
+			}
+			if gameMap.IsWater(pos) {
+				return false
+			}
+			if gameMap.ConstructAt(pos) != nil {
+				return false
+			}
+			if f := gameMap.FeatureAt(pos); f != nil && !f.Passable {
+				return false
+			}
+			// Interior tiles block on hut marks (fence marks are erased during placement)
+			if dx >= 1 && dx <= 3 && dy >= 1 && dy <= 3 {
+				if mark, ok := gameMap.GetConstructionMark(pos); ok && mark.ConstructKind == "hut" {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// getHutPerimeterPositions returns the 16 perimeter positions of the 5×5 footprint
+// anchored at (cursorX, cursorY) top-left.
+func getHutPerimeterPositions(cursorX, cursorY int) []types.Position {
+	var positions []types.Position
+	for dy := 0; dy < 5; dy++ {
+		for dx := 0; dx < 5; dx++ {
+			if dx >= 1 && dx <= 3 && dy >= 1 && dy <= 3 {
+				continue // skip interior
+			}
+			positions = append(positions, types.Position{X: cursorX + dx, Y: cursorY + dy})
+		}
+	}
+	return positions
+}
+
+// getHutInteriorPositions returns the 9 interior positions (3×3 center) of the 5×5 footprint.
+func getHutInteriorPositions(cursorX, cursorY int) []types.Position {
+	var positions []types.Position
+	for dy := 1; dy <= 3; dy++ {
+		for dx := 1; dx <= 3; dx++ {
+			positions = append(positions, types.Position{X: cursorX + dx, Y: cursorY + dy})
+		}
+	}
+	return positions
+}
+
+// isInHutFootprint returns true if (x,y) is within the 5×5 footprint area.
+func isInHutFootprint(x, y, cursorX, cursorY int) bool {
+	return x >= cursorX && x < cursorX+5 && y >= cursorY && y < cursorY+5
+}
+
+// isHutPerimeter returns true if (x,y) is a perimeter tile (not interior) within the footprint.
+func isHutPerimeter(x, y, cursorX, cursorY int) bool {
+	if !isInHutFootprint(x, y, cursorX, cursorY) {
+		return false
+	}
+	dx := x - cursorX
+	dy := y - cursorY
+	return !(dx >= 1 && dx <= 3 && dy >= 1 && dy <= 3)
+}
+
 // getValidPositions returns all valid positions within the rectangle defined by anchor and cursor.
 // The validator function determines which positions are included.
 func getValidPositions(anchor, cursor types.Position, gameMap *game.Map, validator func(types.Position, *game.Map) bool) []types.Position {

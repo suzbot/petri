@@ -36,6 +36,19 @@ func colorByTier(level string, tier int) string {
 	}
 }
 
+// constructionMarkLabel builds the details panel label for a construction mark (DD-45).
+func constructionMarkLabel(mark game.ConstructionMark) string {
+	label := "Marked for construction"
+	kind := strings.ToUpper(mark.ConstructKind[:1]) + mark.ConstructKind[1:]
+	if mark.Material != "" {
+		mat := strings.ToUpper(mark.Material[:1]) + mark.Material[1:]
+		label += " (" + mat + " " + kind + ")"
+	} else {
+		label += " (" + kind + ")"
+	}
+	return label
+}
+
 // colorLogMessage colors action log messages based on content
 func colorLogMessage(line, message string) string {
 	// Learning/discovery messages (darker blue) - check first as these are important
@@ -651,6 +664,86 @@ func (m Model) renderCell(x, y int) string {
 		}
 	}
 
+	// Hut footprint preview and marks during buildHut step 2
+	if m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID == "buildHut" {
+		// Unmark mode: no footprint preview — only highlight existing marks red when cursor is on one
+		if m.areaSelectUnmarkMode && !isCursor {
+			if cursorMark, ok := m.gameMap.GetConstructionMark(types.Position{X: m.cursorX, Y: m.cursorY}); ok {
+				if mark, ok2 := m.gameMap.GetConstructionMark(pos); ok2 && mark.LineID == cursorMark.LineID {
+					hasEntity := m.gameMap.CharacterAt(pos) != nil || m.gameMap.ItemAt(pos) != nil || m.gameMap.FeatureAt(pos) != nil
+					if hasEntity {
+						bg := areaUnselectStyle.Render(" ")
+						return bg + sym + bg
+					}
+					padded := " " + sym + " "
+					if fill != "" {
+						padded = fill + sym + fill
+					}
+					return areaUnselectStyle.Render(padded)
+				}
+			}
+		}
+
+		// Mark mode: footprint preview
+		if !m.areaSelectUnmarkMode {
+			inFootprint := isInHutFootprint(pos.X, pos.Y, m.cursorX, m.cursorY)
+			if inFootprint && !isCursor {
+				// Check if placement would be a no-op (all perimeter tiles already have hut marks)
+				allCovered := true
+				for _, pp := range getHutPerimeterPositions(m.cursorX, m.cursorY) {
+					if mark, ok := m.gameMap.GetConstructionMark(pp); !ok || mark.ConstructKind != "hut" {
+						allCovered = false
+						break
+					}
+				}
+
+				if allCovered {
+					// Fully overlapping existing hut — show confirmed marks, not preview
+					// (fall through to confirmed marks rendering below)
+				} else {
+					valid := isValidHutFootprint(m.cursorX, m.cursorY, m.gameMap)
+					var bgStyle lipgloss.Style
+					if !valid {
+						bgStyle = areaUnselectStyle // Invalid footprint: all red
+					} else if isHutPerimeter(pos.X, pos.Y, m.cursorX, m.cursorY) {
+						bgStyle = constructionSelectStyle // Perimeter: warm brown
+					} else {
+						bgStyle = interiorPreviewStyle // Interior: subtle dark
+					}
+					hasEntity := m.gameMap.CharacterAt(pos) != nil || m.gameMap.ItemAt(pos) != nil || m.gameMap.FeatureAt(pos) != nil
+					if hasEntity {
+						bg := bgStyle.Render(" ")
+						return bg + sym + bg
+					}
+					padded := " " + sym + " "
+					if fill != "" {
+						padded = fill + sym + fill
+					}
+					return bgStyle.Render(padded)
+				}
+			}
+		}
+
+		// Existing confirmed marks (visible in both mark and unmark modes)
+		if m.gameMap.IsMarkedForConstruction(pos) && !isCursor {
+			mark, _ := m.gameMap.GetConstructionMark(pos)
+			markStyle := markedForConstructionStyle
+			if mark.ConstructKind == "fence" {
+				markStyle = fenceMarkStyle // Fence marks render grey during hut placement (DD-48)
+			}
+			hasEntity := m.gameMap.CharacterAt(pos) != nil || m.gameMap.ItemAt(pos) != nil || m.gameMap.FeatureAt(pos) != nil
+			if hasEntity {
+				bg := markStyle.Render(" ")
+				return bg + sym + bg
+			}
+			padded := " " + sym + " "
+			if fill != "" {
+				padded = fill + sym + fill
+			}
+			return markStyle.Render(padded)
+		}
+	}
+
 	if isCursor {
 		return "[" + sym + "]"
 	}
@@ -808,11 +901,7 @@ func (m Model) renderDetails() string {
 		} else if m.gameMap.IsMarkedForTilling(cursorPos) {
 			lines = append(lines, " Type: "+growingStyle.Render("Marked for tilling"))
 		} else if mark, ok := m.gameMap.GetConstructionMark(cursorPos); ok {
-			label := "Marked for construction"
-			if mark.Material != "" {
-				label += " (" + mark.Material[0:1] + strings.ToUpper(mark.Material[1:]) + ")"
-			}
-			lines = append(lines, " Type: "+markedForConstructionStyle.Render(label))
+			lines = append(lines, " Type: "+markedForConstructionStyle.Render(constructionMarkLabel(mark)))
 		} else {
 			lines = append(lines, " Type: Empty")
 		}
@@ -1039,11 +1128,7 @@ func (m Model) renderDetails() string {
 			lines = append(lines, " "+growingStyle.Render("Marked for tilling"))
 		}
 		if mark, ok := m.gameMap.GetConstructionMark(cursorPos); ok {
-			label := "Marked for construction"
-			if mark.Material != "" {
-				label += " (" + mark.Material[0:1] + strings.ToUpper(mark.Material[1:]) + ")"
-			}
-			lines = append(lines, " "+markedForConstructionStyle.Render(label))
+			lines = append(lines, " "+markedForConstructionStyle.Render(constructionMarkLabel(mark)))
 		}
 		if m.gameMap.IsManuallyWatered(cursorPos) {
 			label := "Watered"
@@ -1579,6 +1664,19 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 			lines = append(lines, indent+"arrows: draw line")
 			lines = append(lines, indent+"p: confirm line")
 		}
+		lines = append(lines, indent+"tab: toggle mark/unmark")
+		lines = append(lines, indent+"enter: done  esc: cancel")
+		lines = append(lines, "")
+	} else if m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID == "buildHut" {
+		modeName := "Mark"
+		pHint := "p: place hut"
+		if m.areaSelectUnmarkMode {
+			modeName = "Unmark"
+			pHint = "p: remove hut"
+		}
+		lines = append(lines, indent+markedForConstructionStyle.Render("Hut: "+modeName), "")
+		lines = append(lines, indent+"arrows: move cursor")
+		lines = append(lines, indent+pHint)
 		lines = append(lines, indent+"tab: toggle mark/unmark")
 		lines = append(lines, indent+"enter: done  esc: cancel")
 		lines = append(lines, "")

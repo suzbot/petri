@@ -606,12 +606,13 @@ Pool is serialized in `SaveState.MarkedForTillingPositions`.
 ### Marked-for-Construction Pool
 
 Construction uses a parallel pool following the same separation of plan from worker:
-- **Marked tiles** (`gameMap.markedForConstruction map[Position]ConstructionMark`): User's construction plan. Each `ConstructionMark` carries a `LineID int` (which line-drawing operation created it) and `Material string` (empty until first tile is built).
-- **Build Fence orders**: Worker assignments. Multiple orders = multiple workers on the same pool.
-- **Line ID**: All tiles from one line-drawing operation share a `LineID`. When the first tile in a line is built, the chosen material is stamped onto all tiles with the same `LineID` — ensuring visual consistency within a drawn line.
+- **Marked tiles** (`gameMap.markedForConstruction map[Position]ConstructionMark`): User's construction plan. Each `ConstructionMark` carries a `LineID int` (which line-drawing operation created it), `Material string` (empty until first tile is built), and `ConstructKind string` (`"fence"` or `"hut"`).
+- **Build Fence / Build Hut orders**: Worker assignments. Multiple orders = multiple workers on the same pool. `HasUnbuiltConstructionPositions(constructKind string)` filters the shared pool by kind — fence orders only count fence marks, hut orders only count hut marks.
+- **Line ID**: All tiles from one placement operation share a `LineID`. For fences, this is a cardinal line. For huts, this is the full 16-tile perimeter of one footprint. When the first tile in a line is built, the chosen material is stamped onto all tiles with the same `LineID`. `UnmarkByLineID(lineID)` removes all marks with that ID — used for whole-footprint hut unmarking.
 - **Material lock**: Once set, a line's material is read by subsequent workers. If the locked material runs out, the order becomes unfulfillable.
+- **Kind filter rule**: `findBuildFenceIntent` passes `"fence"` to `HasUnbuiltConstructionPositions`; `IsOrderFeasible` and `isMultiStepOrderComplete` filter by the order's kind. Adding a new construct kind means adding a `ConstructKind` value and filtering callers by it — no new pool.
 
-Pool is serialized in `SaveState.MarkedForConstructionTiles`. Line ID counter in `SaveState.ConstructionLineID`.
+Pool is serialized in `SaveState.MarkedForConstructionTiles`. Line ID counter in `SaveState.ConstructionLineID`. `ConstructKind` is serialized on each mark with backward compatibility: old saves without `ConstructKind` default to `"fence"`.
 
 ## Item Acquisition
 
@@ -712,18 +713,26 @@ Recipes with `Repeatable: true` loop after each craft cycle instead of completin
 
 ## Area Selection UI Pattern
 
-Area selection enables players to define regions for terrain modification or construction. Two selection shapes are supported:
+Area selection enables players to define regions for terrain modification or construction. Three selection shapes are supported:
 
 - **Rectangle** (tillSoil): anchor + move cursor → fills rectangle between anchor and cursor
 - **Line** (buildFence): anchor + move cursor → snaps to a cardinal line (horizontal or vertical, whichever axis has the larger delta); diagonal cursor movement resolves to the dominant axis
+- **Fixed footprint** (buildHut): no anchor — cursor positions the top-left corner of a fixed 5×5 footprint; `p` confirms in one press
 
-**Flow (both shapes):**
+**Flow (rectangle and line):**
 1. Player selects activity → enters area selection mode
 2. Move cursor, press `p` to anchor start point
 3. Move cursor to resize selection (valid tiles highlighted)
 4. Press `p` to confirm (marks tiles)
 5. Press `Tab` to toggle mark/unmark mode
 6. Press `Enter` when done, `Esc` to cancel
+
+**Flow (fixed footprint):**
+1. Player selects activity → enters placement mode (no anchor)
+2. Move cursor to position the footprint preview
+3. Press `p` to place (marks tiles immediately, no anchor step)
+4. Press `Tab` to toggle mark/unmark mode; in unmark mode, hover over any marked tile and press `p` to remove the entire footprint by LineID
+5. Press `Enter` when done, `Esc` to cancel
 
 **Rendering**: Selection highlight uses full background for empty tiles, padding-only for entities (avoids ANSI nesting). Three distinct color states map directly to workflow progression: active selection (teal/warm brown) → confirmed pending (sage/olive) → completed work (dusky earth). Each state should be visually distinct from the others — reusing a color across states collapses workflow stages the player needs to distinguish.
 
@@ -733,9 +742,9 @@ Area selection enables players to define regions for terrain modification or con
 
 When adding new area-based orders:
 1. Add activity check in step 1 Enter handler
-2. Write activity-specific validator function (like `isValidTillTarget` or `isValidFenceTarget`)
-3. Reuse `getValidPositions` (rectangles) or `getValidLinePositions` (lines) with custom validator
-4. Handle confirm logic in `p` key handler
+2. Choose a selection shape (rectangle, line, or fixed footprint) and write an activity-specific validator function (like `isValidTillTarget`, `isValidFenceTarget`, or `isValidHutFootprint`)
+3. For rectangle/line: reuse `getValidPositions` or `getValidLinePositions` with custom validator. For fixed footprint: compute positions directly from cursor (top-left anchor convention) without a separate `getValid*` helper
+4. Handle confirm logic in `p` key handler (fixed footprint: no anchor state needed — `p` always confirms immediately)
 5. Add confirmed-marks rendering inside the `m.ordersAddMode && step2 && activityID == X` block (not outside it)
 
 ## Save/Load Serialization

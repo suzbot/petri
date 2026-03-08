@@ -55,10 +55,11 @@ type Map struct {
 	varieties *VarietyRegistry
 }
 
-// ConstructionMark records that a tile has been designated for fence construction.
+// ConstructionMark records that a tile has been designated for construction.
 type ConstructionMark struct {
-	LineID   int    // All marks from one line-drawing operation share a LineID
-	Material string // Empty until first character starts building this line
+	LineID        int    // All marks from one line-drawing operation share a LineID
+	Material      string // Empty until first character starts building this line
+	ConstructKind string // "fence" or "hut" — distinguishes mark types (DD-41)
 }
 
 // NewMap creates a new map with the given dimensions
@@ -606,16 +607,16 @@ func (m *Map) MarkedForTillingPositions() []types.Position {
 	return positions
 }
 
-// MarkForConstruction adds a position to the marked-for-construction pool with the given lineID.
+// MarkForConstruction adds a position to the marked-for-construction pool with the given lineID and constructKind.
 // Returns false if the position is already marked or has an existing construct.
-func (m *Map) MarkForConstruction(pos types.Position, lineID int) bool {
+func (m *Map) MarkForConstruction(pos types.Position, lineID int, constructKind string) bool {
 	if _, exists := m.markedForConstruction[pos]; exists {
 		return false
 	}
 	if m.ConstructAt(pos) != nil {
 		return false
 	}
-	m.markedForConstruction[pos] = ConstructionMark{LineID: lineID}
+	m.markedForConstruction[pos] = ConstructionMark{LineID: lineID, ConstructKind: constructKind}
 	return true
 }
 
@@ -663,14 +664,24 @@ func (m *Map) SetLineMaterial(lineID int, material string) {
 	}
 }
 
-// HasUnbuiltConstructionPositions returns true if any marked-for-construction position has no construct yet.
-func (m *Map) HasUnbuiltConstructionPositions() bool {
-	for pos := range m.markedForConstruction {
-		if m.ConstructAt(pos) == nil {
+// HasUnbuiltConstructionPositions returns true if any marked-for-construction position
+// of the given constructKind has no construct yet.
+func (m *Map) HasUnbuiltConstructionPositions(constructKind string) bool {
+	for pos, mark := range m.markedForConstruction {
+		if mark.ConstructKind == constructKind && m.ConstructAt(pos) == nil {
 			return true
 		}
 	}
 	return false
+}
+
+// UnmarkByLineID removes all marks with the given lineID from the pool (DD-43).
+func (m *Map) UnmarkByLineID(lineID int) {
+	for pos, mark := range m.markedForConstruction {
+		if mark.LineID == lineID {
+			delete(m.markedForConstruction, pos)
+		}
+	}
 }
 
 // NextConstructionLineID increments and returns the next construction line ID.

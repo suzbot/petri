@@ -92,7 +92,7 @@ When modifying a shared function, grep for callers before writing code — new r
 ### Reference: Human Testing (for task 6)
 
 - Verify [TEST] items match implemented behavior before relaying. Surface contradictions.
-- Offer `/test-world` if the checkpoint calls for it. **Before invoking, read the test-world skill's Caller Requirements and build a structured spec.**
+- Offer `/test-world` if the checkpoint calls for it. **Before invoking: remind the user to close the game first (auto-save on quit overwrites the test world). Wait for acknowledgment, then read the test-world skill's Caller Requirements and build a structured spec.**
 - **When the user reports any issues: invoke `/fix-bug`.** Do not diagnose or propose fixes inline — the fix-bug skill's evidence-first protocol exists for a reason.
 - Wait for explicit confirmation before continuing
 

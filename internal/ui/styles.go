@@ -70,6 +70,8 @@ var (
 	areaUnselectStyle          = lipgloss.NewStyle().Background(lipgloss.Color("52"))                                   // dark red bg for unmark selection
 	markedForConstructionStyle = lipgloss.NewStyle().Background(lipgloss.Color("58"))                                   // olive/amber bg for confirmed marked-for-construction tiles
 	constructionSelectStyle    = lipgloss.NewStyle().Background(lipgloss.Color("94"))                                   // warm brown bg for active construction line preview
+	fenceMarkStyle             = lipgloss.NewStyle().Background(lipgloss.Color("240"))                                  // grey bg for fence marks during hut placement (DD-48)
+	interiorPreviewStyle       = lipgloss.NewStyle().Background(lipgloss.Color("236"))                                  // subtle dark bg for hut interior preview
 
 	// Unfulfillable order style (dimmed)
 	unfulfillableStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // gray

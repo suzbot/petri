@@ -42,9 +42,10 @@ type SaveState struct {
 
 // ConstructionMarkSave represents a marked-for-construction tile for serialization
 type ConstructionMarkSave struct {
-	Position types.Position `json:"position"`
-	LineID   int            `json:"line_id"`
-	Material string         `json:"material,omitempty"`
+	Position      types.Position `json:"position"`
+	LineID        int            `json:"line_id"`
+	Material      string         `json:"material,omitempty"`
+	ConstructKind string         `json:"construct_kind,omitempty"`
 }
 
 // OrderSave represents an order for serialization

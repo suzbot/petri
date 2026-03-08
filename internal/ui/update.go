@@ -110,7 +110,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						// Clear anchor first, then back to step 1 on next esc
 						m.areaSelectAnchor = nil
 					} else {
-						// Back to step 1
+						// Back to step 1 (buildHut has no anchor, goes directly)
 						m.ordersAddStep = 1
 						m.selectedTargetIndex = 0
 						m.areaSelectUnmarkMode = false
@@ -224,7 +224,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "tab":
 			// Toggle mark/unmark mode during area selection (tillSoil and buildFence)
 			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 &&
-				(m.step2ActivityID == "tillSoil" || m.step2ActivityID == "buildFence") {
+				(m.step2ActivityID == "tillSoil" || m.step2ActivityID == "buildFence" || m.step2ActivityID == "buildHut") {
 				m.areaSelectUnmarkMode = !m.areaSelectUnmarkMode
 				m.areaSelectAnchor = nil // Reset anchor when toggling mode
 				return m, nil
@@ -324,10 +324,41 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						lineID := m.gameMap.NextConstructionLineID()
 						positions := getValidLinePositions(*m.areaSelectAnchor, cursor, m.gameMap, isValidFenceTarget)
 						for _, pos := range positions {
-							m.gameMap.MarkForConstruction(pos, lineID)
+							m.gameMap.MarkForConstruction(pos, lineID, "fence")
 						}
 					}
 					m.areaSelectAnchor = nil // Clear anchor, stay in step 2 for next line
+				}
+				return m, nil
+			}
+			if m.showOrdersPanel && m.ordersAddMode && m.ordersAddStep == 2 && m.step2ActivityID == "buildHut" {
+				if m.areaSelectUnmarkMode {
+					// Unmark mode: remove entire footprint by LineID
+					pos := types.Position{X: m.cursorX, Y: m.cursorY}
+					if mark, ok := m.gameMap.GetConstructionMark(pos); ok {
+						m.gameMap.UnmarkByLineID(mark.LineID)
+					}
+				} else {
+					// Mark mode: place 5×5 hut footprint
+					if isValidHutFootprint(m.cursorX, m.cursorY, m.gameMap) {
+						lineID := m.gameMap.NextConstructionLineID()
+						for _, pos := range getHutPerimeterPositions(m.cursorX, m.cursorY) {
+							if mark, ok := m.gameMap.GetConstructionMark(pos); ok {
+								if mark.ConstructKind == "hut" {
+									continue // First-wins for shared walls (DD-46)
+								}
+								// Fence marks get overwritten by hut marks (DD-46)
+								m.gameMap.UnmarkForConstruction(pos)
+							}
+							m.gameMap.MarkForConstruction(pos, lineID, "hut")
+						}
+						// Clear any interior marks (shouldn't exist if validator passed, but defensive)
+						for _, pos := range getHutInteriorPositions(m.cursorX, m.cursorY) {
+							if m.gameMap.IsMarkedForConstruction(pos) {
+								m.gameMap.UnmarkForConstruction(pos)
+							}
+						}
+					}
 				}
 				return m, nil
 			}
@@ -1141,6 +1172,11 @@ func (m *Model) applyOrdersConfirm() {
 							m.step2ActivityID = "buildFence"
 							m.areaSelectAnchor = nil
 							m.areaSelectUnmarkMode = false
+						} else if catActivity.ID == "buildHut" {
+							m.ordersAddStep = 2
+							m.step2ActivityID = "buildHut"
+							m.areaSelectAnchor = nil
+							m.areaSelectUnmarkMode = false
 						} else {
 							order := entity.NewOrder(m.nextOrderID, catActivity.ID, "")
 							m.nextOrderID++
@@ -1198,9 +1234,21 @@ func (m *Model) applyOrdersConfirm() {
 					m.selectedTargetIndex = 0
 				}
 			} else if m.step2ActivityID == "buildFence" {
-				// buildFence: Enter = done, create order if tiles marked
-				if len(m.gameMap.MarkedForConstructionPositions()) > 0 {
+				// buildFence: Enter = done, create order if unbuilt fence marks exist
+				if m.gameMap.HasUnbuiltConstructionPositions("fence") {
 					order := entity.NewOrder(m.nextOrderID, "buildFence", "")
+					m.nextOrderID++
+					m.orders = append(m.orders, order)
+					m.setOrderFlash(order.DisplayName())
+				}
+				m.ordersAddStep = 1
+				m.selectedTargetIndex = 0
+				m.areaSelectAnchor = nil
+				m.areaSelectUnmarkMode = false
+			} else if m.step2ActivityID == "buildHut" {
+				// buildHut: Enter = done, create order if unbuilt hut marks exist
+				if m.gameMap.HasUnbuiltConstructionPositions("hut") {
+					order := entity.NewOrder(m.nextOrderID, "buildHut", "")
 					m.nextOrderID++
 					m.orders = append(m.orders, order)
 					m.setOrderFlash(order.DisplayName())

@@ -171,29 +171,34 @@ Characters gather materials and construct small buildings from grass, sticks, or
 ---
 
 ### Step 8: Construct Discovery + Hut Placement UI
-**Status:** Refining
+**Status:** Complete
 
-**Anchor story:** A character wanders past a stick fence and pauses to look at it. They form a preference, and also have a moment of insight — they realize they could build a stick hut! "Discovered: Build Hut" appears in the action log. Another character who already knows how to build looks at a brick fence and discovers the brick hut recipe specifically. The player selects Construction > Build Hut and enters placement mode. A 5×5 footprint preview follows the cursor. They confirm — 16 perimeter tiles are marked for construction. No character can build yet, but the order and marks exist.
+**Anchor story:** A character wanders past a stick fence and pauses to look at it. They form a preference, and also have a moment of insight — they realize they could build a stick hut! "Discovered: Build Hut" appears in the action log. Another character who already knows how to build looks at a brick fence and discovers the brick hut recipe specifically. The player selects Construction > Build Hut and enters placement mode. A 5×5 footprint preview follows the cursor. They place a hut overlapping some planned fence marks — the fence marks are overwritten. They place a second hut sharing a wall — the shared tiles keep the first hut's LineID. They confirm — 16 perimeter tiles are marked for construction. No character can build yet, but the order and marks exist.
 
 **Scope:**
 
-*Construct discovery (formerly Step 8):*
+*Sub-step 8a — Construct discovery (complete):*
 - `ConstructKind string` field on `DiscoveryTrigger` (DD-37)
-- `tryDiscoverFromConstruct` function called from `CompleteLookAtConstruct` — mirrors `TryDiscoverKnowHow` structure (tries activities then recipes)
+- `TryDiscoverFromConstruct` function called from `CompleteLookAtConstruct` — mirrors `TryDiscoverKnowHow` structure (tries activities then recipes)
 - buildHut activity in ActivityRegistry with `AvailabilityKnowHow`, Category "construction"
 - Three hut recipes in RecipeRegistry (thatch-hut, stick-hut, brick-hut) with per-tile inputs and discovery triggers: `ActionLook` + `ConstructKind: "fence"`
 - First recipe discovery auto-grants buildHut activity know-how (same pattern as fence recipes)
+- Order pipeline guards: `findOrderIntent` nil stub, `IsOrderFeasible` false stub
 
-*Hut placement UI (formerly Step 10):*
-- Demo program to evaluate placement UI options (fixed footprint preview, validation highlighting)
+*Sub-step 8b — Hut placement UI:*
 - `ConstructKind string` field on `ConstructionMark` to distinguish fence vs hut marks (DD-41)
 - Retroactive: fence marks carry `ConstructKind: "fence"`
 - Fixed 5×5 footprint placement mode (DD-38) — cursor positions top-left corner, `p` confirms
-- Hut validator: full 5×5 area clear of water, existing constructs, impassable features, map edges
-- Marks 16 perimeter tiles with `ConstructKind: "hut"`, shared LineID, material initially empty
+- Nuanced placement overlap rules (DD-46): perimeter tiles can overlap existing marks (first-wins for hut shared walls, overwrite for fence marks), interior tiles block on existing marks
+- Items/plants/tilled soil don't block placement (DD-47) — displaced/destroyed/reverted during construction
+- Whole-footprint unmark via LineID (DD-43) — Tab toggles, `p` removes entire footprint
+- Fence marks render in grey during hut placement; amber when covered by preview (DD-48)
+- Details panel labels include ConstructKind (DD-45): "Marked for construction (Hut)" / "Marked for construction (Stick Hut)"
+- Feasibility follows fence pattern — any material on map = feasible (DD-44)
 - `HasUnbuiltConstructionPositions`, `isMultiStepOrderComplete`, `IsOrderFeasible` filter by ConstructKind
-- `findOrderIntent` case for buildHut (returns nil — execution deferred to Step 10)
-- Save/load: `ConstructKind` in serialized `ConstructionMark`
+- `UnmarkByLineID` for whole-footprint removal
+- `findOrderIntent` nil stub stays — execution deferred to Step 10
+- Save/load: `ConstructKind` in serialized `ConstructionMark`, backward compat defaults to "fence"
 
 **Rationale for merge:** The buildHut activity and recipes must land alongside the order pipeline (`findOrderIntent` case, `IsOrderFeasible`, area selection UI) to avoid a gap where recipes exist but `findOrderIntent`'s default branch routes them to `findCraftIntent`. This mirrors how fence recipes were added in Step 6 alongside the full fence pipeline.
 
@@ -522,6 +527,48 @@ Characters gather materials and construct small buildings from grass, sticks, or
 **Decision:** Add `ConstructKind string` field to `ConstructionMark` ("fence" or "hut"). `HasUnbuiltConstructionPositions`, `isMultiStepOrderComplete`, and `IsOrderFeasible` filter by kind. Fence orders only see fence marks; hut orders only see hut marks. The shared `markedForConstruction` pool stays unified — kind is a filter, not a separate data structure.
 **Rationale:** Follows **Follow the Existing Shape** — extends the existing pool rather than creating a parallel one. Follows **Consider Extensibility** — future construct types (watchtower, workshop) add kind values, not new pools. Follows **Source of Truth Clarity** — the mark carries its own identity.
 **Affects:** Step 8; retroactively updates fence marks to carry `ConstructKind: "fence"`
+
+### DD-43: Hut footprint unmark — whole-footprint removal via LineID
+**Context:** Hut placement uses a fixed 5×5 footprint (16 perimeter marks sharing a LineID). If the player mis-places a hut, they need a way to remove it. Options: (A) Tab toggles to unmark mode, `p` on any tile removes all marks with that LineID (whole footprint); (B) no unmark, defer; (C) Esc undoes last placement.
+**Decision:** Option A. Tab toggles mark/unmark mode (same as fence pattern). In unmark mode, pressing `p` on any tile that's part of a hut footprint removes all marks sharing that tile's LineID. Player can see which tiles are marked via olive highlighting during placement mode.
+**Rationale:** Follows **Follow the Existing Shape** — fence uses Tab toggle for mark/unmark. Whole-footprint removal via LineID is consistent with how LineID already groups related marks. Per-tile unmark would leave partial footprints, which are structurally invalid for huts.
+**Affects:** Step 8b
+
+### DD-44: Hut feasibility follows fence pattern — any material on map
+**Context:** Should hut feasibility check for sufficient quantity (12 per tile × 16 tiles = 192 total) or just any material exists? Fence feasibility uses a simple boolean: any grass/stick/brick on map = feasible.
+**Decision:** Follow fence pattern. `hutMaterialExistsOnMap` = any construction material on map. No quantity threshold. Order becomes unfulfillable naturally when the character can't find enough materials during execution.
+**Rationale:** Follows **Follow the Existing Shape**. Quantity checking at feasibility time is fragile (materials consumed between check and execution). The fence pattern handles this gracefully — feasibility is a rough gate, not an exact resource accounting.
+**Affects:** Step 8b
+
+### DD-45: Details panel labels include ConstructKind for all mark types
+**Context:** Current fence marks show "Marked for construction" (no kind) or "Marked for construction (Stick)" (material only). With huts sharing the pool, the label needs to distinguish construct types.
+**Decision:** Use ConstructKind in labels for all marks. Format: "Marked for construction (Kind)" when no material, "Marked for construction (Material Kind)" when material is stamped. Examples: "Marked for construction (Fence)", "Marked for construction (Stick Fence)", "Marked for construction (Hut)", "Marked for construction (Stick Hut)". Capitalize Kind. Title-case Material.
+**Rationale:** Follows **Isomorphism** — the mark carries its kind, the label reflects it. Consistent treatment for all construct types.
+**Affects:** Step 8b
+
+### DD-46: Hut placement overlap rules — shared walls, fence overwrite, interior clear
+**Context:** How should hut footprint placement interact with existing construction marks? Options: (A) all marks block, (B) marks don't block at all, (C) nuanced per-tile rules.
+**Decision:** Option C. Perimeter tiles can overlap existing marks: hut marks use first-wins (shared walls, original LineID preserved), fence marks are overwritten with new hut mark. Interior tiles cannot overlap any existing marks (walls inside a hut's open space are invalid). On placement: perimeter tiles that land on fence marks overwrite them; interior tiles that land on any marks cause the placement to be rejected (invalid).
+**Rationale:** Shared hut walls are architecturally natural and material-efficient. First-wins on hut marks means unmarking hut B doesn't remove shared walls that belong to hut A. Fence overwrite is acceptable because the hut wall serves the same blocking function. Interior blocking prevents structurally invalid configurations. Fence placement continues to block on all marks (including hut marks) — the asymmetry is intentional: walls replace fences, but fences don't replace walls.
+**Affects:** Step 8b
+
+### DD-47: Items, plants, and tilled soil don't block hut placement
+**Context:** Should items, growing plants, and tilled tiles block hut footprint placement? Fence placement already allows items/plants (they're displaced/destroyed during construction). Tilled soil is terrain state.
+**Decision:** None of these block placement. Items are displaced during construction, plants are destroyed, tilled soil reverts to normal ground. The hut validator only blocks on: water, built constructs, impassable features, map edges, and marks in interior positions.
+**Rationale:** Follows **Follow the Existing Shape** — fence and tilling placement already allow items/plants. Construction is a destructive terrain operation that supersedes lighter uses of the land.
+**Affects:** Step 8b
+
+### DD-48: Fence marks render in grey during hut placement; amber when covered by preview
+**Context:** During hut placement mode, unbuilt fence marks are visible on the map. They should be visually distinct from hut marks and respond to the footprint preview.
+**Decision:** Fence marks render in grey (distinct from olive hut marks) during hut placement mode. When the footprint preview overlaps fence marks, they show in amber (constructionSelectStyle) to indicate they'll be overwritten. This reuses the existing preview highlighting approach — the footprint preview is always rendered on top of confirmed marks.
+**Rationale:** Visual distinction helps the player understand what they're overwriting. Follows **Isomorphism** — different mark kinds look different.
+**Affects:** Step 8b
+
+### DD-49: findBuildFenceIntent must filter by ConstructKind
+**Context:** `findBuildFenceIntent` iterates `MarkedForConstructionPositions()` to find unbuilt tiles. With hut marks now sharing the pool, it would pick up hut-marked positions and try to build fences on them.
+**Decision:** Add a `ConstructKind` filter inside `findBuildFenceIntent`'s candidate loop. After getting each position, call `GetConstructionMark(pos)` and skip marks where `ConstructKind != "fence"`. Same pattern needed for `findBuildHutIntent` in Step 10 (filter for `"hut"`).
+**Rationale:** Follows **Isomorphism** — marks carry their kind, workers respect it. Follows **Follow the Existing Shape** — extends the existing candidate-filtering loop rather than adding a new API method.
+**Affects:** Step 8b (fence side), Step 10 (hut side)
 
 ### DD-42: Hut wall segments use line-drawing characters; door on south wall center
 **Context:** Hut walls need visual distinction from fences (`╬`). Requirements call for a 5×5 enclosure with one door. Options for wall rendering: (A) single character for all walls (like fences), (B) line-drawing Unicode characters with corners and edges.

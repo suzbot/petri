@@ -378,7 +378,9 @@ func isMultiStepOrderComplete(char *entity.Character, order *entity.Order, gameM
 		// Complete when no clay items remain on the ground
 		return !groundItemOfTypeExists(gameMap.Items(), "clay")
 	case "buildFence":
-		return !gameMap.HasUnbuiltConstructionPositions()
+		return !gameMap.HasUnbuiltConstructionPositions("fence")
+	case "buildHut":
+		return !gameMap.HasUnbuiltConstructionPositions("hut")
 	default:
 		return false
 	}
@@ -596,10 +598,10 @@ func IsOrderFeasible(order *entity.Order, items []*entity.Item, gameMap *game.Ma
 	// Construction activities use recipes for discovery only — check construction-specific feasibility
 	// before the generic recipe check intercepts it.
 	if order.ActivityID == "buildFence" {
-		return gameMap.HasUnbuiltConstructionPositions() && fenceMaterialExistsOnMap(gameMap.Items()), false
+		return gameMap.HasUnbuiltConstructionPositions("fence") && constructionMaterialExistsOnMap(gameMap.Items()), false
 	}
 	if order.ActivityID == "buildHut" {
-		return false, false // stub — replaced with real feasibility check in sub-step 8b
+		return gameMap.HasUnbuiltConstructionPositions("hut") && constructionMaterialExistsOnMap(gameMap.Items()), false
 	}
 
 	// Recipe-based activities (craft): check if any recipe's inputs all exist in world
@@ -1344,9 +1346,13 @@ func FindDigIntentForTest(char *entity.Character, pos types.Position, items []*e
 // 4. If character has full bundle → build phase (find adjacent standing tile).
 // 5. Otherwise → procurement phase (find nearest material item).
 func findBuildFenceIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
-	// Step 1: Collect unbuilt marked tiles not occupied by a character (DD-28)
+	// Step 1: Collect unbuilt fence-marked tiles not occupied by a character (DD-28, DD-49)
 	var candidates []types.Position
 	for _, mpos := range gameMap.MarkedForConstructionPositions() {
+		mark, ok := gameMap.GetConstructionMark(mpos)
+		if !ok || mark.ConstructKind != "fence" {
+			continue // Only fence marks (DD-49)
+		}
 		if gameMap.ConstructAt(mpos) != nil {
 			continue // Already built
 		}
@@ -1634,9 +1640,9 @@ func findAdjacentStandingTile(buildPos types.Position, gameMap *game.Map) *types
 	return nil
 }
 
-// fenceMaterialExistsOnMap returns true if any fence material (grass, stick, or brick)
-// exists on the map.
-func fenceMaterialExistsOnMap(items []*entity.Item) bool {
+// constructionMaterialExistsOnMap returns true if any construction material (grass, stick, or brick)
+// exists on the map. Used by both fence and hut feasibility checks (DD-44).
+func constructionMaterialExistsOnMap(items []*entity.Item) bool {
 	for _, item := range items {
 		switch item.ItemType {
 		case "grass", "stick", "brick":

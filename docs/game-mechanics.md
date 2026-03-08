@@ -617,7 +617,7 @@ Discovering any fence recipe also grants **Build Fence** know-how. Characters le
 
 ### Construction Orders
 
-**Build Fence** appears under a **Construction** category in the orders panel (requires at least one character to know a fence recipe).
+Construction orders appear under a **Construction** category in the orders panel. **Build Fence** requires at least one character to know a fence recipe. **Build Hut** requires at least one character to know a hut recipe (discovered by looking at any fence).
 
 **Marking fence tiles** (step 2 of order creation):
 1. Press `p` to anchor a start point
@@ -626,9 +626,17 @@ Discovering any fence recipe also grants **Build Fence** know-how. Characters le
 4. Press `Tab` to toggle mark/unmark mode
 5. Draw additional lines as needed; press `Enter` to create the order
 
-Marked-for-construction tiles are only highlighted during this marking phase. In regular select mode, move the cursor over a tile to see "Marked for construction" in the details panel.
+**Marking hut footprints** (step 2 of order creation):
+1. Move cursor — a 5×5 footprint preview follows the cursor (perimeter tiles in warm brown, interior tiles subtly shaded)
+2. Press `p` to place the hut footprint; 16 perimeter tiles are marked
+3. Press `Tab` to toggle unmark mode — hover over any marked tile and press `p` to remove the entire footprint
+4. Place additional huts as needed; press `Enter` to create the order
 
-The character assigns a material to the line when they begin building the first tile — selecting whichever fence material is nearest and available. Once one tile in a line is built, all remaining tiles in that line use the same material.
+Invalid footprint positions (water, built constructs, map edges, or existing marks in the interior) show red. Existing fence marks visible during hut placement render grey; the preview turns amber over them to indicate they'll be overwritten. Two huts can share a wall — shared perimeter tiles keep the first hut's mark (first-wins).
+
+Marked-for-construction tiles are only highlighted during the active marking phase. In regular select mode, move the cursor over a tile to see "Marked for construction (Fence)" or "Marked for construction (Hut)" in the details panel. Once a material is assigned, it shows e.g. "Marked for construction (Stick Fence)" or "Marked for construction (Stick Hut)".
+
+The character assigns a material to the line/footprint when they begin building the first tile — selecting whichever construction material is nearest and available. Once one tile in a line is built, all remaining tiles in that line use the same material.
 
 ### Building
 

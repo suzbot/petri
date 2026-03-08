@@ -310,9 +310,10 @@ func constructionMarksToSave(gameMap *game.Map) []save.ConstructionMarkSave {
 	for i, pos := range positions {
 		mark, _ := gameMap.GetConstructionMark(pos)
 		result[i] = save.ConstructionMarkSave{
-			Position: pos,
-			LineID:   mark.LineID,
-			Material: mark.Material,
+			Position:      pos,
+			LineID:        mark.LineID,
+			Material:      mark.Material,
+			ConstructKind: mark.ConstructKind,
 		}
 	}
 	return result
@@ -420,7 +421,11 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 
 	// Restore marked-for-construction positions
 	for _, cms := range state.MarkedForConstructionTiles {
-		m.gameMap.MarkForConstruction(cms.Position, cms.LineID)
+		constructKind := cms.ConstructKind
+		if constructKind == "" {
+			constructKind = "fence" // backward compat: old saves default to fence
+		}
+		m.gameMap.MarkForConstruction(cms.Position, cms.LineID, constructKind)
 		if cms.Material != "" {
 			// Stamp the material directly on this individual mark
 			m.gameMap.SetLineMaterialAt(cms.Position, cms.Material)

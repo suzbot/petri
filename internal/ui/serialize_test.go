@@ -1276,10 +1276,10 @@ func TestConstructionMarkSerialization_RoundTrip(t *testing.T) {
 	m := createTestModel()
 
 	// Mark several tiles with two different line IDs, one with a material stamped
-	m.gameMap.MarkForConstruction(types.Position{X: 3, Y: 3}, 1)
-	m.gameMap.MarkForConstruction(types.Position{X: 4, Y: 3}, 1)
+	m.gameMap.MarkForConstruction(types.Position{X: 3, Y: 3}, 1, "fence")
+	m.gameMap.MarkForConstruction(types.Position{X: 4, Y: 3}, 1, "fence")
 	m.gameMap.SetLineMaterial(1, "stick")
-	m.gameMap.MarkForConstruction(types.Position{X: 7, Y: 7}, 2)
+	m.gameMap.MarkForConstruction(types.Position{X: 7, Y: 7}, 2, "fence")
 	// line 2 has no material yet
 
 	state := m.ToSaveState()

@@ -714,7 +714,7 @@ func TestMarkForConstruction_BasicRoundTrip(t *testing.T) {
 	m := NewMap(20, 20)
 	pos := types.Position{X: 5, Y: 5}
 
-	ok := m.MarkForConstruction(pos, 1)
+	ok := m.MarkForConstruction(pos, 1, "fence")
 
 	if !ok {
 		t.Error("MarkForConstruction() should return true for new position")
@@ -739,9 +739,9 @@ func TestMarkForConstruction_ReturnsFalseIfAlreadyMarked(t *testing.T) {
 
 	m := NewMap(20, 20)
 	pos := types.Position{X: 5, Y: 5}
-	m.MarkForConstruction(pos, 1)
+	m.MarkForConstruction(pos, 1, "fence")
 
-	ok := m.MarkForConstruction(pos, 2)
+	ok := m.MarkForConstruction(pos, 2, "fence")
 
 	if ok {
 		t.Error("MarkForConstruction() should return false for already-marked position")
@@ -761,7 +761,7 @@ func TestMarkForConstruction_ReturnsFalseIfConstructExists(t *testing.T) {
 	fence := entity.NewFence(5, 5, "stick", types.ColorBrown)
 	m.AddConstruct(fence)
 
-	ok := m.MarkForConstruction(pos, 1)
+	ok := m.MarkForConstruction(pos, 1, "fence")
 
 	if ok {
 		t.Error("MarkForConstruction() should return false when construct already exists at position")
@@ -773,7 +773,7 @@ func TestUnmarkForConstruction_RemovesMark(t *testing.T) {
 
 	m := NewMap(20, 20)
 	pos := types.Position{X: 5, Y: 5}
-	m.MarkForConstruction(pos, 1)
+	m.MarkForConstruction(pos, 1, "fence")
 
 	m.UnmarkForConstruction(pos)
 
@@ -791,10 +791,10 @@ func TestSetLineMaterial_StampsAllMatchingMarks(t *testing.T) {
 
 	m := NewMap(20, 20)
 	// Three tiles with lineID 1, one with lineID 2
-	m.MarkForConstruction(types.Position{X: 3, Y: 3}, 1)
-	m.MarkForConstruction(types.Position{X: 4, Y: 3}, 1)
-	m.MarkForConstruction(types.Position{X: 5, Y: 3}, 1)
-	m.MarkForConstruction(types.Position{X: 7, Y: 7}, 2)
+	m.MarkForConstruction(types.Position{X: 3, Y: 3}, 1, "fence")
+	m.MarkForConstruction(types.Position{X: 4, Y: 3}, 1, "fence")
+	m.MarkForConstruction(types.Position{X: 5, Y: 3}, 1, "fence")
+	m.MarkForConstruction(types.Position{X: 7, Y: 7}, 2, "fence")
 
 	m.SetLineMaterial(1, "stick")
 
@@ -815,10 +815,10 @@ func TestHasUnbuiltConstructionPositions_TrueWhenMarkNoConstruct(t *testing.T) {
 	t.Parallel()
 
 	m := NewMap(20, 20)
-	m.MarkForConstruction(types.Position{X: 5, Y: 5}, 1)
+	m.MarkForConstruction(types.Position{X: 5, Y: 5}, 1, "fence")
 
-	if !m.HasUnbuiltConstructionPositions() {
-		t.Error("HasUnbuiltConstructionPositions() should return true when marked tile has no construct")
+	if !m.HasUnbuiltConstructionPositions("fence") {
+		t.Error("HasUnbuiltConstructionPositions(fence) should return true when marked tile has no construct")
 	}
 }
 
@@ -827,8 +827,8 @@ func TestHasUnbuiltConstructionPositions_FalseWhenEmpty(t *testing.T) {
 
 	m := NewMap(20, 20)
 
-	if m.HasUnbuiltConstructionPositions() {
-		t.Error("HasUnbuiltConstructionPositions() should return false when no marks")
+	if m.HasUnbuiltConstructionPositions("fence") {
+		t.Error("HasUnbuiltConstructionPositions(fence) should return false when no marks")
 	}
 }
 
@@ -837,15 +837,15 @@ func TestHasUnbuiltConstructionPositions_FalseWhenAllBuilt(t *testing.T) {
 
 	m := NewMap(20, 20)
 	pos := types.Position{X: 5, Y: 5}
-	m.MarkForConstruction(pos, 1)
+	m.MarkForConstruction(pos, 1, "fence")
 	// Placing a construct means the tile is built (mark still present but construct exists)
 	fence := entity.NewFence(5, 5, "stick", types.ColorBrown)
 	m.AddConstruct(fence)
 	// Unmark the tile as the build handler would do
 	m.UnmarkForConstruction(pos)
 
-	if m.HasUnbuiltConstructionPositions() {
-		t.Error("HasUnbuiltConstructionPositions() should return false after tile is built and unmarked")
+	if m.HasUnbuiltConstructionPositions("fence") {
+		t.Error("HasUnbuiltConstructionPositions(fence) should return false after tile is built and unmarked")
 	}
 }
 
@@ -873,9 +873,9 @@ func TestMarkedForConstructionPositions_ReturnsAll(t *testing.T) {
 	t.Parallel()
 
 	m := NewMap(20, 20)
-	m.MarkForConstruction(types.Position{X: 3, Y: 3}, 1)
-	m.MarkForConstruction(types.Position{X: 4, Y: 3}, 1)
-	m.MarkForConstruction(types.Position{X: 5, Y: 3}, 1)
+	m.MarkForConstruction(types.Position{X: 3, Y: 3}, 1, "fence")
+	m.MarkForConstruction(types.Position{X: 4, Y: 3}, 1, "fence")
+	m.MarkForConstruction(types.Position{X: 5, Y: 3}, 1, "fence")
 
 	positions := m.MarkedForConstructionPositions()
 	if len(positions) != 3 {
@@ -1283,4 +1283,74 @@ func TestMoveCharacter_BlockedByImpassableConstruct(t *testing.T) {
 	if pos.X != 5 || pos.Y != 5 {
 		t.Errorf("Character position should be (5,5), got (%d,%d)", pos.X, pos.Y)
 	}
+}
+
+func TestHutPlacement_AnchorStory(t *testing.T) {
+	t.Parallel()
+	m := NewMap(20, 20)
+
+	// Phase 1: ConstructKind on marks
+	m.MarkForConstruction(types.Position{X: 3, Y: 3}, 1, "fence")
+	m.MarkForConstruction(types.Position{X: 4, Y: 3}, 1, "fence")
+	m.MarkForConstruction(types.Position{X: 5, Y: 5}, 2, "hut")
+	m.MarkForConstruction(types.Position{X: 6, Y: 5}, 2, "hut")
+
+	fenceMark, _ := m.GetConstructionMark(types.Position{X: 3, Y: 3})
+	if fenceMark.ConstructKind != "fence" {
+		t.Errorf("fence mark ConstructKind: got %q, want %q", fenceMark.ConstructKind, "fence")
+	}
+	hutMark, _ := m.GetConstructionMark(types.Position{X: 5, Y: 5})
+	if hutMark.ConstructKind != "hut" {
+		t.Errorf("hut mark ConstructKind: got %q, want %q", hutMark.ConstructKind, "hut")
+	}
+
+	// Phase 2: Kind-filtered HasUnbuiltConstructionPositions
+	if !m.HasUnbuiltConstructionPositions("fence") {
+		t.Error("HasUnbuiltConstructionPositions(fence) should be true")
+	}
+	if !m.HasUnbuiltConstructionPositions("hut") {
+		t.Error("HasUnbuiltConstructionPositions(hut) should be true")
+	}
+	m.UnmarkForConstruction(types.Position{X: 3, Y: 3})
+	m.UnmarkForConstruction(types.Position{X: 4, Y: 3})
+	if m.HasUnbuiltConstructionPositions("fence") {
+		t.Error("HasUnbuiltConstructionPositions(fence) should be false after removing fence marks")
+	}
+	if !m.HasUnbuiltConstructionPositions("hut") {
+		t.Error("HasUnbuiltConstructionPositions(hut) should still be true")
+	}
+	m.UnmarkForConstruction(types.Position{X: 5, Y: 5})
+	m.UnmarkForConstruction(types.Position{X: 6, Y: 5})
+
+	// Phase 3: Shared wall first-wins
+	m.MarkForConstruction(types.Position{X: 8, Y: 5}, 3, "hut")
+	ok2 := m.MarkForConstruction(types.Position{X: 8, Y: 5}, 4, "hut")
+	if ok2 {
+		t.Error("MarkForConstruction should return false for already-marked position (first-wins)")
+	}
+	sharedMark, _ := m.GetConstructionMark(types.Position{X: 8, Y: 5})
+	if sharedMark.LineID != 3 {
+		t.Errorf("shared wall LineID should be 3 (first-wins), got %d", sharedMark.LineID)
+	}
+	m.UnmarkForConstruction(types.Position{X: 8, Y: 5})
+
+	// Phase 4: UnmarkByLineID removes whole footprint
+	m.MarkForConstruction(types.Position{X: 1, Y: 1}, 5, "hut")
+	m.MarkForConstruction(types.Position{X: 2, Y: 1}, 5, "hut")
+	m.MarkForConstruction(types.Position{X: 1, Y: 2}, 5, "hut")
+	m.MarkForConstruction(types.Position{X: 2, Y: 2}, 5, "hut")
+	m.MarkForConstruction(types.Position{X: 10, Y: 10}, 6, "hut")
+
+	m.UnmarkByLineID(5)
+
+	if m.IsMarkedForConstruction(types.Position{X: 1, Y: 1}) {
+		t.Error("UnmarkByLineID should have removed (1,1)")
+	}
+	if m.IsMarkedForConstruction(types.Position{X: 2, Y: 2}) {
+		t.Error("UnmarkByLineID should have removed (2,2)")
+	}
+	if !m.IsMarkedForConstruction(types.Position{X: 10, Y: 10}) {
+		t.Error("UnmarkByLineID should NOT have removed (10,10) — different lineID")
+	}
+	m.UnmarkForConstruction(types.Position{X: 10, Y: 10})
 }

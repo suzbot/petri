@@ -36,6 +36,7 @@ Core process innovations developed over the course of this project:
 
 ## Latest Updates
 
+- **Build Hut orders**: Mark a 5×5 footprint on the map; characters will build a hut from available materials.
 - **Construct preferences**: Characters look at fences and form opinions about materials and recipes, affecting mood.
 - **Build Fence orders**: Characters gather materials and build stick, grass, or brick fences on player-marked tiles.
 - **Craft Bricks orders**: Characters shape loose clay into bricks, repeating until all dug clay is used.
