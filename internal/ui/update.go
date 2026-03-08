@@ -324,7 +324,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						lineID := m.gameMap.NextConstructionLineID()
 						positions := getValidLinePositions(*m.areaSelectAnchor, cursor, m.gameMap, isValidFenceTarget)
 						for _, pos := range positions {
-							m.gameMap.MarkForConstruction(pos, lineID, "fence")
+							m.gameMap.MarkForConstruction(pos, lineID, "fence", "")
 						}
 					}
 					m.areaSelectAnchor = nil // Clear anchor, stay in step 2 for next line
@@ -342,6 +342,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					// Mark mode: place 5×5 hut footprint
 					if isValidHutFootprint(m.cursorX, m.cursorY, m.gameMap) {
 						lineID := m.gameMap.NextConstructionLineID()
+						doorPos := types.Position{X: m.cursorX + 2, Y: m.cursorY + 4} // center of south wall (DD-42)
 						for _, pos := range getHutPerimeterPositions(m.cursorX, m.cursorY) {
 							if mark, ok := m.gameMap.GetConstructionMark(pos); ok {
 								if mark.ConstructKind == "hut" {
@@ -350,7 +351,11 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 								// Fence marks get overwritten by hut marks (DD-46)
 								m.gameMap.UnmarkForConstruction(pos)
 							}
-							m.gameMap.MarkForConstruction(pos, lineID, "hut")
+							wallRole := "wall"
+							if pos == doorPos {
+								wallRole = "door"
+							}
+							m.gameMap.MarkForConstruction(pos, lineID, "hut", wallRole)
 						}
 						// Clear any interior marks (shouldn't exist if validator passed, but defensive)
 						for _, pos := range getHutInteriorPositions(m.cursorX, m.cursorY) {

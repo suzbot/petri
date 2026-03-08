@@ -1276,7 +1276,7 @@ func TestHutConstructSerialization_RoundTrip(t *testing.T) {
 	m := createTestModel()
 
 	// Add a hut wall and a hut door
-	wall := entity.NewHutConstruct(3, 3, "stick", types.ColorBrown, "corner-tl")
+	wall := entity.NewHutConstruct(3, 3, "stick", types.ColorBrown, "wall")
 	m.gameMap.AddConstruct(wall)
 
 	door := entity.NewHutConstruct(5, 7, "stick", types.ColorBrown, "door")
@@ -1294,14 +1294,11 @@ func TestHutConstructSerialization_RoundTrip(t *testing.T) {
 	if foundWall.Kind != "hut" {
 		t.Errorf("Wall Kind: got %q, want %q", foundWall.Kind, "hut")
 	}
-	if foundWall.WallRole != "corner-tl" {
-		t.Errorf("Wall WallRole: got %q, want %q", foundWall.WallRole, "corner-tl")
+	if foundWall.WallRole != "wall" {
+		t.Errorf("Wall WallRole: got %q, want %q", foundWall.WallRole, "wall")
 	}
 	if foundWall.Passable != false {
 		t.Error("Wall should not be passable")
-	}
-	if foundWall.Sym != config.CharHutCornerTL {
-		t.Errorf("Wall Sym not restored: got %c, want %c", foundWall.Sym, config.CharHutCornerTL)
 	}
 
 	// Verify door preserved
@@ -1323,14 +1320,39 @@ func TestHutConstructSerialization_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestHutConstructSerialization_BackwardCompat_FineGrainedWallRole(t *testing.T) {
+	// Old saves have fine-grained WallRole values (corner-tl, edge-h, etc.)
+	// These should be mapped to "wall" on load
+	m := createTestModel()
+
+	wall := entity.NewHutConstruct(3, 3, "stick", types.ColorBrown, "wall")
+	m.gameMap.AddConstruct(wall)
+
+	state := m.ToSaveState()
+	// Simulate old save format: set fine-grained WallRole
+	state.Constructs[0].WallRole = "corner-tl"
+
+	restored := FromSaveState(state, "test-world", m.testCfg)
+	foundWall := restored.gameMap.ConstructAt(types.Position{X: 3, Y: 3})
+	if foundWall == nil {
+		t.Fatal("Expected hut wall at (3,3) after loading old save")
+	}
+	if foundWall.WallRole != "wall" {
+		t.Errorf("Old fine-grained WallRole should map to \"wall\": got %q", foundWall.WallRole)
+	}
+	if foundWall.Passable {
+		t.Error("Wall should not be passable after backward compat mapping")
+	}
+}
+
 func TestConstructionMarkSerialization_RoundTrip(t *testing.T) {
 	m := createTestModel()
 
 	// Mark several tiles with two different line IDs, one with a material stamped
-	m.gameMap.MarkForConstruction(types.Position{X: 3, Y: 3}, 1, "fence")
-	m.gameMap.MarkForConstruction(types.Position{X: 4, Y: 3}, 1, "fence")
+	m.gameMap.MarkForConstruction(types.Position{X: 3, Y: 3}, 1, "fence", "")
+	m.gameMap.MarkForConstruction(types.Position{X: 4, Y: 3}, 1, "fence", "")
 	m.gameMap.SetLineMaterial(1, "stick")
-	m.gameMap.MarkForConstruction(types.Position{X: 7, Y: 7}, 2, "fence")
+	m.gameMap.MarkForConstruction(types.Position{X: 7, Y: 7}, 2, "fence", "")
 	// line 2 has no material yet
 
 	state := m.ToSaveState()
@@ -1376,6 +1398,67 @@ func TestConstructionMarkSerialization_RoundTrip(t *testing.T) {
 	positions := restored.gameMap.MarkedForConstructionPositions()
 	if len(positions) != 3 {
 		t.Errorf("MarkedForConstructionPositions() after round-trip: got %d, want 3", len(positions))
+	}
+}
+
+func TestConstructionMarkSerialization_WallRoleRoundTrip(t *testing.T) {
+	m := createTestModel()
+
+	// Mark a hut wall and door
+	m.gameMap.MarkForConstruction(types.Position{X: 3, Y: 3}, 1, "hut", "wall")
+	m.gameMap.MarkForConstruction(types.Position{X: 4, Y: 3}, 1, "hut", "door")
+	// Mark a fence (empty WallRole)
+	m.gameMap.MarkForConstruction(types.Position{X: 7, Y: 7}, 2, "fence", "")
+
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Verify wall mark
+	wallMark, found := restored.gameMap.GetConstructionMark(types.Position{X: 3, Y: 3})
+	if !found {
+		t.Fatal("wall mark at (3,3) not restored")
+	}
+	if wallMark.WallRole != "wall" {
+		t.Errorf("wall mark WallRole: got %q, want %q", wallMark.WallRole, "wall")
+	}
+
+	// Verify door mark
+	doorMark, found := restored.gameMap.GetConstructionMark(types.Position{X: 4, Y: 3})
+	if !found {
+		t.Fatal("door mark at (4,3) not restored")
+	}
+	if doorMark.WallRole != "door" {
+		t.Errorf("door mark WallRole: got %q, want %q", doorMark.WallRole, "door")
+	}
+
+	// Verify fence mark — empty WallRole
+	fenceMark, found := restored.gameMap.GetConstructionMark(types.Position{X: 7, Y: 7})
+	if !found {
+		t.Fatal("fence mark at (7,7) not restored")
+	}
+	if fenceMark.WallRole != "" {
+		t.Errorf("fence mark WallRole: got %q, want empty string", fenceMark.WallRole)
+	}
+}
+
+func TestConstructionMarkSerialization_BackwardCompat_NoWallRole(t *testing.T) {
+	// Simulate an old save with no WallRole field — JSON omits it, so it deserializes as ""
+	m := createTestModel()
+	m.gameMap.MarkForConstruction(types.Position{X: 5, Y: 5}, 1, "fence", "")
+
+	state := m.ToSaveState()
+	// Clear WallRole to simulate old save format
+	for i := range state.MarkedForConstructionTiles {
+		state.MarkedForConstructionTiles[i].WallRole = ""
+	}
+
+	restored := FromSaveState(state, "test-world", m.testCfg)
+	mark, found := restored.gameMap.GetConstructionMark(types.Position{X: 5, Y: 5})
+	if !found {
+		t.Fatal("mark not restored from old-format save")
+	}
+	if mark.WallRole != "" {
+		t.Errorf("old save WallRole: got %q, want empty string", mark.WallRole)
 	}
 }
 

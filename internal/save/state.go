@@ -46,6 +46,7 @@ type ConstructionMarkSave struct {
 	LineID        int            `json:"line_id"`
 	Material      string         `json:"material,omitempty"`
 	ConstructKind string         `json:"construct_kind,omitempty"`
+	WallRole      string         `json:"wall_role,omitempty"`
 }
 
 // OrderSave represents an order for serialization

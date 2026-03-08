@@ -40,6 +40,9 @@ func colorByTier(level string, tier int) string {
 func constructionMarkLabel(mark game.ConstructionMark) string {
 	label := "Marked for construction"
 	kind := strings.ToUpper(mark.ConstructKind[:1]) + mark.ConstructKind[1:]
+	if mark.WallRole != "" {
+		kind += " " + strings.ToUpper(mark.WallRole[:1]) + mark.WallRole[1:]
+	}
 	if mark.Material != "" {
 		mat := strings.ToUpper(mark.Material[:1]) + mark.Material[1:]
 		label += " (" + mat + " " + kind + ")"
@@ -508,6 +511,68 @@ func (m Model) viewGame() string {
 	return gameArea + statusBar + debugLine
 }
 
+// hutSymbolFromAdjacency computes the box-drawing symbol and horizontal fills
+// for a hut construct based on its cardinal neighbors (DD-42).
+func hutSymbolFromAdjacency(pos types.Position, gameMap *game.Map) (symbol rune, leftFill string, rightFill string) {
+	construct := gameMap.ConstructAt(pos)
+	if construct == nil {
+		return config.CharHutEdgeH, " ", " "
+	}
+
+	// Door always returns door symbol with both fills
+	if construct.WallRole == "door" {
+		return config.CharHutDoor, string(config.CharHutEdgeH), string(config.CharHutEdgeH)
+	}
+
+	// Check cardinal neighbors for hut constructs
+	hasN := gameMap.ConstructAt(types.Position{X: pos.X, Y: pos.Y - 1}) != nil && gameMap.ConstructAt(types.Position{X: pos.X, Y: pos.Y - 1}).Kind == "hut"
+	hasS := gameMap.ConstructAt(types.Position{X: pos.X, Y: pos.Y + 1}) != nil && gameMap.ConstructAt(types.Position{X: pos.X, Y: pos.Y + 1}).Kind == "hut"
+	hasE := gameMap.ConstructAt(types.Position{X: pos.X + 1, Y: pos.Y}) != nil && gameMap.ConstructAt(types.Position{X: pos.X + 1, Y: pos.Y}).Kind == "hut"
+	hasW := gameMap.ConstructAt(types.Position{X: pos.X - 1, Y: pos.Y}) != nil && gameMap.ConstructAt(types.Position{X: pos.X - 1, Y: pos.Y}).Kind == "hut"
+
+	// Map neighbor pattern to box-drawing symbol
+	switch {
+	case hasN && hasS && hasE && hasW:
+		symbol = config.CharHutCross
+	case hasW && hasE && hasS:
+		symbol = config.CharHutTDown
+	case hasW && hasE && hasN:
+		symbol = config.CharHutTUp
+	case hasN && hasS && hasE:
+		symbol = config.CharHutTRight
+	case hasN && hasS && hasW:
+		symbol = config.CharHutTLeft
+	case hasE && hasS:
+		symbol = config.CharHutCornerTL
+	case hasW && hasS:
+		symbol = config.CharHutCornerTR
+	case hasE && hasN:
+		symbol = config.CharHutCornerBL
+	case hasW && hasN:
+		symbol = config.CharHutCornerBR
+	case hasW || hasE:
+		symbol = config.CharHutEdgeH
+	case hasN || hasS:
+		symbol = config.CharHutEdgeV
+	default:
+		symbol = config.CharHutEdgeH
+	}
+
+	// Fill logic
+	if hasW {
+		leftFill = string(config.CharHutEdgeH)
+	} else {
+		leftFill = " "
+	}
+	if hasE {
+		rightFill = string(config.CharHutEdgeH)
+	} else {
+		rightFill = " "
+	}
+
+	return symbol, leftFill, rightFill
+}
+
 // renderCell renders a single map cell
 func (m Model) renderCell(x, y int) string {
 	isCursor := x == m.cursorX && y == m.cursorY
@@ -524,25 +589,20 @@ func (m Model) renderCell(x, y int) string {
 	} else if item := m.gameMap.ItemAt(pos); item != nil {
 		sym = m.styledSymbol(item)
 	} else if construct := m.gameMap.ConstructAt(pos); construct != nil {
-		sym = m.styledSymbol(construct)
 		if construct.Kind == "hut" {
-			// Hut constructs use asymmetric fill based on WallRole (DD-42)
+			// Hut constructs use adjacency-based symbol computation (DD-42)
+			adjSym, adjLeft, adjRight := hutSymbolFromAdjacency(pos, m.gameMap)
+			construct.Sym = adjSym
+			sym = m.styledSymbol(construct)
 			hFill := colorToStyle(construct.MaterialColor).Render(string(config.CharHutEdgeH))
-			switch construct.WallRole {
-			case "corner-tl", "corner-bl":
-				rightFill = hFill // ·┏━ or ·┗━
-			case "corner-tr", "corner-br":
-				leftFill = hFill // ━┓· or ━┛·
-			case "edge-h", "door", "t-down", "t-up", "cross":
-				leftFill = hFill // ━━━, ━▯━, ━┳━, ━┻━, ━╋━
+			if adjLeft == string(config.CharHutEdgeH) {
+				leftFill = hFill
+			}
+			if adjRight == string(config.CharHutEdgeH) {
 				rightFill = hFill
-			case "t-right":
-				rightFill = hFill // ·┣━ (lines go up, down, right)
-			case "t-left":
-				leftFill = hFill // ━┫· (lines go up, down, left)
-				// edge-v: no fill → · ┃ ·
 			}
 		} else {
+			sym = m.styledSymbol(construct)
 			// Fence: directional fill for horizontal continuity
 			leftPos := types.Position{X: x - 1, Y: y}
 			rightPos := types.Position{X: x + 1, Y: y}

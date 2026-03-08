@@ -605,7 +605,7 @@ Constructs render using their material's color.
 
 **Fences:** A horizontal fence segment fills the full tile width (`╬╬╬`); a vertical segment is centered (`  ╬  `).
 
-**Hut walls and doors:** Use heavy box-drawing characters with asymmetric horizontal fill. Wall roles: corners (`┏ ┓ ┗ ┛`), horizontal edges (`━━━`), vertical edges (`  ┃  `), door (`  ▯  `), and T/cross junctions for shared walls. Corners and door tiles use asymmetric fill to produce visual continuity with adjacent wall segments. Doors are passable; walls are not.
+**Hut walls and doors:** Use heavy box-drawing characters with asymmetric horizontal fill. Symbols are computed at render time from adjacency — corners (`┏ ┓ ┗ ┛`), horizontal edges (`━━━`), vertical edges (`  ┃  `), door (`  ≡  `), and T/cross junctions for shared walls. Corners and door tiles use asymmetric fill to produce visual continuity with adjacent wall segments. Doors are passable; walls are not.
 
 ### Fence Recipes
 
@@ -638,7 +638,7 @@ Construction orders appear under a **Construction** category in the orders panel
 
 Invalid footprint positions (water, built constructs, map edges, or existing marks in the interior) show red. Existing fence marks visible during hut placement render grey; the preview turns amber over them to indicate they'll be overwritten. Two huts can share a wall — shared perimeter tiles keep the first hut's mark (first-wins).
 
-Marked-for-construction tiles are only highlighted during the active marking phase. In regular select mode, move the cursor over a tile to see "Marked for construction (Fence)" or "Marked for construction (Hut)" in the details panel. Once a material is assigned, it shows e.g. "Marked for construction (Stick Fence)" or "Marked for construction (Stick Hut)".
+Marked-for-construction tiles are only highlighted during the active marking phase. In regular select mode, move the cursor over a tile to see "Marked for construction (Fence)" or "Marked for construction (Hut Wall)" / "Marked for construction (Hut Door)" in the details panel. Once a material is assigned, it shows e.g. "Marked for construction (Stick Fence)", "Marked for construction (Stick Hut Wall)", or "Marked for construction (Stick Hut Door)".
 
 The character assigns a material to the line/footprint when they begin building the first tile — selecting whichever construction material is nearest and available. Once one tile in a line is built, all remaining tiles in that line use the same material.
 

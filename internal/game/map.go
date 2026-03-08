@@ -60,6 +60,7 @@ type ConstructionMark struct {
 	LineID        int    // All marks from one line-drawing operation share a LineID
 	Material      string // Empty until first character starts building this line
 	ConstructKind string // "fence" or "hut" — distinguishes mark types (DD-41)
+	WallRole      string // "wall" or "door" for hut marks; empty for fences (DD-51)
 }
 
 // NewMap creates a new map with the given dimensions
@@ -607,16 +608,17 @@ func (m *Map) MarkedForTillingPositions() []types.Position {
 	return positions
 }
 
-// MarkForConstruction adds a position to the marked-for-construction pool with the given lineID and constructKind.
+// MarkForConstruction adds a position to the marked-for-construction pool with the given lineID, constructKind, and wallRole.
+// wallRole is "wall" or "door" for hut marks, empty string for fences (DD-51).
 // Returns false if the position is already marked or has an existing construct.
-func (m *Map) MarkForConstruction(pos types.Position, lineID int, constructKind string) bool {
+func (m *Map) MarkForConstruction(pos types.Position, lineID int, constructKind string, wallRole string) bool {
 	if _, exists := m.markedForConstruction[pos]; exists {
 		return false
 	}
 	if m.ConstructAt(pos) != nil {
 		return false
 	}
-	m.markedForConstruction[pos] = ConstructionMark{LineID: lineID, ConstructKind: constructKind}
+	m.markedForConstruction[pos] = ConstructionMark{LineID: lineID, ConstructKind: constructKind, WallRole: wallRole}
 	return true
 }
 

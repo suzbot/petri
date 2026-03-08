@@ -5235,7 +5235,7 @@ func TestFindBuildFenceIntent_ReturnsPickup_WhenNeedsMaterials(t *testing.T) {
 	char := newBuildFenceChar(1, 5, 5, gameMap)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 
 	for i := 0; i < 6; i++ {
 		stick := entity.NewStick(6, 5)
@@ -5260,7 +5260,7 @@ func TestFindBuildFenceIntent_ReturnsActionBuildFence_WhenHasFullBundle(t *testi
 	char := newBuildFenceChar(1, 5, 5, gameMap)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "stick")
 
 	bundle := entity.NewStick(0, 0)
@@ -5291,7 +5291,7 @@ func TestFindBuildFenceIntent_SkipsOccupiedTile_DD28(t *testing.T) {
 	char := newBuildFenceChar(1, 5, 5, gameMap)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	occupant := entity.NewCharacter(2, 8, 5, "Other", "berry", types.ColorRed)
 	gameMap.AddCharacter(occupant)
 
@@ -5316,8 +5316,8 @@ func TestFindBuildFenceIntent_StampsLineMaterial_DD25(t *testing.T) {
 
 	pos1 := types.Position{X: 8, Y: 5}
 	pos2 := types.Position{X: 9, Y: 5}
-	gameMap.MarkForConstruction(pos1, 1, "fence")
-	gameMap.MarkForConstruction(pos2, 1, "fence")
+	gameMap.MarkForConstruction(pos1, 1, "fence", "")
+	gameMap.MarkForConstruction(pos2, 1, "fence", "")
 
 	for i := 0; i < 6; i++ {
 		stick := entity.NewStick(6, 5)
@@ -5366,7 +5366,7 @@ func TestIsMultiStepOrderComplete_BuildFence_NoUnbuilt(t *testing.T) {
 	gameMap.AddCharacter(char)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	fence := entity.NewFence(8, 5, "stick", types.ColorBrown)
 	gameMap.AddConstruct(fence)
 	gameMap.UnmarkForConstruction(buildPos)
@@ -5384,7 +5384,7 @@ func TestIsMultiStepOrderComplete_BuildFence_HasUnbuilt(t *testing.T) {
 	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
 	gameMap.AddCharacter(char)
 
-	gameMap.MarkForConstruction(types.Position{X: 8, Y: 5}, 1, "fence")
+	gameMap.MarkForConstruction(types.Position{X: 8, Y: 5}, 1, "fence", "")
 
 	order := entity.NewOrder(1, "buildFence", "")
 	if IsMultiStepOrderCompleteForTest(char, order, gameMap) {
@@ -5404,7 +5404,7 @@ func TestIsOrderFeasible_BuildFence_Feasible(t *testing.T) {
 	char.KnownActivities = []string{"buildFence"}
 	gameMap.AddCharacter(char)
 
-	gameMap.MarkForConstruction(types.Position{X: 8, Y: 5}, 1, "fence")
+	gameMap.MarkForConstruction(types.Position{X: 8, Y: 5}, 1, "fence", "")
 	stick := entity.NewStick(6, 5)
 	gameMap.AddItem(stick)
 
@@ -5444,7 +5444,7 @@ func TestIsOrderFeasible_BuildFence_Infeasible_NoMaterials(t *testing.T) {
 	char.KnownActivities = []string{"buildFence"}
 	gameMap.AddCharacter(char)
 
-	gameMap.MarkForConstruction(types.Position{X: 8, Y: 5}, 1, "fence")
+	gameMap.MarkForConstruction(types.Position{X: 8, Y: 5}, 1, "fence", "")
 
 	order := entity.NewOrder(1, "buildFence", "")
 	feasible, _ := IsOrderFeasible(order, gameMap.Items(), gameMap)
@@ -5468,9 +5468,9 @@ func TestBuildFenceOrder_EndToEnd(t *testing.T) {
 	buildPos1 := types.Position{X: 10, Y: 5}
 	buildPos2 := types.Position{X: 11, Y: 5}
 	buildPos3 := types.Position{X: 12, Y: 5}
-	gameMap.MarkForConstruction(buildPos1, 1, "fence")
-	gameMap.MarkForConstruction(buildPos2, 1, "fence")
-	gameMap.MarkForConstruction(buildPos3, 1, "fence")
+	gameMap.MarkForConstruction(buildPos1, 1, "fence", "")
+	gameMap.MarkForConstruction(buildPos2, 1, "fence", "")
+	gameMap.MarkForConstruction(buildPos3, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "stick")
 
 	// Character already has a full bundle (skip procurement)
@@ -5561,7 +5561,7 @@ func TestBrickSupplyDrop_FullCycle(t *testing.T) {
 
 	// One tile marked for construction with brick material pre-set
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "brick")
 
 	// Place 8 bricks on the ground near the character
@@ -5738,7 +5738,7 @@ func TestFindBuildFenceIntent_Brick_ReturnsPickup_WhenNoInventory(t *testing.T) 
 	gameMap.AddCharacter(char)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "brick")
 
 	for i := 0; i < 8; i++ {
@@ -5766,7 +5766,7 @@ func TestFindBuildFenceIntent_Brick_ReturnsDelivery_WhenCarryingBricks(t *testin
 	gameMap.AddCharacter(char)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "brick")
 
 	// Character has bricks in inventory
@@ -5797,7 +5797,7 @@ func TestFindBuildFenceIntent_Brick_ReturnsBuild_WhenSixBricksAtSite(t *testing.
 	gameMap.AddCharacter(char)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "brick")
 
 	// 6 bricks already at the build site
@@ -5836,7 +5836,7 @@ func TestFindBuildFenceIntent_Brick_ReturnsNil_WhenNoBricksAvailable(t *testing.
 	gameMap.AddCharacter(char)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "brick")
 
 	// No bricks anywhere
@@ -5858,7 +5858,7 @@ func TestFindBuildFenceIntent_Brick_SkipsBricksAtConstructionSites(t *testing.T)
 	gameMap.AddCharacter(char)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "brick")
 
 	// 3 bricks at the construction site (stockpiled) — should be skipped
@@ -5900,7 +5900,7 @@ func TestFindBuildFenceIntent_Brick_ReturnsNil_WhenOnlyStockpiledBricks(t *testi
 	gameMap.AddCharacter(char)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "brick")
 
 	// Only bricks at the construction site — no supply available
@@ -5928,7 +5928,7 @@ func TestFindBuildFenceIntent_Brick_DisplaceCharacterOnBuildTile_DD28(t *testing
 	gameMap.AddCharacter(char)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "brick")
 
 	// Another character standing on the build tile
@@ -5942,7 +5942,7 @@ func TestFindBuildFenceIntent_Brick_DisplaceCharacterOnBuildTile_DD28(t *testing
 
 	// Second build tile not occupied
 	buildPos2 := types.Position{X: 9, Y: 5}
-	gameMap.MarkForConstruction(buildPos2, 1, "fence")
+	gameMap.MarkForConstruction(buildPos2, 1, "fence", "")
 
 	for i := 0; i < 6; i++ {
 		gameMap.AddItem(entity.NewBrick(buildPos2.X, buildPos2.Y))

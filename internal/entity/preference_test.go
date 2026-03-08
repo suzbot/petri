@@ -979,23 +979,13 @@ func TestConstruct_PreferenceKind(t *testing.T) {
 func TestHutConstruct_AnchorStory(t *testing.T) {
 	t.Parallel()
 
-	// All wall roles produce correct Kind, WallRole, and Passable
+	// WallRole is "wall" or "door" — symbol computed at render time (DD-42)
 	wallRoles := []struct {
 		role     string
 		passable bool
 	}{
-		{"corner-tl", false},
-		{"corner-tr", false},
-		{"corner-bl", false},
-		{"corner-br", false},
-		{"edge-h", false},
-		{"edge-v", false},
+		{"wall", false},
 		{"door", true},
-		{"t-down", false},
-		{"t-up", false},
-		{"t-right", false},
-		{"t-left", false},
-		{"cross", false},
 	}
 
 	for _, wr := range wallRoles {
@@ -1023,13 +1013,13 @@ func TestHutConstruct_AnchorStory(t *testing.T) {
 func TestHutConstruct_DisplayName(t *testing.T) {
 	t.Parallel()
 
-	// Wall roles show "Hut Wall", door shows "Hut Door"
-	wall := NewHutConstruct(0, 0, "stick", types.ColorBrown, "edge-h")
+	// Wall shows "Hut Wall", door shows "Hut Door"
+	wall := NewHutConstruct(0, 0, "stick", types.ColorBrown, "wall")
 	if got := wall.DisplayName(); got != "Stick Hut Wall" {
 		t.Errorf("wall DisplayName: got %q, want %q", got, "Stick Hut Wall")
 	}
 
-	corner := NewHutConstruct(0, 0, "grass", types.ColorPaleYellow, "corner-tl")
+	corner := NewHutConstruct(0, 0, "grass", types.ColorPaleYellow, "wall")
 	if got := corner.DisplayName(); got != "Thatch Hut Wall" {
 		t.Errorf("corner DisplayName: got %q, want %q", got, "Thatch Hut Wall")
 	}
@@ -1050,8 +1040,8 @@ func TestHutConstruct_PreferenceKind(t *testing.T) {
 		wallRole string
 		expected string
 	}{
-		{"stick", types.ColorBrown, "edge-h", "stick hut"},
-		{"grass", types.ColorPaleYellow, "corner-tl", "thatch hut"},
+		{"stick", types.ColorBrown, "wall", "stick hut"},
+		{"grass", types.ColorPaleYellow, "wall", "thatch hut"},
 		{"brick", types.ColorTerracotta, "door", "brick hut"},
 	}
 

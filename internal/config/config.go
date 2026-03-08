@@ -51,7 +51,7 @@ const (
 	CharHutCornerBR = '┛'
 	CharHutEdgeH    = '━'
 	CharHutEdgeV    = '┃'
-	CharHutDoor     = '▯'
+	CharHutDoor     = '≡'
 	CharHutTDown    = '┳'
 	CharHutTUp      = '┻'
 	CharHutTRight   = '┣'

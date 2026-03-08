@@ -4425,7 +4425,7 @@ func TestApplyBuildFence_DeliveryMode_DropsBricksAndClearsIntent(t *testing.T) {
 	char.AddToInventory(entity.NewBrick(0, 0))
 	char.AddToInventory(entity.NewBrick(0, 0))
 
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "brick")
 
 	char.Intent = &entity.Intent{
@@ -4475,7 +4475,7 @@ func TestApplyBuildFence_BrickBuild_ConsumesBricksAndPlacesFence(t *testing.T) {
 	gameMap.AddCharacter(char)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "brick")
 
 	// 8 bricks at build site (6 needed, 2 excess)
@@ -4548,7 +4548,7 @@ func TestApplyBuildFence_BrickBuild_AbandonsWhenOccupantOnBuildTile(t *testing.T
 	gameMap.AddCharacter(char)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "brick")
 
 	// Character standing on build tile (DD-28 layer 2: abandon and re-evaluate)
@@ -4588,7 +4588,7 @@ func TestApplyBuildFence_BundleRegression_StillWorksAfterBrickChanges(t *testing
 	gameMap.AddCharacter(char)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "stick")
 
 	// Full bundle in inventory
@@ -4626,7 +4626,7 @@ func TestBrickSupplyDrop_IntegrationLoop(t *testing.T) {
 	gameMap.AddCharacter(char)
 
 	buildPos := types.Position{X: 8, Y: 5}
-	gameMap.MarkForConstruction(buildPos, 1, "fence")
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
 	gameMap.SetLineMaterial(1, "brick")
 
 	for i := 0; i < 8; i++ {

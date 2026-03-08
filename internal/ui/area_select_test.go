@@ -284,7 +284,7 @@ func TestIsValidFenceTarget_RejectsAlreadyMarked(t *testing.T) {
 	t.Parallel()
 	m := game.NewMap(20, 20)
 	pos := types.Position{X: 5, Y: 5}
-	m.MarkForConstruction(pos, 1, "fence")
+	m.MarkForConstruction(pos, 1, "fence", "")
 
 	if isValidFenceTarget(pos, m) {
 		t.Error("isValidFenceTarget() should return false for already-marked-for-construction tiles")
@@ -305,7 +305,7 @@ func TestIsValidUnmarkFenceTarget_ReturnsTrueForMarked(t *testing.T) {
 	t.Parallel()
 	m := game.NewMap(20, 20)
 	pos := types.Position{X: 5, Y: 5}
-	m.MarkForConstruction(pos, 1, "fence")
+	m.MarkForConstruction(pos, 1, "fence", "")
 
 	if !isValidUnmarkFenceTarget(pos, m) {
 		t.Error("isValidUnmarkFenceTarget() should return true for marked-for-construction tiles without construct")

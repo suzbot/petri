@@ -315,6 +315,7 @@ func constructionMarksToSave(gameMap *game.Map) []save.ConstructionMarkSave {
 			LineID:        mark.LineID,
 			Material:      mark.Material,
 			ConstructKind: mark.ConstructKind,
+			WallRole:      mark.WallRole,
 		}
 	}
 	return result
@@ -426,7 +427,7 @@ func FromSaveState(state *save.SaveState, worldID string, testCfg TestConfig) Mo
 		if constructKind == "" {
 			constructKind = "fence" // backward compat: old saves default to fence
 		}
-		m.gameMap.MarkForConstruction(cms.Position, cms.LineID, constructKind)
+		m.gameMap.MarkForConstruction(cms.Position, cms.LineID, constructKind, cms.WallRole)
 		if cms.Material != "" {
 			// Stamp the material directly on this individual mark
 			m.gameMap.SetLineMaterialAt(cms.Position, cms.Material)
@@ -808,6 +809,12 @@ func featureFromSave(fs save.FeatureSave) *entity.Feature {
 
 // constructFromSave converts a saved construct back to an entity
 func constructFromSave(cs save.ConstructSave) *entity.Construct {
+	// Backward compat: map old fine-grained WallRole to "wall"/"door"
+	wallRole := cs.WallRole
+	if cs.Kind == "hut" && wallRole != "door" && wallRole != "" {
+		wallRole = "wall"
+	}
+
 	c := &entity.Construct{
 		ID:            cs.ID,
 		ConstructType: cs.ConstructType,
@@ -816,42 +823,20 @@ func constructFromSave(cs save.ConstructSave) *entity.Construct {
 		MaterialColor: types.Color(cs.MaterialColor),
 		Passable:      cs.Passable,
 		Movable:       cs.Movable,
-		WallRole:      cs.WallRole,
+		WallRole:      wallRole,
 	}
 	c.X = cs.Position.X
 	c.Y = cs.Position.Y
 	c.EType = entity.TypeConstruct
 
-	// Set display symbol based on Kind
+	// Set display symbol based on Kind (placeholder — hut symbols computed at render time)
 	switch cs.Kind {
 	case "fence":
 		c.Sym = config.CharFence
 	case "hut":
-		switch cs.WallRole {
-		case "corner-tl":
-			c.Sym = config.CharHutCornerTL
-		case "corner-tr":
-			c.Sym = config.CharHutCornerTR
-		case "corner-bl":
-			c.Sym = config.CharHutCornerBL
-		case "corner-br":
-			c.Sym = config.CharHutCornerBR
-		case "edge-h":
-			c.Sym = config.CharHutEdgeH
-		case "edge-v":
-			c.Sym = config.CharHutEdgeV
-		case "door":
+		c.Sym = config.CharHutEdgeH
+		if wallRole == "door" {
 			c.Sym = config.CharHutDoor
-		case "t-down":
-			c.Sym = config.CharHutTDown
-		case "t-up":
-			c.Sym = config.CharHutTUp
-		case "t-right":
-			c.Sym = config.CharHutTRight
-		case "t-left":
-			c.Sym = config.CharHutTLeft
-		case "cross":
-			c.Sym = config.CharHutCross
 		}
 	}
 

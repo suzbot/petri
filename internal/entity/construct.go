@@ -15,7 +15,7 @@ type Construct struct {
 	MaterialColor types.Color // rendering color
 	Passable      bool
 	Movable       bool   // false for structures, true for future furniture
-	WallRole      string // position-aware role for hut constructs: "corner-tl", "corner-tr", "corner-bl", "corner-br", "edge-h", "edge-v", "door"
+	WallRole      string // semantic role for hut constructs: "wall" or "door" (visual symbol computed at render time from adjacency)
 }
 
 // NewFence creates a new fence construct at the given position with the specified material
@@ -37,9 +37,13 @@ func NewFence(x, y int, material string, materialColor types.Color) *Construct {
 }
 
 // NewHutConstruct creates a hut construct (wall or door) at the given position.
-// WallRole determines the symbol and passability: "door" is passable, all others are walls.
+// WallRole is "wall" or "door" — the visual symbol is computed at render time
+// from adjacency (DD-42), not stored on the construct.
 func NewHutConstruct(x, y int, material string, materialColor types.Color, wallRole string) *Construct {
-	sym := wallRoleToSymbol(wallRole)
+	sym := config.CharHutEdgeH
+	if wallRole == "door" {
+		sym = config.CharHutDoor
+	}
 	return &Construct{
 		BaseEntity: BaseEntity{
 			X:     x,
@@ -54,38 +58,6 @@ func NewHutConstruct(x, y int, material string, materialColor types.Color, wallR
 		Passable:      wallRole == "door",
 		Movable:       false,
 		WallRole:      wallRole,
-	}
-}
-
-// wallRoleToSymbol maps a WallRole string to its display symbol.
-func wallRoleToSymbol(wallRole string) rune {
-	switch wallRole {
-	case "corner-tl":
-		return config.CharHutCornerTL
-	case "corner-tr":
-		return config.CharHutCornerTR
-	case "corner-bl":
-		return config.CharHutCornerBL
-	case "corner-br":
-		return config.CharHutCornerBR
-	case "edge-h":
-		return config.CharHutEdgeH
-	case "edge-v":
-		return config.CharHutEdgeV
-	case "door":
-		return config.CharHutDoor
-	case "t-down":
-		return config.CharHutTDown
-	case "t-up":
-		return config.CharHutTUp
-	case "t-right":
-		return config.CharHutTRight
-	case "t-left":
-		return config.CharHutTLeft
-	case "cross":
-		return config.CharHutCross
-	default:
-		return config.CharHutEdgeH
 	}
 }
 

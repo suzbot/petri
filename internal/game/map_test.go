@@ -714,7 +714,7 @@ func TestMarkForConstruction_BasicRoundTrip(t *testing.T) {
 	m := NewMap(20, 20)
 	pos := types.Position{X: 5, Y: 5}
 
-	ok := m.MarkForConstruction(pos, 1, "fence")
+	ok := m.MarkForConstruction(pos, 1, "fence", "")
 
 	if !ok {
 		t.Error("MarkForConstruction() should return true for new position")
@@ -739,9 +739,9 @@ func TestMarkForConstruction_ReturnsFalseIfAlreadyMarked(t *testing.T) {
 
 	m := NewMap(20, 20)
 	pos := types.Position{X: 5, Y: 5}
-	m.MarkForConstruction(pos, 1, "fence")
+	m.MarkForConstruction(pos, 1, "fence", "")
 
-	ok := m.MarkForConstruction(pos, 2, "fence")
+	ok := m.MarkForConstruction(pos, 2, "fence", "")
 
 	if ok {
 		t.Error("MarkForConstruction() should return false for already-marked position")
@@ -761,7 +761,7 @@ func TestMarkForConstruction_ReturnsFalseIfConstructExists(t *testing.T) {
 	fence := entity.NewFence(5, 5, "stick", types.ColorBrown)
 	m.AddConstruct(fence)
 
-	ok := m.MarkForConstruction(pos, 1, "fence")
+	ok := m.MarkForConstruction(pos, 1, "fence", "")
 
 	if ok {
 		t.Error("MarkForConstruction() should return false when construct already exists at position")
@@ -773,7 +773,7 @@ func TestUnmarkForConstruction_RemovesMark(t *testing.T) {
 
 	m := NewMap(20, 20)
 	pos := types.Position{X: 5, Y: 5}
-	m.MarkForConstruction(pos, 1, "fence")
+	m.MarkForConstruction(pos, 1, "fence", "")
 
 	m.UnmarkForConstruction(pos)
 
@@ -791,10 +791,10 @@ func TestSetLineMaterial_StampsAllMatchingMarks(t *testing.T) {
 
 	m := NewMap(20, 20)
 	// Three tiles with lineID 1, one with lineID 2
-	m.MarkForConstruction(types.Position{X: 3, Y: 3}, 1, "fence")
-	m.MarkForConstruction(types.Position{X: 4, Y: 3}, 1, "fence")
-	m.MarkForConstruction(types.Position{X: 5, Y: 3}, 1, "fence")
-	m.MarkForConstruction(types.Position{X: 7, Y: 7}, 2, "fence")
+	m.MarkForConstruction(types.Position{X: 3, Y: 3}, 1, "fence", "")
+	m.MarkForConstruction(types.Position{X: 4, Y: 3}, 1, "fence", "")
+	m.MarkForConstruction(types.Position{X: 5, Y: 3}, 1, "fence", "")
+	m.MarkForConstruction(types.Position{X: 7, Y: 7}, 2, "fence", "")
 
 	m.SetLineMaterial(1, "stick")
 
@@ -815,7 +815,7 @@ func TestHasUnbuiltConstructionPositions_TrueWhenMarkNoConstruct(t *testing.T) {
 	t.Parallel()
 
 	m := NewMap(20, 20)
-	m.MarkForConstruction(types.Position{X: 5, Y: 5}, 1, "fence")
+	m.MarkForConstruction(types.Position{X: 5, Y: 5}, 1, "fence", "")
 
 	if !m.HasUnbuiltConstructionPositions("fence") {
 		t.Error("HasUnbuiltConstructionPositions(fence) should return true when marked tile has no construct")
@@ -837,7 +837,7 @@ func TestHasUnbuiltConstructionPositions_FalseWhenAllBuilt(t *testing.T) {
 
 	m := NewMap(20, 20)
 	pos := types.Position{X: 5, Y: 5}
-	m.MarkForConstruction(pos, 1, "fence")
+	m.MarkForConstruction(pos, 1, "fence", "")
 	// Placing a construct means the tile is built (mark still present but construct exists)
 	fence := entity.NewFence(5, 5, "stick", types.ColorBrown)
 	m.AddConstruct(fence)
@@ -873,13 +873,91 @@ func TestMarkedForConstructionPositions_ReturnsAll(t *testing.T) {
 	t.Parallel()
 
 	m := NewMap(20, 20)
-	m.MarkForConstruction(types.Position{X: 3, Y: 3}, 1, "fence")
-	m.MarkForConstruction(types.Position{X: 4, Y: 3}, 1, "fence")
-	m.MarkForConstruction(types.Position{X: 5, Y: 3}, 1, "fence")
+	m.MarkForConstruction(types.Position{X: 3, Y: 3}, 1, "fence", "")
+	m.MarkForConstruction(types.Position{X: 4, Y: 3}, 1, "fence", "")
+	m.MarkForConstruction(types.Position{X: 5, Y: 3}, 1, "fence", "")
 
 	positions := m.MarkedForConstructionPositions()
 	if len(positions) != 3 {
 		t.Errorf("MarkedForConstructionPositions() should return 3 positions, got %d", len(positions))
+	}
+}
+
+func TestHutFootprint_WallRoleAssignment(t *testing.T) {
+	t.Parallel()
+
+	m := NewMap(30, 30)
+	cursorX, cursorY := 5, 5
+	lineID := m.NextConstructionLineID()
+
+	// Simulate hut footprint placement: 5×5 perimeter = 16 tiles
+	// Door is at center of south wall: cursorX+2, cursorY+4
+	doorPos := types.Position{X: cursorX + 2, Y: cursorY + 4}
+	var perimeterPositions []types.Position
+	for dy := 0; dy < 5; dy++ {
+		for dx := 0; dx < 5; dx++ {
+			if dx >= 1 && dx <= 3 && dy >= 1 && dy <= 3 {
+				continue // skip interior
+			}
+			perimeterPositions = append(perimeterPositions, types.Position{X: cursorX + dx, Y: cursorY + dy})
+		}
+	}
+
+	for _, pos := range perimeterPositions {
+		wallRole := "wall"
+		if pos == doorPos {
+			wallRole = "door"
+		}
+		ok := m.MarkForConstruction(pos, lineID, "hut", wallRole)
+		if !ok {
+			t.Fatalf("MarkForConstruction() returned false for pos %v", pos)
+		}
+	}
+
+	// Also place a fence mark — should have empty WallRole
+	fencePos := types.Position{X: 20, Y: 20}
+	m.MarkForConstruction(fencePos, lineID+1, "fence", "")
+
+	// Verify: 16 hut marks + 1 fence mark
+	positions := m.MarkedForConstructionPositions()
+	if len(positions) != 17 {
+		t.Errorf("expected 17 marked positions, got %d", len(positions))
+	}
+
+	// Verify door mark
+	doorMark, found := m.GetConstructionMark(doorPos)
+	if !found {
+		t.Fatal("door position should be marked")
+	}
+	if doorMark.WallRole != "door" {
+		t.Errorf("door mark WallRole: got %q, want %q", doorMark.WallRole, "door")
+	}
+	if doorMark.ConstructKind != "hut" {
+		t.Errorf("door mark ConstructKind: got %q, want %q", doorMark.ConstructKind, "hut")
+	}
+
+	// Verify all non-door hut marks have WallRole "wall"
+	for _, pos := range perimeterPositions {
+		if pos == doorPos {
+			continue
+		}
+		mark, found := m.GetConstructionMark(pos)
+		if !found {
+			t.Errorf("position %v should be marked", pos)
+			continue
+		}
+		if mark.WallRole != "wall" {
+			t.Errorf("wall mark at %v WallRole: got %q, want %q", pos, mark.WallRole, "wall")
+		}
+	}
+
+	// Verify fence mark has empty WallRole
+	fenceMark, found := m.GetConstructionMark(fencePos)
+	if !found {
+		t.Fatal("fence position should be marked")
+	}
+	if fenceMark.WallRole != "" {
+		t.Errorf("fence mark WallRole: got %q, want empty string", fenceMark.WallRole)
 	}
 }
 
@@ -1290,10 +1368,10 @@ func TestHutPlacement_AnchorStory(t *testing.T) {
 	m := NewMap(20, 20)
 
 	// Phase 1: ConstructKind on marks
-	m.MarkForConstruction(types.Position{X: 3, Y: 3}, 1, "fence")
-	m.MarkForConstruction(types.Position{X: 4, Y: 3}, 1, "fence")
-	m.MarkForConstruction(types.Position{X: 5, Y: 5}, 2, "hut")
-	m.MarkForConstruction(types.Position{X: 6, Y: 5}, 2, "hut")
+	m.MarkForConstruction(types.Position{X: 3, Y: 3}, 1, "fence", "")
+	m.MarkForConstruction(types.Position{X: 4, Y: 3}, 1, "fence", "")
+	m.MarkForConstruction(types.Position{X: 5, Y: 5}, 2, "hut", "wall")
+	m.MarkForConstruction(types.Position{X: 6, Y: 5}, 2, "hut", "wall")
 
 	fenceMark, _ := m.GetConstructionMark(types.Position{X: 3, Y: 3})
 	if fenceMark.ConstructKind != "fence" {
@@ -1323,8 +1401,8 @@ func TestHutPlacement_AnchorStory(t *testing.T) {
 	m.UnmarkForConstruction(types.Position{X: 6, Y: 5})
 
 	// Phase 3: Shared wall first-wins
-	m.MarkForConstruction(types.Position{X: 8, Y: 5}, 3, "hut")
-	ok2 := m.MarkForConstruction(types.Position{X: 8, Y: 5}, 4, "hut")
+	m.MarkForConstruction(types.Position{X: 8, Y: 5}, 3, "hut", "wall")
+	ok2 := m.MarkForConstruction(types.Position{X: 8, Y: 5}, 4, "hut", "wall")
 	if ok2 {
 		t.Error("MarkForConstruction should return false for already-marked position (first-wins)")
 	}
@@ -1335,11 +1413,11 @@ func TestHutPlacement_AnchorStory(t *testing.T) {
 	m.UnmarkForConstruction(types.Position{X: 8, Y: 5})
 
 	// Phase 4: UnmarkByLineID removes whole footprint
-	m.MarkForConstruction(types.Position{X: 1, Y: 1}, 5, "hut")
-	m.MarkForConstruction(types.Position{X: 2, Y: 1}, 5, "hut")
-	m.MarkForConstruction(types.Position{X: 1, Y: 2}, 5, "hut")
-	m.MarkForConstruction(types.Position{X: 2, Y: 2}, 5, "hut")
-	m.MarkForConstruction(types.Position{X: 10, Y: 10}, 6, "hut")
+	m.MarkForConstruction(types.Position{X: 1, Y: 1}, 5, "hut", "wall")
+	m.MarkForConstruction(types.Position{X: 2, Y: 1}, 5, "hut", "wall")
+	m.MarkForConstruction(types.Position{X: 1, Y: 2}, 5, "hut", "wall")
+	m.MarkForConstruction(types.Position{X: 2, Y: 2}, 5, "hut", "wall")
+	m.MarkForConstruction(types.Position{X: 10, Y: 10}, 6, "hut", "wall")
 
 	m.UnmarkByLineID(5)
 

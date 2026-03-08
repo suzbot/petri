@@ -224,23 +224,27 @@ Characters gather materials and construct small buildings from grass, sticks, or
 ---
 
 ### Step 10: Build Hut Execution
-**Status:** Planned
+**Status:** In progress (10a, 10b complete)
 
 **Anchor story:** A character who knows how to build huts takes a Build Hut order. They choose stick material (nearest available), and the material is stamped across all 16 hut marks. They carry bundles of sticks to the nearest unbuilt wall tile, dropping 2 full bundles, then work the tile into a wall segment. They move to the next tile. Another character joins and works from the other end. Eventually all 16 tiles are built — walls and a door. Characters walk through the door into the 3×3 interior.
 
 **Scope:**
-- `findBuildHutIntent` in order_execution.go — follows fence pattern: nearest unbuilt hut mark, material selection (DD-40), supply-drop procurement
+- `findBuildHutIntent` in order_execution.go — follows fence pattern: nearest unbuilt hut mark, material selection (DD-40), supply-drop procurement for all materials (DD-39)
 - Material costs per tile: thatch = 2 bundles of 6 grass, stick = 2 bundles of 6 sticks, brick = 12 bricks (DD-39)
-- `applyBuildHut` handler — walk-then-act, supply delivery, build phase, construct placement with position-aware wall role
+- Supply-drop for all material types: bundles dropped at site then consumed, same as bricks (DD-39)
+- `applyBuildHut` handler — walk-then-act, supply delivery, build phase, construct placement with WallRole "wall"/"door" from mark (DD-51)
+- Render-time symbol refactor: simplify WallRole on Construct to "wall"/"door", replace `wallRoleToSymbol` with adjacency-based symbol computation in `renderCell()` (DD-42, DD-50 updated)
+- Material selection generalized: `selectConstructionMaterial(activityID)` replaces `selectFenceMaterial`, shared by fence and hut building
 - Multiple workers, no tile claiming (same as fences DD-29)
 - Collision handling: skip/abandon/displace layers (same as fences DD-28)
 - Item displacement after construct placement (same as fences DD-33)
-- Order feasibility: unbuilt hut marks exist AND hut materials exist on map
-- Order completion: no unbuilt hut marks remain
+- Order feasibility: unbuilt hut marks exist AND hut materials exist on map (already stubbed)
+- Order completion: no unbuilt hut marks remain (already stubbed)
 
 **Open questions:**
-- ~~Hut supply management~~ → DD-39 (per-tile sequential)
+- ~~Hut supply management~~ → DD-39 (per-tile sequential, supply-drop for all materials)
 - ~~Multiple hut materials~~ → DD-40 (no mixing; character selects, same as fences)
+- ~~WallRole on marks~~ → DD-51 ("wall"/"door" set at placement time, read at build time)
 
 ---
 
@@ -512,9 +516,9 @@ Characters gather materials and construct small buildings from grass, sticks, or
 
 ### DD-39: Per-tile sequential supply-drop and build
 **Context:** How does the worker distribute supplies? Options: (A) drop all supplies on all tiles first, then build all tiles; (B) per-tile: drop supplies for one tile, build it, move to next.
-**Decision:** Per-tile sequential. Worker picks the nearest unbuilt marked tile, delivers supplies until the tile has the required amount (2 full bundles for thatch/stick, 12 bricks for brick), then builds that tile, then moves to the next. Material costs per tile: thatch = 2 full bundles of 6 grass, stick = 2 full bundles of 6 sticks, brick = 12 bricks. Characters carry materials using existing inventory (2 slots), making multiple trips per tile as needed. For bundles: 1 bundle per slot, 2 trips minimum per tile (could be 1 trip if character has 2 full bundles). For bricks: 2 per trip, 6 trips per tile.
-**Rationale:** Matches fence pattern (get materials → build → next tile) — **Follow the Existing Shape**. Per-tile produces visible incremental progress (each completed wall segment is immediately visible). Global "drop everything first" would require dozens of trips before any construction happens.
-**Affects:** Step 8
+**Decision:** Per-tile sequential with supply-drop for all material types. Worker picks the nearest unbuilt marked tile, delivers supplies by dropping them at the tile until it has the required amount, then builds that tile, then moves to the next. Material costs per tile: thatch = 2 full bundles of 6 grass, stick = 2 full bundles of 6 sticks, brick = 12 bricks. All materials are supply-dropped at the build site before working the tile (per requirements: "supplies dropped on them and then each tile with all its supplies is worked"). Characters carry materials using existing inventory (2 slots), making multiple trips per tile as needed. For bundles: 1 bundle per slot, 1 trip to deliver both bundles (carry 2 → drop 2 → build). For bricks: 2 per trip, 6 trips per tile.
+**Rationale:** Matches requirements language ("supplies dropped on tiles, then worked"). Per-tile produces visible incremental progress (each completed wall segment is immediately visible). Global "drop everything first" would require dozens of trips before any construction happens. Uniform supply-drop for both bundles and bricks simplifies the execution flow.
+**Affects:** Step 10
 
 ### DD-40: Character selects hut material — same as fences, no player sub-menu
 **Context:** Should the player select hut material via sub-menu, or should the character choose? Huts are large (16 tiles, major investment). Fences use character choice (DD-22).
@@ -570,16 +574,22 @@ Characters gather materials and construct small buildings from grass, sticks, or
 **Rationale:** Follows **Isomorphism** — marks carry their kind, workers respect it. Follows **Follow the Existing Shape** — extends the existing candidate-filtering loop rather than adding a new API method.
 **Affects:** Step 8b (fence side), Step 10 (hut side)
 
-### DD-42: Hut wall segments use heavy box-drawing characters; door ▯ on south wall center
+### DD-42: Hut wall segments use heavy box-drawing characters; symbols computed from adjacency at render time
 **Context:** Hut walls need visual distinction from fences (`╬`). Requirements call for a 5×5 enclosure with one door. Options for wall rendering: (A) single character for all walls (like fences), (B) line-drawing Unicode characters with corners and edges. Character set options: thin (`┌─┐│└┘`), heavy (`┏━┓┃┗┛`), double (`╔═╗║╚╝`), rounded (`╭─╮│╰╯`).
-**Decision:** Heavy box-drawing characters. Corners: `┏` `┓` `┗` `┛`. Horizontal edges: `━`. Vertical edges: `┃`. Door: `▯`. Shared-wall T-junctions: `┳` (T-down), `┻` (T-up), `┣` (T-right), `┫` (T-left), `╋` (cross). Each wall segment is a separate Construct with position-aware symbol selection via `WallRole`. Door is at the center of the south wall (bottom edge, middle tile of 5-wide wall). Door construct has `Passable: true`. Door rotation/position choice deferred to Post-Con-Reqs item 5. Rendering uses asymmetric horizontal fill: left corners get fill on right only (` ┏━`), right corners get fill on left only (`━┓ `), edges and doors get fill on both sides (`━━━`, `━▯━`).
-**Rationale:** Heavy lines create a clean, substantial enclosure — visually distinct from fence `╬` while reading as a solid building. Evaluated via demo program (`cmd/hutdemo`). Follows **Isomorphism** — walls have structural roles (corner, edge, door) and the rendering reflects that. Position-aware symbols require each wall segment to know its role, stored as `WallRole` on the Construct.
-**Affects:** Step 9
+**Decision:** Heavy box-drawing characters. The symbol set: corners (`┏ ┓ ┗ ┛`), horizontal edges (`━`), vertical edges (`┃`), door (`▯`), T-junctions (`┳ ┻ ┣ ┫`), cross (`╋`). The specific symbol for each wall tile is **computed at render time** from adjacent hut constructs — the renderer checks which cardinal neighbors are also hut constructs and selects the appropriate box-drawing character (corner if two perpendicular neighbors, edge if one axis, T-junction if three neighbors, cross if four). This means junction symbols emerge naturally when two huts share a wall — no special build-time logic needed. Door is at the center of the south wall (bottom edge, middle tile of 5-wide wall). Door construct has `Passable: true`. Door rotation/position choice deferred to Post-Con-Reqs item 5. Rendering uses asymmetric horizontal fill: left corners get fill on right only (` ┏━`), right corners get fill on left only (`━┓ `), edges and doors get fill on both sides (`━━━`, `━▯━`). T-junctions follow the same logic: T-left (`━┫ `) gets fill on left, T-right (` ┣━`) gets fill on right, T-down (`━┳━`) and T-up (`━┻━`) get fill on both sides. Cross (`━╋━`) gets fill on both sides.
+**Rationale:** Heavy lines create a clean, substantial enclosure — visually distinct from fence `╬` while reading as a solid building. Evaluated via demo program (`cmd/hutdemo`). Render-time adjacency computation keeps constructs simple (no fine-grained role storage) and handles junctions automatically when huts share walls. Follows **Isomorphism** — the visual reflects what's actually built around a tile, not what was planned.
+**Affects:** Step 9, Step 10 (refactor from stored WallRole to adjacency-based rendering)
 
-### DD-50: Hut walls and doors share Kind "hut" — WallRole carries structural distinction
+### DD-50: Hut walls and doors share Kind "hut" — WallRole is "wall" or "door"
 **Context:** Hut constructs need a Kind for `PreferenceKind()` matching and future recipe selection. Options: (A) Kind `"hut wall"` and `"hut door"` — precise but creates two preference identities for one building type, (B) Kind `"hut"` for both — WallRole carries the wall/door distinction.
-**Decision:** Kind `"hut"` for both walls and doors. `WallRole string` field on Construct carries the structural identity (`"corner-tl"`, `"corner-tr"`, `"corner-bl"`, `"corner-br"`, `"edge-h"`, `"edge-v"`, `"door"`). `PreferenceKind()` returns `"stick hut"` regardless of which tile a character looks at. `DisplayName()` uses WallRole to show `"Stick Hut Wall"` (for non-door roles) or `"Stick Hut Door"` (for door role) in the details panel.
-**Rationale:** A character looking at any part of a hut should form an opinion about huts of that material, not hut walls vs hut doors separately. Kind `"hut"` maps cleanly to recipe `"stick-hut"` — same 1:1 pattern as `"fence"` → `"stick-fence"`. WallRole is structural (determines symbol), not semantic (determines preference/recipe identity). Follows **Semantic Precision** — Kind represents what the player cares about (hut identity), WallRole represents what the renderer cares about (structural position). Follows **Consider Extensibility** — future construct types with sub-parts (e.g., watchtower with walls and ladder) can use the same Kind + Role pattern.
-**Affects:** Step 9
+**Decision:** Kind `"hut"` for both walls and doors. `WallRole string` field on Construct carries only the semantic distinction: `"wall"` or `"door"`. WallRole drives `DisplayName()` ("Stick Hut Wall" vs "Stick Hut Door") and `Passable` (door = passable, wall = impassable). The visual symbol (which box-drawing character to render) is **not** determined by WallRole — it is computed at render time from adjacent constructs (DD-42). `PreferenceKind()` returns `"stick hut"` regardless of which tile a character looks at.
+**Rationale:** A character looking at any part of a hut should form an opinion about huts of that material, not hut walls vs hut doors separately. Kind `"hut"` maps cleanly to recipe `"stick-hut"` — same 1:1 pattern as `"fence"` → `"stick-fence"`. WallRole is semantic (door vs wall for passability and display name), not visual (symbol selection). Follows **Semantic Precision** — Kind represents what the player cares about (hut identity), WallRole represents the functional distinction (can you walk through it?). Visual rendering is the renderer's job, derived from what's actually built (DD-42).
+**Affects:** Step 9, Step 10 (simplified from fine-grained roles to wall/door)
+
+### DD-51: ConstructionMark carries WallRole "wall" or "door" for hut marks
+**Context:** When a character builds a hut tile, they need to know whether to create a wall (impassable) or a door (passable). The door position is deterministic (center of south wall), but marks are removed as tiles are built, making it impossible to reliably reconstruct the footprint geometry at build time. Options: (A) store WallRole on the mark at placement time, (B) derive from footprint geometry at build time.
+**Decision:** Add `WallRole string` field to `ConstructionMark`. For hut marks, set to `"wall"` or `"door"` at placement time — the placement code already knows the footprint geometry and which tile is the door. For fence marks, WallRole is empty for now (future: fences may have a "gate" role serving the same passable-opening purpose as a hut door). At build time, the character reads WallRole from the mark to create the construct with correct `Passable` value. The visual symbol is not derived from WallRole — it's computed at render time from adjacency (DD-42).
+**Rationale:** Placement time is when the footprint geometry is fully known. Storing the semantic role on the mark avoids fragile runtime derivation from partially-built footprints. Follows **Follow the Existing Shape** — marks already carry per-tile metadata (LineID, Material, ConstructKind). Follows **Source of Truth Clarity** — the mark carries its own identity.
+**Affects:** Step 10; retroactive: Step 8b placement code sets WallRole on hut marks
 
 
