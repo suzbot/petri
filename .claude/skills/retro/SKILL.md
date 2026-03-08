@@ -31,10 +31,13 @@ If the user says yes, launch a **subagent** to search history autonomously:
 
 ```
 Agent tool call:
-  subagent_type: general-purpose
+  subagent_type: Explore
   description: "Search session history for friction"
   prompt: |
     Search conversation transcripts for friction signals from recent sessions.
+
+    Use Read, Glob, and Grep tools for all file operations — these are auto-allowed
+    and won't interrupt the user with approval prompts. Avoid Bash for searching/reading.
 
     1. Use Read to check /Users/suzanneerin/.claude/projects/-Users-suzanneerin-projects-petri/memory/last-retro.txt
        for the cutoff timestamp (file may not exist — that's fine, just search recent files).
@@ -48,7 +51,7 @@ Agent tool call:
     3. For each transcript file, use Grep (case insensitive) with output_mode: "content"
        and -C: 2 for surrounding context. Search for this pattern:
 
-       (no, |not what|already|don't forget|we discussed|friction|missed|should have|too strong|too weak|that's not|I meant|confused|why are|wait,|wrong|actually|problem|issue|stuck|churn)
+       (no, |not what|already|don't forget|we discussed|friction|missed|should have|too strong|too weak|that's not|I meant|confused|why are|wait,|wrong|actually|problem|issue|stuck|churn|note for later|noting for later|retro)
 
        Focus on matches that appear in user messages (lines containing "type":"user").
        Use head_limit: 50 per file to keep output manageable.
@@ -60,6 +63,7 @@ Agent tool call:
        - Tool failures requiring workarounds
        - User redirections or clarifications
        - Context lost or misunderstood
+       - Explicit notes flagged for retro ("note for later", "retro", etc.)
 
     5. Return a summary of friction points found, with brief context for each.
        Only report friction — not things that went smoothly.

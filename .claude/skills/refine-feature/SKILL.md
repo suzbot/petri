@@ -117,7 +117,7 @@ Design doc: [phase-design.md](phase-design.md)
 - [ ] Deferred scope (what was descoped and where is it tracked?)
 
 **Behavioral completeness — resolve before writing:**
-- Ensure all behavioral details of the feature are specified, even if they weren't in the original requirements. Make recommendations and get approval from the user on all such details before recording them in the step spec.
+- Ensure all behavioral details of the feature are specified, even if they weren't in the original requirements. Make recommendations and get approval from the user on all such details before recording them in the step spec. Label and display text decisions (what the player reads) are design choices requiring user input — do not prescribe them; present them as open questions.
 - **All applicable "Adding New X" checklists:** For each entity type or system the step introduces or extends (item, terrain, construct, activity, ordered action, etc.), read the corresponding checklist in architecture.md. Each item must be explicitly addressed in the step spec — not left as implicit. The ordered-action checklist is the most detailed; always read it when adding any ordered action. The step spec should state chosen values explicitly (e.g., "Duration: ActionDurationMedium", "No sub-menu — single target type").
 
 A step spec is implementation-ready when it has:
@@ -126,6 +126,7 @@ A step spec is implementation-ready when it has:
   - Each functional accomplishment reconciled with references to original requirements doc
   - **Architecture pattern references** — name which patterns each sub-step extends (e.g., "follows Component Procurement pattern", "uses EnsureHasVesselFor") so `/implement-feature` can validate without re-deriving. Include anti-patterns when ambiguity is likely (e.g., "follows ordered action pattern, NOT self-managing like ActionFillVessel"). Also name prior-step artifacts this step depends on (e.g., "calls RunWaterFill extracted in Step 5a").
   - **New entity fields require same-step serialization** — if a sub-step adds fields to an entity struct, the corresponding Save struct and serialize/deserialize code must be updated in that same sub-step
+- **Pseudocode conditions are implementation instructions.** Name the identity field as the check, not a related condition. Be sure it is clear what a concept IS vs what it DOES. `If WallRole == "door"`, not `If construct is a door (Passable == true)`.
 - **Tests first:** planned before/at the beginning of each sub-step (TDD)
 - **Human testing checkpoints** after each testable milestone, not just at the end
   - It is OK if human testing is only for a partial workflow — just note what won't function until a subsequent sub-step
@@ -137,7 +138,7 @@ Sections below describe what [TEST], [DOCS], and [RETRO] checkpoints involve. Th
 
 ### Human Testing Checkpoint ([TEST])
 - After implementation, run the test suite then prompt the user to test
-- If scenario for verification is complex, plan to create a save file via /test-world
+- If scenario for verification is complex, plan to create a save file via /test-world. For placement/creation flows, the test world should give characters know-how and let the user exercise the flow — not pre-populate the data being tested.
 - Force pause for explicit confirmation from user before marking complete
 
 ### Update Documentation ([DOCS])

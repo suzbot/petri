@@ -42,11 +42,9 @@ Example: Water as ItemType "liquid", Kind "water" (not ItemType "water"). Future
 
 ## Semantic Precision
 
-Names encode meaning. A config flag, a field name, a type name — each is a contract about what it represents. Don't overload a name to serve a purpose it doesn't describe, even when that's the expedient path. If `CanProduceSeeds` means "produces seeds on consumption," it shouldn't also mean "is plantable." When a name doesn't fit the need, the right response is a different name or a different mechanism — not stretching the existing one.
+Every field is a contract about what it represents — not a convenient proxy for something correlated. Don't read a field to answer a question it doesn't encode, even when the answers happen to align today. The correlation holds until it doesn't, and then the proxy silently breaks. When a concept needs querying, use the field that encodes it — or create one.
 
-This extends beyond naming to any encoded meaning: enum values, type hierarchies, status fields. If the code says something *is* X, it should *be* X in every context it's read.
-
-Example: `CanProduceSeeds` on ItemTypeConfig controls seed production on consumption (gourd → gourd seed). Using it to also control whether items appear in the plant order menu conflates two unrelated concepts. The correct source of truth for "what's plantable" is the `Plantable` field on the items themselves.
+Examples: `CanProduceSeeds` controls seed production on consumption — using it to mean "is plantable" breaks when a plantable item doesn't produce seeds. `Passable` means "can walk through" — using it to detect doors breaks when doors become lockable. The source of truth is the field that encodes identity (`Plantable`, `WallRole == "door"`), not a behavioral property that happens to correlate.
 
 ## Start With the Simpler Rule
 

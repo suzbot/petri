@@ -30,7 +30,7 @@ Read each of these files, then apply only the changes warranted by the summary:
 | `docs/flow-diagrams.md` | **AI developer reference** | Visual call graphs, intent priority hierarchy, and multi-phase action state machines. Update when decision-layer routing changes (new buckets, new multi-phase actions, changed priority order). Don't update for pure implementation changes that don't alter call structure. |
 | `docs/*-design.md` | **Phase design doc** | Update the relevant step's **Status** to "Complete". Only mark status "Complete" when the full step is done. Sub-step completion → no status change. Do not modify other steps' content. Do not add implementation details — the design doc stays brief and declarative. |
 | `docs/step-spec.md` | **Current step spec** | No changes during [DOCS] — `/implement-feature` handles clearing this file on completion. |
-| `docs/randomideas.md`| **Small Feature Planning**` | Remove items that have been moved into plans or that have been completed.|
+| `docs/randomideas.md`| **Small Feature Planning + Bugs** | Remove items that have been moved into plans or completed. If any flaky tests were observed during this step's test runs and not yet logged, add them here.|
 | `docs/triggered-enhancements.md` | **Deferred Feature Planning** | Remove items that have been completed. Update items where intended approaches have changed.|
 | `.claude/skills/test-world/SKILL.md` | **Test world templates** | If the step introduced a new serializable entity type or added fields to an existing save struct, check whether the test-world skill's recipe template and entity templates need updating. Add new templates or fields so the skill can create test worlds with the new entity type without reading `state.go`. |
 

@@ -10,22 +10,22 @@ model: sonnet
 
 **Do NOT enter plan mode.** The step spec and design doc are the sources of truth — produced by `/refine-feature` or `/new-phase`.
 
-### Step 1: Read Spec → Create Task List → Show User
+### Step 1: Read Spec → Create Task List → Confirm
 
 This is the only step before work begins. Do all three in sequence, with no codebase reading in between. **No Grep or file reads until the task list is confirmed.**
 
 1. **Read the plan**: Read `docs/step-spec.md` and the phase design doc (DD entries that affect this step only). Do not read `architecture.md` or any source files yet.
-2. **Create the task list** based on the spec. For each sub-step, create these tasks in order:
+2. **Create the task list** using TaskCreate, then TaskUpdate to wire addBlockedBy dependencies. For each sub-step, create these tasks in order:
    1. **Validate readiness** — see Readiness Criteria below
    2. **Invoke `/refine-feature`** — only if gaps found; otherwise mark completed
    3. **Write anchor test** — end-to-end functional test based on the anchor story, before any implementation
    4. **Write unit tests + Implement** — additional tests and minimum code to pass all tests
-   5. **Run tests and format** — `go test ./...` and `gofmt ./...`
+   5. **Run tests and format** — `go test ./...` and `gofmt ./...`. If any test fails intermittently, log it on `docs/randomideas.md`.
    6. **[TEST] Human testing** — offer `/test-world`, wait for confirmation
    7. **Invoke `/fix-bug`** — only if issues found; otherwise mark completed
    8. **[DOCS] Invoke `/update-docs`** — relay summary to user
    9. **[RETRO] Invoke `/retro`**
-3. **Show the task list to the user** and wait for confirmation before beginning task 1.
+3. **Confirm with the user** that the task list looks right before beginning task 1.
 
 Set up dependencies so each task blocks the next. Wait for user confirmation before moving past task 6.
 
@@ -95,7 +95,7 @@ When modifying a shared function, grep for callers before writing code — new r
 ### Reference: Human Testing (for task 6)
 
 - Verify [TEST] items match implemented behavior before relaying. Surface contradictions.
-- Offer `/test-world` if the checkpoint calls for it. **Before invoking: remind the user to close the game first (auto-save on quit overwrites the test world). Wait for acknowledgment, then read the test-world skill's Caller Requirements and build a structured spec.**
+- Offer `/test-world` if the checkpoint calls for it. **Before invoking: remind the user to close the game first (auto-save on quit overwrites the test world). Wait for acknowledgment, then read the test-world skill's Caller Requirements and build a structured spec.** For features that test a placement or creation flow, give the character the required know-how and let the user exercise the flow — do not pre-populate the data being tested.
 - **When the user reports any issues: invoke `/fix-bug`.** Do not diagnose or propose fixes inline — the fix-bug skill's evidence-first protocol exists for a reason.
 - Wait for explicit confirmation before continuing
 

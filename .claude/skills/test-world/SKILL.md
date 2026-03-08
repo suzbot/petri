@@ -30,6 +30,8 @@ Specify all of the following in the skill argument:
 
 Do not leave entity attributes for the skill to infer. If a vessel contains water, specify `"item_type": "liquid", "color": "", "kind": "water"`. If a vessel contains berries, specify the exact color. The skill will translate this spec into a valid save file.
 
+**Test the workflow, not the data.** For features that test a placement or creation flow, give the character the required know-how and let the user exercise the flow — do not pre-populate the data being tested. Pre-placed data only tests serialization, not the code path.
+
 ---
 
 ## Creating a Test World
@@ -271,19 +273,45 @@ To put a vessel in a character's inventory, add it to the character's `"inventor
 }
 ```
 
-**Construct template (hut wall/door):**
+**Construct template (hut wall):**
 ```json
 {
   "x": 30,
   "y": 28,
-  "construct_type": "hut",
+  "construct_type": "structure",
   "kind": "hut",
   "material": "stick",
   "material_color": "brown",
-  "wall_role": "corner-tl"
+  "wall_role": "wall"
 }
 ```
-Wall roles: `corner-tl`, `corner-tr`, `corner-bl`, `corner-br`, `edge-h`, `edge-v`, `door`, `t-down`, `t-up`, `t-right`, `t-left`, `cross`
+
+**Construct template (hut door):** Note `passable: true` — doors are walkable.
+```json
+{
+  "x": 30,
+  "y": 28,
+  "construct_type": "structure",
+  "kind": "hut",
+  "material": "stick",
+  "material_color": "brown",
+  "wall_role": "door",
+  "passable": true
+}
+```
+Wall roles: `"wall"` or `"door"`. Visual symbols are computed at render time from adjacency (DD-42).
+
+**Construction mark template** (pre-placed marking for fence or hut tiles, in `marked_for_construction` array):
+```json
+{
+  "position": {"x": 30, "y": 28},
+  "line_id": 1,
+  "material": "",
+  "construct_kind": "hut",
+  "wall_role": "wall"
+}
+```
+For hut marks: `wall_role` is `"wall"` or `"door"` (door = center-south tile of the 5×5 footprint). For fence marks: `wall_role` is `""`. Also set `"construction_line_id"` on the SaveState to the next available line ID (e.g., 2 if line_id 1 is used). Characters in the same hut footprint share the same `line_id`.
 
 **Unlisted entity types:** If the spec requires entity types not covered by templates above, read `internal/save/state.go` for the struct definition and serialize accordingly.
 
