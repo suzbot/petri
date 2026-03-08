@@ -60,7 +60,7 @@ internal/
 - `internal/entity/activity.go` - Activity struct, ActivityRegistry, know-how discovery triggers
 - `internal/entity/recipe.go` - Recipe struct, RecipeRegistry, crafting definitions
 - `internal/entity/order.go` - Order struct for player-directed tasks
-- `internal/entity/construct.go` - Construct struct (ConstructType/Kind/Material/MaterialColor/Passable/Movable); NewFence constructor
+- `internal/entity/construct.go` - Construct struct (ConstructType/Kind/Material/MaterialColor/Passable/Movable/WallRole); NewFence and NewHutConstruct constructors
 
 **Core Systems**
 

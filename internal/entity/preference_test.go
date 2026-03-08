@@ -976,6 +976,95 @@ func TestConstruct_PreferenceKind(t *testing.T) {
 	}
 }
 
+func TestHutConstruct_AnchorStory(t *testing.T) {
+	t.Parallel()
+
+	// All wall roles produce correct Kind, WallRole, and Passable
+	wallRoles := []struct {
+		role     string
+		passable bool
+	}{
+		{"corner-tl", false},
+		{"corner-tr", false},
+		{"corner-bl", false},
+		{"corner-br", false},
+		{"edge-h", false},
+		{"edge-v", false},
+		{"door", true},
+		{"t-down", false},
+		{"t-up", false},
+		{"t-right", false},
+		{"t-left", false},
+		{"cross", false},
+	}
+
+	for _, wr := range wallRoles {
+		t.Run(wr.role, func(t *testing.T) {
+			c := NewHutConstruct(5, 5, "stick", types.ColorBrown, wr.role)
+			if c.Kind != "hut" {
+				t.Errorf("Kind: got %q, want %q", c.Kind, "hut")
+			}
+			if c.WallRole != wr.role {
+				t.Errorf("WallRole: got %q, want %q", c.WallRole, wr.role)
+			}
+			if c.Passable != wr.passable {
+				t.Errorf("Passable: got %v, want %v", c.Passable, wr.passable)
+			}
+			if c.ConstructType != "structure" {
+				t.Errorf("ConstructType: got %q, want %q", c.ConstructType, "structure")
+			}
+			if c.Sym == 0 {
+				t.Error("Sym should be set for wall role")
+			}
+		})
+	}
+}
+
+func TestHutConstruct_DisplayName(t *testing.T) {
+	t.Parallel()
+
+	// Wall roles show "Hut Wall", door shows "Hut Door"
+	wall := NewHutConstruct(0, 0, "stick", types.ColorBrown, "edge-h")
+	if got := wall.DisplayName(); got != "Stick Hut Wall" {
+		t.Errorf("wall DisplayName: got %q, want %q", got, "Stick Hut Wall")
+	}
+
+	corner := NewHutConstruct(0, 0, "grass", types.ColorPaleYellow, "corner-tl")
+	if got := corner.DisplayName(); got != "Thatch Hut Wall" {
+		t.Errorf("corner DisplayName: got %q, want %q", got, "Thatch Hut Wall")
+	}
+
+	door := NewHutConstruct(0, 0, "brick", types.ColorTerracotta, "door")
+	if got := door.DisplayName(); got != "Brick Hut Door" {
+		t.Errorf("door DisplayName: got %q, want %q", got, "Brick Hut Door")
+	}
+}
+
+func TestHutConstruct_PreferenceKind(t *testing.T) {
+	t.Parallel()
+
+	// All materials produce "material hut" regardless of wall role
+	tests := []struct {
+		material string
+		color    types.Color
+		wallRole string
+		expected string
+	}{
+		{"stick", types.ColorBrown, "edge-h", "stick hut"},
+		{"grass", types.ColorPaleYellow, "corner-tl", "thatch hut"},
+		{"brick", types.ColorTerracotta, "door", "brick hut"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.material+"_"+tt.wallRole, func(t *testing.T) {
+			c := NewHutConstruct(0, 0, tt.material, tt.color, tt.wallRole)
+			if got := c.PreferenceKind(); got != tt.expected {
+				t.Errorf("PreferenceKind(): got %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestPreference_MatchScoreVariety(t *testing.T) {
 	t.Parallel()
 

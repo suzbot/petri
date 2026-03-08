@@ -214,6 +214,7 @@ type ConstructSave struct {
 	MaterialColor string         `json:"material_color"`
 	Passable      bool           `json:"passable"`
 	Movable       bool           `json:"movable"`
+	WallRole      string         `json:"wall_role,omitempty"`
 }
 
 // FeatureSave represents a feature for serialization

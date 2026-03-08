@@ -205,21 +205,21 @@ Characters gather materials and construct small buildings from grass, sticks, or
 ---
 
 ### Step 9: Hut Construct Types + Rendering
-**Status:** Planned
+**Status:** Complete
 
-**Anchor story:** The player creates a test world with a completed hut. The hut renders as a clean 5×5 enclosure using line-drawing characters — corners (┌┐└┘), horizontal edges (─), vertical edges (│), and a door on the south wall. The walls are colored by material (brown for stick, pale yellow for thatch, terracotta for brick). Characters path around the walls but walk freely through the door. The details panel shows "Stick Hut Wall" or "Stick Hut Door" with "Structure" and passability info.
+**Anchor story:** The player creates a test world with a completed hut. The hut renders as a clean 5×5 enclosure using heavy box-drawing characters — corners (`┏┓┗┛`), horizontal edges (`━`), vertical edges (`┃`), and a door (`▯`) on the south wall. Corners and doors have asymmetric horizontal fill for visual continuity. The walls are colored by material (brown for stick, pale yellow for thatch, terracotta for brick). Characters path around the walls but walk freely through the door. The details panel shows "Stick Hut Wall" or "Stick Hut Door" with "Structure" and passability info.
 
 **Scope:**
-- Demo program to evaluate line-drawing character options for walls and door symbols (DD-42)
-- New construct constructors: `NewHutWall(x, y, material, materialColor, wallRole)` and `NewHutDoor(x, y, material, materialColor)` — wallRole determines symbol (corner-TL, corner-TR, corner-BL, corner-BR, edge-H, edge-V)
-- Wall segments: Kind "hut wall", impassable, position-aware symbols
-- Door: Kind "hut door", `Passable: true`, distinct symbol
-- Construct rendering, details panel, movement blocking (follows Adding a New Construct Type checklist)
-- Save/load serialization for new construct kinds and wall role field
+- ~~Demo program to evaluate line-drawing character options for walls and door symbols~~ → DD-42 (resolved: heavy box-drawing)
+- `WallRole string` field on Construct for position-aware symbol and display name (DD-50)
+- `NewHutConstruct(x, y, material, materialColor, wallRole)` constructor — single constructor for walls and doors; Kind `"hut"` for both (DD-50); wallRole determines symbol and passability (door role → `Passable: true`)
+- Heavy box-drawing symbols: `┏ ┓ ┗ ┛ ━ ┃` for walls, `▯` for door (DD-42)
+- Construct rendering with asymmetric horizontal fill, details panel (`DisplayName` uses WallRole), movement blocking (follows Adding a New Construct Type checklist)
+- Save/load serialization for WallRole field on ConstructSave
 - Test with pre-placed constructs via test-world
 
 **Open questions:**
-- Hut wall/door visual symbols: line-drawing Unicode characters for walls, door symbol TBD — resolve via demo program during step refinement
+- ~~Hut wall/door visual symbols: line-drawing Unicode characters for walls, door symbol TBD — resolve via demo program during step refinement~~ → DD-42
 
 ---
 
@@ -570,10 +570,16 @@ Characters gather materials and construct small buildings from grass, sticks, or
 **Rationale:** Follows **Isomorphism** — marks carry their kind, workers respect it. Follows **Follow the Existing Shape** — extends the existing candidate-filtering loop rather than adding a new API method.
 **Affects:** Step 8b (fence side), Step 10 (hut side)
 
-### DD-42: Hut wall segments use line-drawing characters; door on south wall center
-**Context:** Hut walls need visual distinction from fences (`╬`). Requirements call for a 5×5 enclosure with one door. Options for wall rendering: (A) single character for all walls (like fences), (B) line-drawing Unicode characters with corners and edges.
-**Decision:** Hut walls use line-drawing Unicode characters: `┌` `─` `┐` for top edge, `│` for side edges, `└` `─` `┘` for bottom edge (exact characters TBD via demo program during step refinement). Each wall segment is a separate Construct with position-aware symbol selection. Door is at the center of the south wall (bottom edge, middle tile of 5-wide wall). Door construct has `Passable: true`, distinct symbol (TBD via demo). Door rotation/position choice deferred to Post-Con-Reqs item 5.
-**Rationale:** Line-drawing characters create a clean, recognizable enclosure that reads as a building — visually distinct from a fence grid. Follows **Isomorphism** — walls have structural roles (corner, edge, door) and the rendering reflects that. Position-aware symbols require each wall segment to know its role, stored on the Construct.
-**Affects:** Step 8
+### DD-42: Hut wall segments use heavy box-drawing characters; door ▯ on south wall center
+**Context:** Hut walls need visual distinction from fences (`╬`). Requirements call for a 5×5 enclosure with one door. Options for wall rendering: (A) single character for all walls (like fences), (B) line-drawing Unicode characters with corners and edges. Character set options: thin (`┌─┐│└┘`), heavy (`┏━┓┃┗┛`), double (`╔═╗║╚╝`), rounded (`╭─╮│╰╯`).
+**Decision:** Heavy box-drawing characters. Corners: `┏` `┓` `┗` `┛`. Horizontal edges: `━`. Vertical edges: `┃`. Door: `▯`. Shared-wall T-junctions: `┳` (T-down), `┻` (T-up), `┣` (T-right), `┫` (T-left), `╋` (cross). Each wall segment is a separate Construct with position-aware symbol selection via `WallRole`. Door is at the center of the south wall (bottom edge, middle tile of 5-wide wall). Door construct has `Passable: true`. Door rotation/position choice deferred to Post-Con-Reqs item 5. Rendering uses asymmetric horizontal fill: left corners get fill on right only (` ┏━`), right corners get fill on left only (`━┓ `), edges and doors get fill on both sides (`━━━`, `━▯━`).
+**Rationale:** Heavy lines create a clean, substantial enclosure — visually distinct from fence `╬` while reading as a solid building. Evaluated via demo program (`cmd/hutdemo`). Follows **Isomorphism** — walls have structural roles (corner, edge, door) and the rendering reflects that. Position-aware symbols require each wall segment to know its role, stored as `WallRole` on the Construct.
+**Affects:** Step 9
+
+### DD-50: Hut walls and doors share Kind "hut" — WallRole carries structural distinction
+**Context:** Hut constructs need a Kind for `PreferenceKind()` matching and future recipe selection. Options: (A) Kind `"hut wall"` and `"hut door"` — precise but creates two preference identities for one building type, (B) Kind `"hut"` for both — WallRole carries the wall/door distinction.
+**Decision:** Kind `"hut"` for both walls and doors. `WallRole string` field on Construct carries the structural identity (`"corner-tl"`, `"corner-tr"`, `"corner-bl"`, `"corner-br"`, `"edge-h"`, `"edge-v"`, `"door"`). `PreferenceKind()` returns `"stick hut"` regardless of which tile a character looks at. `DisplayName()` uses WallRole to show `"Stick Hut Wall"` (for non-door roles) or `"Stick Hut Door"` (for door role) in the details panel.
+**Rationale:** A character looking at any part of a hut should form an opinion about huts of that material, not hut walls vs hut doors separately. Kind `"hut"` maps cleanly to recipe `"stick-hut"` — same 1:1 pattern as `"fence"` → `"stick-fence"`. WallRole is structural (determines symbol), not semantic (determines preference/recipe identity). Follows **Semantic Precision** — Kind represents what the player cares about (hut identity), WallRole represents what the renderer cares about (structural position). Follows **Consider Extensibility** — future construct types with sub-parts (e.g., watchtower with walls and ladder) can use the same Kind + Role pattern.
+**Affects:** Step 9
 
 

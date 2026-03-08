@@ -586,7 +586,7 @@ Tiles can be wet from two sources:
 
 ## Constructs
 
-Constructs are player-built structures placed on the map — distinct from natural terrain features like leaf piles. Currently only fences exist; future types include furniture and hut walls.
+Constructs are player-built structures placed on the map — distinct from natural terrain features like leaf piles. Current types: fences and hut walls/doors.
 
 ### Passability
 
@@ -595,13 +595,17 @@ Constructs have a passability property. Impassable constructs (such as fences) b
 ### Details Panel
 
 Selecting a tile that contains a construct shows:
-- **Display name** — e.g., "Stick Fence", "Brick Fence"
+- **Display name** — e.g., "Stick Fence", "Brick Hut Wall", "Stick Hut Door"
 - **Type label** — e.g., "Structure"
 - **"Not passable"** — shown for impassable constructs
 
 ### Rendering
 
-Fences render using their material's color. A horizontal fence segment fills the full tile width (`╬╬╬`); a vertical segment is centered (`  ╬  `).
+Constructs render using their material's color.
+
+**Fences:** A horizontal fence segment fills the full tile width (`╬╬╬`); a vertical segment is centered (`  ╬  `).
+
+**Hut walls and doors:** Use heavy box-drawing characters with asymmetric horizontal fill. Wall roles: corners (`┏ ┓ ┗ ┛`), horizontal edges (`━━━`), vertical edges (`  ┃  `), door (`  ▯  `), and T/cross junctions for shared walls. Corners and door tiles use asymmetric fill to produce visual continuity with adjacent wall segments. Doors are passable; walls are not.
 
 ### Fence Recipes
 

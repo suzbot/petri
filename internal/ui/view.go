@@ -514,7 +514,9 @@ func (m Model) renderCell(x, y int) string {
 	pos := types.Position{X: x, Y: y}
 
 	var sym string
-	var fill string // terrain fill for padding (empty = use spaces)
+	var fill string      // terrain fill for padding (empty = use spaces)
+	var leftFill string  // asymmetric left fill (hut constructs)
+	var rightFill string // asymmetric right fill (hut constructs)
 
 	// Check for character first (takes visual precedence)
 	if char := m.gameMap.CharacterAt(pos); char != nil {
@@ -523,13 +525,32 @@ func (m Model) renderCell(x, y int) string {
 		sym = m.styledSymbol(item)
 	} else if construct := m.gameMap.ConstructAt(pos); construct != nil {
 		sym = m.styledSymbol(construct)
-		// Directional fill: check for horizontal construct neighbors
-		leftPos := types.Position{X: x - 1, Y: y}
-		rightPos := types.Position{X: x + 1, Y: y}
-		if m.gameMap.ConstructAt(leftPos) != nil || m.gameMap.ConstructAt(rightPos) != nil {
-			fill = sym // horizontal neighbor: ╬╬╬ (continuous bar)
+		if construct.Kind == "hut" {
+			// Hut constructs use asymmetric fill based on WallRole (DD-42)
+			hFill := colorToStyle(construct.MaterialColor).Render(string(config.CharHutEdgeH))
+			switch construct.WallRole {
+			case "corner-tl", "corner-bl":
+				rightFill = hFill // ·┏━ or ·┗━
+			case "corner-tr", "corner-br":
+				leftFill = hFill // ━┓· or ━┛·
+			case "edge-h", "door", "t-down", "t-up", "cross":
+				leftFill = hFill // ━━━, ━▯━, ━┳━, ━┻━, ━╋━
+				rightFill = hFill
+			case "t-right":
+				rightFill = hFill // ·┣━ (lines go up, down, right)
+			case "t-left":
+				leftFill = hFill // ━┫· (lines go up, down, left)
+				// edge-v: no fill → · ┃ ·
+			}
+		} else {
+			// Fence: directional fill for horizontal continuity
+			leftPos := types.Position{X: x - 1, Y: y}
+			rightPos := types.Position{X: x + 1, Y: y}
+			if m.gameMap.ConstructAt(leftPos) != nil || m.gameMap.ConstructAt(rightPos) != nil {
+				fill = sym // horizontal neighbor: ╬╬╬ (continuous bar)
+			}
+			// else: no fill, renders as " ╬ " (centered post for vertical/standalone)
 		}
-		// else: no fill, renders as " ╬ " (centered post for vertical/standalone)
 	} else if wtype := m.gameMap.WaterAt(pos); wtype != game.WaterNone {
 		// Water terrain
 		switch wtype {
@@ -746,6 +767,17 @@ func (m Model) renderCell(x, y int) string {
 
 	if isCursor {
 		return "[" + sym + "]"
+	}
+	if leftFill != "" || rightFill != "" {
+		l := leftFill
+		r := rightFill
+		if l == "" {
+			l = " "
+		}
+		if r == "" {
+			r = " "
+		}
+		return l + sym + r
 	}
 	if fill != "" {
 		return fill + sym + fill

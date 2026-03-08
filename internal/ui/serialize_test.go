@@ -1272,6 +1272,57 @@ func TestConstructSerialization_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestHutConstructSerialization_RoundTrip(t *testing.T) {
+	m := createTestModel()
+
+	// Add a hut wall and a hut door
+	wall := entity.NewHutConstruct(3, 3, "stick", types.ColorBrown, "corner-tl")
+	m.gameMap.AddConstruct(wall)
+
+	door := entity.NewHutConstruct(5, 7, "stick", types.ColorBrown, "door")
+	m.gameMap.AddConstruct(door)
+
+	// Round trip
+	state := m.ToSaveState()
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	// Verify wall preserved
+	foundWall := restored.gameMap.ConstructAt(types.Position{X: 3, Y: 3})
+	if foundWall == nil {
+		t.Fatal("Expected hut wall at (3,3) after round-trip")
+	}
+	if foundWall.Kind != "hut" {
+		t.Errorf("Wall Kind: got %q, want %q", foundWall.Kind, "hut")
+	}
+	if foundWall.WallRole != "corner-tl" {
+		t.Errorf("Wall WallRole: got %q, want %q", foundWall.WallRole, "corner-tl")
+	}
+	if foundWall.Passable != false {
+		t.Error("Wall should not be passable")
+	}
+	if foundWall.Sym != config.CharHutCornerTL {
+		t.Errorf("Wall Sym not restored: got %c, want %c", foundWall.Sym, config.CharHutCornerTL)
+	}
+
+	// Verify door preserved
+	foundDoor := restored.gameMap.ConstructAt(types.Position{X: 5, Y: 7})
+	if foundDoor == nil {
+		t.Fatal("Expected hut door at (5,7) after round-trip")
+	}
+	if foundDoor.Kind != "hut" {
+		t.Errorf("Door Kind: got %q, want %q", foundDoor.Kind, "hut")
+	}
+	if foundDoor.WallRole != "door" {
+		t.Errorf("Door WallRole: got %q, want %q", foundDoor.WallRole, "door")
+	}
+	if foundDoor.Passable != true {
+		t.Error("Door should be passable")
+	}
+	if foundDoor.Sym != config.CharHutDoor {
+		t.Errorf("Door Sym not restored: got %c, want %c", foundDoor.Sym, config.CharHutDoor)
+	}
+}
+
 func TestConstructionMarkSerialization_RoundTrip(t *testing.T) {
 	m := createTestModel()
 

@@ -298,6 +298,7 @@ func constructsToSave(constructs []*entity.Construct) []save.ConstructSave {
 			MaterialColor: string(c.MaterialColor),
 			Passable:      c.Passable,
 			Movable:       c.Movable,
+			WallRole:      c.WallRole,
 		}
 	}
 	return result
@@ -815,6 +816,7 @@ func constructFromSave(cs save.ConstructSave) *entity.Construct {
 		MaterialColor: types.Color(cs.MaterialColor),
 		Passable:      cs.Passable,
 		Movable:       cs.Movable,
+		WallRole:      cs.WallRole,
 	}
 	c.X = cs.Position.X
 	c.Y = cs.Position.Y
@@ -824,6 +826,33 @@ func constructFromSave(cs save.ConstructSave) *entity.Construct {
 	switch cs.Kind {
 	case "fence":
 		c.Sym = config.CharFence
+	case "hut":
+		switch cs.WallRole {
+		case "corner-tl":
+			c.Sym = config.CharHutCornerTL
+		case "corner-tr":
+			c.Sym = config.CharHutCornerTR
+		case "corner-bl":
+			c.Sym = config.CharHutCornerBL
+		case "corner-br":
+			c.Sym = config.CharHutCornerBR
+		case "edge-h":
+			c.Sym = config.CharHutEdgeH
+		case "edge-v":
+			c.Sym = config.CharHutEdgeV
+		case "door":
+			c.Sym = config.CharHutDoor
+		case "t-down":
+			c.Sym = config.CharHutTDown
+		case "t-up":
+			c.Sym = config.CharHutTUp
+		case "t-right":
+			c.Sym = config.CharHutTRight
+		case "t-left":
+			c.Sym = config.CharHutTLeft
+		case "cross":
+			c.Sym = config.CharHutCross
+		}
 	}
 
 	return c

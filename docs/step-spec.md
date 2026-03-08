@@ -1,1 +1,1 @@
-Step 8 complete. Next: Step 9 — run /refine-feature.
+Step 9 complete. Next: Step 10 — run /refine-feature.
