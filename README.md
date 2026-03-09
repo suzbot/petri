@@ -36,9 +36,8 @@ Core process innovations developed over the course of this project:
 
 ## Latest Updates
 
-- **Build Hut orders**: Mark a 5×5 footprint on the map; characters will build a hut from available materials.
-- **Construct preferences**: Characters look at fences and form opinions about materials and recipes, affecting mood.
-- **Build Fence orders**: Characters gather materials and build stick, grass, or brick fences on player-marked tiles.
+- **Construction**: Characters can learn to build fences and huts from available materials.
+- **Construct preferences**: Characters look at constructs and form opinions about materials and recipes, affecting mood.
 - **Craft Bricks orders**: Characters shape loose clay into bricks, repeating until all dug clay is used.
 - **Dig Clay orders**: Direct characters to dig clay from deposits.
 - **Seed extraction**: Characters extract seeds from flowers and tall grass via Extract orders, without harming the plant.

@@ -60,6 +60,8 @@ func (m *Model) applyIntent(char *entity.Character, delta float64) {
 		m.applyDig(char, delta)
 	case entity.ActionBuildFence:
 		m.applyBuildFence(char, delta)
+	case entity.ActionBuildHut:
+		m.applyBuildHut(char, delta)
 	}
 }
 
@@ -1741,5 +1743,152 @@ func (m *Model) deliverBricks(char *entity.Character, buildPos types.Position) {
 		item.Y = buildPos.Y
 		m.gameMap.AddItem(item)
 	}
+	char.Intent = nil
+}
+
+// deliverMaterial drops all matching material items from inventory at the build position and clears intent.
+func (m *Model) deliverMaterial(char *entity.Character, material string, buildPos types.Position) {
+	var toDrop []*entity.Item
+	for _, inv := range char.Inventory {
+		if inv != nil && inv.ItemType == material {
+			toDrop = append(toDrop, inv)
+		}
+	}
+	for _, item := range toDrop {
+		char.RemoveFromInventory(item)
+		item.X = buildPos.X
+		item.Y = buildPos.Y
+		m.gameMap.AddItem(item)
+	}
+	char.Intent = nil
+}
+
+// applyBuildHut handles ActionBuildHut: delivery of supplies and construction of hut wall/door segments.
+func (m *Model) applyBuildHut(char *entity.Character, delta float64) {
+	if char.Intent.TargetBuildPos == nil {
+		char.Intent = nil
+		return
+	}
+	buildPos := *char.Intent.TargetBuildPos
+	dest := char.Intent.Dest
+	cpos := char.Pos()
+
+	// Delivery mode: character is at the build tile with material in inventory → drop supplies
+	mark, markOk := m.gameMap.GetConstructionMark(buildPos)
+	if markOk && cpos == buildPos && m.hasMaterialInInventory(char, mark.Material) {
+		m.deliverMaterial(char, mark.Material, buildPos)
+		return
+	}
+
+	// Walking phase: not yet at destination
+	if cpos != dest {
+		m.moveWithCollision(char, cpos, delta)
+		return
+	}
+
+	// Arrival check (DD-28 layer 2): if a character now occupies the build tile, re-evaluate
+	if m.gameMap.CharacterAt(buildPos) != nil {
+		char.Intent = nil
+		return
+	}
+
+	// Working phase: accumulate progress
+	if char.CurrentActivity != "Building hut" {
+		char.CurrentActivity = "Building hut"
+	}
+	char.ActionProgress += delta
+	if char.ActionProgress < config.ActionDurationMedium {
+		return
+	}
+	char.ActionProgress = 0
+
+	// Read material and wallRole from mark
+	if !markOk {
+		char.Intent = nil
+		return
+	}
+	material := mark.Material
+	wallRole := mark.WallRole
+
+	// Consume materials from ground at build position
+	_, isBundleMaterial := config.MaxBundleSize[material]
+	if isBundleMaterial {
+		// Bundle consumption: find and remove 2 full bundles at buildPos
+		consumed := 0
+		for _, item := range m.gameMap.ItemsAt(buildPos) {
+			if item.ItemType == material && item.BundleCount >= config.MaxBundleSize[material] && consumed < 2 {
+				m.gameMap.RemoveItem(item)
+				consumed++
+			}
+		}
+		if consumed < 2 {
+			char.Intent = nil
+			return
+		}
+	} else {
+		// Brick consumption: find and remove 12 items at buildPos
+		consumed := 0
+		for _, item := range m.gameMap.ItemsAt(buildPos) {
+			if item.ItemType == material && consumed < 12 {
+				m.gameMap.RemoveItem(item)
+				consumed++
+			}
+		}
+		if consumed < 12 {
+			char.Intent = nil
+			return
+		}
+	}
+
+	// Material color mapping
+	var materialColor types.Color
+	switch material {
+	case "grass":
+		materialColor = types.ColorPaleYellow
+	case "stick":
+		materialColor = types.ColorBrown
+	case "brick":
+		materialColor = types.ColorTerracotta
+	default:
+		materialColor = types.ColorBrown
+	}
+
+	// Place hut construct
+	construct := entity.NewHutConstruct(buildPos.X, buildPos.Y, material, materialColor, wallRole)
+	m.gameMap.AddConstruct(construct)
+	m.gameMap.UnmarkForConstruction(buildPos)
+
+	// DD-28 layer 3: displace any character standing on the build tile (safety net)
+	cardinalDirs := [4][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+	if occupant := m.gameMap.CharacterAt(buildPos); occupant != nil {
+		for _, dir := range cardinalDirs {
+			adj := types.Position{X: buildPos.X + dir[0], Y: buildPos.Y + dir[1]}
+			if m.gameMap.MoveCharacter(occupant, adj) {
+				break
+			}
+		}
+	}
+
+	// DD-33: displace items at build tile to adjacent tiles
+	for _, item := range m.gameMap.ItemsAt(buildPos) {
+		for _, dir := range cardinalDirs {
+			adj := types.Position{X: buildPos.X + dir[0], Y: buildPos.Y + dir[1]}
+			if !m.gameMap.IsBlocked(adj) {
+				item.X = adj.X
+				item.Y = adj.Y
+				break
+			}
+		}
+	}
+
+	roleLabel := "wall"
+	if wallRole == "door" {
+		roleLabel = "door"
+	}
+	if m.actionLog != nil {
+		m.actionLog.Add(char.ID, char.Name, "activity", fmt.Sprintf("Built %s hut %s", material, roleLabel))
+	}
+
+	// Clear intent — ordered action pattern: next tick re-evaluates via findBuildHutIntent
 	char.Intent = nil
 }

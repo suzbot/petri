@@ -653,3 +653,23 @@ When taking a fence order, a character selects the nearest fence material with e
 Characters always build from an adjacent tile — never from the build tile itself — to avoid being blocked inside finished sections. After the fence is placed, any items remaining on that tile are displaced to nearby clear tiles.
 
 Multiple characters can work the same fence order simultaneously. Each worker picks the nearest unbuilt tile independently — no tile claiming occurs.
+
+### Hut Building
+
+When taking a hut order, a character selects the nearest available hut material and uses the **supply-drop pattern** for all material types: they carry 2 bundles or 2 bricks per trip to the target tile, drop them, and repeat until enough material has been staged. Material costs per tile:
+
+| Material | Cost per tile |
+|----------|--------------|
+| Thatch (grass) | 2 full bundles (12 grass) |
+| Stick | 2 full bundles (12 sticks) |
+| Brick | 12 bricks |
+
+After enough material is staged at a tile, the character builds from a cardinally adjacent standing tile. The constructed piece is a wall or door based on the tile's mark (the door is the center-south tile of the 5×5 footprint).
+
+**Multi-worker support:** Multiple characters can work the same hut order simultaneously. Each worker picks the nearest unbuilt tile independently — no tile claiming occurs. If another worker occupies a candidate tile mid-build, the worker skips that tile rather than abandoning entirely.
+
+**Material assignment:** The character assigns a material to the whole footprint when they begin building the first tile. All 16 tiles in the footprint use the same material.
+
+**Feasibility:** An order is feasible if unbuilt hut marks exist and at least one free (un-staged) construction material exists on the map. Items that have already been delivered to a construction-marked tile are excluded from feasibility counting — they are committed to that site.
+
+**Unfulfillable display:** If an order is both abandoned and infeasible, the orders panel shows "Unfulfillable" instead of "Abandoned."

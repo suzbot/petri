@@ -5959,3 +5959,582 @@ func TestFindBuildFenceIntent_Brick_DisplaceCharacterOnBuildTile_DD28(t *testing
 		t.Error("Should skip occupied build tile (DD-28)")
 	}
 }
+
+// --- Build Hut Tests ---
+
+func newBuildHutChar(id, x, y int, gameMap *game.Map) *entity.Character {
+	char := entity.NewCharacter(id, x, y, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildHut"}
+	char.KnownRecipes = []string{"stick-hut"}
+	gameMap.AddCharacter(char)
+	return char
+}
+
+func TestBuildHutOrder_EndToEnd_StickBundles(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(30, 30)
+	char := newBuildHutChar(1, 5, 15, gameMap)
+
+	// Set up 3 hut marks: 2 walls and 1 door, all sharing lineID 1, no material yet
+	wallPos1 := types.Position{X: 10, Y: 10}
+	wallPos2 := types.Position{X: 11, Y: 10}
+	doorPos := types.Position{X: 12, Y: 10}
+	gameMap.MarkForConstruction(wallPos1, 1, "hut", "wall")
+	gameMap.MarkForConstruction(wallPos2, 1, "hut", "wall")
+	gameMap.MarkForConstruction(doorPos, 1, "hut", "door")
+
+	// Place 6 full stick bundles on the ground (enough for 3 tiles x 2 bundles each)
+	for i := 0; i < 6; i++ {
+		bundle := entity.NewStick(7, 15)
+		bundle.BundleCount = 6
+		gameMap.AddItem(bundle)
+	}
+
+	order := entity.NewOrder(1, "buildHut", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	log := NewActionLog(100)
+
+	// === Phase 1: First intent should pick material and begin procurement ===
+	intent := FindBuildHutIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+	if intent == nil {
+		t.Fatal("Phase 1: Expected intent, got nil")
+	}
+
+	// Material should be stamped across all marks via LineID
+	mark1, _ := gameMap.GetConstructionMark(wallPos1)
+	mark2, _ := gameMap.GetConstructionMark(wallPos2)
+	markD, _ := gameMap.GetConstructionMark(doorPos)
+	if mark1.Material != "stick" || mark2.Material != "stick" || markD.Material != "stick" {
+		t.Fatalf("Phase 1: Material should be stamped as 'stick' on all marks, got %q, %q, %q",
+			mark1.Material, mark2.Material, markD.Material)
+	}
+
+	// === Phase 2: Character picks up bundle and delivers to nearest tile ===
+	// The intent should be ActionPickup (need to get bundles to deliver)
+	if intent.Action != entity.ActionPickup {
+		t.Fatalf("Phase 2: Expected ActionPickup for procurement, got %v", intent.Action)
+	}
+
+	// Simulate: character picks up 2 full bundles (one per inventory slot)
+	bundles := gameMap.Items()
+	char.AddToInventory(bundles[0])
+	gameMap.RemoveItem(bundles[0])
+	char.AddToInventory(bundles[1])
+	gameMap.RemoveItem(bundles[1])
+
+	// Next intent: deliver bundles to the nearest tile
+	intent = FindBuildHutIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+	if intent == nil {
+		t.Fatal("Phase 2 delivery: Expected intent, got nil")
+	}
+	if intent.Action != entity.ActionBuildHut {
+		t.Fatalf("Phase 2 delivery: Expected ActionBuildHut for delivery, got %v", intent.Action)
+	}
+
+	// Simulate: move to nearest build tile and drop bundles
+	nearestTile := wallPos1 // closest to character
+	for _, inv := range char.Inventory {
+		if inv != nil && inv.ItemType == "stick" {
+			char.RemoveFromInventory(inv)
+			inv.X = nearestTile.X
+			inv.Y = nearestTile.Y
+			gameMap.AddItem(inv)
+		}
+	}
+
+	// === Phase 3: Tile has 2 full bundles — build phase ===
+	// Verify 2 full bundles at nearestTile
+	fullBundles := 0
+	for _, item := range gameMap.Items() {
+		if item.ItemType == "stick" && item.Pos() == nearestTile && item.BundleCount >= 6 {
+			fullBundles++
+		}
+	}
+	if fullBundles != 2 {
+		t.Fatalf("Phase 3: Expected 2 full bundles at tile, got %d", fullBundles)
+	}
+
+	intent = FindBuildHutIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+	if intent == nil {
+		t.Fatal("Phase 3 build: Expected intent, got nil")
+	}
+	if intent.Action != entity.ActionBuildHut {
+		t.Fatalf("Phase 3 build: Expected ActionBuildHut, got %v", intent.Action)
+	}
+	// Dest should be adjacent standing tile, not the build tile itself
+	if intent.TargetBuildPos == nil {
+		t.Fatal("Phase 3 build: TargetBuildPos should be set")
+	}
+	if intent.Dest == *intent.TargetBuildPos {
+		t.Fatal("Phase 3 build: Dest should be adjacent standing tile, not build tile")
+	}
+
+	// Simulate build: consume 2 bundles from ground, place construct, unmark
+	buildTarget := *intent.TargetBuildPos
+	consumed := 0
+	for _, item := range gameMap.ItemsAt(buildTarget) {
+		if item.ItemType == "stick" && item.BundleCount >= 6 && consumed < 2 {
+			gameMap.RemoveItem(item)
+			consumed++
+		}
+	}
+	if consumed != 2 {
+		t.Fatalf("Phase 3 build: Expected to consume 2 bundles, consumed %d", consumed)
+	}
+
+	// Read wallRole from mark to create correct construct
+	mark, _ := gameMap.GetConstructionMark(buildTarget)
+	construct := entity.NewHutConstruct(buildTarget.X, buildTarget.Y, "stick", types.ColorBrown, mark.WallRole)
+	gameMap.AddConstruct(construct)
+	gameMap.UnmarkForConstruction(buildTarget)
+
+	// === Verify first tile built ===
+	builtConstruct := gameMap.ConstructAt(buildTarget)
+	if builtConstruct == nil {
+		t.Fatal("Verify: Expected hut construct at build position")
+	}
+	if builtConstruct.Kind != "hut" {
+		t.Errorf("Verify: Expected Kind 'hut', got %q", builtConstruct.Kind)
+	}
+	if builtConstruct.Material != "stick" {
+		t.Errorf("Verify: Expected Material 'stick', got %q", builtConstruct.Material)
+	}
+	if builtConstruct.WallRole != "wall" {
+		t.Errorf("Verify: Expected WallRole 'wall', got %q", builtConstruct.WallRole)
+	}
+	if builtConstruct.Passable {
+		t.Error("Verify: Wall construct should not be passable")
+	}
+	if gameMap.IsMarkedForConstruction(buildTarget) {
+		t.Error("Verify: Build position should be unmarked after construction")
+	}
+
+	// Two tiles remain — order should not be complete
+	if IsMultiStepOrderCompleteForTest(char, order, gameMap) {
+		t.Error("Verify: Order should NOT be complete (2 unbuilt tiles remain)")
+	}
+
+	// === Phase 4: Build the door tile to verify WallRole "door" ===
+	// Deliver 2 more bundles to doorPos
+	doorBundles := gameMap.Items()
+	var groundBundles []*entity.Item
+	for _, b := range doorBundles {
+		if b.ItemType == "stick" && b.BundleCount >= 6 && !gameMap.IsMarkedForConstruction(b.Pos()) {
+			groundBundles = append(groundBundles, b)
+		}
+	}
+	if len(groundBundles) < 2 {
+		t.Fatalf("Phase 4: Need 2 bundles, only %d available", len(groundBundles))
+	}
+	groundBundles[0].X = doorPos.X
+	groundBundles[0].Y = doorPos.Y
+	groundBundles[1].X = doorPos.X
+	groundBundles[1].Y = doorPos.Y
+
+	// Build the door tile
+	doorMark, _ := gameMap.GetConstructionMark(doorPos)
+	doorConstruct := entity.NewHutConstruct(doorPos.X, doorPos.Y, "stick", types.ColorBrown, doorMark.WallRole)
+	gameMap.AddConstruct(doorConstruct)
+	gameMap.UnmarkForConstruction(doorPos)
+
+	if doorConstruct.WallRole != "door" {
+		t.Errorf("Verify door: Expected WallRole 'door', got %q", doorConstruct.WallRole)
+	}
+	if !doorConstruct.Passable {
+		t.Error("Verify door: Door construct should be passable")
+	}
+}
+
+func TestSelectConstructionMaterial_FenceAndHut(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildFence", "buildHut"}
+	char.KnownRecipes = []string{"stick-fence", "stick-hut"}
+	gameMap.AddCharacter(char)
+
+	// Place 12 sticks nearby (enough for fence=6, hut=12)
+	for i := 0; i < 12; i++ {
+		gameMap.AddItem(entity.NewStick(6, 5))
+	}
+
+	items := gameMap.Items()
+
+	// Fence material selection should work
+	fenceMat := SelectConstructionMaterialForTest(char, char.Pos(), items, gameMap, "buildFence")
+	if fenceMat != "stick" {
+		t.Errorf("Expected fence material 'stick', got %q", fenceMat)
+	}
+
+	// Hut material selection should work
+	hutMat := SelectConstructionMaterialForTest(char, char.Pos(), items, gameMap, "buildHut")
+	if hutMat != "stick" {
+		t.Errorf("Expected hut material 'stick', got %q", hutMat)
+	}
+
+	// With insufficient materials for hut (only 6 sticks), fence should still work
+	// Remove 6 sticks to leave only 6
+	removed := 0
+	for _, item := range gameMap.Items() {
+		if item.ItemType == "stick" && removed < 6 {
+			gameMap.RemoveItem(item)
+			removed++
+		}
+	}
+	items = gameMap.Items()
+	fenceMat2 := SelectConstructionMaterialForTest(char, char.Pos(), items, gameMap, "buildFence")
+	if fenceMat2 != "stick" {
+		t.Errorf("Expected fence material 'stick' with 6 items, got %q", fenceMat2)
+	}
+	hutMat2 := SelectConstructionMaterialForTest(char, char.Pos(), items, gameMap, "buildHut")
+	if hutMat2 != "stick" {
+		t.Errorf("Expected hut material 'stick' with 6 sticks (below recipe count but available), got %q", hutMat2)
+	}
+}
+
+func TestSelectConstructionMaterial_BelowRecipeCount(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildHut"}
+	char.KnownRecipes = []string{"brick-hut"}
+	gameMap.AddCharacter(char)
+
+	// Place only 3 bricks — well below brick-hut recipe count of 12
+	for i := 0; i < 3; i++ {
+		gameMap.AddItem(entity.NewBrick(6, 5))
+	}
+	items := gameMap.Items()
+
+	mat := SelectConstructionMaterialForTest(char, char.Pos(), items, gameMap, "buildHut")
+	if mat != "brick" {
+		t.Errorf("Expected material 'brick' with 3 bricks (below recipe count), got %q — DD-44 says any material = selectable", mat)
+	}
+
+	// With zero bricks, should return ""
+	var toRemove []*entity.Item
+	for _, item := range gameMap.Items() {
+		if item.ItemType == "brick" {
+			toRemove = append(toRemove, item)
+		}
+	}
+	for _, item := range toRemove {
+		gameMap.RemoveItem(item)
+	}
+	items = gameMap.Items()
+	mat2 := SelectConstructionMaterialForTest(char, char.Pos(), items, gameMap, "buildHut")
+	if mat2 != "" {
+		t.Errorf("Expected no material with 0 bricks, got %q", mat2)
+	}
+}
+
+func TestCountFullBundlesAtPosition(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+
+	// Place 2 full bundles and 1 partial at the position
+	full1 := entity.NewStick(5, 5)
+	full1.BundleCount = 6
+	gameMap.AddItem(full1)
+
+	full2 := entity.NewStick(5, 5)
+	full2.BundleCount = 6
+	gameMap.AddItem(full2)
+
+	partial := entity.NewStick(5, 5)
+	partial.BundleCount = 3
+	gameMap.AddItem(partial)
+
+	// Place a full bundle at a different position
+	other := entity.NewStick(8, 8)
+	other.BundleCount = 6
+	gameMap.AddItem(other)
+
+	count := CountFullBundlesAtPositionForTest(gameMap.Items(), "stick", pos)
+	if count != 2 {
+		t.Errorf("Expected 2 full bundles at position, got %d", count)
+	}
+}
+
+func TestSuppliesMetForHutTile(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	pos := types.Position{X: 5, Y: 5}
+
+	// Bundle material: need 2 full bundles
+	b1 := entity.NewStick(5, 5)
+	b1.BundleCount = 6
+	gameMap.AddItem(b1)
+
+	if SuppliesMetForHutTileForTest(gameMap.Items(), "stick", pos) {
+		t.Error("Expected supplies NOT met with only 1 full bundle")
+	}
+
+	b2 := entity.NewStick(5, 5)
+	b2.BundleCount = 6
+	gameMap.AddItem(b2)
+
+	if !SuppliesMetForHutTileForTest(gameMap.Items(), "stick", pos) {
+		t.Error("Expected supplies met with 2 full bundles")
+	}
+
+	// Brick material: need 12 bricks
+	gameMap2 := game.NewMap(20, 20)
+	brickPos := types.Position{X: 3, Y: 3}
+	for i := 0; i < 11; i++ {
+		gameMap2.AddItem(entity.NewBrick(3, 3))
+	}
+	if SuppliesMetForHutTileForTest(gameMap2.Items(), "brick", brickPos) {
+		t.Error("Expected supplies NOT met with only 11 bricks")
+	}
+
+	gameMap2.AddItem(entity.NewBrick(3, 3))
+	if !SuppliesMetForHutTileForTest(gameMap2.Items(), "brick", brickPos) {
+		t.Error("Expected supplies met with 12 bricks")
+	}
+}
+
+func TestFindBuildHutIntent_ReturnsNil_WhenNoMarkedTiles(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := newBuildHutChar(1, 5, 5, gameMap)
+
+	order := entity.NewOrder(1, "buildHut", "")
+	intent := FindBuildHutIntentForTest(char, char.Pos(), gameMap.Items(), order, nil, gameMap)
+	if intent != nil {
+		t.Error("Expected nil when no hut marks exist")
+	}
+}
+
+func TestFindBuildHutIntent_FiltersByConstructKind(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := newBuildHutChar(1, 5, 5, gameMap)
+
+	// Place only fence marks — hut intent should return nil
+	fencePos := types.Position{X: 8, Y: 5}
+	gameMap.MarkForConstruction(fencePos, 1, "fence", "")
+
+	// Place sticks so material selection would work
+	for i := 0; i < 12; i++ {
+		gameMap.AddItem(entity.NewStick(6, 5))
+	}
+
+	order := entity.NewOrder(1, "buildHut", "")
+	intent := FindBuildHutIntentForTest(char, char.Pos(), gameMap.Items(), order, nil, gameMap)
+	if intent != nil {
+		t.Error("Expected nil when only fence marks exist — hut intent should filter by ConstructKind")
+	}
+}
+
+func TestFindBuildHutIntent_MaterialStamping_LineID(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := newBuildHutChar(1, 5, 5, gameMap)
+
+	// 4 hut marks sharing lineID 1, no material yet
+	pos1 := types.Position{X: 10, Y: 10}
+	pos2 := types.Position{X: 11, Y: 10}
+	pos3 := types.Position{X: 12, Y: 10}
+	pos4 := types.Position{X: 13, Y: 10}
+	gameMap.MarkForConstruction(pos1, 1, "hut", "wall")
+	gameMap.MarkForConstruction(pos2, 1, "hut", "wall")
+	gameMap.MarkForConstruction(pos3, 1, "hut", "wall")
+	gameMap.MarkForConstruction(pos4, 1, "hut", "door")
+
+	// Place enough sticks for material selection
+	for i := 0; i < 12; i++ {
+		gameMap.AddItem(entity.NewStick(6, 5))
+	}
+
+	order := entity.NewOrder(1, "buildHut", "")
+	log := NewActionLog(100)
+	intent := FindBuildHutIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+	if intent == nil {
+		t.Fatal("Expected intent, got nil")
+	}
+
+	// Verify material stamped across all marks
+	for _, pos := range []types.Position{pos1, pos2, pos3, pos4} {
+		mark, ok := gameMap.GetConstructionMark(pos)
+		if !ok {
+			t.Fatalf("Mark at %v should exist", pos)
+		}
+		if mark.Material != "stick" {
+			t.Errorf("Mark at %v: expected material 'stick', got %q", pos, mark.Material)
+		}
+	}
+}
+
+func TestFindBuildHutIntent_SkipsBundlesAtConstructionSites(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := newBuildHutChar(1, 5, 5, gameMap)
+
+	// One hut mark with 1 full bundle already delivered (not enough to build — need 2)
+	// Build site is closer to the character than the free bundle
+	buildPos := types.Position{X: 6, Y: 5}
+	gameMap.MarkForConstruction(buildPos, 1, "hut", "wall")
+	gameMap.SetLineMaterial(1, "stick")
+
+	siteBundle := entity.NewStick(6, 5)
+	siteBundle.BundleCount = 6
+	gameMap.AddItem(siteBundle)
+
+	// Another full bundle NOT at a construction site — farther away but should be picked
+	freeBundle := entity.NewStick(10, 5)
+	freeBundle.BundleCount = 6
+	gameMap.AddItem(freeBundle)
+
+	order := entity.NewOrder(1, "buildHut", "")
+	order.Status = entity.OrderAssigned
+	order.AssignedTo = char.ID
+	char.AssignedOrderID = order.ID
+
+	log := NewActionLog(100)
+	intent := FindBuildHutIntentForTest(char, char.Pos(), gameMap.Items(), order, log, gameMap)
+	if intent == nil {
+		t.Fatal("Expected pickup intent, got nil")
+	}
+	if intent.Action != entity.ActionPickup {
+		t.Fatalf("Expected ActionPickup, got %v", intent.Action)
+	}
+	// The target should be the free bundle at (6,5), not the one at the construction site (8,5)
+	if intent.TargetItem == nil {
+		t.Fatal("Expected TargetItem to be set")
+	}
+	if intent.TargetItem.Pos() == buildPos {
+		t.Error("Should NOT pick up bundle at construction site — causes delivery loop")
+	}
+}
+
+func TestIsOrderFeasible_BuildFence_Infeasible_AllMaterialsStaged(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildFence"}
+	gameMap.AddCharacter(char)
+
+	// Mark a fence tile locked to brick, place bricks ON the marked tile (staged, not free)
+	buildPos := types.Position{X: 8, Y: 5}
+	gameMap.MarkForConstruction(buildPos, 1, "fence", "")
+	gameMap.SetLineMaterial(1, "brick")
+	for i := 0; i < 4; i++ {
+		gameMap.AddItem(entity.NewBrick(buildPos.X, buildPos.Y))
+	}
+
+	order := entity.NewOrder(1, "buildFence", "")
+	feasible, _ := IsOrderFeasible(order, gameMap.Items(), gameMap)
+	if feasible {
+		t.Error("Expected infeasible when all materials are staged at construction sites")
+	}
+}
+
+func TestIsOrderFeasible_BuildHut_Infeasible_AllMaterialsStaged(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildHut"}
+	gameMap.AddCharacter(char)
+
+	// Mark hut tiles locked to brick, place bricks ON marked tiles (staged, not free)
+	mark1 := types.Position{X: 10, Y: 10}
+	mark2 := types.Position{X: 11, Y: 10}
+	gameMap.MarkForConstruction(mark1, 1, "hut", "wall")
+	gameMap.MarkForConstruction(mark2, 1, "hut", "wall")
+	gameMap.SetLineMaterial(1, "brick")
+	for i := 0; i < 8; i++ {
+		gameMap.AddItem(entity.NewBrick(mark1.X, mark1.Y))
+	}
+
+	order := entity.NewOrder(1, "buildHut", "")
+	feasible, _ := IsOrderFeasible(order, gameMap.Items(), gameMap)
+	if feasible {
+		t.Error("Expected infeasible when all materials are staged at construction sites")
+	}
+}
+
+func TestIsOrderFeasible_BuildHut_Infeasible_WrongMaterialFree(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildHut"}
+	char.KnownRecipes = []string{"brick-hut"}
+	gameMap.AddCharacter(char)
+
+	// Mark hut tiles locked to brick, all bricks staged, but a free stick exists
+	mark1 := types.Position{X: 10, Y: 10}
+	gameMap.MarkForConstruction(mark1, 1, "hut", "wall")
+	gameMap.SetLineMaterial(1, "brick")
+	for i := 0; i < 8; i++ {
+		gameMap.AddItem(entity.NewBrick(mark1.X, mark1.Y))
+	}
+	gameMap.AddItem(entity.NewStick(3, 3)) // free but wrong material
+
+	order := entity.NewOrder(1, "buildHut", "")
+	feasible, _ := IsOrderFeasible(order, gameMap.Items(), gameMap)
+	if feasible {
+		t.Error("Expected infeasible when only free material doesn't match line's locked material")
+	}
+}
+
+func TestIsOrderFeasible_BuildHut_Feasible_FreeMaterialsExist(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildHut"}
+	gameMap.AddCharacter(char)
+
+	// Mark hut tiles locked to brick, some bricks at site AND some free on map
+	mark1 := types.Position{X: 10, Y: 10}
+	gameMap.MarkForConstruction(mark1, 1, "hut", "wall")
+	gameMap.SetLineMaterial(1, "brick")
+	for i := 0; i < 4; i++ {
+		gameMap.AddItem(entity.NewBrick(mark1.X, mark1.Y)) // staged
+	}
+	gameMap.AddItem(entity.NewBrick(3, 3)) // free, correct material
+
+	order := entity.NewOrder(1, "buildHut", "")
+	feasible, _ := IsOrderFeasible(order, gameMap.Items(), gameMap)
+	if !feasible {
+		t.Error("Expected feasible when free materials of locked type exist off-site")
+	}
+}
+
+func TestIsOrderFeasible_BuildHut_Feasible_UnlockedLine(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(20, 20)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildHut"}
+	gameMap.AddCharacter(char)
+
+	// Mark hut tiles with NO material lock — any construction material should count
+	mark1 := types.Position{X: 10, Y: 10}
+	gameMap.MarkForConstruction(mark1, 1, "hut", "wall")
+	// No SetLineMaterial — material is ""
+	gameMap.AddItem(entity.NewStick(3, 3)) // free
+
+	order := entity.NewOrder(1, "buildHut", "")
+	feasible, _ := IsOrderFeasible(order, gameMap.Items(), gameMap)
+	if !feasible {
+		t.Error("Expected feasible when unlocked line and free construction materials exist")
+	}
+}

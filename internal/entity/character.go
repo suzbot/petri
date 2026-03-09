@@ -121,6 +121,7 @@ const (
 	ActionExtract     // Extracting seeds from a living plant (ordered, walk-then-act)
 	ActionDig         // Digging material from terrain (ordered, walk-then-act)
 	ActionBuildFence  // Building a fence on a marked tile (ordered, walk-then-act)
+	ActionBuildHut    // Building a hut wall/door on a marked tile (ordered, walk-then-act)
 )
 
 // NewCharacter creates a new character with the given preferences

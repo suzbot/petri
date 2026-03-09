@@ -224,7 +224,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 ---
 
 ### Step 10: Build Hut Execution
-**Status:** In progress (10a, 10b complete)
+**Status:** Complete
 
 **Anchor story:** A character who knows how to build huts takes a Build Hut order. They choose stick material (nearest available), and the material is stamped across all 16 hut marks. They carry bundles of sticks to the nearest unbuilt wall tile, dropping 2 full bundles, then work the tile into a wall segment. They move to the next tile. Another character joins and works from the other end. Eventually all 16 tiles are built — walls and a door. Characters walk through the door into the 3×3 interior.
 

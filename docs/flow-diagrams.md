@@ -28,11 +28,22 @@ flowchart TD
         selectDiscretionaryActivity()"]
         orders["order_execution.go
         selectOrderActivity()
-        findOrderIntent()"]
+        findOrderIntent()
+        findBuildFenceIntent()
+        findBuildHutIntent()
+        selectConstructionMaterial()
+        findNearestMaterialNotAtSite()"]
         helping["helping.go
         selectHelpingActivity()
         findHelpFeedIntent()
         findHelpWaterIntent()"]
+    end
+
+    subgraph "World Layer (game/)"
+        worldmap["map.go
+        ConstructAt()
+        HasUnbuiltConstructionPositions()
+        constructionMaterialFeasible()"]
     end
 
     subgraph "Action Layer (system/)"
@@ -116,6 +127,7 @@ flowchart TD
     %% Decision: orders dispatches
     orders --> pick
     orders --> craft
+    orders --> worldmap
 
     %% Decision: orders → Data
     orders --> activity
@@ -303,6 +315,7 @@ flowchart TD
     update -->|"ActionTalk"| talk
     update -->|"ActionForage"| forage
     update -->|"ActionHelpFeed/Water"| movement
+    update -->|"ActionBuildFence/BuildHut"| movement
     update -->|"Order completion"| orders
     update --> char
     update --> item
@@ -504,3 +517,48 @@ stateDiagram-v2
     WaterTile --> FillWater: Vessel empty,\nmore tiles to water
     WaterTile --> [*]: All tiles watered
 ```
+
+### Construction Order (Fence / Hut)
+
+Same machinery for both. Material is stamped on first tile; subsequent tiles use the same material. Bundles (grass/sticks) can be consumed directly for fences (no supply-drop needed). Bricks and all hut materials use the supply-drop path: carry 2 per trip, deliver, repeat until threshold met, then build.
+
+```mermaid
+stateDiagram-v2
+    [*] --> SelectMaterial: Order taken,\nno material assigned yet
+    SelectMaterial --> Pickup: Material stamped\nto line/footprint
+    [*] --> Pickup: Material already assigned
+
+    state "Can build directly?" as direct_check
+    Pickup --> direct_check: Items picked up
+    direct_check --> Build: Yes (bundle fence:\nfull bundle in hand)
+    direct_check --> Deliver: No (supply-drop:\ncarry 2 to site)
+
+    Deliver --> Pickup: Dropped at site,\nthreshold not yet met
+    Deliver --> Build: Threshold met at tile
+
+    Build --> Pickup: Construct placed,\nnext unbuilt tile
+    Build --> [*]: All tiles built
+```
+
+---
+
+## Order Lifecycle
+
+How an order transitions from creation to completion or abandonment.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Open: Player creates order
+    Open --> Assigned: Character takes order\n(passes feasibility + know-how check)
+    Assigned --> Paused: Character's needs interrupt\n(Moderate+ tier)
+    Paused --> Assigned: Needs satisfied,\ncharacter resumes
+    Assigned --> Completed: Order completion condition met
+    Assigned --> Abandoned: No matching items on map\nor player cancels
+    Abandoned --> Open: Cooldown expires\n(order retried)
+    Completed --> [*]: Swept from order list
+    Abandoned --> [*]: If infeasible at render time,\nshows "Unfulfillable" instead of "Abandoned"
+```
+
+**Feasibility at assignment**: `IsOrderFeasible` is checked before a character takes an open order. Infeasible orders are skipped and shown dimmed. For construction orders, feasibility counts only free (un-staged) materials — items already at construction-marked tiles are excluded.
+
+**Transient nil guard**: For construction orders, when `findBuildHutIntent` returns nil (all candidates temporarily occupied), the guard checks `IsOrderFeasible` — if still feasible, the nil is treated as a transient block and the order is not abandoned.

@@ -40,6 +40,11 @@ func selectOrderActivity(char *entity.Character, pos types.Position, items []*en
 				CompleteOrder(char, order, log)
 				return nil
 			}
+			// Transient nil: order is still feasible but temporarily blocked (e.g., another
+			// worker occupies the only remaining build tile). Idle for a tick and retry.
+			if feasible, _ := IsOrderFeasible(order, items, gameMap); feasible {
+				return nil
+			}
 			// Order cannot be fulfilled - abandon it
 			abandonOrder(char, order, orders, log)
 			return nil
@@ -75,6 +80,10 @@ func selectOrderActivity(char *entity.Character, pos types.Position, items []*en
 		return nil
 	}
 
+	// Transient nil: order is still feasible but temporarily blocked — idle and retry
+	if feasible, _ := IsOrderFeasible(order, items, gameMap); feasible {
+		return nil
+	}
 	// Order cannot be fulfilled immediately - abandon it
 	abandonOrder(char, order, orders, log)
 	return nil
@@ -140,7 +149,7 @@ func findOrderIntent(char *entity.Character, pos types.Position, items []*entity
 	case "buildFence":
 		return findBuildFenceIntent(char, pos, items, order, log, gameMap)
 	case "buildHut":
-		return nil // stub — replaced with findBuildHutIntent in Step 10
+		return findBuildHutIntent(char, pos, items, order, log, gameMap)
 	default:
 		// Recipe-based activities (craftVessel, craftHoe, craftBrick, etc.) use generic craft handler
 		if len(entity.GetRecipesForActivity(order.ActivityID)) > 0 {
@@ -598,10 +607,10 @@ func IsOrderFeasible(order *entity.Order, items []*entity.Item, gameMap *game.Ma
 	// Construction activities use recipes for discovery only — check construction-specific feasibility
 	// before the generic recipe check intercepts it.
 	if order.ActivityID == "buildFence" {
-		return gameMap.HasUnbuiltConstructionPositions("fence") && constructionMaterialExistsOnMap(gameMap.Items()), false
+		return gameMap.HasUnbuiltConstructionPositions("fence") && constructionMaterialFeasible("fence", gameMap), false
 	}
 	if order.ActivityID == "buildHut" {
-		return gameMap.HasUnbuiltConstructionPositions("hut") && constructionMaterialExistsOnMap(gameMap.Items()), false
+		return gameMap.HasUnbuiltConstructionPositions("hut") && constructionMaterialFeasible("hut", gameMap), false
 	}
 
 	// Recipe-based activities (craft): check if any recipe's inputs all exist in world
@@ -1373,7 +1382,7 @@ func findBuildFenceIntent(char *entity.Character, pos types.Position, items []*e
 	mark, _ := gameMap.GetConstructionMark(nearest)
 	material := mark.Material
 	if material == "" {
-		material = selectFenceMaterial(char, pos, items, gameMap)
+		material = selectConstructionMaterial(char, pos, items, gameMap, "buildFence")
 		if material == "" {
 			return nil // No material available → triggers abandonment
 		}
@@ -1500,11 +1509,24 @@ func findBrickFenceIntent(char *entity.Character, pos types.Position, items []*e
 	}
 
 	// Phase 3: Pickup — find nearest brick NOT at a construction site
-	// Bricks stockpiled at marked-for-construction positions are reserved for building.
+	target := findNearestMaterialNotAtSite(pos, items, material, gameMap, false)
+	if target == nil {
+		return nil // No bricks → triggers abandonment
+	}
+	return createItemPickupIntent(char, pos, target, gameMap, log)
+}
+
+// findNearestMaterialNotAtSite finds the nearest item of the given type that is NOT
+// on a construction-marked tile. If bundlesOnly is true, only matches items with BundleCount > 0.
+// Used by all supply-drop procurement phases (brick fence, brick hut, bundle hut).
+func findNearestMaterialNotAtSite(pos types.Position, items []*entity.Item, material string, gameMap *game.Map, bundlesOnly bool) *entity.Item {
 	var target *entity.Item
 	bestDist := int(^uint(0) >> 1)
 	for _, item := range items {
 		if item.ItemType != material {
+			continue
+		}
+		if bundlesOnly && item.BundleCount == 0 {
 			continue
 		}
 		if gameMap.IsMarkedForConstruction(item.Pos()) {
@@ -1516,10 +1538,7 @@ func findBrickFenceIntent(char *entity.Character, pos types.Position, items []*e
 			target = item
 		}
 	}
-	if target == nil {
-		return nil // No bricks → triggers abandonment
-	}
-	return createItemPickupIntent(char, pos, target, gameMap, log)
+	return target
 }
 
 // countItemsAtPosition counts items of a specific type at a given position.
@@ -1533,12 +1552,12 @@ func countItemsAtPosition(items []*entity.Item, itemType string, pos types.Posit
 	return count
 }
 
-// selectFenceMaterial picks the best available fence material for a character.
-// Checks each known fence recipe; returns the material type with 6+ items whose
-// nearest item is closest. Returns "" if no material has sufficient supply.
-func selectFenceMaterial(char *entity.Character, pos types.Position, items []*entity.Item, gameMap *game.Map) string {
+// selectConstructionMaterial picks the best available construction material for a character.
+// Checks each known recipe for the given activity; returns the material type with any
+// items available whose nearest item is closest. Returns "" if no material exists on map.
+func selectConstructionMaterial(char *entity.Character, pos types.Position, items []*entity.Item, gameMap *game.Map, activityID string) string {
 	_ = gameMap // reserved for future proximity-to-map checks
-	recipes := char.GetKnownRecipesForActivity("buildFence")
+	recipes := char.GetKnownRecipesForActivity(activityID)
 	bestMaterial := ""
 	bestDist := int(^uint(0) >> 1)
 
@@ -1547,9 +1566,8 @@ func selectFenceMaterial(char *entity.Character, pos types.Position, items []*en
 			continue
 		}
 		itemType := recipe.Inputs[0].ItemType
-		required := recipe.Inputs[0].Count
 
-		if countItemsOnMap(items, itemType) < required {
+		if countItemsOnMap(items, itemType) < 1 {
 			continue
 		}
 		nearest := findNearestItemOrBundle(pos.X, pos.Y, items, itemType)
@@ -1642,11 +1660,36 @@ func findAdjacentStandingTile(buildPos types.Position, gameMap *game.Map) *types
 
 // constructionMaterialExistsOnMap returns true if any construction material (grass, stick, or brick)
 // exists on the map. Used by both fence and hut feasibility checks (DD-44).
-func constructionMaterialExistsOnMap(items []*entity.Item) bool {
+// constructionMaterialFeasible checks whether free (non-staged) construction materials
+// exist that match the locked material on marked tiles. If lines are unlocked (no material
+// stamped yet), any free construction material counts.
+func constructionMaterialFeasible(constructKind string, gameMap *game.Map) bool {
+	// Collect distinct locked materials from marks of this kind
+	lockedMaterials := make(map[string]bool)
+	hasUnlockedLine := false
+	for _, pos := range gameMap.MarkedForConstructionPositions() {
+		mark, _ := gameMap.GetConstructionMark(pos)
+		if mark.ConstructKind != constructKind {
+			continue
+		}
+		if mark.Material == "" {
+			hasUnlockedLine = true
+		} else {
+			lockedMaterials[mark.Material] = true
+		}
+	}
+
+	items := gameMap.Items()
 	for _, item := range items {
 		switch item.ItemType {
 		case "grass", "stick", "brick":
-			return true
+			if gameMap.IsMarkedForConstruction(item.Pos()) {
+				continue // staged — don't count
+			}
+			// Free item: check if it matches a locked material or any unlocked line exists
+			if lockedMaterials[item.ItemType] || hasUnlockedLine {
+				return true
+			}
 		}
 	}
 	return false
@@ -1655,4 +1698,253 @@ func constructionMaterialExistsOnMap(items []*entity.Item) bool {
 // FindBuildFenceIntentForTest is an exported wrapper for integration tests.
 func FindBuildFenceIntentForTest(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
 	return findBuildFenceIntent(char, pos, items, order, log, gameMap)
+}
+
+// FindBuildHutIntentForTest is an exported wrapper for integration tests.
+func FindBuildHutIntentForTest(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	return findBuildHutIntent(char, pos, items, order, log, gameMap)
+}
+
+// SelectConstructionMaterialForTest is an exported wrapper for tests.
+func SelectConstructionMaterialForTest(char *entity.Character, pos types.Position, items []*entity.Item, gameMap *game.Map, activityID string) string {
+	return selectConstructionMaterial(char, pos, items, gameMap, activityID)
+}
+
+// CountFullBundlesAtPositionForTest is an exported wrapper for tests.
+func CountFullBundlesAtPositionForTest(items []*entity.Item, itemType string, pos types.Position) int {
+	return countFullBundlesAtPosition(items, itemType, pos)
+}
+
+// SuppliesMetForHutTileForTest is an exported wrapper for tests.
+func SuppliesMetForHutTileForTest(items []*entity.Item, material string, pos types.Position) bool {
+	return suppliesMetForHutTile(items, material, pos)
+}
+
+// countFullBundlesAtPosition counts items at pos where BundleCount >= MaxBundleSize for that type.
+func countFullBundlesAtPosition(items []*entity.Item, itemType string, pos types.Position) int {
+	maxSize := config.MaxBundleSize[itemType]
+	if maxSize == 0 {
+		return 0
+	}
+	count := 0
+	for _, item := range items {
+		if item.ItemType == itemType && item.Pos() == pos && item.BundleCount >= maxSize {
+			count++
+		}
+	}
+	return count
+}
+
+// suppliesMetForHutTile checks if a tile has enough supplies to build a hut wall/door.
+// For bundleable materials: 2 full bundles (recipe count 12 / MaxBundleSize 6).
+// For non-bundleable (brick): 12 items (recipe count directly).
+func suppliesMetForHutTile(items []*entity.Item, material string, pos types.Position) bool {
+	_, isBundleMaterial := config.MaxBundleSize[material]
+	if isBundleMaterial {
+		return countFullBundlesAtPosition(items, material, pos) >= 2
+	}
+	return countItemsAtPosition(items, material, pos) >= 12
+}
+
+// findBuildHutIntent finds the next intent for a character building a hut.
+// Follows the same pattern as findBuildFenceIntent but with supply-drop for all materials.
+func findBuildHutIntent(char *entity.Character, pos types.Position, items []*entity.Item, order *entity.Order, log *ActionLog, gameMap *game.Map) *entity.Intent {
+	// Step 1: Collect unbuilt hut-marked tiles not occupied by another character (DD-28, DD-49)
+	var candidates []types.Position
+	for _, mpos := range gameMap.MarkedForConstructionPositions() {
+		mark, ok := gameMap.GetConstructionMark(mpos)
+		if !ok || mark.ConstructKind != "hut" {
+			continue // Only hut marks (DD-49)
+		}
+		if gameMap.ConstructAt(mpos) != nil {
+			continue // Already built
+		}
+		if occ := gameMap.CharacterAt(mpos); occ != nil && occ != char {
+			continue // Occupied by another character — skip per DD-28
+		}
+		candidates = append(candidates, mpos)
+	}
+	if len(candidates) == 0 {
+		return nil // No work → triggers completion check
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		return pos.DistanceTo(candidates[i]) < pos.DistanceTo(candidates[j])
+	})
+	nearest := candidates[0]
+
+	// Step 2: Determine material for the nearest tile's line
+	mark, _ := gameMap.GetConstructionMark(nearest)
+	material := mark.Material
+	if material == "" {
+		material = selectConstructionMaterial(char, pos, items, gameMap, "buildHut")
+		if material == "" {
+			return nil // No material available → triggers abandonment
+		}
+		gameMap.SetLineMaterial(mark.LineID, material)
+	}
+
+	// Step 3: Drop non-material inventory items (procurement drop pattern)
+	var toDrop []*entity.Item
+	for _, inv := range char.Inventory {
+		if inv != nil && inv.ItemType != material {
+			toDrop = append(toDrop, inv)
+		}
+	}
+	for _, item := range toDrop {
+		DropItem(char, item, gameMap, log)
+	}
+
+	// Step 4: Check if nearest tile has enough supplies — branch to build or supply phase
+	_, isBundleMaterial := config.MaxBundleSize[material]
+
+	if isBundleMaterial {
+		return findBundleHutIntent(char, pos, items, nearest, candidates, material, gameMap, log)
+	}
+	return findBrickHutIntent(char, pos, items, nearest, candidates, material, gameMap, log)
+}
+
+// findBundleHutIntent handles hut building with bundle materials (grass/sticks).
+// Supply-drop pattern: deliver 2 full bundles to the tile, then build from adjacent.
+func findBundleHutIntent(char *entity.Character, pos types.Position, items []*entity.Item, nearest types.Position, candidates []types.Position, material string, gameMap *game.Map, log *ActionLog) *entity.Intent {
+	// Phase 1: Check if nearest tile has enough supplies to build
+	if suppliesMetForHutTile(items, material, nearest) {
+		return findHutBuildIntent(char, pos, candidates, material, gameMap)
+	}
+
+	// Count full bundles in inventory
+	maxSize := config.MaxBundleSize[material]
+	fullBundleCount := 0
+	for _, inv := range char.Inventory {
+		if inv != nil && inv.ItemType == material && inv.BundleCount >= maxSize {
+			fullBundleCount++
+		}
+	}
+
+	// Phase 2: Delivery — character has 2 full bundles (both slots filled) → deliver (DD-39)
+	if fullBundleCount >= 2 {
+		return createHutDeliveryIntent(char, pos, nearest, gameMap)
+	}
+
+	// Phase 3: Procurement — try to fill remaining inventory slots
+	// Only search for full/partial bundles when character has no bundle yet (DD-30 overflow guard)
+	hasPartialBundle := false
+	for _, inv := range char.Inventory {
+		if inv != nil && inv.ItemType == material && inv.BundleCount > 0 {
+			hasPartialBundle = true
+			break
+		}
+	}
+
+	var target *entity.Item
+	if !hasPartialBundle {
+		target = findNearestMaterialNotAtSite(pos, items, material, gameMap, true)
+	}
+	if target == nil {
+		// Fallback: individual items not at construction sites
+		target = findNearestMaterialNotAtSite(pos, items, material, gameMap, false)
+	}
+	if target != nil {
+		return createItemPickupIntent(char, pos, target, gameMap, log)
+	}
+
+	// Phase 4: No more materials available — deliver what we have (partial load)
+	if fullBundleCount >= 1 {
+		return createHutDeliveryIntent(char, pos, nearest, gameMap)
+	}
+
+	return nil // No materials at all → triggers abandonment
+}
+
+// findBrickHutIntent handles hut building with brick (non-bundle) materials.
+// Supply-drop pattern: deliver bricks to the tile (12 per tile), then build from adjacent.
+// createHutDeliveryIntent creates a delivery intent to move to the build tile and drop materials.
+func createHutDeliveryIntent(char *entity.Character, pos types.Position, buildPos types.Position, gameMap *game.Map) *entity.Intent {
+	nx, ny, usedBFS := nextStepBFSCore(pos.X, pos.Y, buildPos.X, buildPos.Y, gameMap, char.UsingBFS)
+	if usedBFS {
+		char.UsingBFS = true
+	}
+	newActivity := "Delivering materials"
+	if pos == buildPos {
+		newActivity = "Dropping materials"
+	}
+	if char.CurrentActivity != newActivity {
+		char.CurrentActivity = newActivity
+	}
+	return &entity.Intent{
+		Target:         types.Position{X: nx, Y: ny},
+		Dest:           buildPos,
+		Action:         entity.ActionBuildHut,
+		TargetBuildPos: &buildPos,
+	}
+}
+
+func findBrickHutIntent(char *entity.Character, pos types.Position, items []*entity.Item, nearest types.Position, candidates []types.Position, material string, gameMap *game.Map, log *ActionLog) *entity.Intent {
+	// Phase 1: Check if nearest tile has enough supplies to build
+	if suppliesMetForHutTile(items, material, nearest) {
+		return findHutBuildIntent(char, pos, candidates, material, gameMap)
+	}
+
+	// Count bricks in inventory
+	brickCount := 0
+	for _, inv := range char.Inventory {
+		if inv != nil && inv.ItemType == material {
+			brickCount++
+		}
+	}
+
+	// Phase 2: Delivery — both inventory slots full → deliver
+	if brickCount >= 2 {
+		return createHutDeliveryIntent(char, pos, nearest, gameMap)
+	}
+
+	// Phase 3: Procurement — try to fill remaining inventory slots
+	target := findNearestMaterialNotAtSite(pos, items, material, gameMap, false)
+	if target != nil {
+		return createItemPickupIntent(char, pos, target, gameMap, log)
+	}
+
+	// Phase 4: No more materials available — deliver what we have (partial load)
+	if brickCount >= 1 {
+		return createHutDeliveryIntent(char, pos, nearest, gameMap)
+	}
+
+	return nil // No bricks at all → triggers abandonment
+}
+
+// findHutBuildIntent returns a build intent for hut tiles when supplies are met.
+// Finds the nearest candidate with enough supplies and an adjacent standing tile.
+func findHutBuildIntent(char *entity.Character, pos types.Position, candidates []types.Position, material string, gameMap *game.Map) *entity.Intent {
+	items := gameMap.Items()
+	for _, candidate := range candidates {
+		cm, _ := gameMap.GetConstructionMark(candidate)
+		if cm.Material != "" && cm.Material != material {
+			continue // Different line with different material
+		}
+		if !suppliesMetForHutTile(items, material, candidate) {
+			continue // Not enough supplies at this tile yet
+		}
+		adjPos := findAdjacentStandingTile(candidate, gameMap)
+		if adjPos == nil {
+			continue // All adjacent tiles blocked — try next candidate
+		}
+		buildPos := candidate
+		nx, ny, usedBFS := nextStepBFSCore(pos.X, pos.Y, adjPos.X, adjPos.Y, gameMap, char.UsingBFS)
+		if usedBFS {
+			char.UsingBFS = true
+		}
+		newActivity := "Building hut"
+		if pos != *adjPos {
+			newActivity = "Moving to build hut"
+		}
+		if char.CurrentActivity != newActivity {
+			char.CurrentActivity = newActivity
+		}
+		return &entity.Intent{
+			Target:         types.Position{X: nx, Y: ny},
+			Dest:           *adjPos,
+			Action:         entity.ActionBuildHut,
+			TargetBuildPos: &buildPos,
+		}
+	}
+	return nil // No viable candidate
 }

@@ -611,8 +611,20 @@ Construction uses a parallel pool following the same separation of plan from wor
 - **Line ID**: All tiles from one placement operation share a `LineID`. For fences, this is a cardinal line. For huts, this is the full 16-tile perimeter of one footprint. When the first tile in a line is built, the chosen material is stamped onto all tiles with the same `LineID`. `UnmarkByLineID(lineID)` removes all marks with that ID — used for whole-footprint hut unmarking.
 - **Material lock**: Once set, a line's material is read by subsequent workers. If the locked material runs out, the order becomes unfulfillable.
 - **Kind filter rule**: `findBuildFenceIntent` passes `"fence"` to `HasUnbuiltConstructionPositions`; `IsOrderFeasible` and `isMultiStepOrderComplete` filter by the order's kind. Adding a new construct kind means adding a `ConstructKind` value and filtering callers by it — no new pool.
+- **Feasibility (coarse gate, DD-44)**: `IsOrderFeasible` for construction checks for the existence of at least one free (un-staged) construction material — not a full supply count. `constructionMaterialFeasible` counts only items *not* at construction-marked positions. Items already staged at a marked tile are committed to that site and excluded. Locked lines check only for matching material type; unlocked lines accept any construction material.
+- **Pickup loop prevention**: `findNearestMaterialNotAtSite` (shared by fence and hut procurement) skips items whose position is a construction-marked tile. This prevents a character from picking up material they just delivered, re-delivering it, and looping. Used by `findBundleHutIntent`, `findBrickHutIntent`, and brick fence procurement.
+- **Transient nil guard**: When a construction intent finder returns nil (e.g., all candidate tiles temporarily occupied by other workers), the caller checks `IsOrderFeasible` before abandoning — if still feasible, the nil is treated as a transient block rather than exhaustion, and the order is not abandoned. See triggered-enhancements.md "Typed nil-intent signals" for the known limitation of this approach.
 
 Pool is serialized in `SaveState.MarkedForConstructionTiles`. Line ID counter in `SaveState.ConstructionLineID`. `ConstructKind` is serialized on each mark with backward compatibility: old saves without `ConstructKind` default to `"fence"`.
+
+### Shared Construction Helpers
+
+Construction intent finders share helpers in `order_execution.go` to avoid duplication:
+- **`selectConstructionMaterial(char, world, items, activityID)`**: Selects the nearest available construction material for the given activity (fence or hut). Replaces `selectFenceMaterial` — shared by both fence and hut building. Returns the nearest item of a supported material type with at least 1 free item on the map.
+- **`findNearestMaterialNotAtSite(items, gameMap, materialType)`**: Finds the nearest item of a given type whose position is not a construction-marked tile. Prevents pickup loops where a character re-picks staged materials.
+- **`createHutDeliveryIntent(char, item, targetPos)`**: Shared delivery intent constructor for hut bundle/brick handlers — sets `TargetBuildPos`, `Dest` (adjacent standing tile), and `TargetItem`.
+
+In `apply_actions.go`, `deliverMaterial` is a generic delivery helper shared across ordered construction actions — it handles the drop-at-site phase for the supply-drop pattern.
 
 ## Item Acquisition
 
