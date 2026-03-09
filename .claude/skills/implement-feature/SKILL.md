@@ -18,7 +18,7 @@ This is the only step before work begins. Do all three in sequence, with no code
 2. **Create the task list** using TaskCreate, then TaskUpdate to wire addBlockedBy dependencies. For each sub-step, create these tasks in order:
    1. **Validate readiness** — see Readiness Criteria below
    2. **Invoke `/refine-feature`** — only if gaps found; otherwise mark completed
-   3. **Write anchor test** — end-to-end functional test based on the anchor story, before any implementation
+   3. **Write anchor test** — end-to-end functional test based on the anchor story, before any implementation. Verify the test setup aligns with the spec — quantities, thresholds, and conditions should match what the spec prescribes, not default to convenient values.
    4. **Write unit tests + Implement** — additional tests and minimum code to pass all tests
    5. **Run tests and format** — `go test ./...` and `gofmt ./...`. If any test fails intermittently, log it on `docs/randomideas.md`.
    6. **[TEST] Human testing** — offer `/test-world`, wait for confirmation
@@ -79,14 +79,14 @@ When modifying a shared function, grep for callers before writing code — new r
 - You find a gap in the implementation plan
 - You're proposing design alternatives, not just implementation details
 - You're re-deriving an approach you already considered (first: re-read architecture.md; second: `/refine-feature`; if circling on a test failure: run a diagnostic instead)
-- You've been stuck for several minutes without progress — surface what's blocking you
+- You're stuck — tests still fail after two different approaches, you're revisiting the same question in your reasoning, or a single problem has consumed more than 10 minutes. Surface what's blocking you.
 
 #### Test Patterns Reference
 
 - **No brittle string assertions** — don't assert on exact display text. Remove existing brittle assertions rather than updating them.
 - **No absence assertions; no untouched-path regressions** — don't test that unrequired attributes aren't set. Don't write regression tests for code paths this step didn't modify. Surface to user if the spec prescribes one for an unmodified path.
 - **Ordered-action integration tests:** Test loop must mirror `continueIntent`: (1) recalculate `char.Intent.Target` each tick via `NextStepBFS`, (2) rebuild intent when nil. `IsWet()` uses 8-directional adjacency — dry tiles must be >1 tile from water.
-- **Flow-level anchor tests for procurement chains:** Chain system functions in handler order: `findXxxIntent` → `Pickup` → `FindNextTarget` → repeat → nil.
+- **Flow-level anchor tests for procurement chains:** Call the intent finder with realistic world state at each phase — don't manually simulate transitions by moving items between inventory and ground. The intent finder's decisions at intermediate states (partial inventory, partial delivery) are what the test should exercise.
 - **Game-loop integration tests:** Call `CalculateIntent` every tick (not only when intent is nil) — the real loop runs it each tick for `continueIntent`.
 - **`continueIntent` and TargetItem rules:** Read the "`continueIntent` Rules" and "Self-Managing Actions" sections in architecture.md when adding/modifying item-targeting actions.
 
@@ -113,8 +113,4 @@ When modifying a shared function, grep for callers before writing code — new r
 
 ### Reference: Retro (for task 9)
 
-1. Ask the user if they want conversation history searched for uncaptured friction
-2. If yes: run the search process from the retro skill's "Conversation History Search" section, pass findings as `/retro` arguments
-3. Invoke `/retro` via the Skill tool
-4. Relay proposals to user for approval; implement only what approved
-5. After proposals resolved: update `memory/last-retro.txt` with current ISO timestamp
+Invoke `/retro` via the Skill tool. It handles history search and proposals autonomously.

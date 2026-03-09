@@ -54,12 +54,9 @@ Before fixing anything:
 3. Run full test suite: `go test ./...`
 4. Run `gofmt ./...`
 
-### Step 6: Escalation Check
+### Step 6: Escalation Check (before fixing subsequent bugs)
 
-**Second bug in the same feature?** Stop patching. Multiple bugs in the same workflow signal a design problem, not an implementation problem.
-- Restate the intended end-to-end flow
-- Evaluate whether the design is sound before fixing further
-- Surface the pattern to the user before continuing
+**Second bug in the same feature = mandatory design review.** Do not proceed to Step 5 for the next bug. Stop. Restate the intended end-to-end flow, evaluate whether the design is sound, and surface the pattern to the user before continuing. This applies to every subsequent bug as well — no fix without a design check first.
 
 ### Step 7: Re-test and Close
 

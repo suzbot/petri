@@ -25,11 +25,8 @@ Read these before discussing approach:
 **Do NOT write code yet.** First:
 - **Address all open questions** listed in the step's section of the design doc
 - **Evaluate all triggered enhancements** listed in the step's section
-- Ask any additional clarifying questions
 - **Reconcile before proposing** (see below)
 - Present implementation approach with trade-offs as **conversation** (not structured multiple-choice — reserve that for simple bounded decisions)
-- Critically evaluate assumptions in existing plans
-- Get user confirmation on approach
 
 **Reconciliation check — do this before presenting your approach:**
 
@@ -39,7 +36,17 @@ If the step already has implementation details from a prior planning pass, cross
 3. **Architecture patterns** — does the implementation follow established patterns? Name them.
 4. **Values** — which Values.md principles apply? Does the implementation honor them?
 
+5. **System interactions** — does the new pattern introduce states that existing systems (feasibility, completion, abandonment) don't handle? Name the lifecycle states and verify each existing consumer can distinguish them.
+
 Surface any drift in conversation so it gets discussed, not silently carried forward. Prior planning passes can erode design decisions — refinement that doesn't check against earlier decisions can make things worse, not better.
+
+**Anchor story quality check — do this after reconciliation:**
+
+The anchor story drives the anchor test. If the story is vague, the test will validate structure instead of intent. A good anchor story:
+- Names a concrete scenario with specific quantities or conditions (not "character builds a hut" but "character delivers 2 stick bundles to a marked tile, then builds from an adjacent tile")
+- Encodes design decisions inline — if a DD constrains a behavior (threshold, gate, material choice), the story should include a scenario that exercises that constraint
+- Covers at least one intermediate decision point, not just the end state
+- If the step references DD entries, re-read each DD and verify the anchor story doesn't contradict it
 
 **When presenting options:**
 - State what you're deciding between explicitly (don't assume it's obvious)
