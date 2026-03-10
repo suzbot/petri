@@ -25,6 +25,7 @@ type DiscoveryTrigger struct {
 	Action              ActionType // The action that can trigger discovery
 	ItemType            string     // Specific item type required (empty = any)
 	ConstructKind       string     // Construct kind required (empty = item trigger only)
+	ConstructMaterial   string     // Construct material required (empty = any material)
 	RequiresEdible      bool       // Only trigger if item is edible
 	RequiresPlantable   bool       // Only trigger if item is plantable
 	RequiresHarvestable bool       // Only trigger if item is a growing non-sprout plant

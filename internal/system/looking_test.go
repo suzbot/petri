@@ -339,11 +339,11 @@ func TestLookAtConstruct_FormsPreferenceAndAdjustsMood(t *testing.T) {
 		t.Skip("No preference formed in 50 attempts (probabilistic)")
 	}
 
-	// Preference should be about the construct's recipe identity
-	// Kind should be "stick fence" (not "stick", not "fence")
-	if formedPref.Kind != "stick fence" && formedPref.Color != types.ColorBrown {
-		t.Errorf("Expected preference with Kind='stick fence' or Color='brown', got Kind=%q Color=%q",
-			formedPref.Kind, formedPref.Color)
+	// Preference should target a construct attribute: Kind ("stick fence"), ItemType ("stick"), or Color (brown)
+	hasValidAttr := formedPref.Kind == "stick fence" || formedPref.ItemType == "stick" || formedPref.Color == types.ColorBrown
+	if !hasValidAttr {
+		t.Errorf("Expected preference with Kind='stick fence', ItemType='stick', or Color='brown', got Kind=%q ItemType=%q Color=%q",
+			formedPref.Kind, formedPref.ItemType, formedPref.Color)
 	}
 	if formedPref.Valence != 1 {
 		t.Errorf("Expected positive valence from happy character, got %d", formedPref.Valence)

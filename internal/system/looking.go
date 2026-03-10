@@ -110,5 +110,5 @@ func CompleteLookAtConstruct(char *entity.Character, construct *entity.Construct
 	TryFormConstructPreference(char, construct, log)
 
 	// Try construct-based discovery (e.g., looking at fence → hut recipes)
-	TryDiscoverFromConstruct(char, entity.ActionLook, construct.Kind, log, GetDiscoveryChance(char))
+	TryDiscoverFromConstruct(char, entity.ActionLook, construct.Kind, construct.Material, log, GetDiscoveryChance(char))
 }

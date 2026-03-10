@@ -23,8 +23,6 @@ then they can be removed from this list.
 ## Bugs to Investigate
 
 1. **Fill vessel abandoned mid-trip** — Observed character picking up a vessel for water, heading toward the pond, then abandoning the fill-vessel intent partway there (wandered off to talk instead). Needs investigation into why ActionFillVessel intent was dropped before reaching water. Observed during extract testing, world-test-extract - only investigate if user reports another instance.
-2. **Hut recipe over-discovery** — Looking at a stick fence causes characters to discover every hut recipe (stick, thatch, brick) instead of only the matching material's recipe. Pre-existing, surfaced during Step 9 testing.
-3. **Flaky test: TestLookAtConstruct_FormsPreferenceAndAdjustsMood** — Probabilistic test with 50 attempts occasionally fails. Pre-existing, confirmed on clean main.
 
 ## Unallocated Features
 

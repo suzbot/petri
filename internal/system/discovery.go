@@ -138,12 +138,12 @@ func activityCategoryVerb(category string) string {
 
 // TryDiscoverFromConstruct is the entry point for construct-based discovery.
 // Mirrors TryDiscoverKnowHow: tries activities then recipes.
-func TryDiscoverFromConstruct(char *entity.Character, action entity.ActionType, constructKind string, log *ActionLog, chance float64) bool {
-	if tryDiscoverActivityFromConstruct(char, action, constructKind, log, chance) {
+func TryDiscoverFromConstruct(char *entity.Character, action entity.ActionType, constructKind string, constructMaterial string, log *ActionLog, chance float64) bool {
+	if tryDiscoverActivityFromConstruct(char, action, constructKind, constructMaterial, log, chance) {
 		return true
 	}
 
-	if tryDiscoverRecipeFromConstruct(char, action, constructKind, log, chance) {
+	if tryDiscoverRecipeFromConstruct(char, action, constructKind, constructMaterial, log, chance) {
 		return true
 	}
 
@@ -151,7 +151,7 @@ func TryDiscoverFromConstruct(char *entity.Character, action entity.ActionType, 
 }
 
 // tryDiscoverActivityFromConstruct attempts to discover activities with construct-based triggers
-func tryDiscoverActivityFromConstruct(char *entity.Character, action entity.ActionType, constructKind string, log *ActionLog, chance float64) bool {
+func tryDiscoverActivityFromConstruct(char *entity.Character, action entity.ActionType, constructKind string, constructMaterial string, log *ActionLog, chance float64) bool {
 	for _, activity := range entity.GetDiscoverableActivities() {
 		if char.KnowsActivity(activity.ID) {
 			continue
@@ -162,7 +162,7 @@ func tryDiscoverActivityFromConstruct(char *entity.Character, action entity.Acti
 		}
 
 		for _, trigger := range activity.DiscoveryTriggers {
-			if !constructTriggerMatches(trigger, action, constructKind) {
+			if !constructTriggerMatches(trigger, action, constructKind, constructMaterial) {
 				continue
 			}
 
@@ -181,14 +181,14 @@ func tryDiscoverActivityFromConstruct(char *entity.Character, action entity.Acti
 }
 
 // tryDiscoverRecipeFromConstruct attempts to discover recipes with construct-based triggers
-func tryDiscoverRecipeFromConstruct(char *entity.Character, action entity.ActionType, constructKind string, log *ActionLog, chance float64) bool {
+func tryDiscoverRecipeFromConstruct(char *entity.Character, action entity.ActionType, constructKind string, constructMaterial string, log *ActionLog, chance float64) bool {
 	for _, recipe := range entity.GetDiscoverableRecipes() {
 		if char.KnowsRecipe(recipe.ID) {
 			continue
 		}
 
 		for _, trigger := range recipe.DiscoveryTriggers {
-			if !constructTriggerMatches(trigger, action, constructKind) {
+			if !constructTriggerMatches(trigger, action, constructKind, constructMaterial) {
 				continue
 			}
 
@@ -226,14 +226,21 @@ func tryDiscoverRecipeFromConstruct(char *entity.Character, action entity.Action
 
 // constructTriggerMatches checks if a discovery trigger matches a construct interaction.
 // A trigger with empty ConstructKind never matches construct interactions (it's an item trigger).
-func constructTriggerMatches(trigger entity.DiscoveryTrigger, action entity.ActionType, constructKind string) bool {
+// When ConstructMaterial is set on the trigger, the construct's material must also match.
+func constructTriggerMatches(trigger entity.DiscoveryTrigger, action entity.ActionType, constructKind string, constructMaterial string) bool {
 	if trigger.ConstructKind == "" {
 		return false
 	}
 	if trigger.Action != action {
 		return false
 	}
-	return trigger.ConstructKind == constructKind
+	if trigger.ConstructKind != constructKind {
+		return false
+	}
+	if trigger.ConstructMaterial != "" && trigger.ConstructMaterial != constructMaterial {
+		return false
+	}
+	return true
 }
 
 // triggerMatches checks if a discovery trigger matches the current action and item
