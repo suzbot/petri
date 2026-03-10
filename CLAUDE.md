@@ -42,57 +42,14 @@ internal/
   simulation/               # Integration test utilities, balance observation tests
 ```
 
-### Key Files for Context
+### Codebase Navigation
 
-**Configuration & Types**
+Architecture follows the Character's Cognitive Loop — see [docs/architecture.md](docs/architecture.md) for detailed file roles, patterns, and "adding new X" checklists. Key entry points:
 
-- `internal/config/config.go` - Tunable game constants (rates, thresholds, durations). Also contains legacy item property maps (`StackSize`, `ItemMealSize`, etc.) that should migrate to entity registries — see triggered-enhancements.md
-- `internal/types/types.go` - Core enums: Color, Pattern, Texture, StatType
-- `internal/types/position.go` - Position struct with distance/adjacency methods
-
-**Entity Definitions**
-
-- `internal/entity/character.go` - Character struct, stat tiers, status effects
-- `internal/entity/item.go` - Item struct, spawning, descriptions
-- `internal/entity/variety.go` - ItemVariety for world generation
-- `internal/entity/preference.go` - Preference struct, matching logic
-- `internal/entity/knowledge.go` - Knowledge struct, learning from experience
-- `internal/entity/activity.go` - Activity struct, ActivityRegistry, know-how discovery triggers
-- `internal/entity/recipe.go` - Recipe struct, RecipeRegistry, crafting definitions
-- `internal/entity/order.go` - Order struct for player-directed tasks
-- `internal/entity/construct.go` - Construct struct (ConstructType/Kind/Material/MaterialColor/Passable/Movable/WallRole); NewFence and NewHutConstruct constructors
-
-**Core Systems**
-
-- `internal/system/intent.go` - Intent calculation, four-bucket routing (Needs → Orders → Helping → Discretionary), urgency tiers, stat fallback, need evaluators (findFoodIntent, findDrinkIntent, etc.), feasibility checks, carried-inventory checks
-- `internal/system/movement.go` - Spatial mechanics only: NextStepBFS, pathfinding, tile queries, adjacency checks
-- `internal/system/survival.go` - Stat decay, damage, sleep/wake mechanics
-- `internal/system/consumption.go` - Eating, drinking, poison/healing effects
-- `internal/system/preference.go` - Preference formation on eat/look
-- `internal/system/talking.go` - Talking state, knowledge transmission (LearnKnowledgeWithEffects)
-- `internal/system/discretionary.go` - Discretionary activity selection, selectDiscretionaryActivity, isDiscretionaryAction (ActionType-based discretionary check)
-- `internal/system/helping.go` - Crisis detection, findHelpFeedIntent/findHelpWaterIntent (food/water delivery to crisis characters)
-- `internal/system/order_execution.go` - Order assignment, intent finding, completion/abandonment
-- `internal/system/crafting.go` - CreateVessel, crafted item creation
-- `internal/system/picking.go` - Pickup, Drop, vessel helpers, EnsureHasVesselFor, FindCarriedVesselFor, EnsureHasItem
-- `internal/system/foraging.go` - Foraging intent, unified scoring
-
-**World & Generation**
-
-- `internal/game/world.go` - World struct, entity management; constructs slice, AddConstruct/AddConstructDirect/ConstructAt/Constructs/RemoveConstruct + ID methods
-- `internal/game/variety_generation.go` - Variety creation, poison/healing assignment
-
-**Game Loop**
-
-- `internal/ui/model.go` - Game state, Bubble Tea model
-- `internal/ui/update.go` - Tick processing, game loop orchestration, input handling, lifecycle (startGame, loadWorld, saveGame)
-- `internal/ui/apply_actions.go` - Intent execution: applyIntent dispatch table + 18 handler methods (applyMove, applyDrink, applySleep, applyLook, applyTalk, applyPickup, applyConsume, applyCraft, applyTillSoil, applyPlant, applyForage, applyFillVessel, applyWaterGarden, applyHelpFeed, applyHelpWater, applyExtract, applyDig, applyBuildHut) + execution helpers (moveWithCollision, findEmptyCardinalTile, deliverMaterial, etc.)
-
-**Save System**
-
-- `internal/save/state.go` - SaveState struct, all serialization types
-- `internal/save/io.go` - World management, file I/O, backup rotation
-- `internal/ui/serialize.go` - ToSaveState/FromSaveState conversion
+- **Decision-making**: `internal/system/intent.go` (needs) → `order_execution.go` (orders) → `helping.go` → `discretionary.go`
+- **Execution**: `internal/ui/apply_actions.go` (applyIntent dispatch + all action handlers)
+- **Entities**: `internal/entity/` (character, item, construct, activity/recipe registries)
+- **Game loop**: `internal/ui/update.go` (tick orchestration) → `model.go` (state)
 
 ## Collaboration
 
@@ -100,8 +57,9 @@ internal/
 
 - **Before writing code**: Load the relevant skill, check architecture.md, discuss approach. Use project skills (`/refine-feature`, `/implement-feature`, `/new-phase`, `/retro`) — not generic plan mode. Phase design docs and step specs live in `docs/`.
 - **Frame the problem first**: Before solving, confirm the problem — is this actually a problem? Is it worth solving now? Specify current state and desired state in functional terms. Consider impact on the larger system. Confirm alignment before implementing. When human testing surfaces a new gap mid-implementation, that's a new problem to scope and discuss, not a defect to fix in place.
-- **Communication**: Functional terms, not code mechanics. Prose for tradeoffs, not multiple-choice. Recommend with options. Qualify claims precisely. When claiming alignment with patterns or docs, cite specific evidence — assertions aren't demonstrations.
-- **When things go wrong**: Gather evidence first — examine the save file, add logging, ask what the user observes — before reasoning about causes. Don't be dismissive of user reports. The cost of one diagnostic is always lower than three rounds of speculation. Second bug in the same feature = step back and restate the intended flow before patching further. Surface when stuck.
+- **Communication**: Functional terms, not code mechanics. Prose for tradeoffs, not multiple-choice. Recommend with options. Qualify claims precisely, citing specific evidence — assertions aren't demonstrations.
+- **Interaction**: The user has a vision — help realize it. If you don't understand the intent, ask for context. Don't ask "are you sure?" — if there are substantive concerns, present trade-offs. Trust user observations as evidence; verify where they point, don't reason about why they can't be true.
+- **When things go wrong**: Gather evidence first — examine the save file the user references, add logging, ask what they observe — before reasoning about causes. Don't speculate. Second bug in the same feature = step back and restate the intended flow before patching further. Surface when stuck.
 - **Quality gates**: TDD. User must test before marking complete. Keep docs current.
 
 ## Testing
@@ -109,7 +67,7 @@ internal/
 - Add regression tests when making bug fixes
 - No tests needed for UI rendering, Bubble Tea integration, brittle string matching (log wording, display names, UI text), configuration constants
 - Don't test for absence unless requirements call for prevention
-- Headless simulation tests for measuring game balance. Located in `internal/simulation/observation_test.go`.
+- Headless simulation tests for measuring game balance are located in `internal/simulation/observation_test.go`.
 
 ## Development Roadmap
 
@@ -127,4 +85,3 @@ internal/
 | [docs/triggered-enhancements.md](docs/triggered-enhancements.md) | Deferred items with triggers, balance tuning  |
 | [docs/construction-design.md](docs/construction-design.md)       | Construction phase design: steps, decisions, scope |
 | [docs/step-spec.md](docs/step-spec.md)                           | Current step implementation spec (replaced each step) |
-| [docs/post-gardening-cleanup.md](docs/post-gardening-cleanup.md) | Small improvements to bundle after Gardening  |

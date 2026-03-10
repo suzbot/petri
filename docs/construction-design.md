@@ -248,36 +248,47 @@ Characters gather materials and construct small buildings from grass, sticks, or
 
 ---
 
-### Step 11: Activity Preferences
+### Step 11: Preference-Weighted Item Seeking
 **Status:** Planned
 
-**Anchor story:** A character finishes a gardening order while in a good mood and develops a fondness for gardening. The next time they work a garden order, their mood improves slightly faster. Another character who disliked their construction work finds their mood dipping while building. The player opens the preferences panel and sees a new section: "Activity Preferences" showing which work each character enjoys or dislikes.
+**Anchor story:** A character who likes stick fences and dislikes grass takes a Build Fence order. Thatch grass bundles are nearby and a stick bundle is 25 tiles away. The character walks past the grass to the sticks — the recipe preference (+1 at 2× weight) outweighs the extra distance. Another character gets a Build Hut order. They dislike loose bricks but like brick huts — the recipe preference outweighs the component distaste, and they choose bricks. A third character crafting a hoe needs a shell — two silver shells and a brown shell are on the ground. The silver is a few tiles further but the character prefers silver, so they walk to it. A fourth character with a Plant order and no variety lock yet sees red and blue berries — they prefer red, and grab the red berry despite the blue being closer.
 
 **Scope:**
-- ActivityPreference struct (target is category string, not item attributes)
-- Storage on Character: ActivityPreferences
-- Formation: chance on order completion based on mood (Joyful/Happy → like, Unhappy/Miserable → dislike)
-- Effect: mood change rate modifier during ordered work
-- UI: new section in preferences panel
-- Categories: Garden, Harvest, Craft, Construction
+- Recipe Output.Kind on construction recipes: add Kind to fence and hut recipe outputs so all recipes carry a preference-matchable identity (DD-59)
+- Unified recipe scoring formula with two-tier weighting: `score = recipe_netPref × recipePrefWeight + component_netPref × componentPrefWeight - dist × distWeight`, where recipePrefWeight = 2× componentPrefWeight (DD-52)
+- Preference-weighted recipe selection in `selectConstructionMaterial`: score feasible recipes by unified formula, replacing pure nearest (DD-52)
+- Preference-weighted recipe selection in `findCraftIntent`: score feasible recipes by unified formula, replacing first-feasible — no competing craft recipes exist yet, but infrastructure ready for future recipes like clay pots (DD-52)
+- Preference-weighted item procurement in `EnsureHasRecipeInputs` and `EnsureHasItem`: score items of target type by component preference + distance, replacing pure nearest (DD-52)
+- Preference-weighted vessel selection in `EnsureHasVesselFor` / `FindAvailableVessel`: score vessels by preference (color, pattern, texture; future: Kind) + distance, replacing pure nearest (DD-52)
+- Preference-weighted plantable selection in `EnsureHasPlantable`: score plantable items/vessels by preference + distance before variety lock; after lock, only one variety matches so scoring is moot (DD-52)
+- Resolve architecture.md "Future: Unified Item-Seeking" gap
+
+**Open questions:**
+- ~~Scope may be too narrow~~ → Evaluated: all item-seeking paths reviewed. Variety-locked paths (`FindNextVesselTarget`, `EnsureHasPlantable` after lock) have no meaningful choice to weight. All other paths included.
 
 ---
 
-### Step 12: Deferred Items and Polish
+### Step 12: Display, Label, and Color Polish
 **Status:** Planned
 
 **Scope:**
+- Redundant display names: sticks display as "stick" not "brown stick"; tall grass displays as "tall grass" not "pale green tall grass" (DD-53)
+- Validate bricks display as "brick" (Name field should handle this; verify in action log)
+- Pluralization: "Gather clays" → "Gather lumps of clay" (DD-54)
+- Abandoned order cooldown timer: show remaining time as "Abandoned (1:53)" in orders panel (DD-55)
+- Order menu labels: construction orders currently show as "Fence" / "Hut" — add "Build " prefix to match craft pattern ("Craft vessel"), producing "Build fence" / "Build hut" (DD-56)
+- Discovery randomization: randomize activity-vs-recipe order in `TryDiscoverKnowHow` so overlapping triggers don't always resolve in the same order (DD-57)
+- Thatch color evaluation: demo app comparing ColorPaleYellow (ANSI 229) against gold/wheat candidates (ANSI 178, 179, 186) for dried grass and thatch constructs (DD-58)
 
-- Evaluate: preference-weighted target selection → unified item-seeking in picking.go (moved from triggered-enhancements.md — construction's multiple craft recipes with varied inputs meets the trigger)
-- **Tall grass variety display name** — When a tall grass seed sprout matures, the resulting plant's display name may need review. Discuss whether "pale green tall grass" is the right phrasing vs. just "tall grass" (since all tall grass is pale green — the color is redundant).
-- Evaluate: dried grass/thatch color — ColorPaleYellow (ANSI 229) may be too washed out for thatch fences/huts. Consider gold/wheat range (ANSI 178, 179, or 186). Moved from triggered-enhancements.md — thatch constructs make the color more prominent and worth reassessing.
-- Polish: brick display name in action log — messages say "terracotta brick" but should just say "brick" (color is redundant). Applies to pickup, drop, and look messages.
-- Polish: show cooldown timer on abandoned orders in the orders panel (e.g., "Abandoned (1:53)").
-- Polish: "Gather clays" → "Gather clay" or "Gather lumps of clay" (pluralization issue).
-- Polish: sticks should display as "stick" not "brown stick" (color is redundant, same issue as brick).
-- Polish: Order menu should say 'Build Hut' and 'Build Fence'... evaluate how we handle downstream labels and messages with this change, because I think we might end up with 'Build build fence' or soemething if we do this without checking how we want to do it. May need to evaluaate how we consistantly show verbs inside and outside the order menu.
-- Trigger: isn't there a triggered enhacnement about activities always getting discovered before recipes? Lets evaluate whether we want to take care of that. It has been an annoyance through this phase.
-- Tuning: extraction duration and seed yield (ActionDurationShort may be too fast; tune duration and yield together)
+---
+
+### Step 13: Tuning Pass
+**Status:** Planned
+
+**Scope:**
+- Extraction duration: ActionDurationShort (0.83s) may be too fast for seed extraction — evaluate and adjust
+- Extraction seed yield: currently 1 seed per extraction — evaluate whether yield should increase
+- Duration and yield should be tuned together via in-game observation
 
 
 ---
@@ -592,4 +603,51 @@ Characters gather materials and construct small buildings from grass, sticks, or
 **Rationale:** Placement time is when the footprint geometry is fully known. Storing the semantic role on the mark avoids fragile runtime derivation from partially-built footprints. Follows **Follow the Existing Shape** — marks already carry per-tile metadata (LineID, Material, ConstructKind). Follows **Source of Truth Clarity** — the mark carries its own identity.
 **Affects:** Step 10; retroactive: Step 8b placement code sets WallRole on hut marks
 
+### DD-52: Preference-weighted item seeking replaces pure-nearest selection
+**Context:** Construction material selection (`selectConstructionMaterial`), craft recipe selection (`findCraftIntent`), item procurement (`EnsureHasItem`, `EnsureHasRecipeInputs`), vessel selection (`EnsureHasVesselFor`, `FindAvailableVessel`), and plantable selection (`EnsureHasPlantable` before variety lock) all use pure nearest-distance. Characters ignore their preferences when seeking materials. Architecture.md's "Future: Unified Item-Seeking" identifies this gap: foraging.go has preference-weighted scoring, but picking.go doesn't.
+**Decision:** Two-tier preference scoring formula for all item-seeking. For recipe selection (construction material, craft recipes): `score = recipe_netPref × recipePrefWeight + component_netPref × componentPrefWeight - dist × distWeight`, where `recipePrefWeight = 2 × componentPrefWeight`. Recipe preference (what you're making) outweighs component preference (what you're making it with) — a character who dislikes loose bricks but likes brick huts will choose bricks. For item procurement within a selected recipe, vessel selection, and plantable selection: `score = netPref × componentPrefWeight - dist × distWeight`. Config constants `ItemSeekRecipePrefWeight` and `ItemSeekComponentPrefWeight` control the balance, starting at the same ratio as moderate food seeking (recipe=40.0, component=20.0, dist=1.0). Recipe scoring uses `NetPreference` against a synthetic item from `recipe.Output` (ItemType + Kind), which works for both construction recipes ("stick fence") and craft recipes ("shell hoe", future "clay pot") via DD-59.
+**Rationale:** Preference shapes material culture — a character who likes stick fences should build stick fences even when grass is closer. Two-tier weighting reflects that the identity of what you're building matters more than the material you're building with. Single formula per feasible recipe (no tiebreaker step) — component preference and distance are baked into the same score, so infeasible recipes are eliminated before scoring and the formula naturally resolves ties. Follows **Follow the Existing Shape** (food scoring pattern), **Isomorphism** (character personality expressed through choices), and aligns with VISION.txt.
+**Affects:** Step 11
+
+### DD-53: Redundant color suppression in item display names
+**Context:** Sticks always display as "brown stick" and tall grass as "pale green tall grass" because `Description()` builds Color + ItemType/Kind. The color is redundant when all items of that type share the same color — it adds visual noise without information.
+**Decision:** Set `Name` field on stick items ("stick") and suppress color for tall grass in `Description()`. Same pattern as brick (`Name: "brick"`) and clay (`Name: "lump of clay"`). Validate that bricks still display correctly after save/load.
+**Rationale:** Follows **Semantic Precision** — display names should convey distinguishing information. Color is only meaningful when multiple colors exist for the same type (berries, mushrooms).
+**Affects:** Step 12
+
+### DD-54: "Gather lumps of clay" pluralization
+**Context:** `Pluralize("clay")` falls through to default "s" suffix, producing "Gather clays" in order display. "Clays" is awkward; clay is used as a mass noun elsewhere ("Dig Clay").
+**Decision:** Add "clay" → "lumps of clay" case to `Pluralize()`. Matches the item's Name field ("lump of clay") and differentiates from "Dig Clay" which is a different action.
+**Rationale:** Follows **Follow the Existing Shape** — Pluralize already has special cases for berry/mushroom/flower/tall grass. Follows **Isomorphism** — order label matches what the character actually picks up.
+**Affects:** Step 12
+
+### DD-55: Abandoned order cooldown timer in orders panel
+**Context:** Abandoned orders show status text but no indication of when they'll become available again. The `AbandonCooldown` field exists on Order but isn't surfaced to the player.
+**Decision:** Show remaining cooldown as "Abandoned (M:SS)" in the orders panel when an order is in cooldown. When cooldown expires, order returns to "Open" status as before.
+**Rationale:** Gives the player visibility into when an order will retry. Follows **Anchor to Intent** — the player wants to know "when will this resume?"
+**Affects:** Step 12
+
+### DD-56: Construction order menu labels add "Build " prefix
+**Context:** Construction orders display as just "Fence" / "Hut" in the order menu. Other categories prefix a verb: "Craft vessel", "Harvest berries". Construction orders are missing their verb.
+**Decision:** Add "Build " prefix for construction category in `DisplayName()`, producing "Build fence" / "Build hut". Lowercase after verb, matching existing craft pattern ("Craft vessel", "Craft hoe").
+**Rationale:** Follows **Follow the Existing Shape** — craft category already uses verb + lowercase activity name. Consistent verb prefix across order categories.
+**Affects:** Step 12
+
+### DD-57: Discovery randomization — coin flip on activity-vs-recipe order
+**Context:** `TryDiscoverKnowHow` always tries activity discovery before recipe discovery. When both share the same trigger (e.g., ActionLook on clay triggers both "dig" and "craftBrick"), the activity always wins deterministically.
+**Decision:** Randomize the order: 50% chance to try activity first, 50% chance to try recipe first. Preserves the "only one discovery per interaction" limit while removing fixed ordering.
+**Rationale:** Characters should discover capabilities in varied order — deterministic discovery feels artificial. Follows **Start With the Simpler Rule** — coin flip is the simplest randomization.
+**Affects:** Step 12
+
+### DD-58: Thatch color evaluation via demo app
+**Context:** ColorPaleYellow (ANSI 229) may be too washed out for thatch fences/huts. Thatch constructs make the color more prominent than it was for loose grass bundles.
+**Decision:** Build a small demo app comparing ANSI 229 against candidates (178, 179, 186) for dried grass items and thatch constructs side by side. User selects preferred color.
+**Rationale:** Color is a visual judgment best made by seeing the options in context, not decided theoretically.
+**Affects:** Step 12
+
+### DD-59: Construction recipes carry Output.Kind for unified preference matching
+**Context:** Craft recipes have `Output.Kind` (e.g., "shell hoe", "hollow gourd") which is directly matchable against the character's `Preference.Kind` field. Construction recipes don't — their outputs are `RecipeOutput{ItemType: "fence"}` with no Kind. The construct's preference identity ("stick fence") is computed at runtime by `PreferenceKind()` from Material + Kind, but this isn't available during recipe selection because no construct exists yet.
+**Decision:** Add `Kind` to construction recipe outputs: `"stick-fence"` gets `Output.Kind: "stick fence"`, `"thatch-fence"` gets `Output.Kind: "thatch fence"`, etc. Same for hut recipes. Recipe preference scoring uses `NetPreference` against a synthetic item: `&Item{ItemType: recipe.Output.ItemType, Kind: recipe.Output.Kind}`. This works identically for construction recipes ("stick fence"), craft recipes ("shell hoe"), and future recipes ("clay pot") — all through the existing `Preference.Kind` matching.
+**Rationale:** Every recipe should carry its own preference identity rather than requiring runtime derivation from a not-yet-built construct. Follows **Source of Truth Clarity** — the recipe declares what it produces. Follows **Consider Extensibility** — future recipe types (clay pot vessels, etc.) get preference matching with no new plumbing. Follows **Follow the Existing Shape** — craft recipes already have Output.Kind; construction recipes are brought into alignment.
+**Affects:** Step 11
 

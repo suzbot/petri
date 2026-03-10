@@ -16,3 +16,5 @@ Post Construction Enhancements - Requirements
 7. Limit shell varieties to 2 per world generation
 8. Allow gourds to drop 2 seeds (need to decide whether some of the time or all the time)
 9. Review which colors exist, and add more to mushroom variety eligibility.
+10. Activity Preferences: Characters form activity preferences (like/dislike) on order completion based on mood. Joyful/Happy → chance to like, Unhappy/Miserable → chance to dislike. Effect: mood change rate modifier during ordered work. New "Activity Preferences" section in preferences panel. Categories: Garden, Harvest, Craft, Construction.
+	Story: A character finishes a gardening order while in a good mood and develops a fondness for gardening. The next time they work a garden order, their mood improves slightly faster. Another character who disliked their construction work finds their mood dipping while building.
