@@ -23,11 +23,16 @@ Avoid speculative or "nice-to-have" improvements.
 
 ---
 
-### Step 0: Conversation History Search
+### Step 0: Solicit User Impressions + History Search
 
-Ask the user if they want previous session history searched for uncaptured friction. **Always ask** — even if the last retro was recent. The user knows what sessions exist.
+Start with one combined question:
+- "Do you have feedback on this session? And do you want previous session history searched for friction?"
 
-If the user says yes, launch a **subagent** to search history autonomously:
+**If the user provides feedback:** This is a **full retro**. Their impressions are primary input — integrate them with session analysis and any history search findings in Step 1. The user's observations often identify friction that signal analysis misses.
+
+**If the user says "nothing major" / "no" / similar:** This is a **lite retro**. Do a quick scan of the current session, keep Step 1 brief, and only propose changes in Step 2 if something significant surfaces. Skip the pause-for-alignment between Step 1 and Step 2.
+
+If the user wants history searched, launch a **subagent** to search history autonomously:
 
 ```
 Agent tool call:
@@ -128,7 +133,11 @@ Unlike items 1-5, this applies even when no friction occurred. Observe what choi
 
 For each signal, state: the choice made and the value it expresses. Note if Values.md has something similar, but don't force-fit — if it feels like a distinct principle, present it as one.
 
-Carry friction insights (items 1-5) and value signals (item 6) to Step 2.
+Carry friction insights (items 1-5) and value signals (item 6) forward.
+
+**Full retro: STOP here.** Present the assessment and wait for user reaction before proceeding. The user may correct observations, add missing context, or confirm. Their input shapes what gets proposed — don't formulate proposals from unvalidated analysis.
+
+**Lite retro:** Skip the pause — proceed directly to Step 1.5 and Step 2. Only propose changes if something significant surfaced.
 
 ---
 

@@ -5,12 +5,17 @@ user-invocable: true
 argument-hint: Feature or step to refine (e.g., "Step 3" or "clay terrain")
 ---
 
-## Refining a Feature
+## Purpose
+
+Refinement takes a planned step and produces an implementation-ready spec through discussion. The goal is a shared, documented understanding of what we're building and why — so that implementation can proceed in a separate context with confidence.
+
+The design doc's scope items are decisions about *what* to build. Refinement discusses *how* — resolving open questions, catching drift between the plan and its sources, documenting decisions, and verifying assumptions against code. The output is a step spec detailed enough to hand off cold.
 
 **Do NOT enter plan mode.** Work within the existing planning documents in `docs/` and discuss as conversation.
 
+---
+
 ### Step 1: Build Context (REQUIRED)
-**Create your task list before reading anything.** Use TaskCreate to set up tasks for each skill step (Build Context, Discussion, Document Decisions, Trace Execution, Update Plan) so progress is tracked from the start.
 
 Read these before discussing approach:
 - **Original requirements document** for full context (linked at top of design doc). Proposals that contradict or miss requirements waste discussion time.
@@ -19,28 +24,42 @@ Read these before discussing approach:
 - **`docs/architecture.md`** — Read sections relevant to this feature FIRST. Identify which established patterns apply (Component Procurement, Order execution, Pickup helpers, Recipe system, etc.). This is the routing table that prevents expensive broad code exploration — use it before reaching for Explore or reading implementation files.
 - **`docs/Values.md`** — Design principles that shape implementation decisions (consistency, source of truth, reuse). Keep these in mind when evaluating approaches.
 - **`docs/game-mechanics.md`** (optional) — If the feature interacts with existing game systems and you need to understand current player-visible behavior without code diving, read relevant sections here. Covers stats, food selection, orders, gardening, etc.
-- **Implementation code** — Use targeted reads or an Explore agent for initial exploration to understand the relevant code. Architecture.md often points to the right files; start there before doing broad exploration. Deeper exploration comes later in step 2.7.
+- **Implementation code** — Use targeted reads or an Explore agent for initial exploration to understand the relevant code. Architecture.md often points to the right files; start there before doing broad exploration. Deeper exploration comes later in Step 2.7.
 
 ### Step 2: Discussion First (REQUIRED)
-**Do NOT write code yet.** First:
+
+**Do NOT write code yet.**
+
+#### Step 2a: Align on Intent (REQUIRED — do this BEFORE any analysis)
+
+State your understanding of what this step accomplishes in 2-3 sentences — what changes for the player or the codebase, and why it matters now. **Stop and confirm alignment.** Do NOT present drift checks, scope evaluations, approach analysis, or implementation details until the user confirms or corrects your understanding. The user may have vision or context that fundamentally shapes the approach — learn it before analyzing.
+
+**Anti-pattern:** Presenting a wall of analysis (drift check + scope evaluation + approach + questions) before understanding the user's intent. This wastes discussion time when the user's vision differs from what the plan implies.
+
+#### Step 2b: Discuss Approach (after intent alignment)
+
+With intent aligned:
 - **Address all open questions** listed in the step's section of the design doc
 - **Evaluate all triggered enhancements** listed in the step's section
-- **Reconcile before proposing** (see below)
+- **Check for drift** (see below)
 - Present implementation approach with trade-offs as **conversation** (not structured multiple-choice — reserve that for simple bounded decisions)
 
-**Reconciliation check — do this before presenting your approach:**
+**Present scope evaluations as proposals**, not closed decisions. Show the reasoning and recommendation, but let the user confirm or correct before striking through open questions.
 
-If the step already has implementation details from a prior planning pass, cross-check each detail against its sources before discussing. Explicitly state alignment or drift:
-1. **Requirements** — the specific lines this step traces to. Does the implementation match the requirement's language and intent, or has it drifted (e.g., flattened a concept, lost an abstraction)?
-2. **Design Decisions** — any DD entries in the design doc that affect this step. Does the implementation honor the recorded decision, or did a later refinement erode it?
-3. **Architecture patterns** — does the implementation follow established patterns? Name them.
-4. **Values** — which Values.md principles apply? Does the implementation honor them?
+**Discuss implementation specifics before the outline.** Before presenting the sub-step outline (Step 3a), explicitly propose and get alignment on: where new code will live (files, functions), what config values are needed and why, what the core algorithm/formula is, and any signature changes to existing functions. These are design choices the user should evaluate — don't embed them in the outline for the first time. The outline should confirm decisions already discussed, not introduce them.
 
-5. **System interactions** — does the new pattern introduce states that existing systems (feasibility, completion, abandonment) don't handle? Name the lifecycle states and verify each existing consumer can distinguish them.
+**Drift check:**
 
-Surface any drift in conversation so it gets discussed, not silently carried forward. Prior planning passes can erode design decisions — refinement that doesn't check against earlier decisions can make things worse, not better.
+The design doc scope says what to build. Prior planning passes may have added implementation details that have drifted from their sources. Cross-check implementation details against:
+1. **Requirements** — does the implementation match the requirement's language and intent?
+2. **Design Decisions** — does it honor recorded DD entries, or did a later pass erode one?
+3. **Architecture patterns** — does it follow established patterns? Name them.
+4. **Values** — which Values.md principles apply?
+5. **System interactions** — does it introduce states that existing systems (feasibility, completion, abandonment) don't handle?
 
-**Anchor story quality check — do this after reconciliation:**
+Surface drift so it gets discussed. The scope items themselves are not subject to re-evaluation — they represent decisions already made. Drift checking verifies the *how* honors the *what*.
+
+**Anchor story quality check — do this after drift check:**
 
 The anchor story drives the anchor test. If the story is vague, the test will validate structure instead of intent. A good anchor story:
 - Names a concrete scenario with specific quantities or conditions (not "character builds a hut" but "character delivers 2 stick bundles to a marked tile, then builds from an adjacent tile")
@@ -87,18 +106,19 @@ This is targeted reads (3-5 files the plan already names), not broad exploration
 
 Surface any mismatches as discussion items before proceeding to the step spec.
 
-### Step 3: Update Plan (REQUIRED)
+### Step 3: Write Step Spec (REQUIRED)
 
 #### Step 3a: Present Outline Conversationally
-
-**Before presenting the outline:** If the design shifted materially during Step 2 discussion (different approach, broader scope, changed mechanics), re-run the reconciliation check (reqs, decisions log, architecture, values) against the new design. The Step 2 reconciliation validated the *starting point* — Step 3a must validate what the discussion actually produced.
 
 Present the step breakdown to the user as conversation at a high-to-medium level of detail:
 - "Here are the N sub-steps I see this breaking into: ..."
 - Include enough detail to evaluate sequencing, scope per sub-step, and dependencies
-- For each sub-step, name the architecture pattern and Values.md principle it follows — this surfaces the Step 2 reconciliation work for the user to validate before the written plan
+- For each sub-step, name the architecture pattern and Values.md principle it follows
+- **For each change, connect it to its functional outcome** — describe what it does and why in functional terms (per CLAUDE.md communication norms), not code mechanics. A change listed without its "why" is hard to evaluate. Don't list implementation artifacts (new files, helpers) without explaining what player-visible or system behavior they enable.
 - For each sub-step, confirm where [TEST] falls and whether new item types need save/load in the same sub-step
 - Do NOT write into the step spec yet — this is a digestibility and alignment check
+
+**Before presenting:** If the design shifted materially during Step 2 discussion (different approach, broader scope, changed mechanics), re-run the drift check against the new design. Step 2's check validated the starting point — the outline must validate what discussion actually produced.
 
 Get user feedback on the outline before proceeding. Adjust if needed.
 
@@ -113,22 +133,21 @@ Once the outline is aligned, write the detailed implementation plan to **`docs/s
 Design doc: [phase-design.md](phase-design.md)
 ```
 
-**Refinement checklist (verify for each sub-step before writing):**
-- [ ] **Human testing checkpoint:** Is there a user-verifiable behavior at this sub-step? If yes, add [TEST] checkpoint. If no, state why (e.g., "pure logic, no UI").
-- [ ] **Reqs reconciliation:** Verify this was addressed in Step 2 discussion. Show the work: cite the requirement lines and confirm the implementation matches.
-- [ ] **Architecture alignment:** Verify this was addressed in Step 2 discussion. Show the work: name the pattern and confirm the implementation follows it.
-- [ ] **Values alignment:** Verify this was addressed in Step 2 discussion. Show the work: cite which Values.md principles apply and how the design honors them.
-- [ ] **DD completeness:** When a sub-step references a DD, enumerate every specific value from that DD in the sub-step (characters, field values, enum members). Don't reference a DD by number alone — the spec must be self-contained enough that implementation doesn't need to re-derive DD details.
+**Implementation-ready checklist — verify before writing:**
 
-**If the feature resolved open design questions during Step 2, explicitly document:**
-- [ ] Deferred scope (what was descoped and where is it tracked?)
+Discussion should have resolved these. If any are unresolved, surface them now rather than writing an incomplete spec.
+- All open questions from the design doc addressed
+- All triggered enhancements evaluated
+- Deferred scope documented (what was descoped and where is it tracked?)
+- Drift check passed — implementation honors requirements, DDs, architecture patterns, and values
+- Label and display text decisions confirmed with user (what the player reads are design choices)
+- All applicable "Adding New X" checklists from architecture.md reviewed — each item explicitly addressed in the spec
 
-**Behavioral completeness — resolve before writing:**
-- Ensure all behavioral details of the feature are specified, even if they weren't in the original requirements. Make recommendations and get approval from the user on all such details before recording them in the step spec. Label and display text decisions (what the player reads) are design choices requiring user input — do not prescribe them; present them as open questions.
-- **All applicable "Adding New X" checklists:** For each entity type or system the step introduces or extends (item, terrain, construct, activity, ordered action, etc.), read the corresponding checklist in architecture.md. Each item must be explicitly addressed in the step spec — not left as implicit. The ordered-action checklist is the most detailed; always read it when adding any ordered action. The step spec should state chosen values explicitly (e.g., "Duration: ActionDurationMedium", "No sub-menu — single target type").
+**Behavioral completeness:**
+- Ensure all behavioral details of the feature are specified, even if they weren't in the original requirements. Make recommendations and get approval from the user on details before recording them. Label and display text decisions require user input — present as open questions, don't prescribe.
 
-A step spec is implementation-ready when it has:
-- **Anchor story per sub-step (REQUIRED)** — each sub-step MUST open with a 1-2 sentence narrative of what the user/character experiences. This is a critical handoff artifact: `/implement-feature` derives its anchor tests directly from these stories. A sub-step without an anchor story will produce tests that validate code structure instead of user intent. Example: "Character gets a Water Garden order but has no vessel. They procure one, fill it at the pond, and start watering." The anchor test derived from this would verify: "ground vessel ends up filled with water and tiles get watered" — not "returns ActionWaterGarden."
+**A step spec is implementation-ready when it has:**
+- **Anchor story per sub-step (REQUIRED)** — each sub-step MUST open with a 1-2 sentence narrative of what the user/character experiences. This is a critical handoff artifact: `/implement-feature` derives its anchor tests directly from these stories. A sub-step without an anchor story will produce tests that validate code structure instead of user intent.
 - **Granular implementation sub-steps** with iterative testable checkpoints: [TEST] → [DOCS] → [RETRO] as a unit at every testable milestone
   - Each functional accomplishment reconciled with references to original requirements doc
   - **Architecture pattern references** — name which patterns each sub-step extends (e.g., "follows Component Procurement pattern", "uses EnsureHasVesselFor") so `/implement-feature` can validate without re-deriving. Include anti-patterns when ambiguity is likely (e.g., "follows ordered action pattern, NOT self-managing like ActionFillVessel"). Also name prior-step artifacts this step depends on (e.g., "calls RunWaterFill extracted in Step 5a").

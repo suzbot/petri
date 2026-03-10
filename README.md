@@ -8,6 +8,13 @@ Built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ![Petri Screenshot](docs/Screenshot.png)
 
+## Latest Updates
+
+- **Construction**: Characters can learn to build fences and huts from available materials.
+- **Clay and Bricks**: Characters can dig clay to shape into bricks for building.
+- **Helping:** Characters bring food or water to other character in crisis
+- **Gardening:** Characters can gather seeds, till soil, water the garden, and watch food grow
+
 ## Project Vision
 
 Characters don't follow scripts — they will form preferences, learn from experience, share knowledge,
@@ -30,19 +37,10 @@ Core process innovations developed over the course of this project:
 
 **See it in action:**
 
-- [`.claude/skills/`](.claude/skills/) — AI interaction protocols developed for this project
+- [docs/process-flow.md](docs.process-flow.md) - Mermaid flow chart of development cycle
+- [`.claude/skills/`](.claude/skills/) — AI interaction protocols developed within this project
 - [`docs/Values.md`](docs/Values.md) — design values surfaced through retrospectives
 - [`CLAUDE.md`](CLAUDE.md) — codebase context and collaboration norms
-
-## Latest Updates
-
-- **Construction**: Characters can learn to build fences and huts from available materials.
-- **Construct preferences**: Characters look at constructs and form opinions about materials and recipes, affecting mood.
-- **Craft Bricks orders**: Characters shape loose clay into bricks, repeating until all dug clay is used.
-- **Dig Clay orders**: Direct characters to dig clay from deposits.
-- **Seed extraction**: Characters extract seeds from flowers and tall grass via Extract orders, without harming the plant.
-- **Helping:** Characters bring food or water to other character in crisis
-- **Gardening:** Characters can gather seeds, till soil, water the garden, and watch food grow
 
 ## How It Works
 
@@ -58,11 +56,13 @@ Core process innovations developed over the course of this project:
 
 For detailed mechanics, see [docs/game-mechanics.md](docs/game-mechanics.md).
 
-## Requirements
+## Installation
 
-- Go version go1.25.5 or higher (https://go.dev/learn/)
+Download the latest binary for your platform from the [Releases page](https://github.com/suzbot/petri/releases). Unzip the archive, then run the `petri` executable from your terminal. No additional dependencies are required.
 
-## Running the Game
+## Building from Source
+
+Requires Go 1.25.5 or higher ([go.dev/learn](https://go.dev/learn/)).
 
 ```bash
 go build ./cmd/petri

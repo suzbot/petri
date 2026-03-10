@@ -3,16 +3,19 @@ name: new-phase
 description: "Start planning a new development phase. Reads requirements, facilitates discussion, and creates the phase design document."
 ---
 
-## Starting a New Phase
+## Purpose
 
-Follow this process to plan the next development phase:
+Phase planning turns a requirements document into an iterative design — a sequence of steps that each deliver testable value, with design decisions captured along the way. The output is a phase design doc that serves as the reference for all subsequent refinement and implementation.
+
+## Starting a New Phase
 
 ### Step 1: Identify the Next Phase
 Read the roadmap section of CLAUDE.md to find what's next. This skill only needs to be leveraged if the next item is a phase or large feature with a requirements doc.
 
-### Step 2: Read Requirements
+### Step 2: Read Requirements and Align on Intent
 - Find and read the requirements document for this phase (typically in `docs/`).
 - For context on where this phase fits within the longer term plan and how it sets up future phases, reference docs/VISION.txt.
+- After reading, state your understanding of what this phase accomplishes for the game — what the world looks like before and after, and why it matters now. Confirm alignment before discussing technical approach.
 
 ### Step 3: Discuss Approach
 **Do NOT enter plan mode.** Discuss as conversation.
