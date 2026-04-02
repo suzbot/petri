@@ -150,3 +150,7 @@ cp -r ~/.petri ~/petri-backup
 **Character Names:** Edit `internal/entity/names.go` to add or remove names from the random name pool.
 
 **Configuration Values:** see `internal/config/config.go`.
+
+## License
+
+This project is licensed under the [GNU General Public License v3.0](LICENSE).
