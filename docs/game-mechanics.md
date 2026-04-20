@@ -251,6 +251,14 @@ If a character already has the exact same preference with opposite valence, the 
 
 Preferences formed from one source can affect mood when encountering another. Material preferences (ItemType) match constructs by their building material — "Likes sticks" boosts mood when looking at a stick fence. Color preferences also cross-apply between items and constructs.
 
+### Preference-Weighted Item Seeking
+
+When characters seek items by type — for picking up recipe inputs or procuring specific items for orders — they score candidates by both preference fit and distance rather than pure proximity:
+
+`Score = NetPreference × PrefWeight - Distance × DistWeight`
+
+A character who likes silver shells will walk further to reach a silver shell when crafting a hoe, rather than taking the nearest brown shell. When no preferences match any candidate, behavior is identical to before — nearest item wins (distance-only scoring). See `config.ItemSeekPrefWeight` and `config.ItemSeekDistWeight` for weights.
+
 ### Viewing Preferences
 
 Press `P` in select mode to toggle the Preferences panel. Likes shown in green, dislikes in yellow. Scrollable with `PgUp`/`PgDn`. Press `P` or `Esc` to return.
@@ -640,7 +648,7 @@ Invalid footprint positions (water, built constructs, map edges, or existing mar
 
 Marked-for-construction tiles are only highlighted during the active marking phase. In regular select mode, move the cursor over a tile to see "Marked for construction (Fence)" or "Marked for construction (Hut Wall)" / "Marked for construction (Hut Door)" in the details panel. Once a material is assigned, it shows e.g. "Marked for construction (Stick Fence)", "Marked for construction (Stick Hut Wall)", or "Marked for construction (Stick Hut Door)".
 
-The character assigns a material to the line/footprint when they begin building the first tile — selecting whichever construction material is nearest and available. Once one tile in a line is built, all remaining tiles in that line use the same material.
+The character assigns a material to the line/footprint when they begin building the first tile — scoring feasible materials by preference and distance, then walking to the best match. Characters with construct preferences (e.g., "likes stick fences") will walk further to reach their preferred material; characters with no preference choose the nearest. Once one tile in a line is built, all remaining tiles in that line use the same material.
 
 ### Building
 

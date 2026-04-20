@@ -35,7 +35,7 @@ var RecipeRegistry = map[string]*Recipe{
 		ActivityID: "buildFence",
 		Name:       "Thatch Fence",
 		Inputs:     []RecipeInput{{ItemType: "grass", Count: 6}},
-		Output:     RecipeOutput{ItemType: "fence"}, // display only; actual output is a construct
+		Output:     RecipeOutput{ItemType: "fence", Kind: "thatch fence"}, // display only; actual output is a construct
 		DiscoveryTriggers: []DiscoveryTrigger{
 			{Action: ActionLook, ItemType: "grass"},
 			{Action: ActionPickup, ItemType: "grass"},
@@ -46,7 +46,7 @@ var RecipeRegistry = map[string]*Recipe{
 		ActivityID: "buildFence",
 		Name:       "Stick Fence",
 		Inputs:     []RecipeInput{{ItemType: "stick", Count: 6}},
-		Output:     RecipeOutput{ItemType: "fence"},
+		Output:     RecipeOutput{ItemType: "fence", Kind: "stick fence"},
 		DiscoveryTriggers: []DiscoveryTrigger{
 			{Action: ActionLook, ItemType: "stick"},
 			{Action: ActionPickup, ItemType: "stick"},
@@ -57,7 +57,7 @@ var RecipeRegistry = map[string]*Recipe{
 		ActivityID: "buildFence",
 		Name:       "Brick Fence",
 		Inputs:     []RecipeInput{{ItemType: "brick", Count: 6}},
-		Output:     RecipeOutput{ItemType: "fence"},
+		Output:     RecipeOutput{ItemType: "fence", Kind: "brick fence"},
 		DiscoveryTriggers: []DiscoveryTrigger{
 			{Action: ActionLook, ItemType: "brick"},
 			{Action: ActionPickup, ItemType: "brick"},
@@ -114,7 +114,7 @@ var RecipeRegistry = map[string]*Recipe{
 		ActivityID: "buildHut",
 		Name:       "Thatch Hut",
 		Inputs:     []RecipeInput{{ItemType: "grass", Count: 12}},
-		Output:     RecipeOutput{ItemType: "hut"}, // display only; actual output is a construct
+		Output:     RecipeOutput{ItemType: "hut", Kind: "thatch hut"}, // display only; actual output is a construct
 		DiscoveryTriggers: []DiscoveryTrigger{
 			{Action: ActionLook, ConstructKind: "fence", ConstructMaterial: "grass"},
 		},
@@ -124,7 +124,7 @@ var RecipeRegistry = map[string]*Recipe{
 		ActivityID: "buildHut",
 		Name:       "Stick Hut",
 		Inputs:     []RecipeInput{{ItemType: "stick", Count: 12}},
-		Output:     RecipeOutput{ItemType: "hut"},
+		Output:     RecipeOutput{ItemType: "hut", Kind: "stick hut"},
 		DiscoveryTriggers: []DiscoveryTrigger{
 			{Action: ActionLook, ConstructKind: "fence", ConstructMaterial: "stick"},
 		},
@@ -134,7 +134,7 @@ var RecipeRegistry = map[string]*Recipe{
 		ActivityID: "buildHut",
 		Name:       "Brick Hut",
 		Inputs:     []RecipeInput{{ItemType: "brick", Count: 12}},
-		Output:     RecipeOutput{ItemType: "hut"},
+		Output:     RecipeOutput{ItemType: "hut", Kind: "brick hut"},
 		DiscoveryTriggers: []DiscoveryTrigger{
 			{Action: ActionLook, ConstructKind: "fence", ConstructMaterial: "brick"},
 		},

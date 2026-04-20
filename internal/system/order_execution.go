@@ -2,6 +2,7 @@ package system
 
 import (
 	"fmt"
+	"math"
 	"sort"
 
 	"petri/internal/config"
@@ -1553,13 +1554,13 @@ func countItemsAtPosition(items []*entity.Item, itemType string, pos types.Posit
 }
 
 // selectConstructionMaterial picks the best available construction material for a character.
-// Checks each known recipe for the given activity; returns the material type with any
-// items available whose nearest item is closest. Returns "" if no material exists on map.
+// Scores each known recipe by preference (via synthetic Construct) and distance (DD-52).
+// Returns the material type of the highest-scoring feasible recipe, or "" if none available.
 func selectConstructionMaterial(char *entity.Character, pos types.Position, items []*entity.Item, gameMap *game.Map, activityID string) string {
 	_ = gameMap // reserved for future proximity-to-map checks
 	recipes := char.GetKnownRecipesForActivity(activityID)
 	bestMaterial := ""
-	bestDist := int(^uint(0) >> 1)
+	bestScore := -math.MaxFloat64
 
 	for _, recipe := range recipes {
 		if len(recipe.Inputs) == 0 {
@@ -1574,9 +1575,18 @@ func selectConstructionMaterial(char *entity.Character, pos types.Position, item
 		if nearest == nil {
 			continue
 		}
+
+		synthetic := &entity.Construct{
+			Kind:          recipe.Output.ItemType,
+			Material:      itemType,
+			MaterialColor: nearest.Color,
+		}
+		weightedPref := ScoreConstructPreference(char, synthetic)
 		dist := pos.DistanceTo(nearest.Pos())
-		if dist < bestDist {
-			bestDist = dist
+		score := ScoreItemFit(weightedPref, dist)
+
+		if score > bestScore {
+			bestScore = score
 			bestMaterial = itemType
 		}
 	}

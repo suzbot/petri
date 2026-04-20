@@ -620,7 +620,7 @@ Pool is serialized in `SaveState.MarkedForConstructionTiles`. Line ID counter in
 ### Shared Construction Helpers
 
 Construction intent finders share helpers in `order_execution.go` to avoid duplication:
-- **`selectConstructionMaterial(char, world, items, activityID)`**: Selects the nearest available construction material for the given activity (fence or hut). Replaces `selectFenceMaterial` — shared by both fence and hut building. Returns the nearest item of a supported material type with at least 1 free item on the map.
+- **`selectConstructionMaterial(char, world, items, activityID)`**: Selects the preferred available construction material for the given activity (fence or hut). Replaces `selectFenceMaterial` — shared by both fence and hut building. Scores each feasible recipe via `ScoreConstructPreference` (builds a synthetic Construct, scores character preferences against it with Kind weighted 2×) combined with distance via `ScoreItemFit`. No preferences → nearest wins (preserves prior behavior).
 - **`findNearestMaterialNotAtSite(items, gameMap, materialType)`**: Finds the nearest item of a given type whose position is not a construction-marked tile. Prevents pickup loops where a character re-picks staged materials.
 - **`createHutDeliveryIntent(char, item, targetPos)`**: Shared delivery intent constructor for hut bundle/brick handlers — sets `TargetBuildPos`, `Dest` (adjacent standing tile), and `TargetItem`.
 
@@ -630,8 +630,8 @@ In `apply_actions.go`, `deliverMaterial` is a generic delivery helper shared acr
 
 `picking.go` is the shared home for all item acquisition logic, organized in three layers:
 
-1. **Map Search** — `findNearestItemByType`, `FindAvailableVessel` (vessels that can receive items), `FindVesselContaining` (vessels whose contents match a target)
-2. **Prerequisite Orchestration** — `EnsureHasVesselFor`, `EnsureHasRecipeInputs`, `EnsureHasItem` (check-or-go-get helpers)
+1. **Map Search** — `findNearestItemByType`, `findPreferredItemByType` (preference + distance scoring), `FindAvailableVessel` (vessels that can receive items), `FindVesselContaining` (vessels whose contents match a target)
+2. **Prerequisite Orchestration** — `EnsureHasVesselFor`, `EnsureHasRecipeInputs`, `EnsureHasItem` (check-or-go-get helpers; use `findPreferredItemByType` for preference-weighted targeting)
 3. **Inventory Query** — `FindCarriedVesselFor(char, item, registry)` finds the first carried vessel that can accept a specific item. Use this instead of `GetCarriedVessel()` when vessel compatibility matters — `GetCarriedVessel()` only returns the first vessel, which may be incompatible (e.g., holds water when you need to store berries).
 4. **Physical Actions** — `Pickup`, `Drop`, vessel operations
 
@@ -694,9 +694,9 @@ When foraging or harvesting without a vessel:
 3. After vessel pickup, continues to harvest/forage into vessel
 4. If no vessel, picks up item directly to inventory
 
-### Future: Unified Item-Seeking
+### Preference-Weighted Item Seeking
 
-Currently, `foraging.go` has preference-weighted scoring while `picking.go`'s prerequisite helpers use nearest-distance. These should converge — character item-seeking should be consistent regardless of context. Preference shapes material culture (e.g., a character who prefers silver shells will craft silver shell hoes). See `triggered-enhancements.md`.
+`selectConstructionMaterial` uses preference-weighted scoring via `ScoreConstructPreference` + `ScoreItemFit` (Step 11a). `EnsureHasItem` and `EnsureHasRecipeInputs` use `findPreferredItemByType` — preference + distance scoring — replacing pure nearest-distance (Step 11b). Remaining gap: `FindAvailableVessel`, `EnsureHasVesselFor`, and `EnsureHasPlantable` (before variety lock) still use nearest-distance (Step 11d). See `triggered-enhancements.md` for the "Generic scored-item search helper" trigger.
 
 ## Recipe System
 

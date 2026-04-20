@@ -3,6 +3,7 @@ package system
 import (
 	"testing"
 
+	"petri/internal/config"
 	"petri/internal/entity"
 	"petri/internal/game"
 	"petri/internal/types"
@@ -2159,5 +2160,169 @@ func TestPickup_GrassChangesPaleYellow(t *testing.T) {
 	}
 	if carried.Color != types.ColorPaleYellow {
 		t.Errorf("Picked up grass should be pale yellow, got %q", carried.Color)
+	}
+}
+
+// =============================================================================
+// 11b — Preference-weighted item procurement
+// =============================================================================
+
+func TestFindPreferredItemByType_PicksPreferred(t *testing.T) {
+	char := &entity.Character{
+		ID:   1,
+		Name: "Test",
+		Preferences: []entity.Preference{
+			{Valence: 1, Color: types.ColorSilver},
+		},
+	}
+	char.X = 0
+	char.Y = 0
+
+	silverShell := entity.NewShell(10, 0, types.ColorSilver)
+	brownShell := entity.NewShell(5, 0, types.ColorBrown)
+	items := []*entity.Item{silverShell, brownShell}
+
+	result := FindPreferredItemByTypeForTest(char, 0, 0, items, "shell", false)
+	if result != silverShell {
+		t.Errorf("Should pick preferred silver shell, got %v", result)
+	}
+}
+
+func TestFindPreferredItemByType_FallsBackToNearest(t *testing.T) {
+	char := &entity.Character{
+		ID:   1,
+		Name: "Test",
+	}
+	char.X = 0
+	char.Y = 0
+
+	silverShell := entity.NewShell(10, 0, types.ColorSilver)
+	brownShell := entity.NewShell(5, 0, types.ColorBrown)
+	items := []*entity.Item{silverShell, brownShell}
+
+	result := FindPreferredItemByTypeForTest(char, 0, 0, items, "shell", false)
+	if result != brownShell {
+		t.Errorf("With no preferences, should pick nearest (brown), got %v", result)
+	}
+}
+
+func TestFindPreferredItemByType_RespectsGrowingOnly(t *testing.T) {
+	char := &entity.Character{
+		ID:   1,
+		Name: "Test",
+	}
+	char.X = 0
+	char.Y = 0
+
+	growing := entity.NewBerry(5, 0, types.ColorRed, false, false)
+	notGrowing := entity.NewBerry(3, 0, types.ColorBlue, false, false)
+	notGrowing.Plant.IsGrowing = false
+	items := []*entity.Item{growing, notGrowing}
+
+	result := FindPreferredItemByTypeForTest(char, 0, 0, items, "berry", true)
+	if result != growing {
+		t.Error("Should only return growing item when growingOnly is true")
+	}
+}
+
+func TestFindPreferredItemByType_SkipsFullBundles(t *testing.T) {
+	char := &entity.Character{
+		ID:   1,
+		Name: "Test",
+	}
+	char.X = 0
+	char.Y = 0
+
+	fullBundle := entity.NewStick(3, 0)
+	fullBundle.BundleCount = config.MaxBundleSize["stick"]
+	partialBundle := entity.NewStick(10, 0)
+	partialBundle.BundleCount = 1
+	items := []*entity.Item{fullBundle, partialBundle}
+
+	result := FindPreferredItemByTypeForTest(char, 0, 0, items, "stick", false)
+	if result != partialBundle {
+		t.Error("Should skip full bundle and return partial bundle")
+	}
+}
+
+func TestEnsureHasItem_PrefersPreferred(t *testing.T) {
+	gameMap := game.NewMap(20, 20)
+
+	char := &entity.Character{
+		ID:   1,
+		Name: "Test",
+		Preferences: []entity.Preference{
+			{Valence: 1, Color: types.ColorSilver},
+		},
+	}
+	char.X = 0
+	char.Y = 0
+
+	silverShell := entity.NewShell(10, 0, types.ColorSilver)
+	brownShell := entity.NewShell(5, 0, types.ColorBrown)
+	items := []*entity.Item{silverShell, brownShell}
+
+	intent := EnsureHasItem(char, "shell", items, gameMap, nil)
+	if intent == nil {
+		t.Fatal("Should return intent to pick up shell")
+	}
+	if intent.TargetItem != silverShell {
+		t.Errorf("Should target preferred silver shell, got %s", intent.TargetItem.Color)
+	}
+}
+
+func TestEnsureHasItem_NoPreference_PicksNearest(t *testing.T) {
+	gameMap := game.NewMap(20, 20)
+
+	char := &entity.Character{
+		ID:   1,
+		Name: "Test",
+	}
+	char.X = 0
+	char.Y = 0
+
+	silverShell := entity.NewShell(10, 0, types.ColorSilver)
+	brownShell := entity.NewShell(5, 0, types.ColorBrown)
+	items := []*entity.Item{silverShell, brownShell}
+
+	intent := EnsureHasItem(char, "shell", items, gameMap, nil)
+	if intent == nil {
+		t.Fatal("Should return intent to pick up shell")
+	}
+	if intent.TargetItem != brownShell {
+		t.Errorf("With no preferences, should target nearest (brown), got %s", intent.TargetItem.Color)
+	}
+}
+
+// 11b Anchor Test
+
+func TestEnsureHasRecipeInputs_PrefersPreferredShell(t *testing.T) {
+	gameMap := game.NewMap(20, 20)
+
+	stick := entity.NewStick(0, 0)
+	char := &entity.Character{
+		ID:        1,
+		Name:      "Test",
+		Inventory: []*entity.Item{stick},
+		Preferences: []entity.Preference{
+			{Valence: 1, Color: types.ColorSilver},
+		},
+	}
+	char.X = 0
+	char.Y = 0
+
+	silverShell := entity.NewShell(10, 0, types.ColorSilver)
+	brownShell := entity.NewShell(5, 0, types.ColorBrown)
+	items := []*entity.Item{silverShell, brownShell}
+
+	recipe := entity.RecipeRegistry["shell-hoe"]
+
+	intent := EnsureHasRecipeInputs(char, recipe, items, gameMap, nil)
+	if intent == nil {
+		t.Fatal("Should return intent to pick up missing shell")
+	}
+	if intent.TargetItem != silverShell {
+		t.Errorf("Should target preferred silver shell, got %s shell at (%d,%d)",
+			intent.TargetItem.Color, intent.TargetItem.X, intent.TargetItem.Y)
 	}
 }

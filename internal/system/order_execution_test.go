@@ -6234,6 +6234,70 @@ func TestSelectConstructionMaterial_BelowRecipeCount(t *testing.T) {
 	}
 }
 
+func TestSelectConstructionMaterial_PreferenceOverridesDistance(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(40, 40)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildFence"}
+	char.KnownRecipes = []string{"stick-fence", "thatch-fence"}
+	char.Preferences = []entity.Preference{
+		{Valence: 1, Kind: "stick fence"},
+	}
+	gameMap.AddCharacter(char)
+
+	// Grass at distance 5 (nearby)
+	grass := entity.NewGrass(10, 5)
+	grass.Plant.IsGrowing = false
+	grass.Color = types.ColorPaleYellow
+	grass.BundleCount = 6
+	gameMap.AddItem(grass)
+
+	// Sticks at distance 25 (far away)
+	stick := entity.NewStick(30, 5)
+	stick.BundleCount = 6
+	gameMap.AddItem(stick)
+
+	items := gameMap.Items()
+
+	// Character likes stick fences — should pick sticks despite grass being closer
+	mat := SelectConstructionMaterialForTest(char, char.Pos(), items, gameMap, "buildFence")
+	if mat != "stick" {
+		t.Errorf("Expected 'stick' (preferred), got %q — preference should override distance", mat)
+	}
+}
+
+func TestSelectConstructionMaterial_NoPreferencesPicksNearest(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(40, 40)
+	char := entity.NewCharacter(1, 5, 5, "Test", "berry", types.ColorRed)
+	char.KnownActivities = []string{"buildFence"}
+	char.KnownRecipes = []string{"stick-fence", "thatch-fence"}
+	// No preferences
+	gameMap.AddCharacter(char)
+
+	// Grass at distance 5 (nearby)
+	grass := entity.NewGrass(10, 5)
+	grass.Plant.IsGrowing = false
+	grass.Color = types.ColorPaleYellow
+	grass.BundleCount = 6
+	gameMap.AddItem(grass)
+
+	// Sticks at distance 25 (far away)
+	stick := entity.NewStick(30, 5)
+	stick.BundleCount = 6
+	gameMap.AddItem(stick)
+
+	items := gameMap.Items()
+
+	// No preferences — should pick nearest (grass)
+	mat := SelectConstructionMaterialForTest(char, char.Pos(), items, gameMap, "buildFence")
+	if mat != "grass" {
+		t.Errorf("Expected 'grass' (nearest), got %q — no preferences should default to nearest", mat)
+	}
+}
+
 func TestCountFullBundlesAtPosition(t *testing.T) {
 	t.Parallel()
 

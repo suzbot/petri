@@ -2,6 +2,7 @@ package system
 
 import (
 	"fmt"
+	"math"
 
 	"petri/internal/config"
 	"petri/internal/entity"
@@ -134,8 +135,7 @@ func EnsureHasItem(char *entity.Character, itemType string, items []*entity.Item
 		}
 	}
 
-	// Find nearest item of type on map
-	target := findNearestItemByType(char.X, char.Y, items, itemType, false)
+	target := findPreferredItemByType(char, char.X, char.Y, items, itemType, false)
 	if target == nil {
 		return nil // Not available on map
 	}
@@ -253,8 +253,7 @@ func EnsureHasRecipeInputs(char *entity.Character, recipe *entity.Recipe, items 
 			}
 		}
 
-		// Find nearest matching item on map
-		target := findNearestItemByType(char.X, char.Y, items, input.ItemType, false)
+		target := findPreferredItemByType(char, char.X, char.Y, items, input.ItemType, false)
 		if target == nil {
 			return nil // Input not available on map
 		}
@@ -373,6 +372,45 @@ func findNearestItemByType(cx, cy int, items []*entity.Item, itemType string, gr
 // FindNearestItemByTypeForTest is an exported wrapper for tests.
 func FindNearestItemByTypeForTest(cx, cy int, items []*entity.Item, itemType string, growingOnly bool) *entity.Item {
 	return findNearestItemByType(cx, cy, items, itemType, growingOnly)
+}
+
+func findPreferredItemByType(char *entity.Character, cx, cy int, items []*entity.Item, itemType string, growingOnly bool) *entity.Item {
+	if len(items) == 0 {
+		return nil
+	}
+
+	pos := types.Position{X: cx, Y: cy}
+	var best *entity.Item
+	bestScore := -math.MaxFloat64
+
+	for _, item := range items {
+		if item.ItemType != itemType {
+			continue
+		}
+		if growingOnly {
+			if item.Plant == nil || !item.Plant.IsGrowing || item.Plant.IsSprout {
+				continue
+			}
+		}
+		if maxBundle := config.MaxBundleSize[item.ItemType]; maxBundle > 0 && item.BundleCount >= maxBundle {
+			continue
+		}
+
+		ipos := item.Pos()
+		dist := pos.DistanceTo(ipos)
+		score := ScoreItemFit(char.NetPreference(item), dist)
+		if score > bestScore {
+			bestScore = score
+			best = item
+		}
+	}
+
+	return best
+}
+
+// FindPreferredItemByTypeForTest is an exported wrapper for tests.
+func FindPreferredItemByTypeForTest(char *entity.Character, cx, cy int, items []*entity.Item, itemType string, growingOnly bool) *entity.Item {
+	return findPreferredItemByType(char, cx, cy, items, itemType, growingOnly)
 }
 
 // =============================================================================

@@ -20,6 +20,7 @@ Search these files:
 - `docs/architecture.md` — design patterns, decision rationale, system interactions
 - `docs/game-mechanics.md` — detailed mechanics, stat thresholds, rates, systems
 - `internal/config/config.go` — game constants, rates, thresholds, spawn counts
+- `docs/triggered-enhancements.md` - items orginally planned but deferred from previous discussions and not yet implemented
 
 Use Grep to find relevant sections rather than reading entire files.
 
@@ -37,6 +38,6 @@ If the docs and config don't clearly answer the question:
 
 ### Rules
 
-- Only search the three files listed above. Do NOT read other code files.
+- Only search the files listed above. Do NOT read other code files.
 - Do NOT speculate beyond what the docs and config say.
 - Do NOT suggest changes or improvements.

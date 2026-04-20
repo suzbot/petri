@@ -171,6 +171,12 @@ const (
 	FoodSeekDistWeightSevere   = 1.5  // Distance weight at severe hunger (fit can overcome distance)
 	FoodSeekDistWeightCrisis   = 3.0  // Distance weight at crisis hunger (nearest food wins)
 
+	// Item seeking - preference-weighted scoring (DD-52)
+	// Score = (weightedPref × PrefWeight) - (dist × DistWeight)
+	// No urgency tiers — item seeking doesn't vary by need level
+	ItemSeekPrefWeight = 20.0 // How many tiles one preference point is worth
+	ItemSeekDistWeight = 1.0  // Distance penalty per tile
+
 	// Healing bonus in food selection - when hungry AND hurt, known healing items score higher
 	// Only applies when health tier >= Mild and character knows item is healing
 	HealingBonusMild     = 5.0  // Bonus when health at Mild tier
