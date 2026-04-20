@@ -41,6 +41,7 @@ State your understanding of what this step accomplishes in 2-3 sentences — wha
 With intent aligned:
 - **Address all open questions** listed in the step's section of the design doc
 - **Evaluate all triggered enhancements** listed in the step's section
+- **Propose new triggered enhancements** when a change builds infrastructure ahead of its real test conditions (e.g., scoring logic with only one candidate today). Name the trigger condition that would make real test coverage meaningful.
 - **Check for drift** (see below)
 - Present implementation approach with trade-offs as **conversation** (not structured multiple-choice — reserve that for simple bounded decisions)
 
@@ -116,6 +117,7 @@ Present the step breakdown to the user as conversation at a high-to-medium level
 - For each sub-step, name the architecture pattern and Values.md principle it follows
 - **For each change, connect it to its functional outcome** — describe what it does and why in functional terms (per CLAUDE.md communication norms), not code mechanics. A change listed without its "why" is hard to evaluate. Don't list implementation artifacts (new files, helpers) without explaining what player-visible or system behavior they enable.
 - For each sub-step, confirm where [TEST] falls and whether new item types need save/load in the same sub-step
+- **Evaluate intermediate [TEST] opportunities within each sub-step.** When a sub-step has a natural split between player-visible changes and no-op infrastructure, propose an intermediate human testing checkpoint after the visible changes. Catching issues in a smaller blast radius is cheaper than debugging after everything is in.
 - Do NOT write into the step spec yet — this is a digestibility and alignment check
 
 **Before presenting:** If the design shifted materially during Step 2 discussion (different approach, broader scope, changed mechanics), re-run the drift check against the new design. Step 2's check validated the starting point — the outline must validate what discussion actually produced.

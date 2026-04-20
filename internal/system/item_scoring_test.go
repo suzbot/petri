@@ -92,6 +92,62 @@ func TestScoreConstructPreference_NoMatch(t *testing.T) {
 	}
 }
 
+func TestScoreItemPreference_SoloKind(t *testing.T) {
+	t.Parallel()
+	char := &entity.Character{
+		Preferences: []entity.Preference{
+			{Valence: 1, Kind: "shell hoe"},
+		},
+	}
+	item := &entity.Item{ItemType: "hoe", Kind: "shell hoe", Material: "shell"}
+	got := ScoreItemPreference(char, item)
+	if got != 2 {
+		t.Errorf("Solo Kind: got %d, want 2 (Kind weight)", got)
+	}
+}
+
+func TestScoreItemPreference_SoloMaterialViaItemType(t *testing.T) {
+	t.Parallel()
+	char := &entity.Character{
+		Preferences: []entity.Preference{
+			{Valence: 1, ItemType: "shell"},
+		},
+	}
+	item := &entity.Item{ItemType: "hoe", Kind: "shell hoe", Material: "shell"}
+	got := ScoreItemPreference(char, item)
+	if got != 1 {
+		t.Errorf("Solo Material via ItemType: got %d, want 1", got)
+	}
+}
+
+func TestScoreItemPreference_ComboKindAndColor(t *testing.T) {
+	t.Parallel()
+	char := &entity.Character{
+		Preferences: []entity.Preference{
+			{Valence: 1, Kind: "hollow gourd", Color: types.ColorGreen},
+		},
+	}
+	item := &entity.Item{ItemType: "vessel", Kind: "hollow gourd", Material: "gourd", Color: types.ColorGreen}
+	got := ScoreItemPreference(char, item)
+	if got != 3 {
+		t.Errorf("Combo Kind+Color: got %d, want 3 (2+1)", got)
+	}
+}
+
+func TestScoreItemPreference_NoMatch(t *testing.T) {
+	t.Parallel()
+	char := &entity.Character{
+		Preferences: []entity.Preference{
+			{Valence: 1, Kind: "shell hoe"},
+		},
+	}
+	item := &entity.Item{ItemType: "vessel", Kind: "hollow gourd", Material: "gourd"}
+	got := ScoreItemPreference(char, item)
+	if got != 0 {
+		t.Errorf("No match: got %d, want 0", got)
+	}
+}
+
 func TestScoreItemFit_Basic(t *testing.T) {
 	t.Parallel()
 	got := ScoreItemFit(2, 25)

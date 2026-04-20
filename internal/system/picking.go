@@ -57,7 +57,7 @@ func EnsureHasVesselFor(char *entity.Character, target *entity.Item, items []*en
 
 	// Find available vessel on map
 	pos := char.Pos()
-	availableVessel := FindAvailableVessel(pos.X, pos.Y, items, target, registry)
+	availableVessel := FindAvailableVessel(char, pos.X, pos.Y, items, target, registry)
 	if availableVessel == nil {
 		return nil
 	}
@@ -189,13 +189,13 @@ func EnsureHasPlantable(char *entity.Character, targetType string, lockedVariety
 	}
 
 	// Check ground vessels first — a vessel with matching contents is most efficient
-	vessel := FindVesselContaining(char.X, char.Y, items, targetType, lockedVariety)
+	vessel := FindVesselContaining(char, char.X, char.Y, items, targetType, lockedVariety)
 	if vessel != nil {
 		return createItemPickupIntent(char, char.Pos(), vessel, gameMap, log)
 	}
 
 	// Fall back to loose plantable items on the ground
-	target := findNearestPlantableOnGround(char.X, char.Y, items, targetType, lockedVariety)
+	target := findPreferredPlantableOnGround(char, char.X, char.Y, items, targetType, lockedVariety)
 	if target == nil {
 		return nil
 	}
@@ -555,15 +555,63 @@ func findNearestPlantableOnGround(cx, cy int, items []*entity.Item, targetType s
 	return nearest
 }
 
+func findPreferredPlantableOnGround(char *entity.Character, cx, cy int, items []*entity.Item, targetType string, lockedVariety string) *entity.Item {
+	pos := types.Position{X: cx, Y: cy}
+	var best *entity.Item
+	bestScore := math.Inf(-1)
+
+	for _, item := range items {
+		if !item.Plantable {
+			continue
+		}
+		if !matchesPlantTarget(item.ItemType, item.Kind, item.Color, item.Pattern, item.Texture, targetType, lockedVariety) {
+			continue
+		}
+		ipos := item.Pos()
+		dist := pos.DistanceTo(ipos)
+		score := ScoreItemFit(char.NetPreference(item), dist)
+		if score > bestScore {
+			bestScore = score
+			best = item
+		}
+	}
+	return best
+}
+
 // FindVesselContaining finds the nearest ground vessel whose contents include
 // a plantable item matching the target type and optional locked variety.
 // Returns the vessel itself (for pickup). Sibling of FindAvailableVessel
 // (which finds vessels that can *receive* items — this finds vessels that can *provide* items).
-func FindVesselContaining(cx, cy int, items []*entity.Item, targetType string, lockedVariety string) *entity.Item {
+func FindVesselContaining(char *entity.Character, cx, cy int, items []*entity.Item, targetType string, lockedVariety string) *entity.Item {
 	pos := types.Position{X: cx, Y: cy}
-	var nearest *entity.Item
-	nearestDist := int(^uint(0) >> 1)
 
+	if lockedVariety != "" {
+		var nearest *entity.Item
+		nearestDist := int(^uint(0) >> 1)
+		for _, item := range items {
+			if item.Container == nil {
+				continue
+			}
+			for _, stack := range item.Container.Contents {
+				if stack.Variety == nil || stack.Count <= 0 || !stack.Variety.Plantable {
+					continue
+				}
+				if matchesPlantTargetVariety(stack.Variety, targetType, lockedVariety) {
+					ipos := item.Pos()
+					dist := pos.DistanceTo(ipos)
+					if dist < nearestDist {
+						nearestDist = dist
+						nearest = item
+					}
+					break
+				}
+			}
+		}
+		return nearest
+	}
+
+	var best *entity.Item
+	bestScore := math.Inf(-1)
 	for _, item := range items {
 		if item.Container == nil {
 			continue
@@ -575,15 +623,16 @@ func FindVesselContaining(cx, cy int, items []*entity.Item, targetType string, l
 			if matchesPlantTargetVariety(stack.Variety, targetType, lockedVariety) {
 				ipos := item.Pos()
 				dist := pos.DistanceTo(ipos)
-				if dist < nearestDist {
-					nearestDist = dist
-					nearest = item
+				score := ScoreItemFit(char.NetPreferenceForVariety(stack.Variety), dist)
+				if score > bestScore {
+					bestScore = score
+					best = item
 				}
-				break // Found a match in this vessel, no need to check more stacks
+				break
 			}
 		}
 	}
-	return nearest
+	return best
 }
 
 // =============================================================================
@@ -778,35 +827,34 @@ func IsVesselFull(vessel *entity.Item, registry *game.VarietyRegistry) bool {
 // FindAvailableVessel finds the nearest vessel on the map that can accept a target item.
 // Returns nil if no suitable vessel is found.
 // A vessel is suitable if it's empty OR has matching variety with space.
-func FindAvailableVessel(cx, cy int, items []*entity.Item, targetItem *entity.Item, registry *game.VarietyRegistry) *entity.Item {
+func FindAvailableVessel(char *entity.Character, cx, cy int, items []*entity.Item, targetItem *entity.Item, registry *game.VarietyRegistry) *entity.Item {
 	if targetItem == nil || registry == nil {
 		return nil
 	}
 
 	pos := types.Position{X: cx, Y: cy}
-	var nearest *entity.Item
-	nearestDist := int(^uint(0) >> 1) // Max int
+	var best *entity.Item
+	bestScore := math.Inf(-1)
 
 	for _, item := range items {
-		// Must be a vessel (has container)
 		if item.Container == nil {
 			continue
 		}
 
-		// Check if vessel can accept the target item
 		if !CanVesselAccept(item, targetItem, registry) {
 			continue
 		}
 
 		ipos := item.Pos()
 		dist := pos.DistanceTo(ipos)
-		if dist < nearestDist {
-			nearestDist = dist
-			nearest = item
+		score := ScoreItemFit(char.NetPreference(item), dist)
+		if score > bestScore {
+			bestScore = score
+			best = item
 		}
 	}
 
-	return nearest
+	return best
 }
 
 // =============================================================================

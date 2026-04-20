@@ -1144,6 +1144,9 @@ func (m Model) renderDetails() string {
 			fmt.Sprintf(" Kind: %s", kindLabel),
 			fmt.Sprintf(" Color: %s", item.Color),
 		)
+		if item.Material != "" {
+			lines = append(lines, fmt.Sprintf(" Material: %s", item.Material))
+		}
 		// Show bundle count for non-growing bundled items
 		if item.BundleCount > 0 && (item.Plant == nil || !item.Plant.IsGrowing) {
 			maxSize := config.MaxBundleSize[item.ItemType]

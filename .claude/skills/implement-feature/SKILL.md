@@ -106,7 +106,7 @@ When modifying a shared function, grep for callers before writing code — new r
 - Invoke `/update-docs` via the **Skill tool** with a summary of what changed
 - **After `/update-docs` completes: relay the summary of doc changes to the user.**
 - Update the step's **Status** in the phase design doc to "Complete"
-- Replace `docs/step-spec.md` content with: `Step N complete. Next: Step M — run /refine-feature.`
+- **Step spec update:** If the spec covers multiple sub-steps (e.g., 11a–11d), mark the completed sub-step's header as "COMPLETE" (e.g., `## Sub-step 11b: ... — COMPLETE`) — do NOT replace the file. Only replace the entire file with `Step N complete. Next: Step M — run /refine-feature.` when the **last** sub-step finishes.
 - Suggest a commit message
 
 ---

@@ -123,3 +123,35 @@ func TestCreateVessel_UsesRecipeKind(t *testing.T) {
 		t.Errorf("Expected Description 'green hollow gourd', got %s", vessel.Description())
 	}
 }
+
+func TestCreateVessel_Material(t *testing.T) {
+	t.Parallel()
+
+	gourd := &entity.Item{ItemType: "gourd", Color: types.ColorGreen}
+	recipe := entity.RecipeRegistry["hollow-gourd"]
+	vessel := CreateVessel(gourd, recipe)
+
+	if vessel.Material != "gourd" {
+		t.Errorf("Expected Material 'gourd', got %q", vessel.Material)
+	}
+}
+
+func TestCreateHoe_Material(t *testing.T) {
+	t.Parallel()
+
+	hoe := CreateHoe(&entity.Item{ItemType: "shell", Color: types.ColorSilver}, entity.RecipeRegistry["shell-hoe"])
+
+	if hoe.Material != "shell" {
+		t.Errorf("Expected Material 'shell', got %q", hoe.Material)
+	}
+}
+
+func TestCreateBrick_Material(t *testing.T) {
+	t.Parallel()
+
+	brick := CreateBrick(entity.NewClay(0, 0), entity.RecipeRegistry["clay-brick"])
+
+	if brick.Material != "clay" {
+		t.Errorf("Expected Material 'clay', got %q", brick.Material)
+	}
+}

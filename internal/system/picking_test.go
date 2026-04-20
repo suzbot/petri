@@ -1097,7 +1097,7 @@ func TestFindVesselContaining_ReturnsVesselWithMatchingContents(t *testing.T) {
 	}
 
 	items := []*entity.Item{vessel}
-	result := FindVesselContaining(0, 0, items, "berry", "")
+	result := FindVesselContaining(&entity.Character{}, 0, 0, items, "berry", "")
 	if result == nil {
 		t.Fatal("Expected to find vessel containing berries")
 	}
@@ -1122,7 +1122,7 @@ func TestFindVesselContaining_ReturnsNil_WrongType(t *testing.T) {
 	}
 
 	items := []*entity.Item{vessel}
-	result := FindVesselContaining(0, 0, items, "berry", "")
+	result := FindVesselContaining(&entity.Character{}, 0, 0, items, "berry", "")
 	if result != nil {
 		t.Error("Expected nil when vessel contains wrong item type")
 	}
@@ -1134,7 +1134,7 @@ func TestFindVesselContaining_ReturnsNil_NoVessels(t *testing.T) {
 	berry := entity.NewBerry(3, 3, types.ColorRed, false, false)
 	items := []*entity.Item{berry}
 
-	result := FindVesselContaining(0, 0, items, "berry", "")
+	result := FindVesselContaining(&entity.Character{}, 0, 0, items, "berry", "")
 	if result != nil {
 		t.Error("Expected nil when no vessels on ground")
 	}
@@ -1162,13 +1162,13 @@ func TestFindVesselContaining_RespectsLockedVariety(t *testing.T) {
 	items := []*entity.Item{vessel}
 
 	// Looking for red berries — should not match
-	result := FindVesselContaining(0, 0, items, "berry", redID)
+	result := FindVesselContaining(&entity.Character{}, 0, 0, items, "berry", redID)
 	if result != nil {
 		t.Error("Expected nil when vessel has wrong variety")
 	}
 
 	// Looking for blue berries — should match
-	result = FindVesselContaining(0, 0, items, "berry", blueID)
+	result = FindVesselContaining(&entity.Character{}, 0, 0, items, "berry", blueID)
 	if result == nil {
 		t.Fatal("Expected to find vessel containing blue berries")
 	}
@@ -1195,9 +1195,143 @@ func TestFindVesselContaining_FindsNearest(t *testing.T) {
 	near := makeVessel(2, 2)
 	items := []*entity.Item{far, near}
 
-	result := FindVesselContaining(0, 0, items, "berry", "")
+	result := FindVesselContaining(&entity.Character{}, 0, 0, items, "berry", "")
 	if result != near {
 		t.Error("Expected nearest vessel to be returned")
+	}
+}
+
+func TestFindVesselContaining_PicksPreferredContents(t *testing.T) {
+	t.Parallel()
+
+	redID := entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone)
+	blueID := entity.GenerateVarietyID("berry", "", types.ColorBlue, types.PatternNone, types.TextureNone)
+
+	char := entity.NewCharacter(1, 0, 0, "Test", "berry", types.ColorRed)
+	char.Preferences = []entity.Preference{
+		{Valence: 1, Color: types.ColorRed},
+	}
+
+	// Blue vessel nearby (distance 3)
+	blueVessel := createTestVessel()
+	blueVessel.X = 3
+	blueVessel.Y = 0
+	blueVessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{
+			ID:        blueID,
+			ItemType:  "berry",
+			Color:     types.ColorBlue,
+			Plantable: true,
+		}, Count: 2},
+	}
+
+	// Red vessel far away (distance 15)
+	redVessel := createTestVessel()
+	redVessel.X = 15
+	redVessel.Y = 0
+	redVessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{
+			ID:        redID,
+			ItemType:  "berry",
+			Color:     types.ColorRed,
+			Plantable: true,
+		}, Count: 2},
+	}
+
+	items := []*entity.Item{blueVessel, redVessel}
+
+	result := FindVesselContaining(char, 0, 0, items, "berry", "")
+	if result != redVessel {
+		t.Error("Should pick vessel with preferred red berry contents over nearer blue")
+	}
+}
+
+func TestFindVesselContaining_LockedVarietyPicksNearest(t *testing.T) {
+	t.Parallel()
+
+	redID := entity.GenerateVarietyID("berry", "", types.ColorRed, types.PatternNone, types.TextureNone)
+
+	char := entity.NewCharacter(1, 0, 0, "Test", "berry", types.ColorRed)
+	char.Preferences = []entity.Preference{
+		{Valence: -1, Color: types.ColorRed},
+	}
+
+	// Near red vessel (distance 3)
+	nearVessel := createTestVessel()
+	nearVessel.X = 3
+	nearVessel.Y = 0
+	nearVessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{
+			ID:        redID,
+			ItemType:  "berry",
+			Color:     types.ColorRed,
+			Plantable: true,
+		}, Count: 2},
+	}
+
+	// Far red vessel (distance 15)
+	farVessel := createTestVessel()
+	farVessel.X = 15
+	farVessel.Y = 0
+	farVessel.Container.Contents = []entity.Stack{
+		{Variety: &entity.ItemVariety{
+			ID:        redID,
+			ItemType:  "berry",
+			Color:     types.ColorRed,
+			Plantable: true,
+		}, Count: 2},
+	}
+
+	items := []*entity.Item{nearVessel, farVessel}
+
+	result := FindVesselContaining(char, 0, 0, items, "berry", redID)
+	if result != nearVessel {
+		t.Error("When locked, should pick nearest (scoring is moot)")
+	}
+}
+
+func TestFindPreferredPlantableOnGround_PicksPreferred(t *testing.T) {
+	t.Parallel()
+
+	char := entity.NewCharacter(1, 0, 0, "Test", "berry", types.ColorRed)
+	char.Preferences = []entity.Preference{
+		{Valence: 1, Color: types.ColorRed},
+	}
+
+	// Blue berry nearby
+	blueBerry := entity.NewBerry(3, 0, types.ColorBlue, false, false)
+	blueBerry.Plantable = true
+
+	// Red berry far
+	redBerry := entity.NewBerry(15, 0, types.ColorRed, false, false)
+	redBerry.Plantable = true
+
+	items := []*entity.Item{blueBerry, redBerry}
+
+	result := findPreferredPlantableOnGround(char, 0, 0, items, "berry", "")
+	if result != redBerry {
+		t.Error("Should pick preferred red berry over nearer blue")
+	}
+}
+
+func TestFindPreferredPlantableOnGround_NoPrefsFallsBackToNearest(t *testing.T) {
+	t.Parallel()
+
+	char := &entity.Character{}
+
+	// Blue berry nearby
+	blueBerry := entity.NewBerry(3, 0, types.ColorBlue, false, false)
+	blueBerry.Plantable = true
+
+	// Red berry far
+	redBerry := entity.NewBerry(15, 0, types.ColorRed, false, false)
+	redBerry.Plantable = true
+
+	items := []*entity.Item{blueBerry, redBerry}
+
+	result := findPreferredPlantableOnGround(char, 0, 0, items, "berry", "")
+	if result != blueBerry {
+		t.Error("Should fall back to nearest when no preferences")
 	}
 }
 
@@ -2324,5 +2458,79 @@ func TestEnsureHasRecipeInputs_PrefersPreferredShell(t *testing.T) {
 	if intent.TargetItem != silverShell {
 		t.Errorf("Should target preferred silver shell, got %s shell at (%d,%d)",
 			intent.TargetItem.Color, intent.TargetItem.X, intent.TargetItem.Y)
+	}
+}
+
+// =============================================================================
+// 11d Anchor Tests — Vessel + Plantable Preference Selection
+// =============================================================================
+
+func TestEnsureHasVesselFor_PicksPreferredVesselOverNearest(t *testing.T) {
+	t.Parallel()
+
+	registry := createTestRegistry()
+	gameMap := game.NewMap(40, 40)
+	gameMap.SetVarieties(registry)
+
+	char := entity.NewCharacter(1, 0, 0, "Test", "berry", types.ColorRed)
+	char.Preferences = []entity.Preference{
+		{Valence: 1, Color: types.ColorGreen},
+	}
+	char.Inventory = []*entity.Item{}
+
+	target := entity.NewBerry(5, 5, types.ColorRed, false, false)
+
+	// Brown vessel nearby (distance 5)
+	brownVessel := createTestVessel()
+	brownVessel.X = 5
+	brownVessel.Y = 0
+	brownVessel.Color = types.ColorBrown
+
+	// Green vessel far away (distance 20)
+	greenVessel := createTestVessel()
+	greenVessel.X = 20
+	greenVessel.Y = 0
+	greenVessel.Color = types.ColorGreen
+
+	items := []*entity.Item{target, brownVessel, greenVessel}
+
+	intent := EnsureHasVesselFor(char, target, items, gameMap, nil, true, "order")
+	if intent == nil {
+		t.Fatal("Expected intent to pick up a vessel")
+	}
+	if intent.TargetItem != greenVessel {
+		t.Errorf("Should pick preferred green vessel over nearer brown vessel, got vessel at (%d,%d) color=%s",
+			intent.TargetItem.X, intent.TargetItem.Y, intent.TargetItem.Color)
+	}
+}
+
+func TestEnsureHasPlantable_PicksPreferredPlantableOverNearest(t *testing.T) {
+	t.Parallel()
+
+	gameMap := game.NewMap(40, 40)
+	char := entity.NewCharacter(1, 0, 0, "Test", "berry", types.ColorRed)
+	char.Preferences = []entity.Preference{
+		{Valence: 1, Color: types.ColorRed},
+	}
+	gameMap.AddCharacter(char)
+
+	// Blue berry nearby (distance 5), plantable
+	blueBerry := entity.NewBerry(5, 0, types.ColorBlue, false, false)
+	blueBerry.Plantable = true
+	gameMap.AddItem(blueBerry)
+
+	// Red berry far away (distance 20), plantable
+	redBerry := entity.NewBerry(20, 0, types.ColorRed, false, false)
+	redBerry.Plantable = true
+	gameMap.AddItem(redBerry)
+
+	items := gameMap.Items()
+	intent := EnsureHasPlantable(char, "berry", "", items, gameMap, nil)
+	if intent == nil {
+		t.Fatal("Expected intent to pick up a plantable berry")
+	}
+	if intent.TargetItem != redBerry {
+		t.Errorf("Should pick preferred red berry over nearer blue berry, got berry at (%d,%d) color=%s",
+			intent.TargetItem.X, intent.TargetItem.Y, intent.TargetItem.Color)
 	}
 }

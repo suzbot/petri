@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 
 	"petri/internal/config"
 	"petri/internal/entity"
@@ -442,13 +443,52 @@ func findCraftIntent(char *entity.Character, pos types.Position, items []*entity
 		return nil
 	}
 
-	// Find a feasible recipe: at least one of each input type exists
-	// (in character's accessible items or on the map)
+	// Score all feasible recipes and pick the best one
 	var feasible *entity.Recipe
+	bestScore := -math.MaxFloat64
 	for _, recipe := range recipes {
-		if isRecipeFeasible(char, recipe, items) {
+		if !isRecipeFeasible(char, recipe, items) {
+			continue
+		}
+		// Find the primary input for this recipe
+		primaryInputType := recipe.Inputs[0].ItemType
+		for _, input := range recipe.Inputs {
+			if recipe.Output.Kind != "" && len(input.ItemType) > 0 &&
+				strings.Contains(recipe.Output.Kind, input.ItemType) {
+				primaryInputType = input.ItemType
+				break
+			}
+		}
+		primaryItem := findPreferredItemByType(char, char.X, char.Y, items, primaryInputType, false)
+		if primaryItem == nil {
+			// Check inventory for the primary input
+			for _, inv := range char.Inventory {
+				if inv != nil && inv.ItemType == primaryInputType {
+					primaryItem = inv
+					break
+				}
+			}
+		}
+		if primaryItem == nil {
+			continue
+		}
+		synthetic := &entity.Item{
+			ItemType: recipe.Output.ItemType,
+			Kind:     recipe.Output.Kind,
+			Material: primaryItem.ItemType,
+			Color:    primaryItem.Color,
+			Pattern:  primaryItem.Pattern,
+			Texture:  primaryItem.Texture,
+		}
+		dist := 0
+		if primaryItem.X != 0 || primaryItem.Y != 0 {
+			ipos := primaryItem.Pos()
+			dist = pos.DistanceTo(ipos)
+		}
+		score := ScoreItemFit(ScoreItemPreference(char, synthetic), dist)
+		if score > bestScore {
+			bestScore = score
 			feasible = recipe
-			break
 		}
 	}
 	if feasible == nil {

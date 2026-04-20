@@ -924,6 +924,48 @@ func TestPreference_MatchesConstruct_EmptyPreference(t *testing.T) {
 	}
 }
 
+func TestPreference_Matches_MaterialCrossApplication(t *testing.T) {
+	t.Parallel()
+
+	// Anchor test: "likes gourds" matches a vessel with Material "gourd"
+	gourdPref := Preference{Valence: 1, ItemType: "gourd"}
+	gourdVessel := &Item{ItemType: "vessel", Material: "gourd", Kind: "hollow gourd", Color: types.ColorBrown}
+
+	if !gourdPref.Matches(gourdVessel) {
+		t.Error("ItemType preference 'gourd' should match vessel with Material 'gourd'")
+	}
+
+	// ItemType still matches directly (unchanged behavior)
+	rawGourd := &Item{ItemType: "gourd", Color: types.ColorBrown}
+	if !gourdPref.Matches(rawGourd) {
+		t.Error("ItemType preference 'gourd' should still match raw gourd item")
+	}
+
+	// ItemType match takes priority — vessel pref matches vessel regardless of Material
+	vesselPref := Preference{Valence: 1, ItemType: "vessel"}
+	if !vesselPref.Matches(gourdVessel) {
+		t.Error("ItemType preference 'vessel' should match vessel (ItemType match)")
+	}
+
+	// No match when neither ItemType nor Material matches
+	shellPref := Preference{Valence: 1, ItemType: "shell"}
+	if shellPref.Matches(gourdVessel) {
+		t.Error("ItemType preference 'shell' should not match gourd vessel")
+	}
+
+	// Combo: ItemType via Material + Color
+	greenGourdPref := Preference{Valence: 1, ItemType: "gourd", Color: types.ColorGreen}
+	greenGourdVessel := &Item{ItemType: "vessel", Material: "gourd", Color: types.ColorGreen}
+	brownGourdVessel := &Item{ItemType: "vessel", Material: "gourd", Color: types.ColorBrown}
+
+	if !greenGourdPref.Matches(greenGourdVessel) {
+		t.Error("Combo preference should match green gourd vessel via Material")
+	}
+	if greenGourdPref.Matches(brownGourdVessel) {
+		t.Error("Combo preference should not match brown gourd vessel (color mismatch)")
+	}
+}
+
 func TestPreference_MatchScoreConstruct(t *testing.T) {
 	t.Parallel()
 

@@ -937,6 +937,36 @@ func TestWaterVesselSerialization_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestMaterialSerialization_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	m := createTestModel()
+
+	vessel := entity.NewVessel(20, 20, "hollow gourd", "gourd")
+	vessel.Color = types.ColorOrange
+	m.gameMap.AddItemDirect(vessel)
+
+	state := m.ToSaveState()
+	m2 := FromSaveState(state, "test", TestConfig{})
+
+	var restored *entity.Item
+	for _, item := range m2.gameMap.Items() {
+		if item.X == 20 && item.Y == 20 && item.ItemType == "vessel" {
+			restored = item
+			break
+		}
+	}
+	if restored == nil {
+		t.Fatal("Expected to find vessel at (20,20)")
+	}
+	if restored.Material != "gourd" {
+		t.Errorf("Expected Material 'gourd', got %q", restored.Material)
+	}
+	if restored.Kind != "hollow gourd" {
+		t.Errorf("Expected Kind 'hollow gourd', got %q", restored.Kind)
+	}
+}
+
 func TestWateredTileSerialization_RoundTrip(t *testing.T) {
 	t.Parallel()
 

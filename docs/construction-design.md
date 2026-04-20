@@ -249,7 +249,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 ---
 
 ### Step 11: Preference-Weighted Item Seeking
-**Status:** In progress (11a Complete, 11b Complete)
+**Status:** In progress (11a Complete, 11b Complete, 11c Complete)
 
 **Anchor story:** A character who likes stick fences and dislikes grass takes a Build Fence order. Thatch grass bundles are nearby and a stick bundle is 25 tiles away. The character walks past the grass to the sticks — scoring against the anticipated output (a synthetic stick fence), the Kind preference ("likes stick fences", weighted 2×) outweighs the extra distance. Another character gets a Build Hut order. They dislike loose bricks but like brick huts — Kind weight (+2) outweighs material dislike (-1), and they choose bricks. A third character crafting a hoe needs a shell — two silver shells and a brown shell are on the ground. The silver is a few tiles further but the character prefers silver, so they walk to it. A fourth character with a Plant order and no variety lock yet sees red and blue berries — they prefer red, and grab the red berry despite the blue being closer.
 
@@ -666,4 +666,10 @@ Characters gather materials and construct small buildings from grass, sticks, or
 **Decision:** Add a `Material string` field to Item. Crafted items carry their primary input material's ItemType (e.g., a hollow gourd vessel has Material: "gourd"). Update `Preference.Matches` to check `p.ItemType` against both `item.ItemType` and `item.Material`, so material preferences cross-apply to crafted products.
 **Rationale:** Follows **Isomorphism** (a hollow gourd IS made from a gourd; that identity should be matchable). Follows **Follow the Existing Shape** (mirrors Construct.Material). Enables combined synthetic scoring for craft recipes using the same weighted attribute approach as construction recipes (DD-52).
 **Affects:** Step 11b (deferred from 11a; construction recipes use the Construct scoring path which already has Material)
+
+### DD-62: Entity constructor pattern for item types
+**Context:** Items like hoe and brick have entity constructors (`NewHoe`, `NewBrick` in `entity/item.go`) that define inherent identity — symbol, type, kind, and now material. Crafting creation functions (`CreateHoe`, `CreateBrick` in `system/crafting.go`) delegate to these constructors and add crafting-specific assembly (color from input, recipe output fields). Vessel is the only item type created inline in its creation function with no entity constructor.
+**Decision:** All item types must have entity constructors in `entity/item.go` that define inherent identity (symbol, type, kind, material). Crafting creation functions in `system/crafting.go` delegate to them. Extract `NewVessel` as boy-scout cleanup in Step 11c when adding Material to all constructors.
+**Rationale:** Follows **Source of Truth Clarity** — inherent item identity lives in one place (entity constructors), not scattered across crafting code. Follows **Follow the Existing Shape** — hoe and brick already use this pattern; vessel should too. Supports mass-adding craft recipes in later phases without duplicating identity definitions.
+**Affects:** Step 11c, future craft recipe additions
 

@@ -649,7 +649,7 @@ func TestFindAvailableVessel_FindsEmptyVessel(t *testing.T) {
 
 	items := []*entity.Item{berry, vessel}
 
-	found := FindAvailableVessel(0, 0, items, berry, registry)
+	found := FindAvailableVessel(&entity.Character{}, 0, 0, items, berry, registry)
 	if found != vessel {
 		t.Error("Should find empty vessel")
 	}
@@ -670,7 +670,7 @@ func TestFindAvailableVessel_FindsMatchingVessel(t *testing.T) {
 
 	items := []*entity.Item{targetBerry, vessel}
 
-	found := FindAvailableVessel(0, 0, items, targetBerry, registry)
+	found := FindAvailableVessel(&entity.Character{}, 0, 0, items, targetBerry, registry)
 	if found != vessel {
 		t.Error("Should find vessel with matching variety")
 	}
@@ -691,7 +691,7 @@ func TestFindAvailableVessel_SkipsIncompatibleVessel(t *testing.T) {
 
 	items := []*entity.Item{targetBerry, vessel}
 
-	found := FindAvailableVessel(0, 0, items, targetBerry, registry)
+	found := FindAvailableVessel(&entity.Character{}, 0, 0, items, targetBerry, registry)
 	if found != nil {
 		t.Error("Should not find vessel with incompatible variety")
 	}
@@ -713,9 +713,60 @@ func TestFindAvailableVessel_FindsNearest(t *testing.T) {
 
 	items := []*entity.Item{berry, farVessel, nearVessel}
 
-	found := FindAvailableVessel(0, 0, items, berry, registry)
+	found := FindAvailableVessel(&entity.Character{}, 0, 0, items, berry, registry)
 	if found != nearVessel {
 		t.Error("Should find nearest available vessel")
+	}
+}
+
+func TestFindAvailableVessel_PicksPreferredByColor(t *testing.T) {
+	registry := createTestRegistry()
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+
+	char := entity.NewCharacter(1, 0, 0, "Test", "berry", types.ColorRed)
+	char.Preferences = []entity.Preference{
+		{Valence: 1, Color: types.ColorGreen},
+	}
+
+	// Brown vessel nearby (distance 5)
+	brownVessel := createTestVessel()
+	brownVessel.X = 5
+	brownVessel.Y = 0
+	brownVessel.Color = types.ColorBrown
+
+	// Green vessel far away (distance 15)
+	greenVessel := createTestVessel()
+	greenVessel.X = 15
+	greenVessel.Y = 0
+	greenVessel.Color = types.ColorGreen
+
+	items := []*entity.Item{berry, brownVessel, greenVessel}
+
+	found := FindAvailableVessel(char, 0, 0, items, berry, registry)
+	if found != greenVessel {
+		t.Error("Should pick preferred green vessel over nearer brown vessel")
+	}
+}
+
+func TestFindAvailableVessel_NoPrefsFallsBackToNearest(t *testing.T) {
+	registry := createTestRegistry()
+	berry := entity.NewBerry(5, 5, types.ColorRed, false, false)
+
+	char := entity.NewCharacter(1, 0, 0, "Test", "berry", types.ColorRed)
+
+	farVessel := createTestVessel()
+	farVessel.X = 15
+	farVessel.Y = 0
+
+	nearVessel := createTestVessel()
+	nearVessel.X = 3
+	nearVessel.Y = 0
+
+	items := []*entity.Item{berry, farVessel, nearVessel}
+
+	found := FindAvailableVessel(char, 0, 0, items, berry, registry)
+	if found != nearVessel {
+		t.Error("Should fall back to nearest when no preferences")
 	}
 }
 

@@ -251,6 +251,8 @@ If a character already has the exact same preference with opposite valence, the 
 
 Preferences formed from one source can affect mood when encountering another. Material preferences (ItemType) match constructs by their building material — "Likes sticks" boosts mood when looking at a stick fence. Color preferences also cross-apply between items and constructs.
 
+Material preferences also cross-apply to crafted items — "Likes gourds" matches a hollow gourd vessel (whose material is gourd) in addition to raw gourds. This mirrors how construct material preferences work.
+
 ### Preference-Weighted Item Seeking
 
 When characters seek items by type — for picking up recipe inputs or procuring specific items for orders — they score candidates by both preference fit and distance rather than pure proximity:
@@ -258,6 +260,8 @@ When characters seek items by type — for picking up recipe inputs or procuring
 `Score = NetPreference × PrefWeight - Distance × DistWeight`
 
 A character who likes silver shells will walk further to reach a silver shell when crafting a hoe, rather than taking the nearest brown shell. When no preferences match any candidate, behavior is identical to before — nearest item wins (distance-only scoring). See `config.ItemSeekPrefWeight` and `config.ItemSeekDistWeight` for weights.
+
+For craft recipe selection, characters score the anticipated output (a synthetic item combining recipe identity with material attributes) using weighted attribute matching — Kind contributes 2 points, all other attributes contribute 1 point. A character who "likes shell hoes" (Kind, +2) will prefer the shell-hoe recipe even when disliking shells (-1), netting +1.
 
 ### Viewing Preferences
 
@@ -481,9 +485,11 @@ When an order is abandoned (not cancelled), it enters a **cooldown period** (see
 
 ### Recipes
 
-- **hollow-gourd**: 1 gourd → 1 vessel (container). Vessel inherits gourd's appearance.
-- **shell-hoe**: 1 stick + 1 shell → 1 hoe (tool for tilling soil). Hoe inherits shell's color.
-- **clay-brick**: 1 clay → 1 brick. Repeatable — order continues until no loose clay remains on the map.
+- **hollow-gourd**: 1 gourd → 1 vessel (container). Vessel inherits gourd's appearance and carries Material "gourd".
+- **shell-hoe**: 1 stick + 1 shell → 1 hoe (tool for tilling soil). Hoe inherits shell's color and carries Material "shell".
+- **clay-brick**: 1 clay → 1 brick. Repeatable — order continues until no loose clay remains on the map. Brick carries Material "clay".
+
+Crafted items carry a **Material** field identifying their primary input. This is shown in the item details panel and enables material preferences to apply to crafted products (see [Preferences](#preferences)).
 
 ### Discovery
 

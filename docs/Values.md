@@ -32,6 +32,8 @@ When a new case resembles an existing pattern, give preference to that pattern �
 
 **When fixing a gap, check sibling flows.** A gap in one flow likely exists in every flow with the same structure. Ground water vessel support was missing from helpWater — but fetchWater and waterGarden had the same gap because all three share the "ensure I have a vessel with water" pattern.
 
+**When modifying a family, evaluate whether it's worth bringing outliers in line at the same time.** The context cost is lowest when you're already in the code.
+
 Examples: Kind on ItemVariety mirrors Edible on ItemVariety. FindVesselContaining checked whether FindAvailableVessel could serve the need first — it couldn't, but the analysis confirmed the new utility should be a structural sibling. item.Kind belongs on ItemVariety, not reconstructed from order.targetType.
 
 ## Consider Extensibility
@@ -45,6 +47,22 @@ Example: Water as ItemType "liquid", Kind "water" (not ItemType "water"). Future
 Every field is a contract about what it represents — not a convenient proxy for something correlated. Don't read a field to answer a question it doesn't encode, even when the answers happen to align today. The correlation holds until it doesn't, and then the proxy silently breaks. When a concept needs querying, use the field that encodes it — or create one.
 
 Examples: `CanProduceSeeds` controls seed production on consumption — using it to mean "is plantable" breaks when a plantable item doesn't produce seeds. `Passable` means "can walk through" — using it to detect doors breaks when doors become lockable. The source of truth is the field that encodes identity (`Plantable`, `WallRole == "door"`), not a behavioral property that happens to correlate.
+
+## Boy Scout Rule
+
+Leave code better than you found it — but scoped to what you're touching. When a change puts you in a file or pattern family, evaluate adjacent improvements that are cheaper now than they would be as standalone work. Don't defer cleanup to a future step when the relevant context is already loaded.
+
+This is a judgment call, not a mandate. Propose the improvement and its cost to the user — don't unilaterally expand scope.
+
+Example: Adding Material to NewHoe and NewBrick constructors revealed vessel had no constructor (inline creation in crafting.go). Extracting NewVessel cost minutes during 11c but would have been a standalone refactor task later. The pattern context was already loaded.
+
+## Player-Visible Completeness
+
+When adding a field to an entity, check with the user on whether the player should be able to see it — either in the regular details panel or in debug mode. New fields without UI exposure are invisible data that the player can't verify.
+
+Corollary for refactors: if a structural change (extracting a constructor, reorganizing creation paths) doesn't change behavior, prove it with a test plan that covers the player-visible output — not just the internal API.
+
+Example: Material field added to Item — without asking about details panel visibility, the field would have been correct but unverifiable. The user chose to show it in regular mode.
 
 ## Start With the Simpler Rule
 

@@ -31,6 +31,36 @@ func ScoreConstructPreference(char *entity.Character, construct *entity.Construc
 	return score
 }
 
+// ScoreItemPreference computes a weighted preference score for an Item.
+// Kind contributes 2 points per valence; ItemType, Color, Pattern, Texture contribute 1 each.
+// Used for craft recipe selection where a synthetic Item represents the anticipated output.
+func ScoreItemPreference(char *entity.Character, item *entity.Item) int {
+	score := 0
+	for _, pref := range char.Preferences {
+		if !pref.Matches(item) {
+			continue
+		}
+		weight := 0
+		if pref.Kind != "" {
+			weight += 2
+		}
+		if pref.ItemType != "" {
+			weight += 1
+		}
+		if pref.Color != "" {
+			weight += 1
+		}
+		if pref.Pattern != "" {
+			weight += 1
+		}
+		if pref.Texture != "" {
+			weight += 1
+		}
+		score += pref.Valence * weight
+	}
+	return score
+}
+
 // ScoreItemFit computes the unified item-seeking score.
 // Score = (weightedPref × prefWeight) - (dist × distWeight)
 // Used by all item-seeking call sites (construction material, craft recipe, item procurement,

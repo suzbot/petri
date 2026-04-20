@@ -26,7 +26,7 @@ func (p Preference) Matches(item *Item) bool {
 		return false // Empty preference matches nothing
 	}
 
-	if p.ItemType != "" && p.ItemType != item.ItemType {
+	if p.ItemType != "" && p.ItemType != item.ItemType && p.ItemType != item.Material {
 		return false
 	}
 

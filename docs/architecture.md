@@ -273,6 +273,9 @@ Crafted items (like vessels) differ from natural items:
 - Have `Plant = nil` (don't spawn/reproduce)
 - Inherit appearance (Color, Pattern, Texture) from input materials
 - May have `Container` for storage capability
+- Carry a `Material string` identifying the primary input (e.g., `"gourd"` for vessels, `"shell"` for hoes, `"clay"` for bricks). `Preference.Matches` checks `p.ItemType` against both `item.ItemType` and `item.Material`, enabling material preferences to cross-apply to crafted products. Shown in the item details panel.
+
+**Entity constructor pattern (DD-62):** All item types have entity constructors in `entity/item.go` that define inherent identity (symbol, type, kind, material). Crafting creation functions in `system/crafting.go` delegate to these constructors and add crafting-specific assembly (color from input, output field). Material is set by the constructor, not the creation function — this keeps identity in one place.
 
 ### Adding New Plant Types
 
@@ -696,7 +699,14 @@ When foraging or harvesting without a vessel:
 
 ### Preference-Weighted Item Seeking
 
-`selectConstructionMaterial` uses preference-weighted scoring via `ScoreConstructPreference` + `ScoreItemFit` (Step 11a). `EnsureHasItem` and `EnsureHasRecipeInputs` use `findPreferredItemByType` — preference + distance scoring — replacing pure nearest-distance (Step 11b). Remaining gap: `FindAvailableVessel`, `EnsureHasVesselFor`, and `EnsureHasPlantable` (before variety lock) still use nearest-distance (Step 11d). See `triggered-enhancements.md` for the "Generic scored-item search helper" trigger.
+`selectConstructionMaterial` uses preference-weighted scoring via `ScoreConstructPreference` + `ScoreItemFit` (Step 11a). `EnsureHasItem` and `EnsureHasRecipeInputs` use `findPreferredItemByType` — preference + distance scoring — replacing pure nearest-distance (Step 11b). `findCraftIntent` uses `ScoreItemPreference` with weighted attribute matching to score craft recipe outputs (Step 11c). Remaining gap: `FindAvailableVessel`, `EnsureHasVesselFor`, and `EnsureHasPlantable` (before variety lock) still use nearest-distance (Step 11d). See `triggered-enhancements.md` for the "Generic scored-item search helper" trigger.
+
+**Scoring functions** (in `internal/system/item_scoring.go`):
+- `ScoreConstructPreference(char, construct)` — weighted preference score for a Construct (real or synthetic). Kind = 2×, Material/Color = 1×. Used by `selectConstructionMaterial`.
+- `ScoreItemPreference(char, item)` — weighted preference score for an Item (real or synthetic). Kind = 2×, ItemType/Color/Pattern/Texture = 1×. Used by `findCraftIntent`.
+- `ScoreItemFit(weightedPref, dist)` — converts weighted pref + distance to a float64 score. Shared by all preference-seeking call sites.
+
+These weighted functions are separate from `NetPreference` / `NetPreferenceForConstruct` (unweighted). The 2× Kind weight is a decision-making rule for item seeking only — mood changes from looking at items/constructs stay unweighted.
 
 ## Recipe System
 
@@ -705,10 +715,10 @@ Recipes define how to craft items from components.
 ### Crafting Flow
 
 1. Order assigned → `findCraftIntent` gets recipes for activity, filters to feasible recipes
-2. Picks first feasible recipe (future: preference-weighted selection)
+2. Scores all feasible recipes: builds a synthetic Item (ItemType from output, Kind from output, Material from primary input, Color/Pattern/Texture from nearest available input) and calls `ScoreItemPreference` with weighted attribute matching (Kind = 2×, others = 1×). Selects highest-scoring recipe. With one recipe per activity today this is a no-op — infrastructure for future competing recipes.
 3. `EnsureHasRecipeInputs` gathers missing components
 4. Once all components accessible: perform crafting action
-5. On completion: consume all inputs, create output item via recipe-specific creation function
+5. On completion: consume all inputs, create output item via recipe-specific creation function. Output item carries `Material` set by the entity constructor (e.g., vessel gets Material "gourd", hoe gets Material "shell").
 
 ### Repeatable Recipes
 
@@ -718,10 +728,11 @@ Recipes with `Repeatable: true` loop after each craft cycle instead of completin
 
 1. Add recipe to `RecipeRegistry` in `entity/recipe.go`. Set `Repeatable: true` if the order should loop until a world-state condition is met.
 2. Add activity to `ActivityRegistry` for the crafting activity (if new)
-3. Add creation function in `system/crafting.go` (e.g., `CreateHoe`)
-4. Add case to the `ActionCraft` handler in `apply_actions.go` dispatch (by recipe ID)
-5. If `Repeatable`: add completion case to `isMultiStepOrderComplete` in `order_execution.go`
-6. If discovery is triggered by looking at a construct: set `ConstructKind` on the recipe's `DiscoveryTrigger`. If the recipe should only be discovered from a specific material variant (e.g., stick-hut from stick fences only), also set `ConstructMaterial`. See [Construct-triggered discovery](#discovery-triggers). These triggers fire from `TryDiscoverFromConstruct` (called by `CompleteLookAtConstruct`), not from item interactions.
+3. Add entity constructor `NewX()` in `entity/item.go` for the output item type (DD-62). Set inherent identity: symbol, ItemType, Kind, and Material (primary input's ItemType). This is the source of truth for what the crafted item is.
+4. Add creation function in `system/crafting.go` (e.g., `CreateHoe`) that delegates to the entity constructor and adds crafting-specific assembly (color/pattern/texture from input item).
+5. Add case to the `ActionCraft` handler in `apply_actions.go` dispatch (by recipe ID)
+6. If `Repeatable`: add completion case to `isMultiStepOrderComplete` in `order_execution.go`
+7. If discovery is triggered by looking at a construct: set `ConstructKind` on the recipe's `DiscoveryTrigger`. If the recipe should only be discovered from a specific material variant (e.g., stick-hut from stick fences only), also set `ConstructMaterial`. See [Construct-triggered discovery](#discovery-triggers). These triggers fire from `TryDiscoverFromConstruct` (called by `CompleteLookAtConstruct`), not from item interactions.
 
 ## Area Selection UI Pattern
 

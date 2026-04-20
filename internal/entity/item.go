@@ -51,6 +51,7 @@ type Item struct {
 	// Descriptive attributes (opinion-formable)
 	ItemType string        // broad category: "berry", "hoe", "vessel"
 	Kind     string        // recipe subtype: "shell hoe", "hollow gourd" (empty for natural items)
+	Material string        // primary input material: "shell", "gourd", "clay" (empty for natural items)
 	Color    types.Color   // all items have color
 	Pattern  types.Pattern // mushrooms, gourds (spotted, striped, speckled)
 	Texture  types.Texture // mushrooms, gourds (slimy, waxy, warty)
@@ -219,7 +220,26 @@ func NewBrick(x, y int) *Item {
 		},
 		Name:     "brick",
 		ItemType: "brick",
+		Material: "clay",
 		Color:    types.ColorTerracotta,
+	}
+}
+
+func NewVessel(x, y int, kind, material string) *Item {
+	return &Item{
+		BaseEntity: BaseEntity{
+			X:     x,
+			Y:     y,
+			Sym:   config.CharVessel,
+			EType: TypeItem,
+		},
+		ItemType: "vessel",
+		Kind:     kind,
+		Material: material,
+		Container: &ContainerData{
+			Capacity: 1,
+			Contents: []Stack{},
+		},
 	}
 }
 
@@ -289,6 +309,7 @@ func NewHoe(x, y int, color types.Color) *Item {
 		},
 		ItemType: "hoe",
 		Kind:     "shell hoe",
+		Material: "shell",
 		Color:    color,
 	}
 }

@@ -169,7 +169,8 @@ type ItemSave struct {
 	types.Position
 	Name     string `json:"name,omitempty"` // Display name for crafted items
 	ItemType string `json:"item_type"`
-	Kind     string `json:"kind,omitempty"` // Recipe subtype (e.g. "shell hoe", "hollow gourd")
+	Kind     string `json:"kind,omitempty"`     // Recipe subtype (e.g. "shell hoe", "hollow gourd")
+	Material string `json:"material,omitempty"` // Primary input material (e.g. "shell", "gourd", "clay")
 	Color    string `json:"color"`
 	Pattern  string `json:"pattern"`
 	Texture  string `json:"texture"`
