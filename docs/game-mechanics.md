@@ -255,11 +255,11 @@ Material preferences also cross-apply to crafted items — "Likes gourds" matche
 
 ### Preference-Weighted Item Seeking
 
-When characters seek items by type — for picking up recipe inputs or procuring specific items for orders — they score candidates by both preference fit and distance rather than pure proximity:
+When characters seek items by type — for picking up recipe inputs, procuring vessels, selecting plantable varieties, or choosing construction materials — they score candidates by both preference fit and distance rather than pure proximity:
 
 `Score = NetPreference × PrefWeight - Distance × DistWeight`
 
-A character who likes silver shells will walk further to reach a silver shell when crafting a hoe, rather than taking the nearest brown shell. When no preferences match any candidate, behavior is identical to before — nearest item wins (distance-only scoring). See `config.ItemSeekPrefWeight` and `config.ItemSeekDistWeight` for weights.
+A character who likes silver shells will walk further to reach a silver shell when crafting a hoe, rather than taking the nearest brown shell. A character who prefers green vessels will walk past a brown one to reach it. A character planting berries with no variety lock will pick up their preferred color variety before the order locks in. When no preferences match any candidate, behavior is identical to before — nearest item wins (distance-only scoring). See `config.ItemSeekPrefWeight` and `config.ItemSeekDistWeight` for weights.
 
 For craft recipe selection, characters score the anticipated output (a synthetic item combining recipe identity with material attributes) using weighted attribute matching — Kind contributes 2 points, all other attributes contribute 1 point. A character who "likes shell hoes" (Kind, +2) will prefer the shell-hoe recipe even when disliking shells (-1), netting +1.
 

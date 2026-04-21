@@ -1,1 +1,3 @@
-Step 11b complete. Next: Step 11c — Material Field + Craft Recipe Scoring. Run /refine-feature.
+Step 11 (Preference-Weighted Item Seeking) is complete.
+
+Next step: Step 12 — Display, Label, and Color Polish. See [construction-design.md](construction-design.md) for scope.

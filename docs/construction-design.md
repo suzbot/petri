@@ -249,7 +249,7 @@ Characters gather materials and construct small buildings from grass, sticks, or
 ---
 
 ### Step 11: Preference-Weighted Item Seeking
-**Status:** In progress (11a Complete, 11b Complete, 11c Complete)
+**Status:** Complete
 
 **Anchor story:** A character who likes stick fences and dislikes grass takes a Build Fence order. Thatch grass bundles are nearby and a stick bundle is 25 tiles away. The character walks past the grass to the sticks — scoring against the anticipated output (a synthetic stick fence), the Kind preference ("likes stick fences", weighted 2×) outweighs the extra distance. Another character gets a Build Hut order. They dislike loose bricks but like brick huts — Kind weight (+2) outweighs material dislike (-1), and they choose bricks. A third character crafting a hoe needs a shell — two silver shells and a brown shell are on the ground. The silver is a few tiles further but the character prefers silver, so they walk to it. A fourth character with a Plant order and no variety lock yet sees red and blue berries — they prefer red, and grab the red berry despite the blue being closer.
 

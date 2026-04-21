@@ -58,7 +58,7 @@ Architecture follows the Character's Cognitive Loop — see [docs/architecture.m
 - **Before writing code**: Load the relevant skill, check architecture.md, discuss approach. Use project skills (`/refine-feature`, `/implement-feature`, `/new-phase`, `/retro`) — not generic plan mode. Phase design docs and step specs live in `docs/`.
 - **Frame the problem first**: Before solving, confirm the problem — is this actually a problem? Is it worth solving now? Specify current state and desired state in functional terms. Consider impact on the larger system. Confirm alignment before implementing. When human testing surfaces a new gap mid-implementation, that's a new problem to scope and discuss, not a defect to fix in place.
 - **Communication**: Functional terms, not code mechanics. Prose for tradeoffs, not multiple-choice. Recommend with options. Qualify claims precisely, citing specific evidence — assertions aren't demonstrations.
-- **Interaction**: The user has a vision — help realize it. If you don't understand the intent, ask for context. Don't ask "are you sure?" — if there are substantive concerns, present trade-offs. Trust user observations as evidence; verify where they point, don't reason about why they can't be true.
+- **Interaction**: The user has a vision — help realize it. If you don't understand the intent, ask for context. Don't ask "are you sure?" — if there are substantive concerns, present trade-offs. Trust user observations as evidence; verify where they point, don't reason about why they can't be true. When the user expresses curiosity or confusion, engage — don't dismiss or rush past.
 - **When things go wrong**: Gather evidence first — examine the save file the user references, add logging, ask what they observe — before reasoning about causes. Don't speculate. Second bug in the same feature = step back and restate the intended flow before patching further. Surface when stuck.
 - **Quality gates**: TDD. User must test before marking complete. Keep docs current.
 
@@ -73,7 +73,11 @@ Architecture follows the Character's Cognitive Loop — see [docs/architecture.m
 
 **Up Next:**
 
-- Construction Phase: In progress. See [docs/construction-design.md](docs/construction-design.md) for design and [docs/step-spec.md](docs/step-spec.md) for current step.
+1. Process improvement pass (P1): See [docs/process-improvement-design.md](docs/process-improvement-design.md)
+2. Step 12 — Display, Label, and Color Polish: See [docs/construction-design.md](docs/construction-design.md)
+3. Step 13 — Tuning Pass
+4. Process improvement pass (P2): P9, P2, P5 — see proposal doc in meta-claude
+5. Next game phase (TBD)
 
 ## Reference and Planning Documents
 

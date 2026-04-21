@@ -9,6 +9,7 @@
   - [Separation of Concerns by Cognitive Role](#separation-of-concerns-by-cognitive-role)
   - [Encapsulated Workflows](#encapsulated-workflows)
   - [Intent as the Universal Contract](#intent-as-the-universal-contract)
+  - [Constrained Creation, Generic Execution](#constrained-creation-generic-execution)
 - [Key Design Patterns](#key-design-patterns)
 - [Data Flow](#data-flow)
 - [World & Terrain](#world--terrain)
@@ -58,7 +59,7 @@
   - [Variety Restoration on Extraction](#variety-restoration-on-extraction)
   - [Consumption Side Effects](#consumption-side-effects)
   - [Look-for-Container Pattern](#look-for-container-pattern)
-  - [Future: Unified Item-Seeking](#future-unified-item-seeking)
+  - [Preference-Weighted Item Seeking](#preference-weighted-item-seeking)
 - [Recipe System](#recipe-system)
   - [Crafting Flow](#crafting-flow)
   - [Repeatable Recipes](#repeatable-recipes)
@@ -113,6 +114,20 @@ Some actions involve multi-phase workflows (fetch water: get vessel → fill →
 ### Intent as the Universal Contract
 
 The Intent struct is the handoff between deciding and doing. It remains the single interface between the decision phase and execution phase.
+
+### Constrained Creation, Generic Execution
+
+Behavioral constraints (what's allowed) live at order/action *creation* boundaries — the UI layer, config maps, and discovery gates. The execution engine is generic: once an order or intent exists, the system processes it against any matching entities without re-validating eligibility.
+
+**Example:** `config.ExtractableTypes` gates which plant types appear in the Extract order menu. But `findNearestExtractable` and the extraction handler work on any growing plant matching the order's `TargetType`. An extract-berry order (impossible to create via UI) executes successfully if injected via save file — the mechanics are type-agnostic.
+
+**Why this is desirable:**
+- **DRY.** One source of truth for "what's allowed" (config/UI). Duplicating constraints in execution means two places to maintain, and they drift — producing subtle bugs where the UI allows something execution rejects, or vice versa.
+- **Extensibility is free.** Adding a new extractable type means one config entry. The execution path is already proven for any plant type. No new code, no new execution tests.
+- **Testability.** Generic execution is testable independent of config. You verify the mechanics once; config controls the surface area. Adding types doesn't require new mechanical tests.
+- **Correct boundary.** Validation belongs at system boundaries where user input enters. The UI is that boundary. Save files are a power-user escape hatch, not an adversarial surface.
+
+**Pattern to extend:** When adding a new activity type or order category, put the "is this allowed?" check at order creation (UI menu filtering, config map, know-how gate). Keep the execution handler generic over target types. If you find yourself adding a type-check inside an execution handler, ask whether it belongs in the config/UI gate instead.
 
 ## Key Design Patterns
 
@@ -699,7 +714,7 @@ When foraging or harvesting without a vessel:
 
 ### Preference-Weighted Item Seeking
 
-`selectConstructionMaterial` uses preference-weighted scoring via `ScoreConstructPreference` + `ScoreItemFit` (Step 11a). `EnsureHasItem` and `EnsureHasRecipeInputs` use `findPreferredItemByType` — preference + distance scoring — replacing pure nearest-distance (Step 11b). `findCraftIntent` uses `ScoreItemPreference` with weighted attribute matching to score craft recipe outputs (Step 11c). Remaining gap: `FindAvailableVessel`, `EnsureHasVesselFor`, and `EnsureHasPlantable` (before variety lock) still use nearest-distance (Step 11d). See `triggered-enhancements.md` for the "Generic scored-item search helper" trigger.
+All item-seeking paths score candidates by preference fit + distance rather than pure proximity. `selectConstructionMaterial` uses `ScoreConstructPreference` + `ScoreItemFit` against a synthetic Construct. `EnsureHasItem` and `EnsureHasRecipeInputs` use `findPreferredItemByType` — preference + distance scoring. `findCraftIntent` uses `ScoreItemPreference` with weighted attribute matching to score craft recipe outputs. `FindAvailableVessel` and `FindVesselContaining` (before variety lock) score vessels by `char.NetPreference(vessel)` + distance. `EnsureHasPlantable` uses `findPreferredPlantableOnGround` for loose items and preference-scored `FindVesselContaining` for vessel contents — preference is applied before variety lock; after lock, only one variety matches so scoring is moot. See `triggered-enhancements.md` for the "Generic scored-item search helper" trigger.
 
 **Scoring functions** (in `internal/system/item_scoring.go`):
 - `ScoreConstructPreference(char, construct)` — weighted preference score for a Construct (real or synthetic). Kind = 2×, Material/Color = 1×. Used by `selectConstructionMaterial`.
