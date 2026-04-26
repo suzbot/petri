@@ -639,6 +639,7 @@ func TestPluralize(t *testing.T) {
 		{"mushroom", "mushrooms"},
 		{"flower", "flowers"},
 		{"tall grass", "tall grass"},
+		{"clay", "lumps of clay"},
 		{"unknown", "unknowns"},
 	}
 

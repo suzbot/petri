@@ -772,3 +772,57 @@ func TestNewClay_Properties(t *testing.T) {
 		t.Errorf("Position: got (%d,%d), want (3,4)", clay.X, clay.Y)
 	}
 }
+
+func TestItem_Description_StickSingle(t *testing.T) {
+	t.Parallel()
+
+	item := NewStick(0, 0)
+	got := item.Description()
+	if got != "stick" {
+		t.Errorf("Stick Description(): got %q, want %q", got, "stick")
+	}
+}
+
+func TestItem_Description_StickBundle(t *testing.T) {
+	t.Parallel()
+
+	item := NewStick(0, 0)
+	item.BundleCount = 5
+	got := item.Description()
+	if got != "bundle of sticks (5)" {
+		t.Errorf("Stick bundle Description(): got %q, want %q", got, "bundle of sticks (5)")
+	}
+}
+
+func TestItem_Description_TallGrassSingle(t *testing.T) {
+	t.Parallel()
+
+	item := NewGrass(0, 0)
+	item.Plant = nil
+	got := item.Description()
+	if got != "tall grass" {
+		t.Errorf("Tall grass Description(): got %q, want %q", got, "tall grass")
+	}
+}
+
+func TestItem_Description_TallGrassBundle(t *testing.T) {
+	t.Parallel()
+
+	item := NewGrass(0, 0)
+	item.Plant = nil
+	item.BundleCount = 5
+	got := item.Description()
+	if got != "bundle of tall grass (5)" {
+		t.Errorf("Tall grass bundle Description(): got %q, want %q", got, "bundle of tall grass (5)")
+	}
+}
+
+func TestItem_Description_BrickStillWorks(t *testing.T) {
+	t.Parallel()
+
+	item := NewBrick(0, 0)
+	got := item.Description()
+	if got != "brick" {
+		t.Errorf("Brick Description(): got %q, want %q", got, "brick")
+	}
+}

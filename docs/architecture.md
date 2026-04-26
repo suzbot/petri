@@ -804,7 +804,7 @@ Constructor-set fields won't be populated when deserializing directly into struc
 
 **BundleCount serialization**: `BundleCount` is stored as `bundle_count` in `ItemSave`. Backward compatibility: old saves without the field default to `BundleCount=0`; on load, bundleable types with `BundleCount=0` are migrated to `BundleCount=1` (a single item is a bundle of 1).
 
-**Kind migration**: When a new Kind value is added to an existing item type, old saves that pre-date the Kind field have `Kind=""` for those items. Migration in `FromSaveState` (`serialize.go`) restores the expected Kind (e.g., grass items without Kind get `Kind="tall grass"` on load). Follow this pattern for any future item type that gains a Kind retroactively.
+**Field migration for existing item types**: When an existing field (Kind, Name, Material, etc.) is newly populated on an item type that previously left it empty, old saves will load with the zero value. Migration in `FromSaveState` (`serialize.go`) must set the expected value on load. Examples: grass items without Kind get `Kind="tall grass"`; sticks without Name get `Name="stick"`. Follow this pattern any time an existing item type starts using a field it previously didn't.
 
 **Save compatibility when changing entity storage**: When changing how entities are stored (e.g., moving data between fields, maps, or types), verify save/load round-trip in the same step. Check: (1) new state serializes, (2) old saves migrate, (3) serialize tests updated.
 

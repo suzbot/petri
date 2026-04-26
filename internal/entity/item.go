@@ -171,6 +171,7 @@ func NewGrass(x, y int) *Item {
 			Sym:   config.CharGrass,
 			EType: TypeItem,
 		},
+		Name:        "tall grass",
 		ItemType:    "grass",
 		Kind:        "tall grass",
 		Color:       types.ColorPaleGreen,
@@ -188,6 +189,7 @@ func NewStick(x, y int) *Item {
 			Sym:   config.CharStick,
 			EType: TypeItem,
 		},
+		Name:        "stick",
 		ItemType:    "stick",
 		Color:       types.ColorBrown,
 		BundleCount: 1,
@@ -320,10 +322,6 @@ func NewHoe(x, y int, color types.Color) *Item {
 // Kind is used when present (crafted items), ItemType as fallback (natural items).
 // e.g., "silver shell hoe", "warty spotted green hollow gourd", "red berry"
 func (i *Item) Description() string {
-	if i.Name != "" {
-		return i.Name
-	}
-
 	if i.BundleCount >= 2 {
 		var plural string
 		if i.Kind != "" {
@@ -335,6 +333,10 @@ func (i *Item) Description() string {
 			}
 		}
 		return fmt.Sprintf("bundle of %s (%d)", plural, i.BundleCount)
+	}
+
+	if i.Name != "" {
+		return i.Name
 	}
 
 	var parts []string

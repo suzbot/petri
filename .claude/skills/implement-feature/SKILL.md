@@ -21,8 +21,8 @@ This is the only step before work begins. Do all three in sequence, with no code
    3. **Write anchor test** — end-to-end functional test based on the anchor story, before any implementation. Verify the test setup aligns with the spec — quantities, thresholds, and conditions should match what the spec prescribes, not default to convenient values.
    4. **Write unit tests + Implement** — additional tests and minimum code to pass all tests
    5. **Run tests and format** — `go test ./...` and `gofmt ./...`. If any test fails intermittently, log it on `docs/randomideas.md`.
-   6. **[TEST] Human testing** — offer `/test-world`, wait for confirmation
-   7. **Invoke `/fix-bug`** — only if issues found; otherwise mark completed
+   6. **[TEST] Human testing** — task description MUST include: "Wait for user to explicitly confirm testing is complete before proceeding. Do not move to the next task until confirmed."
+   7. **Invoke `/fix-bug`** — task description MUST include: "If user reports ANY issues, invoke `/fix-bug` via the Skill tool. Do not diagnose or fix inline." Mark completed only if no issues found.
    8. **[DOCS] Invoke `/update-docs`** — relay summary to user
    9. **[RETRO] Invoke `/retro`**
 3. **Confirm with the user** that the task list looks right before beginning task 1.

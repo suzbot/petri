@@ -148,6 +148,7 @@ Before formulating proposals, read what already exists so proposals build on or 
 - **`docs/Values.md`** — current design values. Check whether a friction signal maps to an existing value that could be strengthened (new example, broader wording) rather than a new value.
 - **Relevant skills in `.claude/skills/`** — skim skills that relate to the friction observed (e.g., if the issue was during implementation, read `implement-feature/SKILL.md`). Check whether existing guidance already covers the issue but wasn't surfaced at the right time, vs. guidance that's genuinely missing.
 - **claude.md** - read section on collaboration norms
+- **Library catalog** — skim `/Users/suzanneerin/projects/meta-claude/claude-code-source-library-catalog.md` for articles whose "Reach for it when" matches the friction observed. If a good fit exists, cite it when proposing changes — external framing can sharpen the diagnosis. Don't force a reference when none fits.
 
 The goal is: **strengthen or surface existing content first, create new content only when nothing existing covers the gap.** This prevents values and skills from growing redundantly across retros.
 
@@ -171,12 +172,19 @@ A. Assess whether Step 1 insights revealed **clear, recurring, or token/context-
     - Specify **what future context, effort, or friction it saves**
     - Keep recommendations minimal, concrete, and scoped
     - **Prefer structural enforcement over prose instructions.** If a correction was needed because something was forgotten mid-session, the fix should be a task, a skill invocation, or a dependency — not a paragraph to remember. Adding more text to a skill that was already ignored doesn't solve the problem.
+    - **"Documentation exists" is not a root cause.** If guidance existed but wasn't followed, the problem is placement or surfacing — not awareness. Ask: was the guidance in context at the moment of the decision? Was it buried in the middle of a long document? Could it be moved to a point-of-action location (task description, skill invocation, hook)? The fix is relocation or structural enforcement, not restating the rule louder.
     - **Route proposals to the right home:**
       - **Design values** (how to think about the game/code/player) → `docs/Values.md`
       - **Communication norms** (how to present, qualify, escalate) → CLAUDE.md Collaboration section. ≤15 words per bullet. Combine with thematically related existing bullets rather than adding new ones.
       - **Workflow-specific guardrails** (when to stop, what to check) → the relevant skill in `.claude/skills/`
       - **Technical notes** — broad patterns → `docs/architecture.md`; implementation-specific pitfalls → relevant skill or `memory/MEMORY.md`
       - Avoid mixing categories: communication norms don't belong in Values.md; design values don't belong in CLAUDE.md.
+    - **Placement determines effectiveness.** Guidance is only useful if it's in context at the moment of the decision. Rank placement options by proximity to the action:
+      1. **Task descriptions** — highest: read at execution time, can't be skipped
+      2. **Skill invocations / dependencies** — structural: the workflow forces the step to happen
+      3. **Top/bottom of skill files** — visible at load time, before context fills
+      4. **Middle of long documents** — lowest: subject to context rot, easily skipped
+      When proposing a change, name where it will live and why that location will be in context when it matters.
     - **Build on what exists** — if Values.md or a skill already covers the topic, propose strengthening (new example, broader wording, better placement) rather than creating parallel content. Cite what you found in Step 1.5. But if the actionable norm already exists where it's in context (CLAUDE.md, a skill), don't propose adding redundant examples to files that aren't in context during the relevant workflow.
     - **Match the target file's format and density.** Skills are terse reference outlines, not prose. Proposals should edit existing bullets or add short ones — not insert paragraphs into a file that uses bullet points. Show the exact edit (old text → new text). Aim for ≤15 new words per change when strengthening existing text.
 

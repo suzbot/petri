@@ -1842,7 +1842,14 @@ func (m Model) renderOrdersContent(expanded bool) []string {
 					if i == m.selectedTargetIndex {
 						prefix = selectPrefix
 					}
-					lines = append(lines, fmt.Sprintf("%s%d. %s", prefix, i+1, activity.Name))
+					displayName := activity.Name
+					switch category {
+					case "construction":
+						displayName = "Build " + strings.ToLower(activity.Name)
+					case "craft":
+						displayName = "Craft " + strings.ToLower(activity.Name)
+					}
+					lines = append(lines, fmt.Sprintf("%s%d. %s", prefix, i+1, displayName))
 				}
 			} else if m.selectedActivityIndex < len(orderableActivities) &&
 				orderableActivities[m.selectedActivityIndex].ID == "gather" {

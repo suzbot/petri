@@ -773,6 +773,18 @@ func itemFromSave(is save.ItemSave, registry *game.VarietyRegistry) *entity.Item
 		item.Kind = "tall grass"
 	}
 
+	// Backward compat: old saves don't have Name on sticks/grass
+	if item.Name == "" {
+		switch item.ItemType {
+		case "stick":
+			item.Name = "stick"
+		case "grass":
+			if item.Kind == "tall grass" {
+				item.Name = "tall grass"
+			}
+		}
+	}
+
 	return item
 }
 

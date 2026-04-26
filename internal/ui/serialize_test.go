@@ -1105,6 +1105,62 @@ func TestGrassMigration_OldSaveWithoutKind(t *testing.T) {
 	}
 }
 
+func TestStickMigration_OldSaveWithoutName(t *testing.T) {
+	t.Parallel()
+
+	m := createTestModel()
+
+	oldStick := entity.NewStick(36, 36)
+	oldStick.Name = "" // Simulate old save without Name field
+	m.gameMap.AddItem(oldStick)
+
+	state := m.ToSaveState()
+
+	for i := range state.Items {
+		if state.Items[i].ItemType == "stick" && state.Items[i].Position.X == 36 {
+			state.Items[i].Name = ""
+		}
+	}
+
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	restoredStick := restored.gameMap.ItemAt(types.Position{X: 36, Y: 36})
+	if restoredStick == nil {
+		t.Fatal("Expected stick at (36,36)")
+	}
+	if restoredStick.Name != "stick" {
+		t.Errorf("Expected Name migrated to 'stick', got %q", restoredStick.Name)
+	}
+}
+
+func TestGrassMigration_OldSaveWithoutName(t *testing.T) {
+	t.Parallel()
+
+	m := createTestModel()
+
+	oldGrass := entity.NewGrass(37, 37)
+	oldGrass.Name = "" // Simulate old save without Name field
+	m.gameMap.AddItem(oldGrass)
+
+	state := m.ToSaveState()
+
+	for i := range state.Items {
+		if state.Items[i].ItemType == "grass" && state.Items[i].Position.X == 37 {
+			state.Items[i].Name = ""
+		}
+	}
+
+	restored := FromSaveState(state, "test-world", m.testCfg)
+
+	restoredGrass := restored.gameMap.ItemAt(types.Position{X: 37, Y: 37})
+	if restoredGrass == nil {
+		t.Fatal("Expected grass at (37,37)")
+	}
+	if restoredGrass.Name != "tall grass" {
+		t.Errorf("Expected Name migrated to 'tall grass', got %q", restoredGrass.Name)
+	}
+}
+
 func TestSeedSerialization_SourceVarietyID_RoundTrip(t *testing.T) {
 	t.Parallel()
 

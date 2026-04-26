@@ -20,9 +20,17 @@ then they can be removed from this list.
 
 ## Tech Stuff
 
+## Flaky Tests
+
+1. **TestSpawnClay_CountInRange** (internal/game/world_test.go) — intermittently fails when clay spawn count falls outside 6-10 range. Probabilistic bounds may be too tight.
+
 ## Bugs to Investigate
 
 1. **Fill vessel abandoned mid-trip** — Observed character picking up a vessel for water, heading toward the pond, then abandoning the fill-vessel intent partway there (wandered off to talk instead). Needs investigation into why ActionFillVessel intent was dropped before reaching water. Observed during extract testing, world-test-extract - only investigate if user reports another instance.
+
+2. **Build fence ignores unlocked lines when locked lines exist** — Two characters with build fence orders sit idle (looking at sticks, not gathering materials) when locked lines are exhausted but unlocked lines with available materials exist. Save evidence (world-test-step12a): line 3 has no material set, bricks and sticks on ground, characters know brick-fence and stick-fence recipes. Possibly the intent finder only evaluates locked lines first and never falls through to unlocked ones, or the transient nil guard prevents abandonment without triggering re-evaluation of unlocked lines.
+
+3. **Material lock stamps too early** — `selectConstructionMaterial` stamps material onto an entire line when a character first evaluates it, before any tile is built. If that material runs out before any construction happens, the line is permanently locked to an unavailable material. Save evidence (world-test-step12a): line 2 locked to grass with no tiles built. Consider: should stamping happen at build time instead of selection time? Or should locked-but-exhausted lines be unlockable?
 
 ## Unallocated Features
 
